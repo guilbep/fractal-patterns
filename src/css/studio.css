@@ -1,0 +1,27 @@
+/* Wallpaper Studio only. The layout reuses the pattern tool's sticky toolbar and pinned stage. */
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s1) var(--s3);
+  padding: var(--s2) var(--s3);
+}
+.wall {
+  flex: 1;
+  background-repeat: repeat;
+}
+.zoom {
+  margin: 0;
+}
+.repeat-desc {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.families {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0 var(--s3);
+}
+.summary {
+  margin: 0;
+}

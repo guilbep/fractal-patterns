@@ -138,6 +138,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   <header class="site-header">
     <p class="brand"><img class="logo" :src="LOGO_URI" alt="" width="28" height="28">{{ APP_NAME }}</p>
     <p class="tagline">Seeded fractal tiles for CSS backgrounds, with contrast you can trust.</p>
+    <p><a href="./studio.html">Wallpaper Studio</a></p>
   </header>
 
   <div ref="bar" class="toolbar" role="toolbar" aria-label="Design actions">

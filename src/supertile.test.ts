@@ -51,10 +51,28 @@ test('variantSeeds: 4 distinct unsigned 32-bit ints, deterministic, first is the
   }
 });
 
-test('VARIANT_KINDS: the 9 kinds, all known', () => {
-  assert.deepEqual([...VARIANT_KINDS].sort(), ['carpet', 'fold', 'htree', 'koch', 'quadtree', 'sierpinski', 'stitch', 'tree', 'whirl']);
+test('VARIANT_KINDS: the 16 kinds, all known', () => {
+  assert.deepEqual([...VARIANT_KINDS].sort(), [
+    'basket',
+    'brick',
+    'carpet',
+    'fold',
+    'herringbone',
+    'hex',
+    'htree',
+    'koch',
+    'nested',
+    'quadtree',
+    'sierpinski',
+    'stack',
+    'stitch',
+    'tree',
+    'trinet',
+    'whirl',
+  ]);
   assert.equal(canVary('tree'), true);
-  assert.equal(canVary('herringbone'), false);
+  assert.equal(canVary('herringbone'), true);
+  assert.equal(canVary('dots'), false);
   for (const k of VARIANT_KINDS) assert.ok((KINDS as readonly string[]).includes(k), k);
 });
 
@@ -142,8 +160,67 @@ test('edge agreement for every VARIANT_KINDS kind', () => {
   assert.deepEqual(Object.fromEntries(failing), {});
 });
 
+// Boundary signature of one edge (axis 0: x = at, axis 1: y = at): the sorted, merged positions
+// along the edge where a segment touches or crosses it, and the [start, end] intervals of the
+// segments that lie along it.
+interface Signature {
+  readonly points: number[];
+  readonly spans: [number, number][];
+}
+function signature(geo: Cell, axis: 0 | 1, at: number): Signature {
+  const o: 0 | 1 = axis === 0 ? 1 : 0;
+  const on = (p: Pt) => Math.abs(p[axis] - at) < EPS;
+  const raw: number[] = [];
+  const spans: [number, number][] = [];
+  for (const poly of geo) {
+    for (const p of poly) if (on(p)) raw.push(p[o]);
+    for (let i = 1; i < poly.length; i++) {
+      const a = poly[i - 1]!;
+      const b = poly[i]!;
+      if (on(a) && on(b)) spans.push([Math.min(a[o], b[o]), Math.max(a[o], b[o])]);
+      else if (!on(a) && !on(b) && (a[axis] - at) * (b[axis] - at) < 0) {
+        const t = (at - a[axis]) / (b[axis] - a[axis]);
+        raw.push(a[o] + t * (b[o] - a[o]));
+      }
+    }
+  }
+  raw.sort((x, y) => x - y);
+  const points = raw.filter((v, i) => i === 0 || v - raw[i - 1]! >= EPS);
+  spans.sort((x, y) => x[0] - y[0] || x[1] - y[1]);
+  return { points, spans };
+}
+const near = (x: readonly number[], y: readonly number[]) => x.length === y.length && x.every((v, i) => Math.abs(v - y[i]!) < EPS);
+const sameSig = (a: Signature, b: Signature) =>
+  near(a.points, b.points) && a.spans.length === b.spans.length && a.spans.every((s, i) => near(s, b.spans[i]!));
+// Full border line kinds: a point on the neighbor's border segment counts as matched.
+const BORDER_KINDS: readonly string[] = ['quadtree', 'sierpinski'];
+const coveredSig = (a: Signature, b: Signature) =>
+  a.points.every((v) => b.points.some((w) => Math.abs(v - w) < EPS) || b.spans.some(([lo, hi]) => v >= lo - EPS && v <= hi + EPS));
+
+test('boundary signatures agree for every VARIANT_KINDS kind, seeds 1..8 pairwise', () => {
+  const size = 60;
+  const failing: Record<string, string> = {};
+  for (const kind of VARIANT_KINDS)
+    for (const depth of new Set([2, MAX_DEPTH[kind]].map((d) => Math.min(d, MAX_DEPTH[kind])))) {
+      const sigs = Array.from({ length: 8 }, (_, i) => {
+        const geo = geometry({ kind, seed: i + 1, depth, size });
+        return { left: signature(geo, 0, 0), right: signature(geo, 0, size), top: signature(geo, 1, 0), bottom: signature(geo, 1, size) };
+      });
+      const match = BORDER_KINDS.includes(kind) ? (a: Signature, b: Signature) => coveredSig(a, b) && coveredSig(b, a) : sameSig;
+      for (let a = 0; a < 8; a++)
+        for (let b = 0; b < 8; b++) {
+          const A = sigs[a]!;
+          const B = sigs[b]!;
+          if (!failing[kind] && !(match(A.right, B.left) && match(A.bottom, B.top)))
+            failing[kind] =
+              `depth ${depth} seeds ${a + 1}|${b + 1}: right ${JSON.stringify(A.right)} left ${JSON.stringify(B.left)} bottom ${JSON.stringify(A.bottom)} top ${JSON.stringify(B.top)}`;
+        }
+    }
+  assert.deepEqual(failing, {});
+});
+
 test('superTileSvg throws RangeError for a kind that cannot vary', () => {
-  assert.throws(() => superTileSvg({ ...base, kind: 'herringbone' }), RangeError);
+  assert.throws(() => superTileSvg({ ...base, kind: 'dots' }), RangeError);
 });
 
 test('superTileBytes: tree at depth 6 is much smaller than the expanded picture', () => {

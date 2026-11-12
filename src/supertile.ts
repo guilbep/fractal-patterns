@@ -3,7 +3,24 @@
 import { generate, geometry, type Kind } from './fractal.ts';
 import { pathData } from './scene.ts';
 
-export const VARIANT_KINDS: readonly Kind[] = ['carpet', 'tree', 'fold', 'htree', 'stitch', 'whirl', 'koch', 'quadtree', 'sierpinski'];
+export const VARIANT_KINDS: readonly Kind[] = [
+  'carpet',
+  'tree',
+  'fold',
+  'htree',
+  'stitch',
+  'whirl',
+  'koch',
+  'quadtree',
+  'sierpinski',
+  'brick',
+  'stack',
+  'herringbone',
+  'basket',
+  'hex',
+  'trinet',
+  'nested',
+];
 export const canVary = (kind: Kind): boolean => VARIANT_KINDS.includes(kind);
 
 export const VARIANTS = 4;

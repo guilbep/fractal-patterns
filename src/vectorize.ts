@@ -86,11 +86,15 @@ export interface TraceOptions {
 const length = (poly: readonly Pt[]) =>
   poly.slice(1).reduce((s, [x, y], i) => s + Math.hypot(x - (poly[i]?.[0] ?? x), y - (poly[i]?.[1] ?? y)), 0);
 
+// Image pixel coordinates to tile coordinates: tile = offset + pixel * s.
+export function tileScale(width: number, height: number, size: number, fit?: 'contain' | 'cover'): { s: number; ox: number; oy: number } {
+  const s = size / (fit === 'cover' ? Math.min(width, height) : Math.max(width, height));
+  return { s, ox: (size - width * s) / 2, oy: (size - height * s) / 2 };
+}
+
 export function vectorize(map: Uint8Array, width: number, height: number, o: TraceOptions): Pt[][] {
   const cover = o.fit === 'cover';
-  const s = o.size / (cover ? Math.min(width, height) : Math.max(width, height));
-  const ox = (o.size - width * s) / 2;
-  const oy = (o.size - height * s) / 2;
+  const { s, ox, oy } = tileScale(width, height, o.size, o.fit);
   return chains(map, width, height)
     .map((c) => c.map(([x, y]): Pt => [ox + x * s, oy + y * s]))
     .flatMap((c) => (cover ? clipToTile(c, o.size) : [c]))

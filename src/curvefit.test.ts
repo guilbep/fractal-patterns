@@ -2,7 +2,18 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { curvePathData, curveScore, fieldGradient, fitCurves, maxError, refine, sampleField, type Cubic, type Field } from './curvefit.ts';
+import {
+  curvePathData,
+  curveScore,
+  fieldGradient,
+  fitCurves,
+  maxError,
+  refine,
+  sampleField,
+  smoothChain,
+  type Cubic,
+  type Field,
+} from './curvefit.ts';
 import { mulberry32, type Pt } from './patterns/util.ts';
 
 const circle = (r: number, n: number, cx = 0, cy = 0): Pt[] => {
@@ -92,6 +103,11 @@ test('curvePathData: relative c, Z for a closed chain, no newline', () => {
   assert.ok(d.endsWith('Z') && !d.includes('\n'), d);
 });
 
+test('curvePathData: a joint at a non-round point stays in one sub-path', () => {
+  const d = curvePathData([fitCurves(circle(20, 64, 0.123, 0.456), 0.5)], 1);
+  assert.equal(d.match(/M/g)?.length, 1, d);
+});
+
 test('sampleField and fieldGradient', () => {
   const f: Field = { width: 2, height: 2, data: Float32Array.from([1, 2, 3, 5]) };
   assert.equal(sampleField(f, 0, 0), 1);
@@ -113,7 +129,9 @@ const start = fitCurves(circle(17, 64, 32, 32), 0.5);
 const opts = { steps: 60, rate: 10, smooth: 0.0001 };
 
 test('refine pulls a curve onto a ring ridge', () => {
-  const out = refine(start, ring, opts);
+  // The ridge lies 3 units out and the handles of this 2 cubic circle must move about 4: lift the default drift cap
+  // (2.5) to the 60 units this test already bounds the drift by.
+  const out = refine(start, ring, { ...opts, maxDrift: 60 });
   assert.ok(curveScore(out, ring) > curveScore(start, ring));
   let sum = 0;
   for (let i = 0; i < 64; i++) {
@@ -135,6 +153,93 @@ test('refine is deterministic and finite', () => {
   for (const rate of [0.1, 1, 10]) {
     for (const c of refine(start, ring, { ...opts, rate })) for (const p of c) assert.ok(Number.isFinite(p[0]) && Number.isFinite(p[1]));
   }
+});
+
+test('smoothChain: open ends stay, closed stays closed, sigma 0 copies', () => {
+  const open: Pt[] = Array.from({ length: 30 }, (_, i): Pt => [i, (i % 3) - 1]);
+  const o = smoothChain(open, 1.5);
+  assert.deepEqual(o[0], open[0]);
+  assert.deepEqual(o[o.length - 1], open[open.length - 1]);
+  const c = smoothChain(circle(20, 64), 1);
+  assert.deepEqual(c[c.length - 1], c[0]);
+  const copy = smoothChain(open, 0);
+  assert.deepEqual(copy, open);
+  assert.notEqual(copy, open);
+});
+
+test('smoothChain removes a pixel staircase and keeps a circle', () => {
+  // 40 stairs along a 45 degree diagonal; the ideal line runs through the step midpoints: y = x - 0.5.
+  const stairs: Pt[] = [];
+  for (let k = 0; k < 40; k++) stairs.push([k, k], [k + 1, k]);
+  const dist = (p: Pt) => Math.abs(p[0] - p[1] - 0.5) / Math.SQRT2;
+  const inner = (ps: Pt[]) => Math.max(...ps.slice(1, -1).map(dist)); // the two ends are pinned by design
+  const before = inner(stairs);
+  const sm = smoothChain(stairs, 1.5);
+  const after = inner(sm);
+  console.log(`staircase max distance: before ${before.toFixed(3)}, after ${after.toFixed(3)} (ends ${dist(sm[0]!).toFixed(3)})`);
+  assert.ok(after < 0.25, `${after}`);
+  for (const r of [circle(20, 64), circle(20, 126)]) {
+    const s = smoothChain(r, 1).slice(0, -1);
+    const mean = s.reduce((a, p) => a + Math.hypot(p[0], p[1]), 0) / s.length;
+    assert.ok(mean > 19.6, `${mean}`);
+  }
+});
+
+const sampleCubics = (cs: readonly Cubic[]) =>
+  cs.flatMap((c) =>
+    Array.from({ length: 17 }, (_, i): Pt => {
+      const u = i / 16;
+      const s = 1 - u;
+      const b = [s * s * s, 3 * s * s * u, 3 * s * u * u, u * u * u];
+      return [b.reduce((a, w, j) => a + w * c[j]![0], 0), b.reduce((a, w, j) => a + w * c[j]![1], 0)];
+    }),
+  );
+
+test('refine pins the ends of an open arc and caps the drift', () => {
+  const half = circle(17, 64, 32, 32).slice(0, 33);
+  const arc = fitCurves(half, 0.5);
+  const out = refine(arc, ring, opts);
+  assert.deepEqual(out[0]![0], arc[0]![0]);
+  assert.deepEqual(out[out.length - 1]![3], arc[arc.length - 1]![3]);
+  out.forEach((c, k) =>
+    c.forEach((p, j) => assert.ok(Math.hypot(p[0] - arc[k]![j]![0], p[1] - arc[k]![j]![1]) <= 2.5 + 1e-9, `${k} ${j}`)),
+  );
+});
+
+test('refine: a curve moves the same alone or with 50 other curves', () => {
+  const one = fitCurves(circle(17, 64, 32, 32).slice(0, 17), 0.5).slice(0, 1);
+  const others: Cubic[] = Array.from({ length: 50 }, (_, k): Cubic => [
+    [1 + k * 0.1, 2],
+    [1.2 + k * 0.1, 2.1],
+    [1.4 + k * 0.1, 2.1],
+    [1.6 + k * 0.1, 2],
+  ]);
+  const alone = refine(one, ring, opts)[0]!;
+  const together = refine([...one, ...others], ring, opts)[0]!;
+  alone.forEach((p, j) => assert.ok(Math.hypot(p[0] - together[j]![0], p[1] - together[j]![1]) < 1e-9, `${j}`));
+  assert.notDeepEqual(alone, one[0]);
+});
+
+test('refine: a short stroke on a straight ridge does not hook into a crossing ridge', () => {
+  // A ridge along y = 32 and a crossing ridge along x = 36, one px past the end of the stroke.
+  const cross: Field = {
+    width: 64,
+    height: 64,
+    data: Float32Array.from({ length: 64 * 64 }, (_, i) =>
+      Math.max(Math.exp(-((Math.floor(i / 64) - 32) ** 2) / 8), Math.exp(-(((i % 64) - 36) ** 2) / 8)),
+    ),
+  };
+  const stroke = fitCurves(
+    [
+      [29, 32],
+      [31, 32],
+      [33, 32],
+      [35, 32],
+    ],
+    0.5,
+  );
+  const out = refine(stroke, cross, opts);
+  for (const p of sampleCubics(out)) assert.ok(Math.abs(p[1] - 32) <= 0.3 && p[0] >= 29 - 0.3 && p[0] <= 35 + 0.3, `${p}`);
 });
 
 test('module hygiene', () => {

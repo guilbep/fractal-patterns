@@ -125,7 +125,6 @@ function fitPiece(pts: readonly Pt[], t1: Pt, t2: Pt, tol: number, out: Cubic[])
   fitPiece(pts.slice(i), mul(tc, -1), t2, tol, out);
 }
 
-const WINDOW = 2; // ponytail: corner window in points, not in px; fine for the simplified traced polylines.
 const CORNER = (60 * Math.PI) / 180;
 const SMOOTH_START = (30 * Math.PI) / 180;
 
@@ -137,27 +136,88 @@ function turn(a: Pt, b: Pt, c: Pt): number {
   return lu === 0 || lv === 0 ? 0 : Math.acos(Math.max(-1, Math.min(1, dot(u, v) / (lu * lv))));
 }
 
-export function fitCurves(poly: readonly Pt[], tolerance: number): Cubic[] {
+const isClosed = (pts: readonly Pt[]) => pts.length > 3 && same(pts[0]!, pts[pts.length - 1]!);
+
+// Gaussian weighted moving average along the chain, by arc length. Open: the two ends stay. Closed: wraps across the joint.
+export function smoothChain(poly: readonly Pt[], sigma: number): Pt[] {
+  if (sigma <= 0 || poly.length < 3) return poly.map((p) => [p[0], p[1]] as Pt);
+  const closed = isClosed(poly);
+  const ring = closed ? poly.slice(0, -1) : poly;
+  const n = ring.length;
+  const reach = 3 * sigma;
+  const out = ring.map((p, i): Pt => {
+    if (!closed && (i === 0 || i === n - 1)) return [p[0], p[1]];
+    let sx = p[0];
+    let sy = p[1];
+    let sw = 1;
+    for (const dir of [-1, 1]) {
+      let d = 0;
+      for (let k = 1; k < n; k++) {
+        const j = i + dir * k;
+        if (!closed && (j < 0 || j >= n)) break;
+        const a = ring[(((j - dir) % n) + n) % n]!;
+        const b = ring[((j % n) + n) % n]!;
+        d += len(sub(b, a));
+        if (d > reach) break;
+        const w = Math.exp(-(d * d) / (2 * sigma * sigma));
+        sx += w * b[0];
+        sy += w * b[1];
+        sw += w;
+      }
+    }
+    return [sx / sw, sy / sw];
+  });
+  return closed ? [...out, [out[0]![0], out[0]![1]]] : out;
+}
+
+// The corner test: turn between the directions over `window` units of arc length before and after each point.
+export function fitCurves(poly: readonly Pt[], tolerance: number, window = 3): Cubic[] {
   const pts = poly.filter((p, i) => i === 0 || !same(p, poly[i - 1]!));
   if (pts.length < 2) return [];
-  const closed = pts.length > 3 && same(pts[0]!, pts[pts.length - 1]!);
+  const closed = isClosed(pts);
   const ring = closed ? pts.slice(0, -1) : pts; // distinct points; for a closed one, indices wrap
   const n = ring.length;
   const get = (i: number) => ring[((i % n) + n) % n]!;
+  // Walk `w` units of arc from point i; returns the point reached and the arc length walked (short at an open end).
+  const walk = (i: number, dir: number, w: number): [Pt, number] => {
+    let p = get(i);
+    let d = 0;
+    for (let k = 1; k < n; k++) {
+      const j = i + dir * k;
+      if (!closed && (j < 0 || j >= n)) break;
+      const q = get(j);
+      const l = len(sub(q, p));
+      if (d + l >= w) return [add(p, mul(sub(q, p), (w - d) / l)), w];
+      d += l;
+      p = q;
+    }
+    return [p, d];
+  };
   const turns = ring.map((p, i) => {
-    const w = closed ? WINDOW : Math.min(WINDOW, i, n - 1 - i);
-    return w === 0 ? 0 : turn(get(i - w), p, get(i + w));
+    let w = Math.min(window, walk(i, -1, window)[1], walk(i, 1, window)[1]);
+    if (w <= 0) return 0;
+    if (closed) w = window;
+    return turn(walk(i, -1, w)[0], p, walk(i, 1, w)[0]);
   });
+  const arc = [0];
+  for (let i = 1; i < n; i++) arc.push(arc[i - 1]! + len(sub(ring[i]!, ring[i - 1]!)));
   const corners: number[] = [];
   for (let i = 0; i < n; i++) {
     const t = turns[i] ?? 0;
     if (t <= CORNER) continue;
     let peak = true;
-    for (let k = -WINDOW; k <= WINDOW && peak; k++) {
-      const j = closed ? (((i + k) % n) + n) % n : i + k;
-      if (k !== 0 && j >= 0 && j < n && ((turns[j] ?? 0) > t || ((turns[j] ?? 0) === t && k < 0))) peak = false;
+    for (const dir of [-1, 1]) {
+      let d = 0;
+      for (let k = 1; k < n && peak; k++) {
+        const j = i + dir * k;
+        if (!closed && (j < 0 || j >= n)) break;
+        d += len(sub(get(j), get(j - dir)));
+        if (d > window) break;
+        const tj = turns[((j % n) + n) % n] ?? 0;
+        if (tj > t || (tj === t && dir < 0)) peak = false;
+      }
     }
-    if (peak && !(corners.length && i - corners[corners.length - 1]! <= WINDOW)) corners.push(i);
+    if (peak && !(corners.length && arc[i]! - arc[corners[corners.length - 1]!]! <= window)) corners.push(i);
   }
   let seq = pts;
   let smoothStart = false;
@@ -226,7 +286,7 @@ export function curvePathData(chains: readonly Cubic[][], precision: number): st
     d += 'M' + nums([...start]);
     const ns: number[] = [];
     for (const c of chain) {
-      if (!same(c[0], start) && ns.length) {
+      if (!same([r(c[0][0]), r(c[0][1])], start) && ns.length) {
         // A gap inside a chain: a new sub-path.
         d += 'c' + nums(ns);
         ns.length = 0;
@@ -276,8 +336,11 @@ export function curveScore(curves: readonly Cubic[], f: Field): number {
   return s / (curves.length * SAMPLES.length);
 }
 
-// Gradient ascent on mean(field along the curves) - smooth * sum |inner handle - chord third|^2.
-export function refine(curves: readonly Cubic[], f: Field, o: { steps: number; rate: number; smooth: number }): Cubic[] {
+// Gradient ascent on the field along the curves - smooth * sum |inner handle - chord third|^2.
+// The field part of each control point's step is divided by the sum of its own Bernstein weights, so a curve moves
+// the same whatever else is in the set. A free end (an end shared with no other curve) is pinned; its handle may
+// rotate but not grow past 1.5 times its start length. No control point ends more than maxDrift from its start.
+export function refine(curves: readonly Cubic[], f: Field, o: { steps: number; rate: number; smooth: number; maxDrift?: number }): Cubic[] {
   if (curves.length === 0 || o.steps <= 0) return curves.map((c) => [...c] as unknown as Cubic);
   // Unique points: a joint (end equal to the next start, or last end equal to first start) is one point.
   const pts: [number, number][] = [];
@@ -301,8 +364,31 @@ export function refine(curves: readonly Cubic[], f: Field, o: { steps: number; r
     const v = unit(sub(pts[next[1]]!, p), [0, 0]);
     if (len(u) > 0 && len(v) > 0 && dot(u, v) > 1 - 1e-6) joints.push([q[2], q[3], next[1]]);
   });
-  const n = idx.length * SAMPLES.length;
   const weights = SAMPLES.map(bern);
+  const wsum = pts.map(() => 0);
+  const uses = pts.map(() => 0);
+  for (const q of idx) {
+    q.forEach((i, j) => {
+      for (const w of weights) wsum[i]! += w[j]!;
+    });
+    uses[q[0]]!++;
+    uses[q[3]]!++;
+  }
+  // Free ends and their handles, with the handle length cap.
+  const pinned = new Set<number>();
+  const ends: [number, number, number][] = [];
+  for (const q of idx) {
+    for (const [e, h] of [
+      [q[0], q[1]],
+      [q[3], q[2]],
+    ] as const) {
+      if (uses[e] !== 1) continue;
+      pinned.add(e);
+      ends.push([e, h, 1.5 * len(sub(pts[h]!, pts[e]!))]);
+    }
+  }
+  const origin = pts.map((p): Pt => [p[0], p[1]]);
+  const maxDrift = o.maxDrift ?? 2.5;
   for (let step = 0; step < o.steps; step++) {
     const g = pts.map((): [number, number] => [0, 0]);
     for (const q of idx) {
@@ -310,8 +396,8 @@ export function refine(curves: readonly Cubic[], f: Field, o: { steps: number; r
       weights.forEach((w, s) => {
         const [gx, gy] = fieldGradient(f, ...at(c, SAMPLES[s]!));
         q.forEach((i, j) => {
-          g[i]![0] += (w[j]! * gx) / n;
-          g[i]![1] += (w[j]! * gy) / n;
+          g[i]![0] += (w[j]! * gx) / wsum[i]!;
+          g[i]![1] += (w[j]! * gy) / wsum[i]!;
         });
       });
       const [p0, p1, p2, p3] = c;
@@ -331,6 +417,7 @@ export function refine(curves: readonly Cubic[], f: Field, o: { steps: number; r
       }
     }
     pts.forEach((p, i) => {
+      if (pinned.has(i)) return;
       let m = mul(g[i]!, o.rate);
       const l = len(m);
       if (!Number.isFinite(l)) return;
@@ -347,6 +434,16 @@ export function refine(curves: readonly Cubic[], f: Field, o: { steps: number; r
       pts[hi] = [p[0] - d[0] * a, p[1] - d[1] * a];
       pts[ho] = [p[0] + d[0] * b, p[1] + d[1] * b];
     }
+    for (const [e, h, cap] of ends) {
+      const v = sub(pts[h]!, pts[e]!);
+      const l = len(v);
+      if (l > cap) pts[h] = [...add(pts[e]!, mul(v, cap / l))];
+    }
+    pts.forEach((p, i) => {
+      const v = sub(p, origin[i]!);
+      const l = len(v);
+      if (l > maxDrift) pts[i] = [...add(origin[i]!, mul(v, maxDrift / l))];
+    });
   }
   return idx.map((q) => q.map((i) => [...pts[i]!] as Pt) as unknown as Cubic);
 }

@@ -28,15 +28,26 @@ export function pickRoles(colors: readonly string[]): Roles {
   }
   const [a, b] = best!;
   const [background, text] = relativeLuminance(a) >= relativeLuminance(b) ? [a, b] : [b, a];
+  // Rank at PICK_OPACITY: visible and AA first, then visible, then the most visible.
+  // Within the first two tiers the calmest pattern (highest worst text contrast) wins.
   let pattern = text;
-  let patternRatio = -1;
+  let bestKey: [number, number] | undefined;
   for (const c of colors) {
     if (c === background || c === text) continue;
-    const r = contrastRatio(c, text);
-    if (r > patternRatio) [pattern, patternRatio] = [c, r];
+    const r = { background, pattern: c, text };
+    const visible = patternContrast(r, PICK_OPACITY) >= PATTERN_VISIBLE_MIN;
+    const worst = worstTextContrast(r, PICK_OPACITY);
+    const key: [number, number] = visible
+      ? [worst >= 4.5 ? 2 : 1, worst]
+      : [0, patternContrast(r, PICK_OPACITY)];
+    if (!bestKey || key[0] > bestKey[0] || (key[0] === bestKey[0] && key[1] > bestKey[1])) {
+      [pattern, bestKey] = [c, key];
+    }
   }
   return { background, pattern, text };
 }
+
+export const PICK_OPACITY = 0.6;
 
 export function swapRoles(r: Roles): Roles {
   return { background: r.text, pattern: r.pattern, text: r.background };
@@ -105,4 +116,36 @@ export function fixWithPlate(r: Roles, opacity: number, plate: number, target = 
   // Plate 1 hides the pattern: only the text against the bare background is left.
   const f = fixContrast(r, 0, target);
   return { text: f.text, plate: 1, ratio: plateContrast({ ...r, text: f.text }, opacity, 1), reached: f.reached };
+}
+
+export interface SplitFix {
+  readonly text: string;
+  readonly plate: number;
+  readonly opacity: number;
+  readonly paragraph: number;
+  readonly heading: number;
+  readonly reached: boolean;
+}
+
+// WCAG large-text threshold that goes with a normal-text target.
+export function largeTarget(target: number): number {
+  return target <= 4.5 ? 3 : 4.5;
+}
+
+// Split layout: the paragraph sits on a plate, the heading on the bare pattern.
+export function fixSplit(r: Roles, opacity: number, plate: number, target = 4.5): SplitFix {
+  const large = largeTarget(target);
+  const fixHeading = (text: string, o: number): Fix => fixContrast({ ...r, text }, o, large);
+  let { text, opacity: o } = fixHeading(r.text, opacity);
+  const p = fixWithPlate({ ...r, text }, o, plate, target);
+  text = p.text;
+  // Step 3 only changes the text at plate 1, where the paragraph no longer depends on the opacity,
+  // and at opacity 0 the heading equals the text against the background: lowering the opacity ends.
+  while (worstTextContrast({ ...r, text }, o) < large && o > 0) o = Math.max(0, o - OPACITY_STEP);
+  // Round away float noise (0.6499999), never above the input.
+  o = Math.min(opacity, Math.round(o * 100) / 100);
+  const final = { ...r, text };
+  const paragraph = plateContrast(final, o, p.plate);
+  const heading = worstTextContrast(final, o);
+  return { text, plate: p.plate, opacity: o, paragraph, heading, reached: paragraph >= target && heading >= large };
 }

@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PALETTES } from './palettes.ts';
-import { PATTERN_VISIBLE_MIN, fixContrast, fixWithPlate, patternContrast, patternInvisible, pickRoles, plateContrast, swapRoles, worstTextContrast, type Roles } from './pairing.ts';
+import { contrastRatio, relativeLuminance } from './contrast.ts';
+import { PATTERN_VISIBLE_MIN, PICK_OPACITY, fixContrast, fixSplit, fixWithPlate, largeTarget,patternContrast, patternInvisible, pickRoles, plateContrast, swapRoles, worstTextContrast, type Roles } from './pairing.ts';
 
 const OPACITIES = [0.1, 0.4, 1];
 
@@ -149,4 +150,107 @@ test('fixWithPlate reaches 4.5 for every palette', () => {
     assert.ok(f.plate >= 0 && f.plate <= 1, `${p.name}: plate ${f.plate}`);
     near(f.ratio, plateContrast({ ...r, text: f.text }, 1, f.plate), p.name);
   }
+});
+
+const others = (colors: readonly string[], r: Roles) => colors.filter((c) => c !== r.background && c !== r.text);
+const visibleAt = (r: Roles, c: string) => patternContrast({ ...r, pattern: c }, 0.6) >= 1.2;
+const readableAt = (r: Roles, c: string) => worstTextContrast({ ...r, pattern: c }, 0.6) >= 4.5;
+
+test('pickRoles picks a visible pattern when the palette has one', () => {
+  for (const p of PALETTES) {
+    const r = pickRoles(p.colors);
+    if (others(p.colors, r).some((c) => visibleAt(r, c))) {
+      assert.equal(patternInvisible(r, 0.6), false, `${p.name}: pattern ${r.pattern}`);
+    }
+  }
+});
+
+test('pickRoles prefers a visible pattern that keeps the text at AA', () => {
+  for (const p of PALETTES) {
+    const r = pickRoles(p.colors);
+    if (others(p.colors, r).some((c) => visibleAt(r, c) && readableAt(r, c))) {
+      assert.ok(visibleAt(r, r.pattern) && readableAt(r, r.pattern), `${p.name}: pattern ${r.pattern}`);
+    }
+  }
+});
+
+test('pickRoles keeps the highest-contrast pair as background and text', () => {
+  for (const p of PALETTES) {
+    const r = pickRoles(p.colors);
+    let max = -1;
+    for (const a of p.colors) for (const b of p.colors) max = Math.max(max, contrastRatio(a, b));
+    assert.equal(contrastRatio(r.background, r.text), max, p.name);
+    assert.ok(relativeLuminance(r.background) >= relativeLuminance(r.text), p.name);
+  }
+});
+
+test('pickRoles leaves at most 3 palettes with an invisible pattern', () => {
+  const invisible = PALETTES.filter((p) => patternInvisible(pickRoles(p.colors), 0.6)).map((p) => p.name);
+  assert.ok(invisible.length <= 3, invisible.join(', '));
+});
+
+test('PICK_OPACITY and largeTarget', () => {
+  assert.equal(PICK_OPACITY, 0.6);
+  assert.equal(largeTarget(4.5), 3);
+  assert.equal(largeTarget(7), 4.5);
+  assert.equal(largeTarget(3), 3);
+});
+
+test('fixSplit leaves a passing combination unchanged', () => {
+  const f = fixSplit({ background: '#ffffff', pattern: '#dddddd', text: '#000000' }, 0.6, 0.85);
+  assert.equal(f.text, '#000000');
+  assert.equal(f.plate, 0.85);
+  assert.equal(f.opacity, 0.6);
+  assert.equal(f.reached, true);
+});
+
+test('fixSplit reaches both thresholds for every palette, both variants', () => {
+  for (const p of PALETTES) {
+    const roles = pickRoles(p.colors);
+    for (const [variant, r] of [['light', roles], ['dark', swapRoles(roles)]] as const) {
+      const name = `${p.name} (${variant})`;
+      const f = fixSplit(r, 1, 0);
+      assert.equal(f.reached, true, name);
+      assert.ok(f.paragraph >= 4.5, `${name}: paragraph ${f.paragraph}`);
+      assert.ok(f.heading >= 3, `${name}: heading ${f.heading}`);
+      assert.ok(f.opacity <= 1 && f.plate >= 0, `${name}: opacity ${f.opacity}, plate ${f.plate}`);
+      const t = { ...r, text: f.text };
+      assert.ok(Math.abs(f.paragraph - plateContrast(t, f.opacity, f.plate)) < 1e-9, name);
+      assert.ok(Math.abs(f.heading - worstTextContrast(t, f.opacity)) < 1e-9, name);
+    }
+  }
+});
+
+test('fixSplit at target 7 never claims reached with a failing value', () => {
+  for (const p of PALETTES) {
+    const f = fixSplit(pickRoles(p.colors), 1, 0, 7);
+    if (f.reached) assert.ok(f.paragraph >= 7 && f.heading >= 4.5, `${p.name}: ${f.paragraph}, ${f.heading}`);
+  }
+});
+
+const assertSplitReached = (r: Roles, name: string) => {
+  const f = fixSplit(r, 1, 0);
+  assert.equal(f.reached, true, name);
+  assert.ok(f.paragraph >= 4.5 && f.heading >= 3, `${name}: paragraph ${f.paragraph}, heading ${f.heading}`);
+};
+
+test('fixSplit does not flip the text between heading and paragraph (named palettes)', () => {
+  for (const [name, swap] of [["Purple 90's", true], ['Photographic Memory', true], ['Stark Contrast', false]] as const) {
+    const p = PALETTES.find((q) => q.name === name);
+    if (!p) continue; // the palette list may change later
+    const roles = pickRoles(p.colors);
+    assertSplitReached(swap ? swapRoles(roles) : roles, name);
+  }
+});
+
+test('fixSplit does not flip the text between heading and paragraph (literal roles)', () => {
+  assertSplitReached({ background: '#8458b3', pattern: '#d0bdf4', text: '#e5eaf5' }, 'literal');
+});
+
+test('fixSplit fixes a heading that fails on the bare pattern', () => {
+  const r = { background: '#ffffff', pattern: '#000000', text: '#000000' };
+  const f = fixSplit(r, 1, 1);
+  assert.equal(f.reached, true);
+  assert.ok(f.heading >= 3, `heading ${f.heading}`);
+  assert.ok(f.opacity < 1 || f.text !== r.text, `opacity ${f.opacity}, text ${f.text}`);
 });

@@ -18,6 +18,10 @@ export interface ScatterLayer {
   readonly scaleJitter: number;
   readonly rotate: 'free' | 'upright' | 'flow' | 'quarter';
   readonly flip: boolean;
+  /** 'flow' only: use the calm field of flowAngle. */
+  readonly calm?: boolean;
+  /** Draw candidates within `distance` of a placement of the earlier layer `layer`. */
+  readonly near?: { readonly layer: number; readonly distance: number };
 }
 
 const CANDIDATES = 12;
@@ -31,9 +35,17 @@ export function torusDistance(a: Pt, b: Pt, width: number, height: number): numb
 }
 
 // Three seeded plane waves with integer wave numbers: exactly periodic on the tile, in degrees.
-export function flowAngle(x: number, y: number, width: number, height: number, seed: number): number {
+// calm: two small waves of wave number 1 around one seeded main direction, so a sweep reads across the tile.
+export function flowAngle(x: number, y: number, width: number, height: number, seed: number, calm = false): number {
   const rnd = mulberry32(seed ^ 0x5bd1e995);
   let a = rnd() * 360;
+  if (calm) {
+    for (let i = 0; i < 2; i++) {
+      const [kx, ky] = i === 0 ? [1, 0] : [0, 1];
+      a += (8 + rnd() * 10) * Math.sin(TAU * ((kx * x) / width + (ky * y) / height) + rnd() * TAU);
+    }
+    return a;
+  }
   for (let i = 0; i < 3; i++) {
     const kx = Math.floor(rnd() * 5) - 2;
     const ky = i === 0 && kx === 0 ? 1 : Math.floor(rnd() * 5) - 2;
@@ -65,8 +77,16 @@ export function scatter(layers: readonly ScatterLayer[], o: { width: number; hei
         const scale = base * 0.9 ** t;
         const r = layer.radius * scale;
         let bestD = -Infinity;
+        const hosts = layer.near ? discs.filter((d) => d.layer === layer.near!.layer) : [];
         for (let k = 0; k < CANDIDATES; k++) {
-          const p: Pt = [rnd() * w, rnd() * h];
+          let p: Pt = [rnd() * w, rnd() * h];
+          if (hosts.length > 0) {
+            // ponytail: reuses the two uniform draws as host pick and angle, plus one for the distance.
+            const host = hosts[Math.floor((p[0] / w) * hosts.length)]!;
+            const a = (p[1] / h) * TAU;
+            const dist = Math.sqrt(rnd()) * layer.near!.distance;
+            p = [(((host.x + Math.cos(a) * dist) % w) + w) % w, (((host.y + Math.sin(a) * dist) % h) + h) % h];
+          }
           let ok = true;
           let nearest = Infinity;
           for (const d of discs) {
@@ -108,7 +128,7 @@ export function scatter(layers: readonly ScatterLayer[], o: { width: number; hei
             ? (2 * rot - 1) * 15
             : layer.rotate === 'quarter'
               ? 90 * Math.floor(rot * 4)
-              : flowAngle(x, y, w, h, o.seed);
+              : flowAngle(x, y, w, h, o.seed, layer.calm);
       discs.push({ x, y, r: layer.radius * scale, layer: li, motif });
       out.push({ motif, x, y, scale, rotate, flip: layer.flip && fl < 0.5 });
     }

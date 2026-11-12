@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { coverage, flowAngle, scatter, torusDistance, tracking, type Placement, type ScatterLayer } from './scatter.ts';
 
 const W = 240;
@@ -103,5 +104,47 @@ test('an impossible request ends quickly with fewer placements and no overlap', 
       const b = ps[j]!;
       assert.ok(torusDistance([a.x, a.y], [b.x, b.y], 100, 100) >= 100 * (a.scale + b.scale) + 2 - 1e-9);
     }
+  }
+});
+
+test('defaults unchanged: fixed outputs taken before calm and near existed', () => {
+  const L = (radius: number, count: number, rotate: ScatterLayer['rotate']): ScatterLayer => ({
+    motifs: [0, 1],
+    radius,
+    count,
+    scaleJitter: 0.2,
+    rotate,
+    flip: true,
+  });
+  const p = scatter([L(30, 5, 'flow'), L(12, 20, 'free')], { width: 240, height: 200, seed: 7, gap: 2 });
+  const hash = createHash('sha256').update(JSON.stringify(p)).digest('hex').slice(0, 16);
+  assert.equal(hash, 'cd917983b3c826d5');
+  assert.equal(flowAngle(13, 77, 240, 200, 7), 248.8871137321395);
+  assert.equal(flowAngle(13, 77, 240, 200, 7, false), 248.8871137321395);
+});
+
+test('calm flowAngle is periodic and turns less than the default field', () => {
+  for (let seed = 1; seed <= 8; seed++) {
+    const calm: number[] = [];
+    for (let i = 0; i < 20; i++) {
+      const x = (i * 37.3) % W;
+      const y = (i * 91.7) % 180;
+      const a = flowAngle(x, y, W, 180, seed, true);
+      assert.ok(Math.abs(a - flowAngle(x + W, y, W, 180, seed, true)) < 1e-9);
+      assert.ok(Math.abs(a - flowAngle(x, y + 180, W, 180, seed, true)) < 1e-9);
+      calm.push(a);
+    }
+    assert.ok(Math.max(...calm) - Math.min(...calm) <= 72);
+  }
+});
+
+test('near: every placement of the layer lies within the distance of a host placement', () => {
+  for (let seed = 1; seed <= 8; seed++) {
+    const p = run(seed, [layer(30, 5), layer(10, 15, { near: { layer: 0, distance: 50 } })]);
+    for (const q of p[1]!) {
+      const d = Math.min(...p[0]!.map((h) => torusDistance([q.x, q.y], [h.x, h.y], W, W)));
+      assert.ok(d <= 50 + 10 * q.scale, `seed ${seed} ${d}`);
+    }
+    assert.ok(p[1]!.length > 0);
   }
 });

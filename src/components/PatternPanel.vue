@@ -36,7 +36,7 @@ function jump(family: string): void {
       <template v-if="!canVary(params.kind)">Not available for this pattern yet.</template>
       <template v-else>Shows 4 variants in a 4 by 4 tile. The same picture comes back 4 times less often.</template>
       <template v-if="variants && canVary(params.kind) && hasCompat(params.kind)"> This pattern uses its fixed layout in this mode.</template>
-      <template v-if="variantBytes"> {{ variantBytes.svg.toLocaleString('en') }} bytes against {{ variantBytes.plain.toLocaleString('en') }} for one tile.</template>
+      <template v-if="variantBytes">{{ ' ' }}{{ variantBytes.svg.toLocaleString('en') }} bytes against {{ variantBytes.plain.toLocaleString('en') }} for one tile.</template>
     </p>
 
     <div v-if="layout === 'patchwork'" class="patchwork">

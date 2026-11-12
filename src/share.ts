@@ -25,6 +25,7 @@ export interface Design extends Motion {
   readonly cells: number;
   readonly frame: boolean;
   readonly families: number; // bit mask over FAMILIES in order, bit 0 = the first family
+  readonly variants: boolean; // Reduce repetition: a 4 by 4 super tile
 }
 // Not in the URL: pinned patchwork cells (a per-session tweak), the palette name (the roles carry the colors),
 // and the image source (the pixels never leave the browser).
@@ -54,6 +55,7 @@ export const DESIGN_DEFAULTS: Design = {
   cells: 3,
   frame: false,
   families: ALL_FAMILIES,
+  variants: false,
 };
 
 // Field to short key. The insertion order is the order of the encoded string.
@@ -85,6 +87,7 @@ const KEYS: Readonly<Record<keyof Design, string>> = {
   cells: 'c',
   frame: 'f',
   families: 'fa',
+  variants: 'v', // keep new keys last: older links stay valid
 };
 const FIELDS = Object.keys(KEYS) as (keyof Design)[];
 
@@ -118,7 +121,7 @@ export function decodeDesign(query: string): Design {
   };
   const oneOf = <T extends string>(f: keyof Design, values: readonly T[], fallback: T): T => values.find((v) => v === get(f)) ?? fallback;
   const kind = oneOf('kind', KINDS, D.kind);
-  const bool = (f: 'mirror' | 'frame'): boolean => (get(f) === '1' ? true : get(f) === '0' ? false : D[f]);
+  const bool = (f: 'mirror' | 'frame' | 'variants'): boolean => (get(f) === '1' ? true : get(f) === '0' ? false : D[f]);
   return {
     kind,
     seed: num('seed', 0, 0xffffffff, true),
@@ -147,6 +150,7 @@ export function decodeDesign(query: string): Design {
     cells: num('cells', 2, 4, true),
     frame: bool('frame'),
     families: num('families', 0, ALL_FAMILIES, true) || ALL_FAMILIES, // no family at all is not a design
+    variants: bool('variants'),
   };
 }
 

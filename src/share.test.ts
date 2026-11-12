@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { KINDS, MAX_DEPTH } from './fractal.ts';
+import { createHistory } from './history.ts';
 import { DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design } from './share.ts';
 
 // Small seeded generator (mulberry32), so failures reproduce.
@@ -49,6 +50,7 @@ function randomDesign(r: () => number): Design {
     cells: int(2, 4),
     frame: r() < 0.5,
     families: int(1, 31),
+    variants: r() < 0.5,
   };
 }
 
@@ -82,6 +84,7 @@ const FULL: Design = {
   cells: 2,
   frame: true,
   families: 5,
+  variants: true,
 };
 
 function assertValid(d: Design, label: string): void {
@@ -112,6 +115,7 @@ function assertValid(d: Design, label: string): void {
   assert.ok(Number.isInteger(d.cells) && inRange(d.cells, 2, 4), label);
   assert.equal(typeof d.frame, 'boolean', label);
   assert.ok(Number.isInteger(d.families) && inRange(d.families, 1, 31), label);
+  assert.equal(typeof d.variants, 'boolean', label);
 }
 
 test('defaults encode to the empty string and decode back', () => {
@@ -146,7 +150,7 @@ test('encoding is stable and one field changes the string', () => {
 test('a design with every field non-default stays short', () => {
   for (const f of Object.keys(DESIGN_DEFAULTS) as (keyof Design)[]) assert.notEqual(FULL[f], DESIGN_DEFAULTS[f], f);
   const s = encodeDesign(FULL);
-  assert.ok(s.length <= 180, `${s.length}`);
+  assert.ok(s.length <= 184, `${s.length}`); // 177 before the variants key, + '&v=1'
   assert.deepEqual(decodeDesign(s), FULL);
 });
 
@@ -222,4 +226,26 @@ test('hostile patchwork values fall back or clamp', () => {
   assert.equal(decodeDesign('l=x').layout, 'single');
   assert.equal(decodeDesign('f=yes').frame, false);
   assert.equal(encodeDesign(DESIGN_DEFAULTS), '');
+});
+
+test('variants: round trip, absent means false, old links decode as before', () => {
+  const d = { ...DESIGN_DEFAULTS, kind: 'brick', seed: 7, variants: true } as const;
+  assert.equal(encodeDesign(d), 'k=brick&s=7&v=1');
+  assert.deepEqual(decodeDesign(encodeDesign(d)), d);
+  assert.equal(decodeDesign('k=brick&s=7').variants, false);
+  // Literals taken from encodeDesign before the variants key existed.
+  assert.equal(encodeDesign(DESIGN_DEFAULTS), '');
+  assert.equal(encodeDesign({ ...DESIGN_DEFAULTS, kind: 'brick', seed: 7, mirror: true }), 'k=brick&s=7&m=1');
+  const old =
+    'k=koch&s=123456789&d=3&z=160&w=1.5&p=2&bg=0a0b0c&fg=d0e0f0&tx=fedcba&o=0.45&pm=plate&po=0.9&pr=16&pb=4&r=-30&sc=1.5&sk=10&t=20&dr=xy&sp=12&zm=2&g=24&m=1&l=patchwork&c=2&f=1&fa=5';
+  assert.deepEqual(decodeDesign(old), { ...FULL, variants: false });
+  assert.equal(encodeDesign({ ...FULL, variants: false }), old);
+});
+
+test('undo restores the previous value of the variants switch', () => {
+  const h = createHistory<Design>(DESIGN_DEFAULTS, 50, sameDesign);
+  h.push({ ...DESIGN_DEFAULTS, variants: true });
+  assert.equal(h.current().variants, true);
+  assert.equal(h.undo()?.variants, false);
+  assert.equal(h.redo()?.variants, true);
 });

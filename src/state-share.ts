@@ -17,6 +17,7 @@ import {
   roles,
   source,
   spacing,
+  variants,
 } from '@/state.ts';
 
 export function snapshot(): Design {
@@ -37,6 +38,7 @@ export function snapshot(): Design {
     frame: patch.frame,
     // An empty family list is not reachable in the panel; it maps to the default rather than to 0.
     families: FAMILIES.reduce((m, f, i) => (patch.families.includes(f) ? m | (1 << i) : m), 0) || DESIGN_DEFAULTS.families,
+    variants: variants.value,
   };
 }
 
@@ -54,6 +56,7 @@ export function applyDesign(d: Design): void {
   patch.cells = d.cells;
   patch.frame = d.frame;
   patch.families = FAMILIES.filter((_, i) => d.families & (1 << i));
+  variants.value = d.variants;
   source.value = 'math';
   lastFix.value = null; // the Fix result no longer describes these colors
 }

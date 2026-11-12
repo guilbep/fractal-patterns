@@ -24,6 +24,8 @@ import {
 import { cssBackground, cssPlate, svgToDataUri } from '@/css.ts';
 import { rawSize } from '@/co2.ts';
 import { MOTION_NONE, type Motion } from '@/motion.ts';
+import { superTileBytes } from '@/supertile.ts';
+import { variantTile, variantsActive } from '@/variants.ts';
 
 export const MAX_SEED = 0xffffffff;
 
@@ -198,9 +200,21 @@ function tileFor(seed: number): { polys: readonly (readonly Pt[])[]; size: numbe
   return spacing.gap > 0 ? withGap(polys, size, spacing.gap) : { polys, size };
 }
 const tile = computed(() => tileFor(params.seed));
-export const tileSize = computed(() => tile.value.size);
+
+// Reduce repetition: a 4 by 4 super tile of 4 seeded variants, whose cell edge is the tile size.
+// ponytail: spacing (mirror, zoom, gap) is skipped in this mode; combine it when a ticket asks.
+export const variants = ref(false);
+export const variantsOn = computed(() =>
+  variantsActive({ variants: variants.value, kind: params.kind, layout: layout.value, usingImage: usingImage.value }),
+);
+const variantOptions = (seed: number) => ({ ...params, seed, color: roles.pattern, opacity: opacity.value });
+// The measured cost shown under the switch: the super tile against one plain tile.
+export const variantBytes = computed(() => (variantsOn.value ? superTileBytes(variantOptions(params.seed)) : null));
+
+export const tileSize = computed(() => (variantsOn.value ? variantTile(variantOptions(params.seed)).size : tile.value.size));
 // The tile for any seed with the current settings; a traced image gives the same tile for every seed.
 export function svgForSeed(seed: number): string {
+  if (variantsOn.value) return variantTile(variantOptions(seed)).svg;
   const t = seed === params.seed ? tile.value : tileFor(seed);
   return svgFromPolylines(t.polys, { ...params, size: t.size, color: roles.pattern, opacity: opacity.value });
 }
@@ -371,4 +385,5 @@ export function reset(): void {
   resetSpacing();
   Object.assign(motion, MOTION_NONE);
   motionPaused.value = false;
+  variants.value = false;
 }

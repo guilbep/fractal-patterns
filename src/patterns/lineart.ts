@@ -18,7 +18,12 @@ export function stitch(rnd: Rng, depth: number, size: number): Poly[] {
     const s = 1 / g - 0.06;
     const x = (cell % g) / g + 0.03;
     const y = Math.floor(cell / g) / g + 0.03;
-    const corners: Pt[] = [[x, y], [x + s, y], [x + s, y + s], [x, y + s]];
+    const corners: Pt[] = [
+      [x, y],
+      [x + s, y],
+      [x + s, y + s],
+      [x, y + s],
+    ];
     const centre: Pt = [x + s / 2, y + s / 2];
     const picked = corners.map(() => rnd() < pCorner);
     if (!picked.includes(true)) picked[Math.floor(rnd() * 4)] = true;

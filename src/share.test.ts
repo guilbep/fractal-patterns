@@ -153,7 +153,20 @@ test('a design with every field non-default stays short', () => {
 test('hostile input never throws and gives a valid design', () => {
   const r = rng(99);
   const bytes = String.fromCharCode(...Array.from({ length: 10000 }, () => Math.floor(r() * 256)));
-  const cases = ['%', 'k=__proto__', 'k=constructor&s=-1', 's=1e99', 's=abc', 'd=999', 'bg=zzzzzz', 'bg=fff', 'o=5', 'o=-3', bytes, 's=5&s=6'];
+  const cases = [
+    '%',
+    'k=__proto__',
+    'k=constructor&s=-1',
+    's=1e99',
+    's=abc',
+    'd=999',
+    'bg=zzzzzz',
+    'bg=fff',
+    'o=5',
+    'o=-3',
+    bytes,
+    's=5&s=6',
+  ];
   for (const q of cases) assertValid(decodeDesign(q), q.slice(0, 40));
   assert.equal(decodeDesign('k=__proto__').kind, DESIGN_DEFAULTS.kind);
   assert.equal(decodeDesign('k=constructor&s=-1').seed, 0);

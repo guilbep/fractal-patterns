@@ -2,14 +2,31 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PALETTES } from './palettes.ts';
 import { contrastRatio, relativeLuminance } from './contrast.ts';
-import { PATTERN_VISIBLE_MIN, PICK_OPACITY, fixContrast, fixSplit, fixWithPlate, largeTarget,patternContrast, patternInvisible, pickRoles, plateContrast, swapRoles, worstTextContrast, type Roles } from './pairing.ts';
+import {
+  PATTERN_VISIBLE_MIN,
+  PICK_OPACITY,
+  fixContrast,
+  fixSplit,
+  fixWithPlate,
+  largeTarget,
+  patternContrast,
+  patternInvisible,
+  pickRoles,
+  plateContrast,
+  swapRoles,
+  worstTextContrast,
+  type Roles,
+} from './pairing.ts';
 
 const OPACITIES = [0.1, 0.4, 1];
 
 function* cases(): Generator<[string, Roles, number]> {
   for (const p of PALETTES) {
     const roles = pickRoles(p.colors);
-    for (const [variant, r] of [['light', roles], ['dark', swapRoles(roles)]] as const) {
+    for (const [variant, r] of [
+      ['light', roles],
+      ['dark', swapRoles(roles)],
+    ] as const) {
       for (const o of OPACITIES) yield [`${p.name} (${variant}, opacity ${o})`, r, o];
     }
   }
@@ -207,7 +224,10 @@ test('fixSplit leaves a passing combination unchanged', () => {
 test('fixSplit reaches both thresholds for every palette, both variants', () => {
   for (const p of PALETTES) {
     const roles = pickRoles(p.colors);
-    for (const [variant, r] of [['light', roles], ['dark', swapRoles(roles)]] as const) {
+    for (const [variant, r] of [
+      ['light', roles],
+      ['dark', swapRoles(roles)],
+    ] as const) {
       const name = `${p.name} (${variant})`;
       const f = fixSplit(r, 1, 0);
       assert.equal(f.reached, true, name);
@@ -235,7 +255,11 @@ const assertSplitReached = (r: Roles, name: string) => {
 };
 
 test('fixSplit does not flip the text between heading and paragraph (named palettes)', () => {
-  for (const [name, swap] of [["Purple 90's", true], ['Photographic Memory', true], ['Stark Contrast', false]] as const) {
+  for (const [name, swap] of [
+    ["Purple 90's", true],
+    ['Photographic Memory', true],
+    ['Stark Contrast', false],
+  ] as const) {
     const p = PALETTES.find((q) => q.name === name);
     if (!p) continue; // the palette list may change later
     const roles = pickRoles(p.colors);

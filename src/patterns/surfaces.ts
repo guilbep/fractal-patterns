@@ -4,7 +4,13 @@
 // lies on the tile border (it would be drawn by both neighbouring tiles).
 import { TAU, thin, wrap, type Poly, type Pt, type Rng } from './util.ts';
 
-const rect = (x: number, y: number, w: number, h: number): Poly => [[x, y], [x + w, y], [x + w, y + h], [x, y + h], [x, y]];
+const rect = (x: number, y: number, w: number, h: number): Poly => [
+  [x, y],
+  [x + w, y],
+  [x + w, y + h],
+  [x, y + h],
+  [x, y],
+];
 
 // n courses of m units across the tile; course i is shifted by (i / q) of a unit.
 // Seeded joints are dropped (two units merge) or added (a unit splits into two headers).
@@ -90,7 +96,7 @@ export function basket(rnd: Rng, depth: number, size: number): Poly[] {
   const out: Poly[] = [];
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < n; j++) {
-      const across = ((i + j) % 2 === 0) !== (rnd() < pSwap);
+      const across = ((i + j) % 2 === 0) !== rnd() < pSwap;
       for (let k = 0; k < bars; k++) {
         out.push(across ? rect(j * c + s, i * c + k * t + s, c, t) : rect(j * c + k * t + s, i * c + s, t, c));
       }
@@ -134,7 +140,9 @@ export function hex(rnd: Rng, depth: number, size: number): Poly[] {
     for (let r = 0; r < k; r++) {
       const cx = c * 1.5 * R + R / 4;
       const cy = (r + (c % 2) / 2) * h + h / 4;
-      const v = (s: number) => (i: number): Pt => [cx + s * R * Math.cos((i * TAU) / 6), cy + ((s * h) / Math.sqrt(3)) * Math.sin((i * TAU) / 6)];
+      const v =
+        (s: number) =>
+        (i: number): Pt => [cx + s * R * Math.cos((i * TAU) / 6), cy + ((s * h) / Math.sqrt(3)) * Math.sin((i * TAU) / 6)];
       gapped(out, rnd, 3, pGap, v(1));
       if (rnd() < pInner) out.push([0, 1, 2, 3, 4, 5, 0].map(v(0.4)));
     }
@@ -164,7 +172,10 @@ export function trinet(rnd: Rng, depth: number, size: number): Poly[] {
   }
   for (let j = 0; j < 2 * k; j++) {
     for (let i = 0; i < m; i++) {
-      for (const [p, q, s] of [[pt(i, j), pt(i + 1, j), pt(i, j + 1)], [pt(i, j + 1), pt(i + 1, j + 1), pt(i + 1, j)]] as const) {
+      for (const [p, q, s] of [
+        [pt(i, j), pt(i + 1, j), pt(i, j + 1)],
+        [pt(i, j + 1), pt(i + 1, j + 1), pt(i + 1, j)],
+      ] as const) {
         if (rnd() < pInner) out.push([mid(p, q), mid(q, s), mid(s, p), mid(p, q)]);
       }
     }
@@ -191,7 +202,17 @@ export function nested(rnd: Rng, depth: number, size: number): Poly[] {
       for (let l = 1; l <= N; l++) {
         const d = turn ? c / 2 - g - (l - 1) * g * Math.SQRT2 : c / 2 - l * g;
         if (d < g / 2) break;
-        out.push(turn ? [[cx + d, cy], [cx, cy + d], [cx - d, cy], [cx, cy - d], [cx + d, cy]] : rect(cx - d, cy - d, 2 * d, 2 * d));
+        out.push(
+          turn
+            ? [
+                [cx + d, cy],
+                [cx, cy + d],
+                [cx - d, cy],
+                [cx, cy - d],
+                [cx + d, cy],
+              ]
+            : rect(cx - d, cy - d, 2 * d, 2 * d),
+        );
       }
     }
   }
@@ -209,7 +230,10 @@ export function dots(rnd: Rng, depth: number, size: number): Poly[] {
   const seg = 8 + Math.floor(rnd() * 5);
   const pAlt = 0.06 + 0.12 * rnd();
   const circle = (x: number, y: number, rad: number): Poly =>
-    Array.from({ length: seg + 1 }, (_, i): Pt => [x + rad * Math.cos((TAU * (i % seg)) / seg), y + rad * Math.sin((TAU * (i % seg)) / seg)]);
+    Array.from({ length: seg + 1 }, (_, i): Pt => [
+      x + rad * Math.cos((TAU * (i % seg)) / seg),
+      y + rad * Math.sin((TAU * (i % seg)) / seg),
+    ]);
   const out: Poly[] = [];
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < n; j++) {
@@ -219,7 +243,17 @@ export function dots(rnd: Rng, depth: number, size: number): Poly[] {
       else {
         const u = rnd();
         if (u < 1 / 3) out.push(circle(x, y, 1.6 * r));
-        else if (u < 2 / 3) out.push([[x - 1.5 * r, y], [x + 1.5 * r, y]], [[x, y - 1.5 * r], [x, y + 1.5 * r]]);
+        else if (u < 2 / 3)
+          out.push(
+            [
+              [x - 1.5 * r, y],
+              [x + 1.5 * r, y],
+            ],
+            [
+              [x, y - 1.5 * r],
+              [x, y + 1.5 * r],
+            ],
+          );
       }
     }
   }
@@ -230,7 +264,14 @@ export function dots(rnd: Rng, depth: number, size: number): Poly[] {
 // the tile), and wrap() cuts it at the edges, so each strand is drawn once and meets itself.
 
 // Slopes (p, q) whose lines close after p tiles across and q tiles down: 45, 135, 1:2 and 2:1.
-const SLOPES: readonly Pt[] = [[1, 1], [1, -1], [1, 2], [2, 1], [1, -2], [2, -1]];
+const SLOPES: readonly Pt[] = [
+  [1, 1],
+  [1, -1],
+  [1, 2],
+  [2, 1],
+  [1, -2],
+  [2, -1],
+];
 
 // The torus line through (x, y) with direction (p, q), as k pieces of which keep(j) are drawn,
 // each covering the fraction f of its piece; kept neighbours with f = 1 are merged into one run.

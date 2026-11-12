@@ -100,7 +100,10 @@ function fan(c: Pt, angle: number, r: number, k: number): Pt[][] {
 // Ring with a smaller off-centre ring inside (an eye), so it has no symmetry of its own.
 function eye(c: Pt, angle: number, r: number): Pt[][] {
   const inner = add(c, rot([0.35 * r, 0], angle));
-  return [range((t) => add(c, [r * Math.cos(t), r * Math.sin(t)]), true), range((t) => add(inner, [0.4 * r * Math.cos(t), 0.4 * r * Math.sin(t)]), true)];
+  return [
+    range((t) => add(c, [r * Math.cos(t), r * Math.sin(t)]), true),
+    range((t) => add(inner, [0.4 * r * Math.cos(t), 0.4 * r * Math.sin(t)]), true),
+  ];
 }
 
 // Motif in region coordinates: an S-stem from bottom to top of the region with 2 or 3 leaves
@@ -165,7 +168,12 @@ export function wallpaper(group: string): Generator {
         }
         for (let i = 0; i < n; i++) {
           for (let j = 0; j < n; j++) {
-            out.push(thin(moved.map(([x, y]): Pt => [(x + i) * cell, (y + j) * cell]), 2));
+            out.push(
+              thin(
+                moved.map(([x, y]): Pt => [(x + i) * cell, (y + j) * cell]),
+                2,
+              ),
+            );
           }
         }
       }

@@ -122,7 +122,12 @@ function canny(g: Gray, threshold: number): Uint8Array {
   if (max === 0) return out;
 
   // Non-maximum suppression: keep a pixel only if it is >= both neighbours along the gradient.
-  const OFFSETS = [[1, 0], [1, 1], [0, 1], [-1, 1]] as const;
+  const OFFSETS = [
+    [1, 0],
+    [1, 1],
+    [0, 1],
+    [-1, 1],
+  ] as const;
   const magAt = (x: number, y: number) => (x < 0 || y < 0 || x >= w || y >= h ? 0 : (mag[y * w + x] ?? 0));
   const thin = new Float32Array(w * h);
   for (let y = 0; y < h; y++) {

@@ -9,7 +9,8 @@ const samples = (): Pt[] => {
   const rnd = mulberry32(7);
   return Array.from({ length: 50 }, (): Pt => [rnd(), rnd()]);
 };
-const near = (a: Pt, b: Pt, msg: string): void => assert.ok(Math.abs(a[0] - b[0]) < eps && Math.abs(a[1] - b[1]) < eps, `${msg}: ${a} vs ${b}`);
+const near = (a: Pt, b: Pt, msg: string): void =>
+  assert.ok(Math.abs(a[0] - b[0]) < eps && Math.abs(a[1] - b[1]) < eps, `${msg}: ${a} vs ${b}`);
 const op = (group: string, i: number): Op => {
   const f = GROUP_OPS[group]?.[i];
   assert.ok(f, `${group} op ${i}`);
@@ -53,7 +54,21 @@ test('motif fills the tile at depth 1', () => {
 });
 
 test('op counts', () => {
-  for (const [group, count] of [['p1', 1], ['p2', 2], ['pm', 2], ['pg', 2], ['cm', 4], ['pmm', 4], ['pmg', 4], ['pgg', 4], ['cmm', 8], ['p4', 4], ['p4m', 8], ['p4g', 8]] as const) assert.equal(GROUP_OPS[group]?.length, count, group);
+  for (const [group, count] of [
+    ['p1', 1],
+    ['p2', 2],
+    ['pm', 2],
+    ['pg', 2],
+    ['cm', 4],
+    ['pmm', 4],
+    ['pmg', 4],
+    ['pgg', 4],
+    ['cmm', 8],
+    ['p4', 4],
+    ['p4m', 8],
+    ['p4g', 8],
+  ] as const)
+    assert.equal(GROUP_OPS[group]?.length, count, group);
 });
 
 // Equal modulo 1: each coordinate difference is 0 or 1 (x = 1 - eps and x = 0 are the same point).
@@ -69,7 +84,10 @@ test('every op list is a group modulo the lattice', () => {
       for (const [i, f] of ops.entries()) {
         for (const [j, g] of ops.entries()) {
           const q = f(g(p));
-          assert.ok(ops.some((h) => sameMod1(h(p), q)), `${group}: op ${i} after op ${j} at ${p}`);
+          assert.ok(
+            ops.some((h) => sameMod1(h(p), q)),
+            `${group}: op ${i} after op ${j} at ${p}`,
+          );
         }
       }
     }
@@ -89,7 +107,10 @@ test('images of the region cover the cell', () => {
     for (let i = 0; i < 20; i++) {
       for (let j = 0; j < 20; j++) {
         const p: Pt = [(i + 0.5) / 20, (j + 0.5) / 20];
-        assert.ok(ops.some((f) => inside(f(p))), `${group}: ${p} reaches no op into ${box}`);
+        assert.ok(
+          ops.some((f) => inside(f(p))),
+          `${group}: ${p} reaches no op into ${box}`,
+        );
       }
     }
   }

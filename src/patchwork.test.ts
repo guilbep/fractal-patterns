@@ -15,7 +15,15 @@ test('patchwork is deterministic', () => {
 });
 
 test('cell count follows the clamped grid', () => {
-  for (const [cells, n] of [[1, 1], [2, 4], [3, 9], [4, 16], [0, 1], [9, 16], [2.9, 4]] as const) {
+  for (const [cells, n] of [
+    [1, 1],
+    [2, 4],
+    [3, 9],
+    [4, 16],
+    [0, 1],
+    [9, 16],
+    [2.9, 4],
+  ] as const) {
     assert.equal(patchworkCells({ ...base, cells }).length, n, `cells ${cells}`);
   }
 });
@@ -27,7 +35,10 @@ test('every point stays inside its cell and the tile', () => {
       for (const c of patchworkCells({ ...base, seed, cells })) {
         for (const poly of c.polys) {
           for (const [x, y] of poly) {
-            assert.ok(x >= c.x - eps && x <= c.x + c.size + eps && y >= c.y - eps && y <= c.y + c.size + eps, `${c.kind} seed ${seed} cells ${cells}`);
+            assert.ok(
+              x >= c.x - eps && x <= c.x + c.size + eps && y >= c.y - eps && y <= c.y + c.size + eps,
+              `${c.kind} seed ${seed} cells ${cells}`,
+            );
             assert.ok(x >= -eps && x <= 120 + eps && y >= -eps && y <= 120 + eps);
           }
         }

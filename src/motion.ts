@@ -55,9 +55,7 @@ export function motionLayer(m: Motion, image: string, s: string): string[] {
     '  content: "";',
     '  position: absolute;',
     '  z-index: -1;',
-    ...(centered
-      ? ['  left: 50%;', `  top: ${m.tilt !== 0 ? '0' : '50%'};`, `  width: ${side};`, `  height: ${side};`]
-      : ['  inset: 0;']),
+    ...(centered ? ['  left: 50%;', `  top: ${m.tilt !== 0 ? '0' : '50%'};`, `  width: ${side};`, `  height: ${side};`] : ['  inset: 0;']),
     `  background-image: ${image};`,
     `  background-size: ${s} ${s};`,
   ];

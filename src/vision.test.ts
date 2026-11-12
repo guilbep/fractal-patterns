@@ -5,7 +5,19 @@ import { join } from 'node:path';
 import { parseHex, toHex } from './contrast.ts';
 import { patternContrast, worstTextContrast, type Roles } from './pairing.ts';
 import { mulberry32 } from './patterns/util.ts';
-import { CVD_LABELS, CVD_MATRICES, CVD_TYPES, betweenSurfaces, cvdReport, cvdWorstText, effectiveOpacity, lightnessDiff, lstar, simulate, simulateRoles } from './vision.ts';
+import {
+  CVD_LABELS,
+  CVD_MATRICES,
+  CVD_TYPES,
+  betweenSurfaces,
+  cvdReport,
+  cvdWorstText,
+  effectiveOpacity,
+  lightnessDiff,
+  lstar,
+  simulate,
+  simulateRoles,
+} from './vision.ts';
 
 const dist = (a: string, b: string): number => {
   const [x, y] = [parseHex(a), parseHex(b)];
@@ -74,14 +86,21 @@ test('deutan red near the hand-computed estimate #a39000', () => {
 test('simulateRoles applies simulate to each color', () => {
   const r: Roles = { background: '#12232e', pattern: '#4da8da', text: '#ff0000' };
   for (const t of CVD_TYPES) {
-    assert.deepEqual(simulateRoles(r, t), { background: simulate(r.background, t), pattern: simulate(r.pattern, t), text: simulate(r.text, t) });
+    assert.deepEqual(simulateRoles(r, t), {
+      background: simulate(r.background, t),
+      pattern: simulate(r.pattern, t),
+      text: simulate(r.text, t),
+    });
   }
 });
 
 test('cvdReport and cvdWorstText', () => {
   const r: Roles = { background: '#ffffff', pattern: '#808080', text: '#000000' };
   const rep = cvdReport(r, 0.6);
-  assert.deepEqual(rep.map((c) => c.type), [...CVD_TYPES]);
+  assert.deepEqual(
+    rep.map((c) => c.type),
+    [...CVD_TYPES],
+  );
   for (const c of rep) {
     assert.deepEqual(c.roles, simulateRoles(r, c.type));
     assert.ok(Math.abs(c.text - worstTextContrast(r, 0.6)) <= 0.2, `${c.type} text ${c.text}`);

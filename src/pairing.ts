@@ -37,9 +37,7 @@ export function pickRoles(colors: readonly string[]): Roles {
     const r = { background, pattern: c, text };
     const visible = patternContrast(r, PICK_OPACITY) >= PATTERN_VISIBLE_MIN;
     const worst = worstTextContrast(r, PICK_OPACITY);
-    const key: [number, number] = visible
-      ? [worst >= 4.5 ? 2 : 1, worst]
-      : [0, patternContrast(r, PICK_OPACITY)];
+    const key: [number, number] = visible ? [worst >= 4.5 ? 2 : 1, worst] : [0, patternContrast(r, PICK_OPACITY)];
     if (!bestKey || key[0] > bestKey[0] || (key[0] === bestKey[0] && key[1] > bestKey[1])) {
       [pattern, bestKey] = [c, key];
     }
@@ -54,10 +52,7 @@ export function swapRoles(r: Roles): Roles {
 }
 
 export function worstTextContrast(r: Roles, opacity: number): number {
-  return Math.min(
-    contrastRatio(r.text, r.background),
-    contrastRatio(r.text, blend(r.pattern, r.background, opacity)),
-  );
+  return Math.min(contrastRatio(r.text, r.background), contrastRatio(r.text, blend(r.pattern, r.background, opacity)));
 }
 
 export function patternContrast(r: Roles, opacity: number): number {

@@ -3,12 +3,7 @@ import { parseHex } from './contrast.ts';
 
 export function svgToDataUri(svg: string): string {
   // Order matters: '%' before '#', '<', '>' so their escapes are not escaped again.
-  const body = svg
-    .replaceAll('"', "'")
-    .replaceAll('%', '%25')
-    .replaceAll('#', '%23')
-    .replaceAll('<', '%3C')
-    .replaceAll('>', '%3E');
+  const body = svg.replaceAll('"', "'").replaceAll('%', '%25').replaceAll('#', '%23').replaceAll('<', '%3C').replaceAll('>', '%3E');
   return `data:image/svg+xml,${body}`;
 }
 

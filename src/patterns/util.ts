@@ -27,11 +27,16 @@ export function place(polys: Poly[], size: number, margin: number): Poly[] {
 // Free coords scaled to fit their bounding box into [m, size - m], centred.
 export function fit(polys: Poly[], size: number, margin: number): Poly[] {
   const m = margin * size;
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  let x0 = Infinity,
+    y0 = Infinity,
+    x1 = -Infinity,
+    y1 = -Infinity;
   for (const poly of polys) {
     for (const [x, y] of poly) {
-      x0 = Math.min(x0, x); x1 = Math.max(x1, x);
-      y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+      x0 = Math.min(x0, x);
+      x1 = Math.max(x1, x);
+      y0 = Math.min(y0, y);
+      y1 = Math.max(y1, y);
     }
   }
   const avail = size - 2 * m;
@@ -48,15 +53,24 @@ export function fit(polys: Poly[], size: number, margin: number): Poly[] {
 export function wrap(polys: Poly[], size: number): Poly[] {
   const out: Poly[] = [];
   for (const poly of polys) {
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    let x0 = Infinity,
+      y0 = Infinity,
+      x1 = -Infinity,
+      y1 = -Infinity;
     for (const [x, y] of poly) {
-      x0 = Math.min(x0, x); x1 = Math.max(x1, x);
-      y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+      x0 = Math.min(x0, x);
+      x1 = Math.max(x1, x);
+      y0 = Math.min(y0, y);
+      y1 = Math.max(y1, y);
     }
     for (const ox of [-size, 0, size]) {
       for (const oy of [-size, 0, size]) {
         if (x0 + ox > size || x1 + ox < 0 || y0 + oy > size || y1 + oy < 0) continue;
-        clip(poly.map(([x, y]): Pt => [x + ox, y + oy]), size, out);
+        clip(
+          poly.map(([x, y]): Pt => [x + ox, y + oy]),
+          size,
+          out,
+        );
       }
     }
   }
@@ -74,7 +88,12 @@ function clip(poly: Poly, size: number, out: Poly[]): void {
     const dy = by - ay;
     let t0 = 0;
     let t1 = 1;
-    for (const [p, q] of [[-dx, ax], [dx, size - ax], [-dy, ay], [dy, size - ay]] as const) {
+    for (const [p, q] of [
+      [-dx, ax],
+      [dx, size - ax],
+      [-dy, ay],
+      [dy, size - ay],
+    ] as const) {
       if (p === 0) {
         if (q < 0) t0 = 2;
       } else if (p < 0) t0 = Math.max(t0, q / p);

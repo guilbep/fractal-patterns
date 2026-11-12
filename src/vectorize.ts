@@ -4,7 +4,16 @@ import type { Pt } from './patterns/util.ts';
 import { clipToTile } from './spacing.ts';
 
 // 4-connected first, then diagonals: the walk prefers straight steps.
-const NEIGHBORS = [[1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, 1], [-1, -1], [1, -1]] as const;
+const NEIGHBORS = [
+  [1, 0],
+  [0, 1],
+  [-1, 0],
+  [0, -1],
+  [1, 1],
+  [-1, 1],
+  [-1, -1],
+  [1, -1],
+] as const;
 
 export function chains(map: Uint8Array, width: number, height: number): Pt[][] {
   const on = (x: number, y: number) => x >= 0 && y >= 0 && x < width && y < height && map[y * width + x] === 1;

@@ -5,7 +5,22 @@ import { formatFootprint, gzipSize } from '@/co2.ts';
 import { exportCss, exportJs } from '@/export.ts';
 import { KIND_LABELS } from '@/fractal.ts';
 import { DETECTOR_LABELS } from '@/trace.ts';
-import { motion, params, patch, plateBlur, plateMode, plateOpacity, plateRadius, roles, svg, svgForSeed, tileSize, trace, usingImage, usingPatchwork } from '@/state.ts';
+import {
+  motion,
+  params,
+  patch,
+  plateBlur,
+  plateMode,
+  plateOpacity,
+  plateRadius,
+  roles,
+  svg,
+  svgForSeed,
+  tileSize,
+  trace,
+  usingImage,
+  usingPatchwork,
+} from '@/state.ts';
 
 // Enough to make the tile again.
 export const exportLabel = computed(() =>
@@ -62,5 +77,7 @@ watch(
   },
   { immediate: true },
 );
-export const exportGzipBytes = computed(() => (gzipped.value && gzipped.value !== 'unknown' ? gzipped.value.css + gzipped.value.script : null));
+export const exportGzipBytes = computed(() =>
+  gzipped.value && gzipped.value !== 'unknown' ? gzipped.value.css + gzipped.value.script : null,
+);
 export const footprint = computed(() => (exportGzipBytes.value === null ? null : formatFootprint(exportGzipBytes.value)));

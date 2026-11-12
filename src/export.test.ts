@@ -15,8 +15,7 @@ const base: ExportInput = {
   label: 'Tree, seed 1, depth 8',
   appName: 'Demo',
 };
-const css = (m: Partial<Motion> = {}, rest: Partial<ExportInput> = {}) =>
-  exportCss({ ...base, ...rest, motion: { ...MOTION_NONE, ...m } });
+const css = (m: Partial<Motion> = {}, rest: Partial<ExportInput> = {}) => exportCss({ ...base, ...rest, motion: { ...MOTION_NONE, ...m } });
 const count = (s: string, sub: string) => s.split(sub).length - 1;
 
 // Lines of the `.fp-pattern::before {` block, up to its closing brace.
@@ -97,7 +96,9 @@ test('layer parity with cssMotion for varied motions', () => {
 });
 
 test('braces balance and comments close', () => {
-  const inputs = motions.map((m, k) => css(m, { plate: { ...base.plate, mode: (['plate', 'split', 'direct'] as const)[k % 3]!, blur: k } }));
+  const inputs = motions.map((m, k) =>
+    css(m, { plate: { ...base.plate, mode: (['plate', 'split', 'direct'] as const)[k % 3]!, blur: k } }),
+  );
   for (const out of inputs) {
     assert.equal(count(out, '{'), count(out, '}'));
     assert.equal(count(out, '/*'), count(out, '*/'));

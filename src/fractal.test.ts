@@ -101,13 +101,21 @@ test('precision', () => {
 test('non-empty at depth 1', () => {
   for (const kind of KINDS) {
     const g = geometry(params(kind, { depth: 1 }));
-    assert.ok(g.some((poly) => poly.length >= 2), kind);
+    assert.ok(
+      g.some((poly) => poly.length >= 2),
+      kind,
+    );
   }
 });
 
 test('source hygiene', () => {
   const dir = join(import.meta.dirname, 'patterns');
-  const files = [join(import.meta.dirname, 'fractal.ts'), ...readdirSync(dir).filter((f) => f.endsWith('.ts')).map((f) => join(dir, f))];
+  const files = [
+    join(import.meta.dirname, 'fractal.ts'),
+    ...readdirSync(dir)
+      .filter((f) => f.endsWith('.ts'))
+      .map((f) => join(dir, f)),
+  ];
   assert.ok(files.length >= 4, files.join());
   for (const file of files) {
     const src = readFileSync(file, 'utf8');
@@ -121,16 +129,71 @@ test('families', () => {
   for (const family of FAMILIES) assert.ok(typeof FAMILY_LABELS[family] === 'string' && FAMILY_LABELS[family].length > 0, family);
   assert.deepEqual(Object.keys(KIND_FAMILY).sort(), [...KINDS].sort());
   for (const kind of KINDS) assert.ok((FAMILIES as readonly string[]).includes(KIND_FAMILY[kind]), kind);
-  for (const kind of ['carpet', 'quadtree', 'tree', 'fold', 'hilbert', 'koch', 'sierpinski', 'htree'] as const) assert.equal(KIND_FAMILY[kind], 'fractal', kind);
+  for (const kind of ['carpet', 'quadtree', 'tree', 'fold', 'hilbert', 'koch', 'sierpinski', 'htree'] as const)
+    assert.equal(KIND_FAMILY[kind], 'fractal', kind);
   for (const kind of ['stitch', 'whirl', 'rosette', 'spiral'] as const) assert.equal(KIND_FAMILY[kind], 'line', kind);
-  for (const kind of ['brick', 'stack', 'herringbone', 'basket', 'hex', 'trinet', 'nested', 'dots', 'hatch', 'crosshatch', 'zigzag', 'scales', 'waves'] as const) assert.equal(KIND_FAMILY[kind], 'surface', kind);
+  for (const kind of [
+    'brick',
+    'stack',
+    'herringbone',
+    'basket',
+    'hex',
+    'trinet',
+    'nested',
+    'dots',
+    'hatch',
+    'crosshatch',
+    'zigzag',
+    'scales',
+    'waves',
+  ] as const)
+    assert.equal(KIND_FAMILY[kind], 'surface', kind);
 });
 
 test('all kinds are registered', () => {
   assert.equal(KINDS.length, 37);
-  const ids = ['carpet', 'quadtree', 'tree', 'fold', 'hilbert', 'koch', 'sierpinski', 'htree', 'stitch', 'whirl', 'rosette', 'spiral', 'brick', 'stack', 'herringbone', 'basket', 'hex', 'trinet', 'nested', 'dots', 'hatch', 'crosshatch', 'zigzag', 'scales', 'waves', 'p1', 'p2', 'pm', 'pg', 'cm', 'pmm', 'pmg', 'pgg', 'cmm', 'p4', 'p4m', 'p4g'];
+  const ids = [
+    'carpet',
+    'quadtree',
+    'tree',
+    'fold',
+    'hilbert',
+    'koch',
+    'sierpinski',
+    'htree',
+    'stitch',
+    'whirl',
+    'rosette',
+    'spiral',
+    'brick',
+    'stack',
+    'herringbone',
+    'basket',
+    'hex',
+    'trinet',
+    'nested',
+    'dots',
+    'hatch',
+    'crosshatch',
+    'zigzag',
+    'scales',
+    'waves',
+    'p1',
+    'p2',
+    'pm',
+    'pg',
+    'cm',
+    'pmm',
+    'pmg',
+    'pgg',
+    'cmm',
+    'p4',
+    'p4m',
+    'p4g',
+  ];
   for (const id of ids) assert.ok((KINDS as readonly string[]).includes(id), id);
-  for (const kind of ['p1', 'p2', 'pm', 'pg', 'cm', 'pmm', 'pmg', 'pgg', 'cmm', 'p4', 'p4m', 'p4g'] as const) assert.equal(KIND_FAMILY[kind], 'symmetry', kind);
+  for (const kind of ['p1', 'p2', 'pm', 'pg', 'cm', 'pmm', 'pmg', 'pgg', 'cmm', 'p4', 'p4m', 'p4g'] as const)
+    assert.equal(KIND_FAMILY[kind], 'symmetry', kind);
 });
 
 // Pins the four original kinds to their output before the pattern library split.

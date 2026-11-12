@@ -16,7 +16,13 @@ export function carpet(rnd: Rng, depth: number, size: number): Poly[] {
         const a = cx + k;
         const b = cy + k;
         const e = c - 2 * k;
-        out.push([[a, b], [a + e, b], [a + e, b + e], [a, b + e], [a, b]]);
+        out.push([
+          [a, b],
+          [a + e, b],
+          [a + e, b + e],
+          [a, b + e],
+          [a, b],
+        ]);
       } else if (level < depth) go(cx, cy, c, level + 1);
     }
   };
@@ -27,15 +33,37 @@ export function carpet(rnd: Rng, depth: number, size: number): Poly[] {
 // Random quadtree: every split cell draws a cross; split chance is seeded per tile and per cell.
 // The tile border is drawn too (on both opposite edges), so crosses that reach an edge meet a line.
 export function quadtree(rnd: Rng, depth: number, size: number): Poly[] {
-  const out: Poly[] = [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]];
+  const out: Poly[] = [
+    [
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [0, 1],
+      [0, 0],
+    ],
+  ];
   const pSplit = 0.5 + 0.25 * rnd();
   const go = (x: number, y: number, w: number, h: number, level: number): void => {
     // Seeded off-centre split point.
     const sx = w * (0.35 + 0.3 * rnd());
     const sy = h * (0.35 + 0.3 * rnd());
-    out.push([[x + sx, y], [x + sx, y + h]], [[x, y + sy], [x + w, y + sy]]);
+    out.push(
+      [
+        [x + sx, y],
+        [x + sx, y + h],
+      ],
+      [
+        [x, y + sy],
+        [x + w, y + sy],
+      ],
+    );
     if (level >= depth) return;
-    for (const [cx, cy, cw, ch] of [[x, y, sx, sy], [x + sx, y, w - sx, sy], [x, y + sy, sx, h - sy], [x + sx, y + sy, w - sx, h - sy]] as const) {
+    for (const [cx, cy, cw, ch] of [
+      [x, y, sx, sy],
+      [x + sx, y, w - sx, sy],
+      [x, y + sy, sx, h - sy],
+      [x + sx, y + sy, w - sx, h - sy],
+    ] as const) {
       if (rnd() < pSplit) go(cx, cy, cw, ch, level + 1);
     }
   };
@@ -199,14 +227,35 @@ export function sierpinski(rnd: Rng, depth: number, size: number): Poly[] {
   const pDetail = 0.3 + 0.6 * rnd();
   const inset = 0.3 + 0.25 * rnd();
   const mid = (a: Pt, b: Pt): Pt => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-  const out: Poly[] = [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]], flip ? [[1, 0], [0, 1]] : [[0, 0], [1, 1]]];
+  const out: Poly[] = [
+    [
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [0, 1],
+      [0, 0],
+    ],
+    flip
+      ? [
+          [1, 0],
+          [0, 1],
+        ]
+      : [
+          [0, 0],
+          [1, 1],
+        ],
+  ];
   const go = (a: Pt, b: Pt, c: Pt, level: number): void => {
     const ab = mid(a, b);
     const bc = mid(b, c);
     const ca = mid(c, a);
     out.push([ab, bc, ca, ab]);
     if (level >= depth) return;
-    for (const [p, q, r] of [[a, ab, ca], [ab, b, bc], [ca, bc, c]] as const) {
+    for (const [p, q, r] of [
+      [a, ab, ca],
+      [ab, b, bc],
+      [ca, bc, c],
+    ] as const) {
       if (level < 2 || rnd() < pRecurse) go(p, q, r, level + 1);
       else if (rnd() < pDetail) {
         const gx = (p[0] + q[0] + r[0]) / 3;
@@ -224,11 +273,12 @@ export function sierpinski(rnd: Rng, depth: number, size: number): Poly[] {
     go([0, 0], [0, 1], [1, 1], 1);
   }
   // Seeded quarter turns about the tile centre (orientation of the triangles).
-  const rot = (poly: Poly): Poly => poly.map((p) => {
-    let [x, y] = p;
-    for (let i = 0; i < turns; i++) [x, y] = [1 - y, x];
-    return [x, y];
-  });
+  const rot = (poly: Poly): Poly =>
+    poly.map((p) => {
+      let [x, y] = p;
+      for (let i = 0; i < turns; i++) [x, y] = [1 - y, x];
+      return [x, y];
+    });
   return place(out.map(rot), size, 0);
 }
 

@@ -12,8 +12,7 @@ function rgba(width: number, height: number, f: (x: number, y: number) => number
   return out;
 }
 
-const image = (width: number, height: number, f: (x: number, y: number) => number): Gray =>
-  toGray(rgba(width, height, f), width, height);
+const image = (width: number, height: number, f: (x: number, y: number) => number): Gray => toGray(rgba(width, height, f), width, height);
 
 const flat = image(16, 8, () => 128);
 const step = image(16, 8, (x) => (x < 8 ? 0 : 255));
@@ -30,8 +29,16 @@ test('toGray vectors', () => {
 });
 
 test('flat image has no gradient and no edges', () => {
-  for (const d of KERNELS) assert.ok(gradient(flat, d).every((v) => v === 0), d);
-  for (const d of DETECTORS) assert.ok(edges(flat, d, 0.1).every((v) => v === 0), d);
+  for (const d of KERNELS)
+    assert.ok(
+      gradient(flat, d).every((v) => v === 0),
+      d,
+    );
+  for (const d of DETECTORS)
+    assert.ok(
+      edges(flat, d, 0.1).every((v) => v === 0),
+      d,
+    );
 });
 
 test('vertical step: sobel, prewitt, laplacian on row 4', () => {
@@ -58,7 +65,10 @@ test('vertical step: canny gives a thin line', () => {
   for (let y = 1; y <= 6; y++) {
     const xs = row(e, 16, y).flatMap((v, x) => (v === 1 ? [x] : []));
     assert.ok(xs.length >= 1 && xs.length <= 2, `y=${y}: ${xs}`);
-    assert.ok(xs.every((x) => x === 7 || x === 8), `y=${y}: ${xs}`);
+    assert.ok(
+      xs.every((x) => x === 7 || x === 8),
+      `y=${y}: ${xs}`,
+    );
   }
 });
 

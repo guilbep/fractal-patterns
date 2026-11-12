@@ -3,7 +3,21 @@ import { computed, ref, watch } from 'vue';
 import { FAMILIES } from '@/fractal.ts';
 import { createHistory } from '@/history.ts';
 import { DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design } from '@/share.ts';
-import { lastFix, layout, motion, opacity, params, patch, plateBlur, plateMode, plateOpacity, plateRadius, roles, source, spacing } from '@/state.ts';
+import {
+  lastFix,
+  layout,
+  motion,
+  opacity,
+  params,
+  patch,
+  plateBlur,
+  plateMode,
+  plateOpacity,
+  plateRadius,
+  roles,
+  source,
+  spacing,
+} from '@/state.ts';
 
 export function snapshot(): Design {
   return {
@@ -115,7 +129,8 @@ export function initShare(): void {
     pending = { d, skip, timer: setTimeout(commit, 300) };
   });
   // A link pasted into the same tab changes only the hash: no reload, so apply it here. It becomes one undoable entry.
-  if (hasWindow) window.addEventListener('hashchange', () => {
+  if (hasWindow)
+    window.addEventListener('hashchange', () => {
       if (isDesign(window.location.hash)) applyDesign(decodeDesign(window.location.hash));
     });
 }

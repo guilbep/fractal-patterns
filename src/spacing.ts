@@ -21,7 +21,12 @@ export function clipToTile(poly: readonly Pt[], size: number): Pt[][] {
     const dy = by - ay;
     let t0 = 0;
     let t1 = 1;
-    for (const [p, q] of [[-dx, ax], [dx, size - ax], [-dy, ay], [dy, size - ay]] as const) {
+    for (const [p, q] of [
+      [-dx, ax],
+      [dx, size - ax],
+      [-dy, ay],
+      [dy, size - ay],
+    ] as const) {
       if (p === 0) {
         if (q < 0) t0 = 2;
       } else if (p < 0) t0 = Math.max(t0, q / p);
@@ -53,7 +58,12 @@ export function zoomWrap(polys: Polys, size: number, zoom: number): Pt[][] {
     // Every whole-tile shift that brings part of the polyline into the tile.
     for (let i = Math.ceil(-Math.max(...xs) / size); i <= Math.floor((size - Math.min(...xs)) / size); i++) {
       for (let j = Math.ceil(-Math.max(...ys) / size); j <= Math.floor((size - Math.min(...ys)) / size); j++) {
-        out.push(...clipToTile(p.map(([x, y]): Pt => [x + i * size, y + j * size]), size));
+        out.push(
+          ...clipToTile(
+            p.map(([x, y]): Pt => [x + i * size, y + j * size]),
+            size,
+          ),
+        );
       }
     }
   }

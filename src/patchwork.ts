@@ -63,12 +63,24 @@ export function patchworkGeometry(p: PatchworkParams): (readonly Pt[])[] {
     const n = gridOf(p.cells);
     for (let j = 0; j <= n; j++) {
       const v = (j * p.size) / n;
-      polys.push([[v, 0], [v, p.size]], [[0, v], [p.size, v]]);
+      polys.push(
+        [
+          [v, 0],
+          [v, p.size],
+        ],
+        [
+          [0, v],
+          [p.size, v],
+        ],
+      );
     }
   }
   return polys;
 }
 
-export function generatePatchwork(p: PatchworkParams, style: Pick<PatternParams, 'strokeWidth' | 'precision' | 'color' | 'opacity'>): string {
+export function generatePatchwork(
+  p: PatchworkParams,
+  style: Pick<PatternParams, 'strokeWidth' | 'precision' | 'color' | 'opacity'>,
+): string {
   return svgFromPolylines(patchworkGeometry(p), { size: p.size, ...style });
 }

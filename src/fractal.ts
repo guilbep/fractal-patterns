@@ -3,7 +3,21 @@
 import { carpet, fold, hilbert, htree, koch, quadtree, sierpinski, tree } from './patterns/fractals.ts';
 import { rosette, spiral, stitch, whirl } from './patterns/lineart.ts';
 import { cm, cmm, p1, p2, p4, p4g, p4m, pg, pgg, pm, pmg, pmm } from './patterns/symmetry.ts';
-import { basket, brick, crosshatch, dots, hatch, herringbone, hex, nested, scales, stack, trinet, waves, zigzag } from './patterns/surfaces.ts';
+import {
+  basket,
+  brick,
+  crosshatch,
+  dots,
+  hatch,
+  herringbone,
+  hex,
+  nested,
+  scales,
+  stack,
+  trinet,
+  waves,
+  zigzag,
+} from './patterns/surfaces.ts';
 import { mulberry32, type Generator, type Pt } from './patterns/util.ts';
 
 export const FAMILIES = ['fractal', 'line', 'surface', 'symmetry'] as const;
@@ -16,7 +30,45 @@ export const FAMILY_LABELS: Readonly<Record<Family, string>> = {
   symmetry: 'Symmetry groups',
 };
 
-export const KINDS = ['carpet', 'quadtree', 'tree', 'fold', 'hilbert', 'koch', 'sierpinski', 'htree', 'stitch', 'whirl', 'rosette', 'spiral', 'brick', 'stack', 'herringbone', 'basket', 'hex', 'trinet', 'nested', 'dots', 'hatch', 'crosshatch', 'zigzag', 'scales', 'waves', 'p1', 'p2', 'pm', 'pg', 'cm', 'pmm', 'pmg', 'pgg', 'cmm', 'p4', 'p4m', 'p4g'] as const;
+export const KINDS = [
+  'carpet',
+  'quadtree',
+  'tree',
+  'fold',
+  'hilbert',
+  'koch',
+  'sierpinski',
+  'htree',
+  'stitch',
+  'whirl',
+  'rosette',
+  'spiral',
+  'brick',
+  'stack',
+  'herringbone',
+  'basket',
+  'hex',
+  'trinet',
+  'nested',
+  'dots',
+  'hatch',
+  'crosshatch',
+  'zigzag',
+  'scales',
+  'waves',
+  'p1',
+  'p2',
+  'pm',
+  'pg',
+  'cm',
+  'pmm',
+  'pmg',
+  'pgg',
+  'cmm',
+  'p4',
+  'p4m',
+  'p4g',
+] as const;
 export type Kind = (typeof KINDS)[number];
 
 // maxDepth: the measured worst case over many seeds stays near or under 20k chars at precision 1,

@@ -3,16 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import {
-  co2Mg,
-  DRIFT_WATTS,
-  driftMgPerMinute,
-  driftMultiple,
-  formatFootprint,
-  GRID_G_PER_KWH,
-  gzipSize,
-  rawSize,
-} from './co2.ts';
+import { co2Mg, DRIFT_WATTS, driftMgPerMinute, driftMultiple, formatFootprint, GRID_G_PER_KWH, gzipSize, rawSize } from './co2.ts';
 import { generate, KINDS, MAX_DEPTH } from './fractal.ts';
 
 test('co2Mg vectors', () => {
@@ -83,9 +74,7 @@ test('gzipSize matches zlib on every kind at max depth', async () => {
 
 test('lower depth shrinks the gzipped tile', async () => {
   const at = (depth: number) =>
-    gzipSize(
-      generate({ kind: 'tree', seed: 1, depth, size: 120, strokeWidth: 1, precision: 1, color: '#336699', opacity: 0.5 }),
-    );
+    gzipSize(generate({ kind: 'tree', seed: 1, depth, size: 120, strokeWidth: 1, precision: 1, color: '#336699', opacity: 0.5 }));
   assert.ok((await at(3)) < (await at(MAX_DEPTH.tree)));
 });
 

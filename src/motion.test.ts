@@ -68,7 +68,7 @@ test('scale 1, tilt 0: byte-identical to the output before F2', () => {
   const head =
     '.fp-pattern {\n  position: relative;\n  isolation: isolate;\n  overflow: hidden;\n  background-color: #f5f5f5;\n}\n.fp-pattern::before {\n  content: "";\n  position: absolute;\n  z-index: -1;\n';
   const img =
-    '  background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'4\' height=\'4\'%3E%3Cpath d=\'M0 0h4\'/%3E%3C/svg%3E");\n  background-size: 120px 120px;\n';
+    "  background-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Cpath d='M0 0h4'/%3E%3C/svg%3E\");\n  background-size: 120px 120px;\n";
   const square = '  left: 50%;\n  top: 50%;\n  width: 150vmax;\n  height: 150vmax;\n';
   const anim = (speed: string, to: string) =>
     `  animation: fp-drift ${speed}s linear infinite;\n}\n\n@keyframes fp-drift {\n  to { background-position: ${to}; }\n}\n\n.fp-pattern.fp-paused::before {\n  animation-play-state: paused;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .fp-pattern::before {\n    animation: none;\n  }\n}`;
@@ -104,7 +104,7 @@ test('drift y and xy', () => {
 test('exact output for MOTION_NONE', () => {
   assert.equal(
     css({}),
-    '.fp-pattern {\n  position: relative;\n  isolation: isolate;\n  overflow: hidden;\n  background-color: #f5f5f5;\n}\n.fp-pattern::before {\n  content: "";\n  position: absolute;\n  z-index: -1;\n  inset: 0;\n  background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'4\' height=\'4\'%3E%3Cpath d=\'M0 0h4\'/%3E%3C/svg%3E");\n  background-size: 120px 120px;\n}',
+    ".fp-pattern {\n  position: relative;\n  isolation: isolate;\n  overflow: hidden;\n  background-color: #f5f5f5;\n}\n.fp-pattern::before {\n  content: \"\";\n  position: absolute;\n  z-index: -1;\n  inset: 0;\n  background-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Cpath d='M0 0h4'/%3E%3C/svg%3E\");\n  background-size: 120px 120px;\n}",
   );
 });
 

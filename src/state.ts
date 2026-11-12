@@ -8,7 +8,18 @@ import { edges, toGray, type Detector } from '@/trace.ts';
 import { vectorize } from '@/vectorize.ts';
 import { PALETTES, type Palette } from '@/palettes.ts';
 import { blend, contrastRatio, textLevel } from '@/contrast.ts';
-import { fixContrast, fixSplit, fixWithPlate, patternContrast, patternInvisible, pickRoles, plateContrast, swapRoles, worstTextContrast, type Roles } from '@/pairing.ts';
+import {
+  fixContrast,
+  fixSplit,
+  fixWithPlate,
+  patternContrast,
+  patternInvisible,
+  pickRoles,
+  plateContrast,
+  swapRoles,
+  worstTextContrast,
+  type Roles,
+} from '@/pairing.ts';
 import { cssBackground, cssPlate, svgToDataUri } from '@/css.ts';
 import { rawSize } from '@/co2.ts';
 import { MOTION_NONE, type Motion } from '@/motion.ts';
@@ -83,7 +94,14 @@ watch(
 
 // Traced-image source. The pixels live in memory only; nothing is uploaded.
 export const RESOLUTIONS = [128, 192, 256] as const;
-const TRACE_DEFAULTS = { detector: 'canny' as Detector, threshold: 0.3, tolerance: 1.5, minLength: 8, resolution: 192, fit: 'cover' as 'cover' | 'contain' };
+const TRACE_DEFAULTS = {
+  detector: 'canny' as Detector,
+  threshold: 0.3,
+  tolerance: 1.5,
+  minLength: 8,
+  resolution: 192,
+  fit: 'cover' as 'cover' | 'contain',
+};
 export const source = ref<'math' | 'image'>('math');
 export const trace = reactive({ ...TRACE_DEFAULTS });
 export const image = shallowRef<{ data: Uint8ClampedArray; width: number; height: number } | null>(null);
@@ -145,7 +163,9 @@ const edgeMap = computed(() => {
 export const traced = computed(() => {
   const img = image.value;
   const map = edgeMap.value;
-  return img && map ? vectorize(map, img.width, img.height, { size: params.size, tolerance: trace.tolerance, minLength: trace.minLength, fit: trace.fit }) : null;
+  return img && map
+    ? vectorize(map, img.width, img.height, { size: params.size, tolerance: trace.tolerance, minLength: trace.minLength, fit: trace.fit })
+    : null;
 });
 export const usingImage = computed(() => source.value === 'image' && traced.value !== null);
 
@@ -193,7 +213,16 @@ export const fileName = computed(() =>
 // Reads only seed and colors, so slider moves on the selected pattern never regenerate it.
 export const previews = computed(() =>
   KINDS.map((kind) => {
-    const tile = generate({ kind, seed: params.seed, size: 64, depth: Math.min(2, MAX_DEPTH[kind]), strokeWidth: 1, precision: 1, color: roles.pattern, opacity: opacity.value });
+    const tile = generate({
+      kind,
+      seed: params.seed,
+      size: 64,
+      depth: Math.min(2, MAX_DEPTH[kind]),
+      strokeWidth: 1,
+      precision: 1,
+      color: roles.pattern,
+      opacity: opacity.value,
+    });
     return { kind, css: cssBackground(tile, roles.background) };
   }),
 );

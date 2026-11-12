@@ -16,17 +16,68 @@ function grid(width: number, height: number, on: (x: number, y: number) => boole
 const near = (a: number, b: number, eps = 1e-9) => assert.ok(Math.abs(a - b) <= eps, `${a} != ${b}`);
 
 test('simplify', () => {
-  assert.deepEqual(simplify([[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]], 0.1), [[0, 0], [4, 0]]);
-  assert.deepEqual(simplify([[0, 0], [5, 0], [10, 0], [10, 5], [10, 10]], 0.5), [[0, 0], [10, 0], [10, 10]]);
-  const poly: Pt[] = [[0, 0], [1, 0.2], [2, 0]];
+  assert.deepEqual(
+    simplify(
+      [
+        [0, 0],
+        [1, 0],
+        [2, 0],
+        [3, 0],
+        [4, 0],
+      ],
+      0.1,
+    ),
+    [
+      [0, 0],
+      [4, 0],
+    ],
+  );
+  assert.deepEqual(
+    simplify(
+      [
+        [0, 0],
+        [5, 0],
+        [10, 0],
+        [10, 5],
+        [10, 10],
+      ],
+      0.5,
+    ),
+    [
+      [0, 0],
+      [10, 0],
+      [10, 10],
+    ],
+  );
+  const poly: Pt[] = [
+    [0, 0],
+    [1, 0.2],
+    [2, 0],
+  ];
   const copy = simplify(poly, 0);
   assert.deepEqual(copy, poly);
   assert.notEqual(copy, poly);
-  assert.deepEqual(simplify([[0, 0], [3, 4]], 1), [[0, 0], [3, 4]]);
+  assert.deepEqual(
+    simplify(
+      [
+        [0, 0],
+        [3, 4],
+      ],
+      1,
+    ),
+    [
+      [0, 0],
+      [3, 4],
+    ],
+  );
 });
 
 test('chains: horizontal run', () => {
-  const cs = chains(grid(12, 5, (x, y) => y === 2 && x >= 1 && x <= 10), 12, 5);
+  const cs = chains(
+    grid(12, 5, (x, y) => y === 2 && x >= 1 && x <= 10),
+    12,
+    5,
+  );
   assert.equal(cs.length, 1);
   const c = cs[0] ?? [];
   assert.equal(c.length, 10);
@@ -48,7 +99,14 @@ test('chains: square outline', () => {
 });
 
 test('chains: isolated pixel and empty map', () => {
-  assert.deepEqual(chains(grid(5, 5, (x, y) => x === 2 && y === 3), 5, 5), [[[2.5, 3.5]]]);
+  assert.deepEqual(
+    chains(
+      grid(5, 5, (x, y) => x === 2 && y === 3),
+      5,
+      5,
+    ),
+    [[[2.5, 3.5]]],
+  );
   assert.deepEqual(chains(new Uint8Array(25), 5, 5), []);
 });
 
@@ -68,7 +126,12 @@ test('vectorize: scale and center', () => {
 });
 
 test('vectorize drops noise', () => {
-  const ps = vectorize(grid(16, 8, (x, y) => vertical(x, y) || (x === 1 && y === 7)), 16, 8, opts);
+  const ps = vectorize(
+    grid(16, 8, (x, y) => vertical(x, y) || (x === 1 && y === 7)),
+    16,
+    8,
+    opts,
+  );
   assert.equal(ps.length, 1);
 });
 
@@ -76,10 +139,11 @@ test('vectorize: end to end on a white square', () => {
   const n = 32;
   const rgba: number[] = [];
   const inSquare = (v: number) => v >= 10 && v <= 21;
-  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-    const v = inSquare(x) && inSquare(y) ? 255 : 0;
-    rgba.push(v, v, v, 255);
-  }
+  for (let y = 0; y < n; y++)
+    for (let x = 0; x < n; x++) {
+      const v = inSquare(x) && inSquare(y) ? 255 : 0;
+      rgba.push(v, v, v, 255);
+    }
   const ps = vectorize(edges(toGray(rgba, n, n), 'canny', 0.3), n, n, { size: 120, tolerance: 1, minLength: 6 });
   assert.ok(ps.length >= 1);
   const pts = ps.flat();
@@ -91,7 +155,15 @@ test('vectorize: end to end on a white square', () => {
 });
 
 test('svgFromPolylines', () => {
-  const svg = svgFromPolylines([[[0, 0], [10, 0]]], { size: 120, strokeWidth: 1, precision: 1, color: '#336699', opacity: 0.5 });
+  const svg = svgFromPolylines(
+    [
+      [
+        [0, 0],
+        [10, 0],
+      ],
+    ],
+    { size: 120, strokeWidth: 1, precision: 1, color: '#336699', opacity: 0.5 },
+  );
   assert.ok(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"'));
   assert.ok(svg.endsWith('</svg>'));
   assert.ok(svg.includes('#336699'));
@@ -114,11 +186,19 @@ test('vectorize cover: fills the tile', () => {
 });
 
 test('vectorize cover clips to the tile', () => {
-  const ps = vectorize(grid(16, 8, (x, y) => vertical(x, y) || y === 4), 16, 8, { ...opts, fit: 'cover' });
+  const ps = vectorize(
+    grid(16, 8, (x, y) => vertical(x, y) || y === 4),
+    16,
+    8,
+    { ...opts, fit: 'cover' },
+  );
   assert.ok(ps.flat().every(([x, y]) => x >= 0 && x <= 120 && y >= 0 && y <= 120));
   // chains() splits the run at the junction with the vertical, so the horizontal line comes back in two
   // polylines; together their points on y = 67.5 reach both tile edges.
-  const xs = ps.flat().filter(([, y]) => Math.abs(y - 67.5) <= 1e-9).map(([x]) => x);
+  const xs = ps
+    .flat()
+    .filter(([, y]) => Math.abs(y - 67.5) <= 1e-9)
+    .map(([x]) => x);
   near(Math.min(...xs), 0, 1e-6);
   near(Math.max(...xs), 120, 1e-6);
 });

@@ -10,7 +10,16 @@ export function parseHex(hex: string): RGB {
 }
 
 export function toHex(rgb: RGB): string {
-  return '#' + rgb.map((v) => Math.min(255, Math.max(0, Math.round(v))).toString(16).padStart(2, '0')).join('');
+  return (
+    '#' +
+    rgb
+      .map((v) =>
+        Math.min(255, Math.max(0, Math.round(v)))
+          .toString(16)
+          .padStart(2, '0'),
+      )
+      .join('')
+  );
 }
 
 export function relativeLuminance(hex: string): number {

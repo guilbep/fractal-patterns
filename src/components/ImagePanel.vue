@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { DETECTORS, DETECTOR_LABELS } from '@/trace.ts';
-import { RESOLUTIONS, image, loadImage, rawBytes, removeImage, source, trace, traced, usingImage } from '@/state.ts';
+import { RESOLUTIONS, activeSample, image, loadImage, loadSample, rawBytes, removeImage, source, trace, traced, usingImage } from '@/state.ts';
+import { SAMPLES, SAMPLE_LABELS, sampleImage, type Sample } from '@/samples.ts';
+
+const painted = new WeakSet<Element>();
+// Draws each thumbnail once, when its canvas mounts.
+function paint(el: unknown, id: Sample): void {
+  if (!(el instanceof HTMLCanvasElement) || painted.has(el)) return;
+  painted.add(el);
+  const { data, width, height } = sampleImage(id, 64);
+  el.getContext('2d')?.putImageData(new ImageData(new Uint8ClampedArray(data), width, height), 0, 0);
+}
 
 const error = ref('');
 const dragging = ref(false);
@@ -36,6 +46,17 @@ function onDrop(e: DragEvent): void {
       <li>Use only images that you own or have a license for.</li>
       <li>Your image stays in your browser. Nothing is uploaded.</li>
     </ul>
+
+    <fieldset class="samples">
+      <legend>Try an example</legend>
+      <div class="sample-list">
+        <button v-for="id in SAMPLES" :key="id" type="button" class="btn sample" :aria-pressed="activeSample === id" @click="loadSample(id)">
+          <canvas :ref="(el) => paint(el, id)" width="64" height="64" aria-hidden="true" />
+          {{ SAMPLE_LABELS[id] }}
+        </button>
+      </div>
+      <p class="muted">These examples are drawn by the app. They are not photos, and nothing is downloaded.</p>
+    </fieldset>
 
     <!-- The label is the drop zone; the native file input inside it gives the keyboard path. -->
     <label class="drop" :class="{ dragging }" @dragover.prevent="dragging = true" @dragleave="dragging = false" @drop.prevent="onDrop">
@@ -98,3 +119,46 @@ function onDrop(e: DragEvent): void {
     </ul>
   </section>
 </template>
+
+<style scoped>
+.samples {
+  margin: 0 0 var(--s3);
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.samples legend {
+  font-weight: 600;
+  margin-bottom: var(--s1);
+}
+.sample-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  gap: var(--s2);
+}
+.sample {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  text-align: left;
+}
+.sample canvas {
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  border-radius: var(--radius);
+}
+/* Not color alone: a thick outline and a check mark show the active example. */
+.sample[aria-pressed='true'] {
+  outline: 0.1875rem solid var(--accent);
+  outline-offset: 0.125rem;
+}
+.sample[aria-pressed='true']::after {
+  content: '✓';
+  margin-left: auto;
+}
+.sample:focus-visible {
+  outline: 0.1875rem solid var(--ink);
+  outline-offset: 0.125rem;
+}
+</style>

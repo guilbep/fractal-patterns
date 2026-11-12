@@ -6,6 +6,7 @@ import { mirrorTile, withGap, zoomWrap } from '@/spacing.ts';
 import type { Pt } from '@/patterns/util.ts';
 import { edges, toGray, type Detector } from '@/trace.ts';
 import { vectorize } from '@/vectorize.ts';
+import { sampleImage, type Sample } from '@/samples.ts';
 import { PALETTES, type Palette } from '@/palettes.ts';
 import { blend, contrastRatio, textLevel } from '@/contrast.ts';
 import {
@@ -107,6 +108,15 @@ export const trace = reactive({ ...TRACE_DEFAULTS });
 export const image = shallowRef<{ data: Uint8ClampedArray; width: number; height: number } | null>(null);
 // ponytail: the File stays referenced so a resolution change can re-downscale; dropped by removeImage().
 let imageFile: Blob | null = null;
+// The built-in example in use, if any; it is redrawn at each resolution.
+export const activeSample = ref<Sample | null>(null);
+
+export function loadSample(id: Sample): void {
+  imageFile = null;
+  activeSample.value = id;
+  image.value = sampleImage(id, trace.resolution);
+  source.value = 'image';
+}
 
 async function downscale(file: Blob, edge: number): Promise<{ data: Uint8ClampedArray; width: number; height: number }> {
   const bitmap = await createImageBitmap(file);
@@ -135,12 +145,14 @@ export async function loadImage(file: File): Promise<void> {
     throw new Error(`The browser could not read "${file.name}" as an image. Try another file or format.`);
   }
   imageFile = file;
+  activeSample.value = null;
   source.value = 'image';
 }
 
 watch(
   () => trace.resolution,
   async (r) => {
+    if (activeSample.value) image.value = sampleImage(activeSample.value, r);
     if (!imageFile) return;
     try {
       image.value = await downscale(imageFile, r);
@@ -152,6 +164,7 @@ watch(
 
 export function removeImage(): void {
   imageFile = null;
+  activeSample.value = null;
   image.value = null;
   source.value = 'math';
 }

@@ -365,11 +365,11 @@ test('parallax: travel follows depth, clamped to 2vh and 32vh, and the boxes gro
   assert.equal(parallaxTravel(0.1), 2);
   assert.equal(parallaxTravel(10), 32);
   const out = px({}, { depth: 0.5 });
-  assert.ok(out.includes('to { transform: translateY(-8vh); }'));
-  assert.ok(out.includes('  inset: 0 0 -8vh;'));
+  assert.ok(out.includes('to { transform: translateY(-4vh); }'));
+  assert.ok(out.includes('  inset: 0 0 -4vh;'));
   // A centered box grows by the travel on each side, the same box rule as for rotation.
   const turned = px({ rotate: 15 }, { depth: 2 });
-  assert.ok(turned.includes('  width: calc(150vmax + 16vh);\n  height: calc(150vmax + 16vh);'));
+  assert.ok(turned.includes('  width: calc(150vmax + 8vh);\n  height: calc(150vmax + 8vh);'));
   assert.ok(turned.includes('  width: calc(150vmax + 32vh);\n  height: calc(150vmax + 32vh);'));
   assert.ok(turned.includes('to { transform: translateY(-16vh) translate(-50%, -50%) rotate(15deg); }'));
   assert.ok(turned.includes('from { transform: translateY(0) translate(-50%, -50%) rotate(15deg); }'));

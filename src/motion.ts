@@ -52,8 +52,9 @@ function layerFns(lm: Motion): string[] {
   return fns;
 }
 
-// Scroll travel in vh (a positive number; the layer moves up): 8vh for the first layer, 8vh * depth for the second,
-// clamped to 2..32vh. Depth below 1 travels less and looks farther away.
+// Scroll travel in vh (a positive number; the layer moves up): FIRST_TRAVEL for the first layer, 8vh * depth for the
+// second, clamped to 2..32vh. Depth below 1 travels less and looks farther away; at depth 0.5 both layers move together.
+export const FIRST_TRAVEL = 4;
 export const parallaxTravel = (depth = 1): number => Math.min(32, Math.max(2, Math.round(8 * depth * 1000) / 1000));
 
 export function motionLayer(m: Motion, image: string, s: string, second?: SecondLayer): string[] {
@@ -92,7 +93,7 @@ export function motionLayer(m: Motion, image: string, s: string, second?: Second
   const x2 = second?.x ?? 0;
   const y2 = second?.y ?? 0;
   const px = second?.parallax === true;
-  const lines = [...rule('before', image, s, 'fp-drift', m, [], m.speed, px ? parallaxTravel() : 0)];
+  const lines = [...rule('before', image, s, 'fp-drift', m, [], m.speed, px ? FIRST_TRAVEL : 0)];
   if (second) {
     const offset = x2 !== 0 || y2 !== 0 ? [`  background-position: ${at(second.s, x2, 0)} ${at(second.s, y2, 0)};`] : [];
     const opacity = (second.opacity ?? 1) !== 1 ? [`  opacity: ${n(second.opacity ?? 1)};`] : [];
@@ -164,7 +165,7 @@ export function parallaxBlock(m: Motion, second: Partial<Layer2Settings>, cls: s
   return [
     '@media (prefers-reduced-motion: no-preference) {',
     '  @supports (animation-timeline: scroll()) {',
-    ...layer('before', 1, m, parallaxTravel(), 'fp-drift'),
+    ...layer('before', 1, m, FIRST_TRAVEL, 'fp-drift'),
     ...layer('after', 2, { ...m, rotate: m.rotate + (second.rotate ?? 0), speed: seconds }, parallaxTravel(depth), 'fp-drift-2'),
     '  }',
     '}',

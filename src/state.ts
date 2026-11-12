@@ -15,7 +15,7 @@ import { cssBackground, cssPlate, svgToDataUri } from '@/css.ts';
 import { rawSize } from '@/co2.ts';
 import { MOTION_NONE, type Motion } from '@/motion.ts';
 import { superTileBytes } from '@/supertile.ts';
-import { variantTile, variantsActive } from '@/variants.ts';
+import { VARIANT_DEFAULTS, variantTile, variantsActive, type VariantOptions } from '@/variants.ts';
 import { LAYER2_DEFAULTS, layerSpots, type Layer2Settings } from '@/layers.ts';
 
 export const MAX_SEED = 0xffffffff;
@@ -222,22 +222,27 @@ export const curveBytes = computed(() =>
   curveSvg.value === null ? null : { svg: rawSize(curveSvg.value), plain: rawSize(tileSvg(tile.value)) },
 );
 
-// Reduce repetition: a 4 by 4 super tile of 4 seeded variants, whose cell edge is the tile size.
+// Reduce repetition: a super tile of seeded variants, whose cell edge is the tile size.
 // ponytail: spacing (mirror, zoom, gap) is skipped in this mode; combine it when a ticket asks.
 export const variants = ref(false);
+// Options that do not apply to the kind keep their value; the generator ignores them.
+export const variantOptions = reactive<{ -readonly [K in keyof VariantOptions]: VariantOptions[K] }>({ ...VARIANT_DEFAULTS });
+export function resetVariants(): void {
+  Object.assign(variantOptions, VARIANT_DEFAULTS);
+}
 export const variantsOn = computed(() =>
   variantsActive({ variants: variants.value, kind: params.kind, layout: layout.value, usingImage: usingImage.value }),
 );
-const variantOptions = (seed: number) => ({ ...params, seed, color: roles.pattern, opacity: opacity.value });
+const superOptions = (seed: number) => ({ ...params, ...variantOptions, seed, color: roles.pattern, opacity: opacity.value });
 // The measured cost shown under the switch: the super tile against one plain tile.
-export const variantBytes = computed(() => (variantsOn.value ? superTileBytes(variantOptions(params.seed)) : null));
+export const variantBytes = computed(() => (variantsOn.value ? superTileBytes(superOptions(params.seed)) : null));
 
 export const tileSize = computed(() =>
-  variantsOn.value ? variantTile(variantOptions(params.seed)).size : curveSvg.value !== null ? params.size : tile.value.size,
+  variantsOn.value ? variantTile(superOptions(params.seed)).size : curveSvg.value !== null ? params.size : tile.value.size,
 );
 // The tile for any seed with the current settings; a traced image gives the same tile for every seed.
 export function svgForSeed(seed: number): string {
-  if (variantsOn.value) return variantTile(variantOptions(seed)).svg;
+  if (variantsOn.value) return variantTile(superOptions(seed)).svg;
   if (curveSvg.value !== null) return curveSvg.value;
   return tileSvg(seed === params.seed ? tile.value : tileFor(seed));
 }
@@ -406,6 +411,7 @@ export function reset(): void {
   Object.assign(motion, MOTION_NONE);
   motionPaused.value = false;
   variants.value = false;
+  resetVariants();
   layer2.value = false;
   resetLayer2();
   fade.value = false;

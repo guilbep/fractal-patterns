@@ -21,6 +21,7 @@ import {
   roles,
   source,
   spacing,
+  variantOptions,
   variants,
 } from '@/state.ts';
 
@@ -47,6 +48,7 @@ export function snapshot(): Design {
     fade: fade.value,
     layer2Settings: { ...layer2Settings },
     parallax: parallax.value,
+    variantOptions: { ...variantOptions },
   };
 }
 
@@ -69,6 +71,7 @@ export function applyDesign(d: Design): void {
   fade.value = d.fade;
   Object.assign(layer2Settings, d.layer2Settings);
   parallax.value = d.parallax;
+  Object.assign(variantOptions, d.variantOptions);
   source.value = 'math';
   lastFix.value = null; // the Fix result no longer describes these colors
 }

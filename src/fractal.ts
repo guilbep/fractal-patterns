@@ -109,7 +109,14 @@ function pathData(polys: readonly (readonly Pt[])[], precision: number): string 
 }
 
 export function generate(p: PatternParams): string {
-  const d = pathData(geometry(p), p.precision);
+  return svgFromPolylines(geometry(p), p);
+}
+
+export function svgFromPolylines(
+  polys: readonly (readonly Pt[])[],
+  p: Pick<PatternParams, 'size' | 'strokeWidth' | 'precision' | 'color' | 'opacity'>,
+): string {
+  const d = pathData(polys, p.precision);
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${p.size}" height="${p.size}" viewBox="0 0 ${p.size} ${p.size}">` +
     `<path d="${d}" fill="none" stroke="${p.color}" stroke-width="${p.strokeWidth}" stroke-opacity="${p.opacity}" stroke-linecap="round"/></svg>`

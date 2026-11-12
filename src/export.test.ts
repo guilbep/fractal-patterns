@@ -688,3 +688,21 @@ test('sections on with parallax: the keyframes repeat the layer rule calc( rotat
     }
   }
 });
+
+test('a rectangular tile: --fp-size-y, background-size on both variables, drift xy ends at one width and one height', () => {
+  const s = css({ drift: 'xy' }, { tileSize: 120, tileHeight: 102.077 });
+  assert.ok(s.includes('  --fp-size: 120px;\n  --fp-size-y: 102.077px;'));
+  assert.ok(s.includes('  background-size: var(--fp-size) var(--fp-size-y);'));
+  assert.ok(s.includes('  to { background-position: var(--fp-size) var(--fp-size-y); }'));
+  // The motion scale applies to both sides.
+  assert.ok(css({ scale: 2 }, { tileSize: 120, tileHeight: 102.077 }).includes('  --fp-size: 240px;\n  --fp-size-y: 204.154px;'));
+  // A height equal to the width writes the square export.
+  assert.equal(css({ drift: 'xy' }, { tileSize: 120, tileHeight: 120 }), css({ drift: 'xy' }, { tileSize: 120 }));
+});
+
+test('a rectangular second layer: --fp-size-2-y, its own background-size and drift keyframes', () => {
+  const s = css({ drift: 'xy' }, { tileSize: 120, tileHeight: 102.077, second: { svg, tileSize: 163, tileHeight: 138.653 } });
+  assert.ok(s.includes('  --fp-size-2: 163px;\n  --fp-size-2-y: 138.653px;'));
+  assert.ok(s.includes('  background-size: var(--fp-size-2) var(--fp-size-2-y);'));
+  assert.ok(s.includes('  to { background-position: var(--fp-size-2) var(--fp-size-2-y); }'));
+});

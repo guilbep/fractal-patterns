@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { generate, geometry, hasCompat, KINDS, MAX_DEPTH, type Kind } from './fractal.ts';
+import { generate, geometry, hasCompat, KINDS, MAX_DEPTH, tileAspect, type Kind } from './fractal.ts';
 import type { Pt } from './patterns/util.ts';
 import { pathData } from './scene.ts';
 import {
@@ -105,9 +105,13 @@ test('mirrorSuperSvg: one path, 4 uses, edge 120, no newline', () => {
   assert.ok(mirrorSuperSvg({ ...base, color: 'x"' }).includes('stroke="#000000"'));
 });
 
-test('mirrorSuperSvg: the 2 x 2 block is seamless for all 51 kinds, inner lines and wrap', () => {
+// Square kinds only: the mirror super tile assumes a square tile, and the page switches Mirror off for a
+// rectangular kind (Penrose), so the three Penrose kinds are skipped here.
+test('mirrorSuperSvg: the 2 x 2 block is seamless for all 51 square kinds, inner lines and wrap', () => {
   const fails: string[] = [];
-  for (const kind of KINDS) {
+  const square = KINDS.filter((k) => tileAspect(k) === 1);
+  assert.equal(square.length, 51);
+  for (const kind of square) {
     const o = { ...base, kind };
     const svg = mirrorSuperSvg(o);
     const geo = geometry({ kind, seed: 1, depth: 2, size: 60 });

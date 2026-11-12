@@ -212,35 +212,15 @@ export function torusEdgeKey(p: Pt, q: Pt, W: number, H: number): string {
 const OFF: Pt = [Math.SQRT2 / 10, Math.sqrt(3) / 10];
 
 export const PENROSE_MAX_DEPTH = 4;
-const MAX_RHOMBS = 2500;
+// Width / height of the approximant rectangle: the same at every level (checked by the tests).
+export const PENROSE_ASPECT = ((a) => a.width / a.height)(approximant(1, 1));
 
-// For a depth: the level and the m1 x m2 copies whose aspect is closest to 1, within MAX_RHOMBS.
-export function tilePlan(depth: number): { level: number; m1: number; m2: number; distortion: number } {
-  const level = Math.min(Math.max(depth, 1), PENROSE_MAX_DEPTH) + 1;
-  const a = approximant(1, level);
-  let best = { level, m1: 1, m2: 1, distortion: Infinity };
-  for (let m1 = 1; m1 <= 6; m1++)
-    for (let m2 = 1; m2 <= 6; m2++) {
-      if (a.rhombs.length * m1 * m2 > MAX_RHOMBS) continue;
-      const distortion = Math.abs((m1 * a.width) / (m2 * a.height) - 1);
-      if (distortion < best.distortion - 1e-9) best = { level, m1, m2, distortion };
-    }
-  return best;
-}
-
-// Square repeating tile: the approximant rectangle (times m1 x m2) scaled to size x size, with
-// separate x and y scales (the distortion per depth is reported by tilePlan).
+// Rectangular repeating tile: the approximant at level = depth, one uniform scale to width `size`,
+// so the geometry lies in [0, size] x [0, size / PENROSE_ASPECT] and no rhomb is distorted.
 export function penroseTile(rnd: Rng, depth: number, size: number, decorate: 'edges' | 'arcs' | 'both'): Poly[] {
   const seed = Math.floor(rnd() * 2 ** 32);
-  const { level, m1, m2 } = tilePlan(depth);
-  const a = approximant(seed, level);
-  const W = a.width * m1;
-  const H = a.height * m2;
-  const rhombs: Rhomb[] = [];
-  for (let i = 0; i < m1; i++)
-    for (let k = 0; k < m2; k++)
-      for (const r of a.rhombs)
-        rhombs.push({ ...r, points: r.points.map(([x, y]): Pt => [x + i * a.width, y + k * a.height]) as unknown as Rhomb['points'] });
+  const a = approximant(seed, Math.min(Math.max(depth, 1), PENROSE_MAX_DEPTH));
+  const { rhombs, width: W, height: H } = a;
   const polys: Poly[] = [];
   if (decorate !== 'arcs') {
     // Each torus edge once: reduce by its midpoint before deduplication.
@@ -257,12 +237,13 @@ export function penroseTile(rnd: Rng, depth: number, size: number, decorate: 'ed
   }
   if (decorate !== 'edges')
     polys.push(...rhombs.flatMap((r) => rhombArcs(r)).map((poly) => poly.map(([x, y]): Pt => [x + OFF[0], y + OFF[1]])));
-  const sx = size / W;
-  const sy = size / H;
+  // ponytail: wrap() is square only, so wrap in a y-stretched square and shrink y back: clipping commutes with the stretch.
+  const k = size / W;
+  const h = size / PENROSE_ASPECT;
   return wrap(
-    polys.map((poly) => poly.map(([x, y]): Pt => [x * sx, y * sy])),
+    polys.map((poly) => poly.map(([x, y]): Pt => [x * k, (y * size) / H])),
     size,
-  );
+  ).map((poly) => poly.map(([x, y]): Pt => [x, (y * h) / size]));
 }
 
 const gen =

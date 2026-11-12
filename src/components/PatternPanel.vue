@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { FAMILIES, FAMILY_LABELS, KINDS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH, type Kind } from '@/fractal.ts';
-import { MAX_SEED, autoCells, layout, params, patch, patchDepthMax, previews, reseed, setPin, setSeed, source, usingImage, usingPatchwork } from '@/state.ts';
+import { FAMILIES, FAMILY_LABELS, KINDS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH, tileAspect, type Kind } from '@/fractal.ts';
+import { MAX_SEED, autoCells, layout, params, patch, patchDepthMax, previews, reseed, setPin, setSeed, source, squareKind, usingImage, usingPatchwork } from '@/state.ts';
+
+// Patchwork cells are square: rectangular kinds are not offered.
+const squareKinds = KINDS.filter((k) => tileAspect(k) === 1);
 
 const depthMax = computed(() => (usingPatchwork.value ? patchDepthMax.value : MAX_DEPTH[params.kind]));
 
@@ -27,10 +30,11 @@ function jump(family: string): void {
     <fieldset class="radios">
       <legend>Layout</legend>
       <label class="radio"><input v-model="layout" type="radio" name="layout" value="single"> Single pattern</label>
-      <label class="radio"><input v-model="layout" type="radio" name="layout" value="patchwork"> Patchwork</label>
+      <label class="radio"><input v-model="layout" type="radio" name="layout" value="patchwork" :disabled="!squareKind"> Patchwork</label>
+      <p v-if="!squareKind" class="hint-text">Patchwork: Not available for this pattern yet.</p>
     </fieldset>
 
-    <div v-if="layout === 'patchwork'" class="patchwork">
+    <div v-if="layout === 'patchwork' && squareKind" class="patchwork">
       <div class="field">
         <label for="cells">Grid size <output for="cells">{{ patch.cells }} by {{ patch.cells }}</output></label>
         <select id="cells" v-model.number="patch.cells">
@@ -49,7 +53,7 @@ function jump(family: string): void {
           <label :for="`cell-${i}`">Cell {{ i + 1 }}</label>
           <select :id="`cell-${i}`" :value="patch.pinned[i] ?? ''" @change="setPin(i, ($event.target as HTMLSelectElement).value as Kind | '')">
             <option value="">Auto: {{ KIND_LABELS[auto] }}</option>
-            <option v-for="k in KINDS" :key="k" :value="k">{{ KIND_LABELS[k] }}</option>
+            <option v-for="k in squareKinds" :key="k" :value="k">{{ KIND_LABELS[k] }}</option>
           </select>
         </li>
       </ol>

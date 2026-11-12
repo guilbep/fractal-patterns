@@ -6,7 +6,8 @@ import { motionLayer, parallaxBlock, scaledSize, type Motion } from './motion.ts
 
 export interface ExportInput {
   readonly svg: string;
-  readonly tileSize: number; // px, repeat distance before the motion scale
+  readonly tileSize: number; // px, repeat distance before the motion scale (the width of a rectangular tile)
+  readonly tileHeight?: number; // px, the height of a rectangular tile; absent = square
   readonly background: string;
   readonly text: string;
   readonly plate: {
@@ -19,7 +20,7 @@ export interface ExportInput {
   readonly label: string; // how to make the tile again, e.g. "Herringbone, seed 123, depth 3"
   readonly appName: string;
   // A second layer, its size coprime with tileSize, with its own offset, extra rotation, opacity, and depth (see motionLayer).
-  readonly second?: { readonly svg: string; readonly tileSize: number } & Partial<Layer2Settings>;
+  readonly second?: { readonly svg: string; readonly tileSize: number; readonly tileHeight?: number } & Partial<Layer2Settings>;
   readonly fade?: boolean; // a soft mask over the pattern layer(s)
   readonly parallax?: boolean; // the two layers move at different speeds on scroll; needs `second`
   readonly sections?: boolean; // helper classes fp-a, fp-b, fp-c that turn the pattern per section
@@ -39,6 +40,9 @@ export function exportCss(i: ExportInput): string {
   const plated = i.plate.mode !== 'direct';
   const size = scaledSize(i.tileSize, i.motion);
   const size2 = i.second ? scaledSize(i.second.tileSize, i.motion) : '';
+  // A rectangular tile adds its height as --fp-size-y (and --fp-size-2-y); a square tile writes no extra line.
+  const rect = i.tileHeight !== undefined && i.tileHeight !== i.tileSize;
+  const rect2 = i.second?.tileHeight !== undefined && i.second.tileHeight !== i.second.tileSize;
   return [
     `/* ${safe(i.appName)}: ${safe(i.label)}. Tile ${i.tileSize}px. */`,
     '.fp-pattern {',
@@ -46,7 +50,9 @@ export function exportCss(i: ExportInput): string {
     `  --fp-ink: ${i.text};`,
     `  --fp-tile: url("${svgToDataUri(i.svg)}");`,
     `  --fp-size: ${size}px;`,
+    ...(rect ? [`  --fp-size-y: ${scaledSize(i.tileHeight!, i.motion)}px;`] : []),
     ...(i.second ? [`  --fp-tile-2: url("${svgToDataUri(i.second.svg)}");`, `  --fp-size-2: ${size2}px;`] : []),
+    ...(rect2 ? [`  --fp-size-2-y: ${scaledSize(i.second!.tileHeight!, i.motion)}px;`] : []),
     '  position: relative;',
     '  isolation: isolate;',
     '  overflow: hidden;',
@@ -57,8 +63,17 @@ export function exportCss(i: ExportInput): string {
       i.motion,
       'var(--fp-tile)',
       'var(--fp-size)',
-      i.second ? { ...i.second, image: 'var(--fp-tile-2)', s: 'var(--fp-size-2)', parallax: i.parallax === true } : undefined,
+      i.second
+        ? {
+            ...i.second,
+            image: 'var(--fp-tile-2)',
+            s: 'var(--fp-size-2)',
+            ...(rect2 ? { sy: 'var(--fp-size-2-y)' } : {}),
+            parallax: i.parallax === true,
+          }
+        : undefined,
       i.sections === true,
+      rect ? 'var(--fp-size-y)' : 'var(--fp-size)',
     ),
     ...(i.fade
       ? [

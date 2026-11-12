@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { curvesOn, resetSpacing, spacing, variantsOn } from '@/state.ts';
+import { aspect, curvesOn, resetSpacing, spacing, variantsOn } from '@/state.ts';
 
-const off = computed(() => variantsOn.value || curvesOn.value);
+const off = computed(() => variantsOn.value || curvesOn.value || aspect.value !== 1);
 </script>
 
 <template>
@@ -10,6 +10,7 @@ const off = computed(() => variantsOn.value || curvesOn.value);
     <h2 id="spacing-h">Spacing</h2>
     <p v-if="variantsOn" class="hint-text">Not combined with Reduce repetition yet.</p>
     <p v-if="curvesOn" class="hint-text">Not combined with Smooth curves yet.</p>
+    <p v-if="aspect !== 1" class="hint-text">Not available for this pattern yet.</p>
     <p class="hint-text">Zoom above 1 removes the empty margin around a pattern. Gap adds space between repeats.</p>
     <div class="fields">
       <div class="field">

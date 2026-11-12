@@ -51,7 +51,7 @@ function randomDesign(r: () => number): Design {
     layout: pick(['single', 'patchwork'] as const),
     cells: int(2, 4),
     frame: r() < 0.5,
-    families: int(1, 31),
+    families: int(1, 63),
     variants: r() < 0.5,
     layer2: r() < 0.5,
     fade: r() < 0.5,
@@ -153,7 +153,7 @@ function assertValid(d: Design, label: string): void {
   assert.ok(['single', 'patchwork'].includes(d.layout), label);
   assert.ok(Number.isInteger(d.cells) && inRange(d.cells, 2, 4), label);
   assert.equal(typeof d.frame, 'boolean', label);
-  assert.ok(Number.isInteger(d.families) && inRange(d.families, 1, 31), label);
+  assert.ok(Number.isInteger(d.families) && inRange(d.families, 1, 63), label);
   assert.equal(typeof d.variants, 'boolean', label);
   assert.equal(typeof d.layer2, 'boolean', label);
   assert.equal(typeof d.fade, 'boolean', label);
@@ -268,7 +268,9 @@ test('hostile patchwork values fall back or clamp', () => {
   assert.equal(decodeDesign('c=99').cells, 4);
   assert.equal(decodeDesign('c=abc').cells, 3);
   assert.equal(decodeDesign('fa=0').families, DESIGN_DEFAULTS.families);
-  assert.equal(decodeDesign('fa=999').families, 31);
+  assert.equal(decodeDesign('fa=999').families, 63);
+  // A link from before the Quasicrystals family keeps its five families: the new family is the next bit.
+  assert.equal(decodeDesign('fa=31').families, 31);
   assert.equal(decodeDesign('l=x').layout, 'single');
   assert.equal(decodeDesign('f=yes').frame, false);
   assert.equal(encodeDesign(DESIGN_DEFAULTS), '');

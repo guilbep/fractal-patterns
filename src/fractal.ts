@@ -31,10 +31,11 @@ import { THEME_EARTH_MAX_DEPTH, cracks, roots, stars } from './patterns/themes-e
 import { PIPES_MAX_DEPTH, pipes } from './patterns/themes-pipes.ts';
 import { THEME_WATER_MAX_DEPTH, rain, ridges, seigaiha } from './patterns/themes-water.ts';
 import { circuit, maze, topo } from './patterns/themes.ts';
+import { PENROSE_ASPECT, PENROSE_MAX_DEPTH, penroseArcs, penroseBoth, penroseEdges } from './penrose.ts';
 import { mulberry32, type Generator, type Pt } from './patterns/util.ts';
 import { sceneToSvg, squareScene } from './scene.ts';
 
-export const FAMILIES = ['fractal', 'line', 'surface', 'symmetry', 'theme'] as const;
+export const FAMILIES = ['fractal', 'line', 'surface', 'symmetry', 'theme', 'quasi'] as const;
 export type Family = (typeof FAMILIES)[number];
 
 export const FAMILY_LABELS: Readonly<Record<Family, string>> = {
@@ -43,6 +44,7 @@ export const FAMILY_LABELS: Readonly<Record<Family, string>> = {
   surface: 'Surfaces',
   symmetry: 'Symmetry groups',
   theme: 'Themes',
+  quasi: 'Quasicrystals',
 };
 
 export const KINDS = [
@@ -97,12 +99,15 @@ export const KINDS = [
   'feathers',
   'chain',
   'pipes',
+  'penrose',
+  'penrosearcs',
+  'penroseboth',
 ] as const;
 export type Kind = (typeof KINDS)[number];
 
 // maxDepth: the measured worst case over many seeds stays near or under 20k chars at precision 1,
 // and one level more either breaks that or only adds sub-pixel detail at size 120.
-const PATTERNS: Readonly<Record<Kind, { family: Family; label: string; maxDepth: number; gen: Generator }>> = {
+const PATTERNS: Readonly<Record<Kind, { family: Family; label: string; maxDepth: number; gen: Generator; aspect?: number }>> = {
   carpet: { family: 'fractal', label: 'Carpet', maxDepth: 3, gen: carpet },
   quadtree: { family: 'fractal', label: 'Quadtree', maxDepth: 6, gen: quadtree },
   tree: { family: 'fractal', label: 'Tree', maxDepth: 10, gen: tree },
@@ -155,6 +160,10 @@ const PATTERNS: Readonly<Record<Kind, { family: Family; label: string; maxDepth:
   feathers: { family: 'theme', label: 'Feathers', maxDepth: THEME_AIR_MAX_DEPTH.feathers, gen: feathers },
   chain: { family: 'theme', label: 'Chain and fence', maxDepth: THEME_AIR_MAX_DEPTH.chain, gen: chain },
   pipes: { family: 'theme', label: 'Pipes', maxDepth: PIPES_MAX_DEPTH, gen: pipes },
+  // A rectangular tile (aspect = width / height): the generator's `size` is the tile width.
+  penrose: { family: 'quasi', label: 'Penrose rhombs', maxDepth: PENROSE_MAX_DEPTH, gen: penroseEdges, aspect: PENROSE_ASPECT },
+  penrosearcs: { family: 'quasi', label: 'Penrose arcs', maxDepth: PENROSE_MAX_DEPTH, gen: penroseArcs, aspect: PENROSE_ASPECT },
+  penroseboth: { family: 'quasi', label: 'Penrose rhombs and arcs', maxDepth: PENROSE_MAX_DEPTH, gen: penroseBoth, aspect: PENROSE_ASPECT },
 };
 
 const byKind = <T>(f: (k: Kind) => T): Readonly<Record<Kind, T>> => Object.fromEntries(KINDS.map((k) => [k, f(k)])) as Record<Kind, T>;
@@ -162,6 +171,10 @@ const byKind = <T>(f: (k: Kind) => T): Readonly<Record<Kind, T>> => Object.fromE
 export const KIND_LABELS: Readonly<Record<Kind, string>> = byKind((k) => PATTERNS[k].label);
 export const KIND_FAMILY: Readonly<Record<Kind, Family>> = byKind((k) => PATTERNS[k].family);
 export const MAX_DEPTH: Readonly<Record<Kind, number>> = byKind((k) => PATTERNS[k].maxDepth);
+// Tile width / height; 1 for a square tile.
+export const tileAspect = (kind: Kind): number => PATTERNS[kind].aspect ?? 1;
+// Tile height for a width and an aspect, rounded to 3 decimals as in the SVG attributes.
+export const tileHeight = (size: number, aspect = 1): number => (aspect === 1 ? size : Math.round((size / aspect) * 1000) / 1000);
 
 export interface PatternParams {
   readonly kind: Kind;
@@ -195,12 +208,14 @@ export function geometry(p: Pick<PatternParams, 'kind' | 'seed' | 'depth' | 'siz
 }
 
 export function generate(p: PatternParams): string {
-  return svgFromPolylines(geometry(p), p);
+  return svgFromPolylines(geometry(p), p, tileAspect(p.kind));
 }
 
+// `aspect` (width / height) other than 1 gives a tile of `size` by `size / aspect`.
 export function svgFromPolylines(
   polys: readonly (readonly Pt[])[],
   p: Pick<PatternParams, 'size' | 'strokeWidth' | 'precision' | 'color' | 'opacity'>,
+  aspect = 1,
 ): string {
-  return sceneToSvg(squareScene(polys, p), p.precision);
+  return sceneToSvg({ ...squareScene(polys, p), height: tileHeight(p.size, aspect) }, p.precision);
 }

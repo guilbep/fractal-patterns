@@ -1,6 +1,6 @@
 // Module-level reactive state for the page. Randomness lives here, never in fractal.ts.
 import { computed, reactive, ref, shallowRef, watch } from 'vue';
-import { FAMILIES, KINDS, MAX_DEPTH, generate, geometry, svgFromPolylines, type Family, type Kind } from '@/fractal.ts';
+import { FAMILIES, KINDS, MAX_DEPTH, generate, geometry, svgFromPolylines, tileAspect, type Family, type Kind } from '@/fractal.ts';
 import { patchworkCells, patchworkGeometry, type PatchworkParams } from '@/patchwork.ts';
 import { mirrorTile, withGap, zoomWrap } from '@/spacing.ts';
 import type { Pt } from '@/patterns/util.ts';
@@ -177,7 +177,11 @@ export const traced = computed(() => {
 });
 export const usingImage = computed(() => source.value === 'image' && traced.value !== null);
 
-export const usingPatchwork = computed(() => !usingImage.value && layout.value === 'patchwork');
+// A rectangular kind (Penrose) has no patchwork yet: the layout falls back to single.
+export const squareKind = computed(() => tileAspect(params.kind) === 1);
+export const usingPatchwork = computed(() => !usingImage.value && layout.value === 'patchwork' && squareKind.value);
+// Tile width / height: only a single math pattern of a rectangular kind is not square.
+export const aspect = computed(() => (usingImage.value || usingPatchwork.value ? 1 : tileAspect(params.kind)));
 
 // One pipeline for every source: base polylines, mirror, zoom, gap. The gap gives the final tile size.
 function tileFor(seed: number): { polys: readonly (readonly Pt[])[]; size: number } {
@@ -188,13 +192,15 @@ function tileFor(seed: number): { polys: readonly (readonly Pt[])[]; size: numbe
       : usingPatchwork.value
         ? patchworkGeometry({ ...patchParams.value, seed })
         : geometry({ ...params, seed });
+  // ponytail: spacing assumes a square tile; skipped for a rectangular kind until a ticket asks.
+  if (aspect.value !== 1) return { polys, size };
   if (spacing.mirror) polys = mirrorTile(polys, size);
   if (spacing.zoom !== 1) polys = zoomWrap(polys, size, spacing.zoom);
   return spacing.gap > 0 ? withGap(polys, size, spacing.gap) : { polys, size };
 }
 const tile = computed(() => tileFor(params.seed));
 const tileSvg = (t: { polys: readonly (readonly Pt[])[]; size: number }) =>
-  svgFromPolylines(t.polys, { ...params, size: t.size, color: roles.pattern, opacity: opacity.value });
+  svgFromPolylines(t.polys, { ...params, size: t.size, color: roles.pattern, opacity: opacity.value }, aspect.value);
 
 // Smooth curves: the traced tile from traceCurves.
 // ponytail: spacing (mirror, zoom, gap) is skipped in this mode, it works on polylines; combine it when a ticket asks.

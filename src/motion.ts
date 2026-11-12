@@ -40,7 +40,13 @@ export function cssMotion(svg: string, background: string, size: number, m: Moti
 // With `second`, a `.fp-pattern::after` layer follows with its own `fp-drift-2` keyframes, and its own offset
 // (x, y in percent of its tile), extra rotation, opacity, and depth (drift speed relative to the first layer).
 // With `parallax`, each layer box grows by its scroll travel (see parallaxBlock), so the move never shows an edge.
-export type SecondLayer = { readonly image: string; readonly s: string; readonly parallax?: boolean } & Partial<Layer2Settings>;
+// `sy` (s2y for the second layer) is the tile height for a rectangular tile; absent = square.
+export type SecondLayer = {
+  readonly image: string;
+  readonly s: string;
+  readonly sy?: string;
+  readonly parallax?: boolean;
+} & Partial<Layer2Settings>;
 
 // A layer is centered on an oversized box when it turns, skews, or tilts, or when `turn` adds the --fp-turn property.
 const isCentered = (lm: Motion, turn: boolean) => turn || lm.rotate !== 0 || lm.skew !== 0 || lm.tilt !== 0;
@@ -62,9 +68,19 @@ function layerFns(lm: Motion, turn = false): string[] {
 export const FIRST_TRAVEL = 4;
 export const parallaxTravel = (depth = 1): number => Math.min(32, Math.max(2, Math.round(8 * depth * 1000) / 1000));
 
-export function motionLayer(m: Motion, image: string, s: string, second?: SecondLayer, turn = false): string[] {
+export function motionLayer(m: Motion, image: string, s: string, second?: SecondLayer, turn = false, sy = s): string[] {
   const drift = m.drift;
-  const rule = (pseudo: string, img: string, size: string, name: string, lm: Motion, extra: string[], seconds: number, travel: number) => {
+  const rule = (
+    pseudo: string,
+    img: string,
+    size: string,
+    sizeY: string,
+    name: string,
+    lm: Motion,
+    extra: string[],
+    seconds: number,
+    travel: number,
+  ) => {
     const centered = isCentered(lm, turn);
     // Tilt pivots on the box's top edge: with perspective(800px) the far half of the plane never rises more than
     // 800px * cot(tilt) above the pivot, so the whole box sits on the near half. 225vmax covers a disc of radius
@@ -85,7 +101,7 @@ export function motionLayer(m: Motion, image: string, s: string, second?: Second
         ? ['  left: 50%;', `  top: ${lm.tilt !== 0 ? '0' : '50%'};`, `  width: ${side};`, `  height: ${side};`]
         : [travel === 0 ? '  inset: 0;' : `  inset: 0 0 -${n(travel)}vh;`]),
       `  background-image: ${img};`,
-      `  background-size: ${size} ${size};`,
+      `  background-size: ${size} ${sizeY};`,
       ...extra,
       ...(fns.length > 0 ? [`  transform: ${fns.join(' ')};`] : []),
       ...(drift === 'none' ? [] : [`  animation: ${name} ${n(seconds)}s linear infinite;`]),
@@ -98,9 +114,10 @@ export function motionLayer(m: Motion, image: string, s: string, second?: Second
   const x2 = second?.x ?? 0;
   const y2 = second?.y ?? 0;
   const px = second?.parallax === true;
-  const lines = [...rule('before', image, s, 'fp-drift', m, [], m.speed, px ? FIRST_TRAVEL : 0)];
+  const s2y = second?.sy ?? second?.s ?? '';
+  const lines = [...rule('before', image, s, sy, 'fp-drift', m, [], m.speed, px ? FIRST_TRAVEL : 0)];
   if (second) {
-    const offset = x2 !== 0 || y2 !== 0 ? [`  background-position: ${at(second.s, x2, 0)} ${at(second.s, y2, 0)};`] : [];
+    const offset = x2 !== 0 || y2 !== 0 ? [`  background-position: ${at(second.s, x2, 0)} ${at(s2y, y2, 0)};`] : [];
     const opacity = (second.opacity ?? 1) !== 1 ? [`  opacity: ${n(second.opacity ?? 1)};`] : [];
     const seconds = Math.round((m.speed / (second.depth ?? 1)) * 1000) / 1000;
     lines.push(
@@ -108,6 +125,7 @@ export function motionLayer(m: Motion, image: string, s: string, second?: Second
         'after',
         second.image,
         second.s,
+        s2y,
         'fp-drift-2',
         { ...m, rotate: m.rotate + (second.rotate ?? 0) },
         [...offset, ...opacity],
@@ -119,16 +137,16 @@ export function motionLayer(m: Motion, image: string, s: string, second?: Second
   if (drift === 'none') return lines;
 
   // Without an offset, the start is the default 0 0; with one, the start is the layer's background-position.
-  const keyframes = (name: string, size: string, x: number, y: number) => [
+  const keyframes = (name: string, size: string, sizeY: string, x: number, y: number) => [
     '',
     `@keyframes ${name} {`,
-    `  to { background-position: ${at(size, x, drift === 'y' ? 0 : 1)} ${at(size, y, drift === 'x' ? 0 : 1)}; }`,
+    `  to { background-position: ${at(size, x, drift === 'y' ? 0 : 1)} ${at(sizeY, y, drift === 'x' ? 0 : 1)}; }`,
     '}',
   ];
   const pseudos = second ? ['before', 'after'] : ['before'];
   lines.push(
-    ...keyframes('fp-drift', s, 0, 0),
-    ...(second ? keyframes('fp-drift-2', second.s, x2, y2) : []),
+    ...keyframes('fp-drift', s, sy, 0, 0),
+    ...(second ? keyframes('fp-drift-2', second.s, s2y, x2, y2) : []),
     '',
     `${pseudos.map((p) => `.fp-pattern.fp-paused::${p}`).join(', ')} {`,
     '  animation-play-state: paused;',

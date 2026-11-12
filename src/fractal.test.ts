@@ -12,9 +12,11 @@ import {
   generate,
   geometry,
   hasCompat,
+  tileAspect,
   type Kind,
   type PatternParams,
 } from './fractal.ts';
+import { PENROSE_ASPECT } from './penrose.ts';
 
 const base = { seed: 1, depth: 3, size: 120, strokeWidth: 1, precision: 1, color: '#336699', opacity: 0.5 } as const;
 const params = (kind: PatternParams['kind'], over: Partial<PatternParams> = {}): PatternParams => ({ ...base, kind, ...over });
@@ -80,7 +82,9 @@ test('size cap', () => {
   for (const kind of KINDS) {
     for (let seed = 1; seed <= 20; seed++) {
       const len = generate(params(kind, { seed, depth: MAX_DEPTH[kind] })).length;
-      assert.ok(len <= 60000, `${kind} seed ${seed}: ${len}`);
+      // The Penrose kinds are allowed more: the owner accepts a heavy tile there (the page shows its bytes), so
+      // their cap is 125000, measured worst 118102 for 'penroseboth' depth 4 at size 120.
+      assert.ok(len <= (tileAspect(kind) === 1 ? 60000 : 125000), `${kind} seed ${seed}: ${len}`);
     }
     const deep = generate(params(kind, { depth: MAX_DEPTH[kind] })).length;
     const shallow = generate(params(kind, { depth: 1 })).length;
@@ -93,7 +97,8 @@ test('well-formed', () => {
     const svg = generate(params(kind));
     assert.ok(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"'), kind);
     assert.ok(svg.endsWith('</svg>'), kind);
-    assert.ok(svg.includes('viewBox="0 0 120 120"'), kind);
+    const h = Math.round((120 / tileAspect(kind)) * 1000) / 1000;
+    assert.ok(svg.includes(`viewBox="0 0 120 ${h}"`), kind);
     assert.ok(svg.includes('#336699'), kind);
     assert.ok(!svg.includes('\n'), kind);
   }
@@ -137,7 +142,9 @@ test('source hygiene', () => {
 });
 
 test('families', () => {
-  assert.deepEqual([...FAMILIES], ['fractal', 'line', 'surface', 'symmetry', 'theme']);
+  assert.deepEqual([...FAMILIES], ['fractal', 'line', 'surface', 'symmetry', 'theme', 'quasi']);
+  assert.equal(FAMILY_LABELS.quasi, 'Quasicrystals');
+  for (const kind of ['penrose', 'penrosearcs', 'penroseboth'] as const) assert.equal(KIND_FAMILY[kind], 'quasi', kind);
   for (const kind of [
     'topo',
     'maze',
@@ -180,7 +187,7 @@ test('families', () => {
 });
 
 test('all kinds are registered', () => {
-  assert.equal(KINDS.length, 51);
+  assert.equal(KINDS.length, 54);
   const ids = [
     'carpet',
     'quadtree',
@@ -233,6 +240,9 @@ test('all kinds are registered', () => {
     'feathers',
     'chain',
     'pipes',
+    'penrose',
+    'penrosearcs',
+    'penroseboth',
   ];
   for (const id of ids) assert.ok((KINDS as readonly string[]).includes(id), id);
   for (const kind of ['p1', 'p2', 'pm', 'pg', 'cm', 'pmm', 'pmg', 'pgg', 'cmm', 'p4', 'p4m', 'p4g'] as const)
@@ -561,6 +571,24 @@ const PINS: Readonly<Record<PatternParams['kind'], readonly (readonly [number, n
     [3208, 3436706001],
     [12147, 2126258508],
   ],
+  penrose: [
+    [3891, 2504793203],
+    [23607, 943003851],
+    [3852, 4200862368],
+    [23246, 1796574155],
+  ],
+  penrosearcs: [
+    [14880, 723624810],
+    [94698, 1400798053],
+    [14771, 286776405],
+    [94829, 2890536417],
+  ],
+  penroseboth: [
+    [18568, 2102647298],
+    [118102, 3289418917],
+    [18420, 3219815402],
+    [117872, 966209441],
+  ],
 };
 
 // The compatible layouts (compat: true) of the kinds that have one.
@@ -650,4 +678,34 @@ test('distinct outputs over seeds 1..12 at depth 2, free and compatible', () => 
     ['trinet', 12, 12],
     ['nested', 12, 5],
   ]);
+});
+
+const PENROSE_KINDS = ['penrose', 'penrosearcs', 'penroseboth'] as const;
+
+test('tileAspect: 1 for every square kind, PENROSE_ASPECT for the three Penrose kinds', () => {
+  for (const kind of KINDS) assert.equal(tileAspect(kind), (PENROSE_KINDS as readonly string[]).includes(kind) ? PENROSE_ASPECT : 1, kind);
+});
+
+test('generate for a Penrose kind: an SVG of size by size / aspect, viewBox to match', () => {
+  for (const kind of PENROSE_KINDS)
+    for (const size of [120, 240]) {
+      const h = Math.round((size / PENROSE_ASPECT) * 1000) / 1000;
+      assert.ok(
+        generate(params(kind, { size })).startsWith(
+          `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${h}" viewBox="0 0 ${size} ${h}">`,
+        ),
+        kind,
+      );
+    }
+});
+
+test('Penrose rhombs at depth 2: every whole edge segment has one length (one uniform scale)', () => {
+  const lens = geometry({ kind: 'penrose', seed: 1, depth: 2, size: 240 })
+    .filter((p) => p.length === 2)
+    .map(([p, q]) => Math.hypot(q![0] - p![0], q![1] - p![1]));
+  const max = Math.max(...lens);
+  // Segments cut by the tile border are shorter; the whole ones are most of them.
+  const whole = lens.filter((l) => l > max - 1e-3);
+  assert.ok(whole.length > lens.length / 2);
+  for (const l of whole) assert.ok(Math.abs(l - max) < 1e-6, `${l} vs ${max}`);
 });

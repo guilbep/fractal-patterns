@@ -40,10 +40,11 @@ export interface FillStyle {
 // 'alternate' fills closed shapes 0, 2, 4, … in their order: a checker-like rhythm on regular grids.
 export function fillScene(
   polys: readonly (readonly Pt[])[],
-  o: { readonly size: number; readonly strokeWidth: number; readonly color: string; readonly opacity: number },
+  o: { readonly size: number; readonly strokeWidth: number; readonly color: string; readonly opacity: number; readonly height?: number },
   fill: FillStyle,
 ): Scene {
-  const stroke = squareScene(polys, o);
+  // `height` other than `size` for a rectangular tile.
+  const stroke = { ...squareScene(polys, o), height: o.height ?? o.size };
   if (fill.mode === 'none') return stroke;
   const { closed } = splitClosed(polys);
   const shapes = fill.mode === 'alternate' ? closed.filter((_, i) => i % 2 === 0) : closed;

@@ -12,7 +12,7 @@ import {
   penrosePatch,
   penroseTile,
   rhombArcs,
-  tilePlan,
+  PENROSE_ASPECT,
   torusEdgeKey,
   type Rhomb,
 } from './penrose.ts';
@@ -253,22 +253,20 @@ test('approximant fat to thin ratio approaches the golden ratio; arc ends matche
 const T = 240;
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 // Seam check copied from src/patterns/themes.test.ts.
-const assertSeamless = (polys: Pt[][], S: number, msg: string) => {
+const assertSeamless = (polys: Pt[][], S: number, msg: string, SY = S) => {
   const cross = { x0: [] as number[], xS: [] as number[], y0: [] as number[], yS: [] as number[] };
   for (const poly of polys) {
     for (let i = 1; i < poly.length; i++) {
       const [ax, ay] = poly[i - 1]!;
       const [bx, by] = poly[i]!;
-      for (const e of [0, S]) {
-        assert.ok(!(near(ax, e) && near(bx, e)), `${msg}: segment on x = ${e}`);
-        assert.ok(!(near(ay, e) && near(by, e)), `${msg}: segment on y = ${e}`);
-      }
+      for (const e of [0, S]) assert.ok(!(near(ax, e) && near(bx, e)), `${msg}: segment on x = ${e}`);
+      for (const e of [0, SY]) assert.ok(!(near(ay, e) && near(by, e)), `${msg}: segment on y = ${e}`);
     }
     for (const [x, y] of poly) {
       if (near(x, 0)) cross.x0.push(y);
       if (near(x, S)) cross.xS.push(y);
       if (near(y, 0)) cross.y0.push(x);
-      if (near(y, S)) cross.yS.push(x);
+      if (near(y, SY)) cross.yS.push(x);
     }
   }
   const same = (a: number[], b: number[], side: string) => {
@@ -281,17 +279,38 @@ const assertSeamless = (polys: Pt[][], S: number, msg: string) => {
   same(cross.y0, cross.yS, 'y');
 };
 
-test('penroseTile is seamless, deterministic, seeded and inside the tile', () => {
+test('penroseTile is seamless on the rectangle, deterministic, seeded and inside the tile', () => {
+  const TY = T / PENROSE_ASPECT;
   for (const decorate of ['edges', 'arcs', 'both'] as const)
     for (let depth = 1; depth <= 4; depth++)
       for (let seed = 1; seed <= 5; seed++) {
         const polys = penroseTile(mulberry32(seed), depth, T, decorate);
-        assertSeamless(polys, T, `${decorate} depth ${depth} seed ${seed}`);
-        for (const poly of polys) for (const [x, y] of poly) assert.ok(x >= 0 && x <= T && y >= 0 && y <= T);
+        assertSeamless(polys, T, `${decorate} depth ${depth} seed ${seed}`, TY);
+        for (const poly of polys) for (const [x, y] of poly) assert.ok(x >= -1e-9 && x <= T + 1e-9 && y >= -1e-9 && y <= TY + 1e-9);
       }
   for (const gen of [penroseEdges, penroseArcs, penroseBoth]) {
     assert.deepEqual(gen(mulberry32(1), 2, T), gen(mulberry32(1), 2, T));
     assert.notDeepEqual(gen(mulberry32(1), 2, T), gen(mulberry32(2), 2, T));
   }
-  for (let depth = 1; depth <= 4; depth++) console.log(`penroseTile depth ${depth}:`, JSON.stringify(tilePlan(depth)));
+});
+
+test('PENROSE_ASPECT is the approximant aspect at every level, near 1.1756', () => {
+  assert.ok(Math.abs(PENROSE_ASPECT - 1.1756) < 1e-3, String(PENROSE_ASPECT));
+  for (let level = 1; level <= 4; level++) {
+    const a = approximant(1, level);
+    assert.ok(Math.abs(a.width / a.height - PENROSE_ASPECT) < 1e-9, `level ${level}`);
+  }
+});
+
+test('penroseTile: one uniform scale, every edge segment has the same length', () => {
+  for (let depth = 1; depth <= 4; depth++) {
+    const polys = penroseTile(mulberry32(3), depth, T, 'edges');
+    // Unclipped segments only: a segment cut by the tile border is shorter.
+    const lens = polys.filter((p) => p.length === 2).map(([p, q]) => dist(p!, q!));
+    const max = Math.max(...lens);
+    const whole = lens.filter((l) => l > max - 1e-3);
+    assert.ok(whole.length > lens.length / 2, `depth ${depth}`);
+    for (const l of whole) assert.ok(Math.abs(l - max) < 1e-6, `depth ${depth}: ${l} vs ${max}`);
+    assert.ok(Math.abs(max - T / approximant(1, depth).width) < 1e-6, `depth ${depth}: edge ${max}`);
+  }
 });

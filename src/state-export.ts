@@ -3,10 +3,11 @@ import { computed, ref, watch } from 'vue';
 import { APP_NAME } from '@/app-name.ts';
 import { formatFootprint, gzipSize } from '@/co2.ts';
 import { exportCss, exportJs, exportParallax, type ExportInput } from '@/export.ts';
-import { KIND_LABELS } from '@/fractal.ts';
+import { KIND_LABELS, tileHeight } from '@/fractal.ts';
 import { DETECTOR_LABELS } from '@/trace.ts';
 import { scaledSecondSize } from '@/layers.ts';
 import {
+  aspect,
   fade,
   layer2,
   layer2Settings,
@@ -40,6 +41,7 @@ export const exportLabel = computed(() =>
 const exportInput = computed<ExportInput>(() => ({
   svg: svg.value,
   tileSize: tileSize.value,
+  ...(aspect.value !== 1 ? { tileHeight: tileHeight(tileSize.value, aspect.value) } : {}),
   background: roles.background,
   text: roles.text,
   plate: { mode: plateMode.value, opacity: plateOpacity.value, radius: plateRadius.value, blur: plateBlur.value },
@@ -53,6 +55,8 @@ const exportInput = computed<ExportInput>(() => ({
           ...layer2Settings,
           svg: svgForSeed((params.seed + 1) >>> 0),
           tileSize: scaledSecondSize(tileSize.value, layer2Settings.scale),
+          // The second layer keeps the aspect of the first.
+          ...(aspect.value !== 1 ? { tileHeight: tileHeight(scaledSecondSize(tileSize.value, layer2Settings.scale), aspect.value) } : {}),
         },
       }
     : {}),

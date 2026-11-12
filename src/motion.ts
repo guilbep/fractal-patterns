@@ -36,7 +36,8 @@ export function cssMotion(svg: string, background: string, size: number, m: Moti
 
 // The `.fp-pattern::before` rule, plus keyframes, paused and reduced-motion rules when drifting.
 // `image` is the background-image value; `s` is one tile side with its unit, also the drift distance.
-export function motionLayer(m: Motion, image: string, s: string): string[] {
+// With `second`, a `.fp-pattern::after` layer follows with the same box and its own `fp-drift-2` keyframes.
+export function motionLayer(m: Motion, image: string, s: string, second?: { image: string; s: string }): string[] {
   const centered = m.rotate !== 0 || m.skew !== 0 || m.tilt !== 0;
   // Tilt pivots on the box's top edge: with perspective(800px) the far half of the plane never rises more than
   // 800px * cot(tilt) above the pivot, so the whole box sits on the near half. 225vmax covers a disc of radius
@@ -50,33 +51,39 @@ export function motionLayer(m: Motion, image: string, s: string): string[] {
   if (m.rotate !== 0) fns.push(`rotate(${n(m.rotate)}deg)`);
   if (m.skew !== 0) fns.push(`skewX(${n(m.skew)}deg)`);
 
-  const lines = [
-    '.fp-pattern::before {',
+  const drift = m.drift;
+  const rule = (pseudo: string, img: string, size: string, name: string) => [
+    `.fp-pattern::${pseudo} {`,
     '  content: "";',
     '  position: absolute;',
     '  z-index: -1;',
     ...(centered ? ['  left: 50%;', `  top: ${m.tilt !== 0 ? '0' : '50%'};`, `  width: ${side};`, `  height: ${side};`] : ['  inset: 0;']),
-    `  background-image: ${image};`,
-    `  background-size: ${s} ${s};`,
+    `  background-image: ${img};`,
+    `  background-size: ${size} ${size};`,
+    ...(fns.length > 0 ? [`  transform: ${fns.join(' ')};`] : []),
+    ...(drift === 'none' ? [] : [`  animation: ${name} ${n(m.speed)}s linear infinite;`]),
+    '}',
   ];
-  if (fns.length > 0) lines.push(`  transform: ${fns.join(' ')};`);
-  if (m.drift === 'none') return [...lines, '}'];
+  const lines = [...rule('before', image, s, 'fp-drift'), ...(second ? rule('after', second.image, second.s, 'fp-drift-2') : [])];
+  if (drift === 'none') return lines;
 
-  const to = { x: `${s} 0`, y: `0 ${s}`, xy: `${s} ${s}` }[m.drift];
+  const keyframes = (name: string, size: string) => [
+    '',
+    `@keyframes ${name} {`,
+    `  to { background-position: ${{ x: `${size} 0`, y: `0 ${size}`, xy: `${size} ${size}` }[drift]}; }`,
+    '}',
+  ];
+  const pseudos = second ? ['before', 'after'] : ['before'];
   lines.push(
-    `  animation: fp-drift ${n(m.speed)}s linear infinite;`,
-    '}',
+    ...keyframes('fp-drift', s),
+    ...(second ? keyframes('fp-drift-2', second.s) : []),
     '',
-    '@keyframes fp-drift {',
-    `  to { background-position: ${to}; }`,
-    '}',
-    '',
-    '.fp-pattern.fp-paused::before {',
+    `${pseudos.map((p) => `.fp-pattern.fp-paused::${p}`).join(', ')} {`,
     '  animation-play-state: paused;',
     '}',
     '',
     '@media (prefers-reduced-motion: reduce) {',
-    '  .fp-pattern::before {',
+    `  ${pseudos.map((p) => `.fp-pattern::${p}`).join(', ')} {`,
     '    animation: none;',
     '  }',
     '}',

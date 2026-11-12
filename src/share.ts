@@ -1,6 +1,7 @@
 // A design as a short URL query string, and back. The query is untrusted input: decodeDesign never throws
 // and every field falls back to its default or is clamped to its range.
 import { FAMILIES, KINDS, MAX_DEPTH, type Kind } from './fractal.ts';
+import { LAYER2_DEFAULTS, type Layer2Settings } from './layers.ts';
 import { MOTION_NONE, type Motion } from './motion.ts';
 
 export interface Design extends Motion {
@@ -28,6 +29,7 @@ export interface Design extends Motion {
   readonly variants: boolean; // Reduce repetition: a 4 by 4 super tile
   readonly layer2: boolean; // a second copy of the tile at a coprime size
   readonly fade: boolean; // a soft mask over the pattern
+  readonly layer2Settings: Layer2Settings; // offset, turn, size, strength, and depth of the second layer
 }
 // Not in the URL: pinned patchwork cells (a per-session tweak), the palette name (the roles carry the colors),
 // and the image source (the pixels never leave the browser).
@@ -60,6 +62,7 @@ export const DESIGN_DEFAULTS: Design = {
   variants: false,
   layer2: false,
   fade: false,
+  layer2Settings: LAYER2_DEFAULTS,
 };
 
 // Field to short key. The insertion order is the order of the encoded string.
@@ -93,13 +96,45 @@ const KEYS: Readonly<Record<keyof Design, string>> = {
   families: 'fa',
   variants: 'v',
   layer2: 'l2',
-  fade: 'fd', // keep new keys last: older links stay valid
+  fade: 'fd',
+  layer2Settings: 'l2s', // keep new keys last: older links stay valid
 };
 const FIELDS = Object.keys(KEYS) as (keyof Design)[];
+
+// The second-layer settings in one value, x_y_rotate_scale_opacity_depth ('_' needs no escaping in a URL);
+// empty when all are default.
+const L2_ORDER = ['x', 'y', 'rotate', 'scale', 'opacity', 'depth'] as const;
+const L2_RANGES: Readonly<Record<keyof Layer2Settings, readonly [number, number]>> = {
+  x: [0, 100],
+  y: [0, 100],
+  rotate: [-180, 180],
+  scale: [0.5, 3],
+  opacity: [0.1, 1],
+  depth: [0.25, 4],
+};
+const encodeL2 = (l: Layer2Settings): string =>
+  L2_ORDER.every((k) => l[k] === LAYER2_DEFAULTS[k]) ? '' : L2_ORDER.map((k) => String(l[k])).join('_');
+// Six finite numbers, each clamped to its range; anything else gives the defaults.
+function decodeL2(s: string): Layer2Settings {
+  const parts = s.split('_');
+  const nums = parts.map((p) => (p.trim() === '' ? NaN : Number(p)));
+  if (nums.length !== L2_ORDER.length || !nums.every(Number.isFinite)) return LAYER2_DEFAULTS;
+  const out = {} as Record<keyof Layer2Settings, number>;
+  L2_ORDER.forEach((k, i) => {
+    const [lo, hi] = L2_RANGES[k];
+    out[k] = Math.min(hi, Math.max(lo, nums[i] ?? 0)) + 0;
+  });
+  return out;
+}
 
 export function encodeDesign(d: Design): string {
   const pairs: [string, string][] = [];
   for (const f of FIELDS) {
+    if (f === 'layer2Settings') {
+      const l2 = encodeL2(d.layer2Settings);
+      if (l2) pairs.push([KEYS[f], l2]);
+      continue;
+    }
     const v = d[f];
     if (v === DESIGN_DEFAULTS[f]) continue;
     pairs.push([KEYS[f], typeof v === 'boolean' ? (v ? '1' : '0') : typeof v === 'number' ? String(v) : v.replace(/^#/, '')]);
@@ -159,9 +194,10 @@ export function decodeDesign(query: string): Design {
     variants: bool('variants'),
     layer2: bool('layer2'),
     fade: bool('fade'),
+    layer2Settings: decodeL2(get('layer2Settings')),
   };
 }
 
 export function sameDesign(a: Design, b: Design): boolean {
-  return FIELDS.every((f) => a[f] === b[f]);
+  return FIELDS.every((f) => (f === 'layer2Settings' ? encodeL2(a[f]) === encodeL2(b[f]) : a[f] === b[f]));
 }

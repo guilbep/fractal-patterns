@@ -7,6 +7,7 @@ import {
   fade,
   lastFix,
   layer2,
+  layer2Settings,
   layout,
   motion,
   opacity,
@@ -43,6 +44,7 @@ export function snapshot(): Design {
     variants: variants.value,
     layer2: layer2.value,
     fade: fade.value,
+    layer2Settings: { ...layer2Settings },
   };
 }
 
@@ -63,6 +65,7 @@ export function applyDesign(d: Design): void {
   variants.value = d.variants;
   layer2.value = d.layer2;
   fade.value = d.fade;
+  Object.assign(layer2Settings, d.layer2Settings);
   source.value = 'math';
   lastFix.value = null; // the Fix result no longer describes these colors
 }

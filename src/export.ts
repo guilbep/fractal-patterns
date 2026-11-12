@@ -1,7 +1,7 @@
 // One pasteable export: the .fp-pattern class with custom properties, the optional plate, usage, and a tile-switching script.
 import { cssPlate, svgToDataUri } from './css.ts';
 import { fadeMask } from './fade.ts';
-import { repeatDistance } from './layers.ts';
+import { repeatDistance, type Layer2Settings } from './layers.ts';
 import { motionLayer, scaledSize, type Motion } from './motion.ts';
 
 export interface ExportInput {
@@ -18,7 +18,8 @@ export interface ExportInput {
   readonly motion: Motion;
   readonly label: string; // how to make the tile again, e.g. "Herringbone, seed 123, depth 3"
   readonly appName: string;
-  readonly second?: { readonly svg: string; readonly tileSize: number }; // a second layer, its size coprime with tileSize
+  // A second layer, its size coprime with tileSize, with its own offset, extra rotation, opacity, and depth (see motionLayer).
+  readonly second?: { readonly svg: string; readonly tileSize: number } & Partial<Layer2Settings>;
   readonly fade?: boolean; // a soft mask over the pattern layer(s)
 }
 
@@ -48,7 +49,7 @@ export function exportCss(i: ExportInput): string {
       i.motion,
       'var(--fp-tile)',
       'var(--fp-size)',
-      i.second ? { image: 'var(--fp-tile-2)', s: 'var(--fp-size-2)' } : undefined,
+      i.second ? { ...i.second, image: 'var(--fp-tile-2)', s: 'var(--fp-size-2)' } : undefined,
     ),
     ...(i.fade
       ? [

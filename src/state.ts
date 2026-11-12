@@ -10,24 +10,13 @@ import { curveTileSvg } from '@/smoothtrace.ts';
 import { sampleImage, type Sample } from '@/samples.ts';
 import { PALETTES, type Palette } from '@/palettes.ts';
 import { blend, contrastRatio, textLevel } from '@/contrast.ts';
-import {
-  fixContrast,
-  fixSplit,
-  fixWithPlate,
-  patternContrast,
-  patternInvisible,
-  pickRoles,
-  plateContrast,
-  swapRoles,
-  worstTextContrast,
-  type Roles,
-} from '@/pairing.ts';
+import { fixForMode, patternContrast, patternInvisible, pickRoles, plateContrast, swapRoles, worstAt, type Roles } from '@/pairing.ts';
 import { cssBackground, cssPlate, svgToDataUri } from '@/css.ts';
 import { rawSize } from '@/co2.ts';
 import { MOTION_NONE, type Motion } from '@/motion.ts';
 import { superTileBytes } from '@/supertile.ts';
 import { variantTile, variantsActive } from '@/variants.ts';
-import { layeredWorst } from '@/layers.ts';
+import { LAYER2_DEFAULTS, layerSpots, type Layer2Settings } from '@/layers.ts';
 
 export const MAX_SEED = 0xffffffff;
 
@@ -255,6 +244,10 @@ export function svgForSeed(seed: number): string {
 export const svg = computed(() => svgForSeed(params.seed));
 // Against repetition, for every source: a second copy at a coprime size, and a soft CSS fade.
 export const layer2 = ref(false);
+export const layer2Settings = reactive<{ -readonly [K in keyof Layer2Settings]: number }>({ ...LAYER2_DEFAULTS });
+export function resetLayer2(): void {
+  Object.assign(layer2Settings, LAYER2_DEFAULTS);
+}
 export const fade = ref(false);
 const plateCss = computed(() =>
   cssPlate(roles.background, { opacity: plateOpacity.value, radius: plateRadius.value, blur: plateBlur.value }),
@@ -291,13 +284,19 @@ export const previews = computed(() =>
   }),
 );
 
+// The stroke opacities the page shows, for the badge and the Fix button alike.
+const spots = computed(() => {
+  const layers = layer2.value ? 2 : 1;
+  const strength = layer2Settings.opacity;
+  return (o: number) => layerSpots(o, layers, strength);
+});
+
 export const contrast = computed(() => {
   const textOnBackground = contrastRatio(roles.text, roles.background);
   const textOnPattern = contrastRatio(roles.text, blend(roles.pattern, roles.background, opacity.value));
-  // With a second layer, crossings carry the strokes at 1 - (1 - o)^2: the badge takes the worse of both.
-  const layers = layer2.value ? 2 : 1;
-  const direct = layeredWorst((o) => worstTextContrast(roles, o), opacity.value, layers);
-  const onPlate = layeredWorst((o) => plateContrast(roles, o, plateOpacity.value), opacity.value, layers);
+  // With a second layer at strength p, crossings carry the strokes at 1 - (1 - o) * (1 - o * p): the badge takes the worst spot.
+  const direct = worstAt(roles, opacity.value, spots.value);
+  const onPlate = plateContrast(roles, opacity.value, plateOpacity.value, spots.value);
   // The paragraph's surface: the plate in 'plate' and 'split', the bare pattern in 'direct'.
   const worst = plateMode.value === 'direct' ? direct : onPlate;
   return {
@@ -374,31 +373,11 @@ function changedText(parts: string[]): string {
 
 export function applyFix(target: number): void {
   const before = { text: roles.text, opacity: opacity.value, plate: plateOpacity.value };
-  let ratio: number;
-  let heading: number | undefined;
-  let reached: boolean;
-  if (plateMode.value === 'split') {
-    const fix = fixSplit(roles, opacity.value, plateOpacity.value, target);
-    opacity.value = fix.opacity;
-    plateOpacity.value = fix.plate;
-    setRoles({ ...roles, text: fix.text });
-    ratio = fix.paragraph;
-    heading = fix.heading;
-    reached = fix.reached;
-  } else if (plateMode.value === 'direct') {
-    const fix = fixContrast(roles, opacity.value, target);
-    opacity.value = Math.round(fix.opacity * 100) / 100;
-    setRoles({ ...roles, text: fix.text });
-    ratio = worstTextContrast(roles, opacity.value); // after opacity rounding
-    reached = ratio >= target;
-  } else {
-    // The pattern opacity stays: only the plate and, if needed, the text change.
-    const fix = fixWithPlate(roles, opacity.value, plateOpacity.value, target);
-    plateOpacity.value = fix.plate;
-    setRoles({ ...roles, text: fix.text });
-    ratio = plateContrast(roles, opacity.value, plateOpacity.value);
-    reached = ratio >= target;
-  }
+  const fix = fixForMode(plateMode.value, roles, opacity.value, plateOpacity.value, target, spots.value);
+  opacity.value = fix.opacity;
+  plateOpacity.value = fix.plate;
+  setRoles({ ...roles, text: fix.text });
+  const { ratio, heading, reached } = fix;
   const changed = changedText([
     ...(plateOpacity.value !== before.plate ? ['plate opacity'] : []),
     ...(opacity.value !== before.opacity ? ['pattern opacity'] : []),
@@ -426,5 +405,6 @@ export function reset(): void {
   motionPaused.value = false;
   variants.value = false;
   layer2.value = false;
+  resetLayer2();
   fade.value = false;
 }

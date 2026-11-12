@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { KINDS, MAX_DEPTH } from './fractal.ts';
 import { createHistory } from './history.ts';
+import { LAYER2_DEFAULTS } from './layers.ts';
 import { DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design } from './share.ts';
 
 // Small seeded generator (mulberry32), so failures reproduce.
@@ -53,6 +54,10 @@ function randomDesign(r: () => number): Design {
     variants: r() < 0.5,
     layer2: r() < 0.5,
     fade: r() < 0.5,
+    layer2Settings:
+      r() < 0.5
+        ? LAYER2_DEFAULTS
+        : { x: int(0, 100), y: int(0, 100), rotate: int(-180, 180), scale: real(0.5, 3), opacity: real(0.1, 1), depth: real(0.25, 4) },
   };
 }
 
@@ -89,6 +94,7 @@ const FULL: Design = {
   variants: true,
   layer2: true,
   fade: true,
+  layer2Settings: { x: 100, y: 100, rotate: -180, scale: 2.95, opacity: 0.55, depth: 3.85 }, // the longest the sliders give
 };
 
 function assertValid(d: Design, label: string): void {
@@ -122,6 +128,9 @@ function assertValid(d: Design, label: string): void {
   assert.equal(typeof d.variants, 'boolean', label);
   assert.equal(typeof d.layer2, 'boolean', label);
   assert.equal(typeof d.fade, 'boolean', label);
+  const l = d.layer2Settings;
+  assert.ok(inRange(l.x, 0, 100) && inRange(l.y, 0, 100) && inRange(l.rotate, -180, 180), label);
+  assert.ok(inRange(l.scale, 0.5, 3) && inRange(l.opacity, 0.1, 1) && inRange(l.depth, 0.25, 4), label);
 }
 
 test('defaults encode to the empty string and decode back', () => {
@@ -156,7 +165,8 @@ test('encoding is stable and one field changes the string', () => {
 test('a design with every field non-default stays short', () => {
   for (const f of Object.keys(DESIGN_DEFAULTS) as (keyof Design)[]) assert.notEqual(FULL[f], DESIGN_DEFAULTS[f], f);
   const s = encodeDesign(FULL);
-  assert.ok(s.length <= 194, `${s.length}`); // 177 before the variants key, + '&v=1', + '&l2=1&fd=1'
+  // 177 before the variants key, + '&v=1', + '&l2=1&fd=1', + '&l2s=100_100_-180_2.95_0.55_3.85' (32)
+  assert.ok(s.length <= 226, `${s.length}`);
   assert.deepEqual(decodeDesign(s), FULL);
 });
 
@@ -244,8 +254,9 @@ test('variants: round trip, absent means false, old links decode as before', () 
   assert.equal(encodeDesign({ ...DESIGN_DEFAULTS, kind: 'brick', seed: 7, mirror: true }), 'k=brick&s=7&m=1');
   const old =
     'k=koch&s=123456789&d=3&z=160&w=1.5&p=2&bg=0a0b0c&fg=d0e0f0&tx=fedcba&o=0.45&pm=plate&po=0.9&pr=16&pb=4&r=-30&sc=1.5&sk=10&t=20&dr=xy&sp=12&zm=2&g=24&m=1&l=patchwork&c=2&f=1&fa=5';
-  assert.deepEqual(decodeDesign(old), { ...FULL, variants: false, layer2: false, fade: false });
-  assert.equal(encodeDesign({ ...FULL, variants: false, layer2: false, fade: false }), old);
+  const oldDesign = { ...FULL, variants: false, layer2: false, fade: false, layer2Settings: LAYER2_DEFAULTS };
+  assert.deepEqual(decodeDesign(old), oldDesign);
+  assert.equal(encodeDesign(oldDesign), old);
 });
 
 test('undo restores the previous value of the variants switch', () => {
@@ -268,4 +279,22 @@ test('layer2 and fade: round trip, absent means false, old links decode as befor
   assert.equal(old.layer2, false);
   assert.equal(old.fade, false);
   assert.equal(encodeDesign(old), 'k=brick&s=7&v=1');
+});
+
+test('second-layer settings: one key last, round trip, clamped, malformed gives defaults, old links unchanged', () => {
+  const l2 = { x: 25, y: 10, rotate: 30, scale: 1.5, opacity: 0.6, depth: 0.5 };
+  const d = { ...DESIGN_DEFAULTS, kind: 'brick', seed: 7, layer2: true, fade: true, layer2Settings: l2 } as const;
+  assert.equal(encodeDesign(d), 'k=brick&s=7&l2=1&fd=1&l2s=25_10_30_1.5_0.6_0.5');
+  assert.deepEqual(decodeDesign(encodeDesign(d)), d);
+  assert.equal(encodeDesign({ ...d, layer2Settings: { ...LAYER2_DEFAULTS } }), 'k=brick&s=7&l2=1&fd=1');
+  assert.deepEqual(decodeDesign('k=brick&s=7&l2=1').layer2Settings, LAYER2_DEFAULTS);
+  assert.deepEqual(decodeDesign('l2s=-5_500_-999_9_0_99').layer2Settings, { x: 0, y: 100, rotate: -180, scale: 3, opacity: 0.1, depth: 4 });
+  for (const bad of ['1_2_3', '1_2_3_4_5_6_7', 'a_0_0_1_1_1', '0__0_1_1_1', '1,2,3,4,5,6', 'Infinity_0_0_1_1_1'])
+    assert.deepEqual(decodeDesign(`l2s=${bad}`).layer2Settings, LAYER2_DEFAULTS, bad);
+  // Literals from encodeDesign before the key existed.
+  assert.equal(encodeDesign(decodeDesign('k=brick&s=7&v=1&l2=1&fd=1')), 'k=brick&s=7&v=1&l2=1&fd=1');
+  const h = createHistory<Design>(DESIGN_DEFAULTS, 50, sameDesign);
+  h.push(d);
+  assert.deepEqual(h.undo()?.layer2Settings, LAYER2_DEFAULTS);
+  assert.deepEqual(h.redo()?.layer2Settings, l2);
 });

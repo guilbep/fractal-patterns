@@ -13,6 +13,11 @@ export interface Fix {
   readonly reached: boolean;
 }
 
+// The stroke opacities a surface shows for a pattern opacity (layerSpots in layers.ts); one layer by default.
+export type Spots = (opacity: number) => readonly number[];
+const ONE: Spots = (o) => [o];
+export const worstAt = (r: Roles, o: number, spots: Spots) => Math.min(...spots(o).map((x) => worstTextContrast(r, x)));
+
 const TEXT_STEPS = 100;
 const OPACITY_STEP = 0.05;
 
@@ -65,8 +70,8 @@ export function patternInvisible(r: Roles, opacity: number): boolean {
   return patternContrast(r, opacity) < PATTERN_VISIBLE_MIN;
 }
 
-export function fixContrast(r: Roles, opacity: number, target = 4.5): Fix {
-  const start = worstTextContrast(r, opacity);
+export function fixContrast(r: Roles, opacity: number, target = 4.5, spots: Spots = ONE): Fix {
+  const start = worstAt(r, opacity, spots);
   if (start >= target) return { text: r.text, opacity, ratio: start, reached: true };
   let best: Fix = { text: r.text, opacity, ratio: start, reached: false };
   for (let k = 0; ; k++) {
@@ -76,7 +81,7 @@ export function fixContrast(r: Roles, opacity: number, target = 4.5): Fix {
       let hit: Fix | undefined;
       for (const end of ['#000000', '#ffffff']) {
         const text = blend(end, r.text, i / TEXT_STEPS);
-        const ratio = worstTextContrast({ ...r, text }, o);
+        const ratio = worstAt({ ...r, text }, o, spots);
         const cand: Fix = { text, opacity: o, ratio, reached: ratio >= target };
         if (ratio > best.ratio) best = cand;
         if (cand.reached && (!hit || ratio > hit.ratio)) hit = cand;
@@ -88,8 +93,9 @@ export function fixContrast(r: Roles, opacity: number, target = 4.5): Fix {
 }
 
 // A plate of opacity p over a stroke at `opacity` shows the stroke at opacity * (1 - p).
-export function plateContrast(r: Roles, opacity: number, plate: number): number {
-  return worstTextContrast(r, opacity * (1 - Math.min(1, Math.max(0, plate))));
+export function plateContrast(r: Roles, opacity: number, plate: number, spots: Spots = ONE): number {
+  const p = Math.min(1, Math.max(0, plate));
+  return Math.min(...spots(opacity).map((x) => worstTextContrast(r, x * (1 - p))));
 }
 
 export interface PlateFix {
@@ -99,18 +105,18 @@ export interface PlateFix {
   readonly reached: boolean;
 }
 
-export function fixWithPlate(r: Roles, opacity: number, plate: number, target = 4.5): PlateFix {
-  const start = plateContrast(r, opacity, plate);
+export function fixWithPlate(r: Roles, opacity: number, plate: number, target = 4.5, spots: Spots = ONE): PlateFix {
+  const start = plateContrast(r, opacity, plate, spots);
   if (start >= target) return { text: r.text, plate, ratio: start, reached: true };
   for (let k = 1; ; k++) {
     const p = Math.min(1, Math.round((plate + k * 0.05) * 100) / 100);
-    const ratio = plateContrast(r, opacity, p);
+    const ratio = plateContrast(r, opacity, p, spots);
     if (ratio >= target) return { text: r.text, plate: p, ratio, reached: true };
     if (p === 1) break;
   }
   // Plate 1 hides the pattern: only the text against the bare background is left.
-  const f = fixContrast(r, 0, target);
-  return { text: f.text, plate: 1, ratio: plateContrast({ ...r, text: f.text }, opacity, 1), reached: f.reached };
+  const f = fixContrast(r, 0, target, spots);
+  return { text: f.text, plate: 1, ratio: plateContrast({ ...r, text: f.text }, opacity, 1, spots), reached: f.reached };
 }
 
 export interface SplitFix {
@@ -128,19 +134,53 @@ export function largeTarget(target: number): number {
 }
 
 // Split layout: the paragraph sits on a plate, the heading on the bare pattern.
-export function fixSplit(r: Roles, opacity: number, plate: number, target = 4.5): SplitFix {
+export function fixSplit(r: Roles, opacity: number, plate: number, target = 4.5, spots: Spots = ONE): SplitFix {
   const large = largeTarget(target);
-  const fixHeading = (text: string, o: number): Fix => fixContrast({ ...r, text }, o, large);
+  const fixHeading = (text: string, o: number): Fix => fixContrast({ ...r, text }, o, large, spots);
   let { text, opacity: o } = fixHeading(r.text, opacity);
-  const p = fixWithPlate({ ...r, text }, o, plate, target);
+  const p = fixWithPlate({ ...r, text }, o, plate, target, spots);
   text = p.text;
   // Step 3 only changes the text at plate 1, where the paragraph no longer depends on the opacity,
   // and at opacity 0 the heading equals the text against the background: lowering the opacity ends.
-  while (worstTextContrast({ ...r, text }, o) < large && o > 0) o = Math.max(0, o - OPACITY_STEP);
+  while (worstAt({ ...r, text }, o, spots) < large && o > 0) o = Math.max(0, o - OPACITY_STEP);
   // Round away float noise (0.6499999), never above the input.
   o = Math.min(opacity, Math.round(o * 100) / 100);
   const final = { ...r, text };
-  const paragraph = plateContrast(final, o, p.plate);
-  const heading = worstTextContrast(final, o);
+  const paragraph = plateContrast(final, o, p.plate, spots);
+  const heading = worstAt(final, o, spots);
   return { text, plate: p.plate, opacity: o, paragraph, heading, reached: paragraph >= target && heading >= large };
+}
+
+export interface ModeFix {
+  readonly text: string;
+  readonly opacity: number;
+  readonly plate: number;
+  readonly ratio: number; // the paragraph's surface, the value the badge shows
+  readonly heading: number | undefined; // 'split' only
+  readonly reached: boolean;
+}
+
+// The Fix button for one plate mode, aimed at the layered value the badge shows (pass the same spots).
+export function fixForMode(
+  mode: 'plate' | 'split' | 'direct',
+  r: Roles,
+  opacity: number,
+  plate: number,
+  target: number,
+  spots: Spots = ONE,
+): ModeFix {
+  if (mode === 'split') {
+    const f = fixSplit(r, opacity, plate, target, spots);
+    return { text: f.text, opacity: f.opacity, plate: f.plate, ratio: f.paragraph, heading: f.heading, reached: f.reached };
+  }
+  if (mode === 'direct') {
+    const f = fixContrast(r, opacity, target, spots);
+    const o = Math.round(f.opacity * 100) / 100;
+    const ratio = worstAt({ ...r, text: f.text }, o, spots); // after opacity rounding
+    return { text: f.text, opacity: o, plate, ratio, heading: undefined, reached: ratio >= target };
+  }
+  // The pattern opacity stays: only the plate and, if needed, the text change.
+  const f = fixWithPlate(r, opacity, plate, target, spots);
+  const ratio = plateContrast({ ...r, text: f.text }, opacity, f.plate, spots);
+  return { text: f.text, opacity, plate: f.plate, ratio, heading: undefined, reached: ratio >= target };
 }

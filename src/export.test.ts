@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { exportCss, exportHtml, exportJs, type ExportInput } from './export.ts';
+import { gcd, LAYER2_DEFAULTS, scaledSecondSize } from './layers.ts';
 import { cssMotion, MOTION_NONE, type Motion } from './motion.ts';
 import { svgToDataUri } from './css.ts';
 
@@ -252,4 +253,61 @@ test('fade: mask lines when on, byte-identical to before when off', () => {
   assert.ok(on.includes('.fp-pattern::before {\n  -webkit-mask-image'));
   const both = css({}, { fade: true, second: { svg, tileSize: 193 } });
   assert.ok(both.includes('.fp-pattern::before, .fp-pattern::after {\n  -webkit-mask-image'));
+});
+
+// Copied from exportCss before the second-layer settings existed: with every setting at its default, nothing changes.
+const L2_INPUT = {
+  ...base,
+  appName: 'D',
+  label: 'L',
+  plate: { ...base.plate, mode: 'direct' as const },
+  second: { svg: '<svg xmlns="http://www.w3.org/2000/svg" width="3" height="3"><circle r="1"/></svg>', tileSize: 193 },
+};
+const BEFORE_L2_DRIFT =
+  "/* D: L. Tile 120px. */\n.fp-pattern {\n  --fp-bg: #f5f5f5;\n  --fp-ink: #12232e;\n  --fp-tile: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Cpath d='M0 0h4'/%3E%3C/svg%3E\");\n  --fp-size: 120px;\n  --fp-tile-2: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='3' height='3'%3E%3Ccircle r='1'/%3E%3C/svg%3E\");\n  --fp-size-2: 193px;\n  position: relative;\n  isolation: isolate;\n  overflow: hidden;\n  background-color: var(--fp-bg);\n  color: var(--fp-ink);\n}\n.fp-pattern::before {\n  content: \"\";\n  position: absolute;\n  z-index: -1;\n  left: 50%;\n  top: 50%;\n  width: 150vmax;\n  height: 150vmax;\n  background-image: var(--fp-tile);\n  background-size: var(--fp-size) var(--fp-size);\n  transform: translate(-50%, -50%) rotate(15deg);\n  animation: fp-drift 6s linear infinite;\n}\n.fp-pattern::after {\n  content: \"\";\n  position: absolute;\n  z-index: -1;\n  left: 50%;\n  top: 50%;\n  width: 150vmax;\n  height: 150vmax;\n  background-image: var(--fp-tile-2);\n  background-size: var(--fp-size-2) var(--fp-size-2);\n  transform: translate(-50%, -50%) rotate(15deg);\n  animation: fp-drift-2 6s linear infinite;\n}\n\n@keyframes fp-drift {\n  to { background-position: var(--fp-size) var(--fp-size); }\n}\n\n@keyframes fp-drift-2 {\n  to { background-position: var(--fp-size-2) var(--fp-size-2); }\n}\n\n.fp-pattern.fp-paused::before, .fp-pattern.fp-paused::after {\n  animation-play-state: paused;\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .fp-pattern::before, .fp-pattern::after {\n    animation: none;\n  }\n}\n\n/* Use: put class=\"fp-pattern\" on the element that shows the pattern.\n * Add the class fp-paused to pause the motion.\n * This pattern has two layers. It repeats exactly every 23160 px.\n */";
+const BEFORE_L2_STATIC =
+  "/* D: L. Tile 120px. */\n.fp-pattern {\n  --fp-bg: #f5f5f5;\n  --fp-ink: #12232e;\n  --fp-tile: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Cpath d='M0 0h4'/%3E%3C/svg%3E\");\n  --fp-size: 120px;\n  --fp-tile-2: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='3' height='3'%3E%3Ccircle r='1'/%3E%3C/svg%3E\");\n  --fp-size-2: 193px;\n  position: relative;\n  isolation: isolate;\n  overflow: hidden;\n  background-color: var(--fp-bg);\n  color: var(--fp-ink);\n}\n.fp-pattern::before {\n  content: \"\";\n  position: absolute;\n  z-index: -1;\n  inset: 0;\n  background-image: var(--fp-tile);\n  background-size: var(--fp-size) var(--fp-size);\n}\n.fp-pattern::after {\n  content: \"\";\n  position: absolute;\n  z-index: -1;\n  inset: 0;\n  background-image: var(--fp-tile-2);\n  background-size: var(--fp-size-2) var(--fp-size-2);\n}\n\n/* Use: put class=\"fp-pattern\" on the element that shows the pattern.\n * This pattern has two layers. It repeats exactly every 23160 px.\n */";
+
+test('second layer, all settings default: output equals the literal copied before the change', () => {
+  const drifting = { ...MOTION_NONE, rotate: 15, drift: 'xy' as const, speed: 6 };
+  assert.equal(exportCss({ ...L2_INPUT, motion: drifting }), BEFORE_L2_DRIFT);
+  assert.equal(exportCss({ ...L2_INPUT, motion: drifting, second: { ...L2_INPUT.second, ...LAYER2_DEFAULTS } }), BEFORE_L2_DRIFT);
+  assert.equal(exportCss({ ...L2_INPUT, motion: MOTION_NONE }), BEFORE_L2_STATIC);
+  assert.equal(exportCss({ ...L2_INPUT, motion: MOTION_NONE, second: { ...L2_INPUT.second, ...LAYER2_DEFAULTS } }), BEFORE_L2_STATIC);
+});
+
+const with2 = (m: Partial<Motion>, l2: Partial<typeof LAYER2_DEFAULTS>) =>
+  exportCss({ ...L2_INPUT, motion: { ...MOTION_NONE, ...m }, second: { ...L2_INPUT.second, ...l2 } });
+const keyframes2 = (s: string) => s.split('\n').find((l, i, a) => a[i - 1] === '@keyframes fp-drift-2 {') ?? '';
+
+test('second-layer settings: each one changes its own declaration', () => {
+  const plain = afterBlock(with2({ drift: 'x' }, {}));
+  const off = with2({ drift: 'x' }, { x: 25, y: 10 });
+  assert.ok(afterBlock(off).includes('  background-position: calc(var(--fp-size-2) * 0.25) calc(var(--fp-size-2) * 0.1);'));
+  // The drift goes from the offset to one whole tile further: 0.25 to 1.25 on x, y stays.
+  assert.equal(keyframes2(off), '  to { background-position: calc(var(--fp-size-2) * 1.25) calc(var(--fp-size-2) * 0.1); }');
+  assert.equal(
+    keyframes2(with2({ drift: 'xy' }, { x: 25, y: 10 })),
+    '  to { background-position: calc(var(--fp-size-2) * 1.25) calc(var(--fp-size-2) * 1.1); }',
+  );
+  assert.equal(keyframes2(with2({ drift: 'y' }, { y: 57 })), '  to { background-position: 0 calc(var(--fp-size-2) * 1.57); }');
+  assert.ok(!plain.some((l) => l.includes('background-position')));
+  assert.ok(afterBlock(with2({ rotate: 10 }, { rotate: 30 })).includes('  transform: translate(-50%, -50%) rotate(40deg);'));
+  assert.ok(beforeBlock(with2({ rotate: 10 }, { rotate: 30 })).includes('  transform: translate(-50%, -50%) rotate(10deg);'));
+  assert.ok(afterBlock(with2({}, { rotate: 30 })).includes('  width: 150vmax;'));
+  assert.ok(afterBlock(with2({}, { opacity: 0.6 })).includes('  opacity: 0.6;'));
+  assert.ok(!beforeBlock(with2({}, { opacity: 0.6 })).some((l) => l.includes('opacity')));
+  assert.ok(afterBlock(with2({ drift: 'x', speed: 8 }, { depth: 0.5 })).includes('  animation: fp-drift-2 16s linear infinite;'));
+  assert.ok(afterBlock(with2({ drift: 'x', speed: 8 }, { depth: 3 })).includes('  animation: fp-drift-2 2.667s linear infinite;'));
+  assert.ok(beforeBlock(with2({ drift: 'x', speed: 8 }, { depth: 3 })).includes('  animation: fp-drift 8s linear infinite;'));
+  // Size: the factor goes through the second tile size.
+  const size = scaledSecondSize(120, 1.5);
+  assert.ok(
+    exportCss({ ...L2_INPUT, motion: MOTION_NONE, second: { ...L2_INPUT.second, tileSize: size } }).includes(`  --fp-size-2: ${size}px;`),
+  );
+});
+
+test('second-layer size stays coprime with the first', () => {
+  for (const t of [60, 120, 200]) for (const sc of [0.5, 1, 1.5, 2, 3]) assert.equal(gcd(t, scaledSecondSize(t, sc)), 1, `${t} x ${sc}`);
+  assert.equal(scaledSecondSize(120, 1), 193);
 });

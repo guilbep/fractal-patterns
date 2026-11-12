@@ -33,6 +33,7 @@ export interface Design extends Motion {
   readonly layer2Settings: Layer2Settings; // offset, turn, size, strength, and depth of the second layer
   readonly parallax: boolean; // the two layers move at different speeds on scroll
   readonly variantOptions: VariantOptions; // strength and per-cell options of Reduce repetition
+  readonly sections: boolean; // export-only helper classes that turn the pattern per section
 }
 // Not in the URL: pinned patchwork cells (a per-session tweak), the palette name (the roles carry the colors),
 // and the image source (the pixels never leave the browser).
@@ -68,6 +69,7 @@ export const DESIGN_DEFAULTS: Design = {
   layer2Settings: LAYER2_DEFAULTS,
   parallax: false,
   variantOptions: VARIANT_DEFAULTS,
+  sections: false,
 };
 
 // Field to short key. The insertion order is the order of the encoded string.
@@ -104,7 +106,8 @@ const KEYS: Readonly<Record<keyof Design, string>> = {
   fade: 'fd',
   layer2Settings: 'l2s',
   parallax: 'px',
-  variantOptions: 'vo', // keep new keys last: older links stay valid
+  variantOptions: 'vo',
+  sections: 'sx', // keep new keys last: older links stay valid
 };
 const FIELDS = Object.keys(KEYS) as (keyof Design)[];
 
@@ -203,7 +206,7 @@ export function decodeDesign(query: string): Design {
   };
   const oneOf = <T extends string>(f: keyof Design, values: readonly T[], fallback: T): T => values.find((v) => v === get(f)) ?? fallback;
   const kind = oneOf('kind', KINDS, D.kind);
-  const bool = (f: 'mirror' | 'frame' | 'variants' | 'layer2' | 'fade' | 'parallax'): boolean =>
+  const bool = (f: 'mirror' | 'frame' | 'variants' | 'layer2' | 'fade' | 'parallax' | 'sections'): boolean =>
     get(f) === '1' ? true : get(f) === '0' ? false : D[f];
   return {
     kind,
@@ -239,6 +242,7 @@ export function decodeDesign(query: string): Design {
     layer2Settings: decodeL2(get('layer2Settings')),
     parallax: bool('parallax'),
     variantOptions: decodeVO(get('variantOptions')),
+    sections: bool('sections'),
   };
 }
 

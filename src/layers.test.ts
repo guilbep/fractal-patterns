@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { crossOpacity, effectiveOpacity, gcd, layeredWorst, layerSpots, PHI, repeatDistance, secondSize } from './layers.ts';
-import { fixForMode, plateContrast, worstTextContrast } from './pairing.ts';
+import { fixForMode, plateContrast, worstAt, worstTextContrast } from './pairing.ts';
+import { textLevel } from './contrast.ts';
 
 test('secondSize vectors', () => {
   const vectors: [number, number][] = [
@@ -96,6 +97,35 @@ test('Fix aims at the layered value the badge shows (20 seeded role sets, every 
           : layeredWorst((x) => plateContrast(after, x, f.plate), f.opacity, 2, strength);
       assert.ok(badge >= 4.5, `${i} ${mode} ${badge}`);
       if (mode === 'split') assert.ok(layeredWorst((x) => worstTextContrast(after, x), f.opacity, 2, strength) >= 3, `${i} heading`);
+    }
+  }
+  assert.ok(fixed >= 20, `${fixed}`);
+});
+
+// The badge as state.ts computes it after applyFix: worstAt or plateContrast over layerSpots, then textLevel.
+test('Fix success means the badge passes: second layer at strength 0.5 (20 seeded role sets, every mode)', () => {
+  let a = 23;
+  const r = () => (a = (a * 1103515245 + 12345) >>> 0) / 4294967296;
+  const hex = () =>
+    `#${Math.floor(r() * 0x1000000)
+      .toString(16)
+      .padStart(6, '0')}`;
+  const spots = (o: number) => layerSpots(o, 2, 0.5);
+  let fixed = 0;
+  for (let i = 0; i < 20; i++) {
+    const roles = { background: hex(), pattern: hex(), text: hex() };
+    const o = 0.2 + r() * 0.8;
+    const plate = r();
+    for (const mode of ['plate', 'split', 'direct'] as const) {
+      const f = fixForMode(mode, roles, o, plate, 4.5, spots);
+      if (!f.reached) continue;
+      fixed++;
+      const after = { ...roles, text: f.text };
+      const direct = worstAt(after, f.opacity, spots);
+      const worst = mode === 'direct' ? direct : plateContrast(after, f.opacity, f.plate, spots);
+      assert.ok(worst >= 4.5, `${i} ${mode} ${worst} ${JSON.stringify(roles)} o=${o} plate=${plate}`);
+      assert.notEqual(textLevel(worst), 'fail', `${i} ${mode}`);
+      if (mode === 'split') assert.ok(direct >= 3, `${i} heading ${direct}`);
     }
   }
   assert.ok(fixed >= 20, `${fixed}`);

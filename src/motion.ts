@@ -42,12 +42,17 @@ export function cssMotion(svg: string, background: string, size: number, m: Moti
 // With `parallax`, each layer box grows by its scroll travel (see parallaxBlock), so the move never shows an edge.
 export type SecondLayer = { readonly image: string; readonly s: string; readonly parallax?: boolean } & Partial<Layer2Settings>;
 
-// The layer's static transform functions; empty when the layer is not centered.
-function layerFns(lm: Motion): string[] {
+// A layer is centered on an oversized box when it turns, skews, or tilts, or when `turn` adds the --fp-turn property.
+const isCentered = (lm: Motion, turn: boolean) => turn || lm.rotate !== 0 || lm.skew !== 0 || lm.tilt !== 0;
+
+// The layer's static transform functions; empty when the layer is not centered. With `turn`, the rotation adds
+// var(--fp-turn, 0deg), which the fp-a, fp-b, and fp-c helper classes set (see exportCss).
+function layerFns(lm: Motion, turn = false): string[] {
   const fns: string[] = [];
-  if (lm.rotate !== 0 || lm.skew !== 0 || lm.tilt !== 0) fns.push('translate(-50%, -50%)');
+  if (isCentered(lm, turn)) fns.push('translate(-50%, -50%)');
   if (lm.tilt !== 0) fns.push(`perspective(800px) rotateX(${n(lm.tilt)}deg)`);
-  if (lm.rotate !== 0) fns.push(`rotate(${n(lm.rotate)}deg)`);
+  if (turn) fns.push(`rotate(calc(${n(lm.rotate)}deg + var(--fp-turn, 0deg)))`);
+  else if (lm.rotate !== 0) fns.push(`rotate(${n(lm.rotate)}deg)`);
   if (lm.skew !== 0) fns.push(`skewX(${n(lm.skew)}deg)`);
   return fns;
 }
@@ -57,10 +62,10 @@ function layerFns(lm: Motion): string[] {
 export const FIRST_TRAVEL = 4;
 export const parallaxTravel = (depth = 1): number => Math.min(32, Math.max(2, Math.round(8 * depth * 1000) / 1000));
 
-export function motionLayer(m: Motion, image: string, s: string, second?: SecondLayer): string[] {
+export function motionLayer(m: Motion, image: string, s: string, second?: SecondLayer, turn = false): string[] {
   const drift = m.drift;
   const rule = (pseudo: string, img: string, size: string, name: string, lm: Motion, extra: string[], seconds: number, travel: number) => {
-    const centered = lm.rotate !== 0 || lm.skew !== 0 || lm.tilt !== 0;
+    const centered = isCentered(lm, turn);
     // Tilt pivots on the box's top edge: with perspective(800px) the far half of the plane never rises more than
     // 800px * cot(tilt) above the pivot, so the whole box sits on the near half. 225vmax covers a disc of radius
     // hypot(w/2, h) <= 1.118vmax around the pivot for tilt <= 60 and a box no larger than the viewport.
@@ -70,7 +75,7 @@ export function motionLayer(m: Motion, image: string, s: string, second?: Second
     // Parallax: the centered box grows by the travel on each side, so a disc it covered still lies inside after the move;
     // the plain box grows downward, since the layer moves up.
     const side = travel === 0 ? vmax : `calc(${vmax} + ${n(2 * travel)}vh)`;
-    const fns = layerFns(lm);
+    const fns = layerFns(lm, turn);
     return [
       `.fp-pattern::${pseudo} {`,
       '  content: "";',
@@ -141,10 +146,10 @@ export function motionLayer(m: Motion, image: string, s: string, second?: Second
 // Parallax on scroll for the two layers: a scroll-driven translateY before each layer's own transform, only for visitors
 // without a reduced-motion wish and in browsers with scroll timelines. `cls` and `timeline` differ for the page's demo box.
 // A drift keeps its own animation: both are listed, with `auto` as the drift's timeline.
-export function parallaxBlock(m: Motion, second: Partial<Layer2Settings>, cls: string, timeline: string): string[] {
+export function parallaxBlock(m: Motion, second: Partial<Layer2Settings>, cls: string, timeline: string, turn = false): string[] {
   const depth = second.depth ?? 1;
   const layer = (pseudo: string, k: number, lm: Motion, travel: number, drift: string) => {
-    const fns = layerFns(lm).join(' ');
+    const fns = layerFns(lm, turn).join(' ');
     const at = (y: string) => `transform: translateY(${y})${fns ? ` ${fns}` : ''};`;
     const name = `fp-scroll-${k}`;
     const drifting = m.drift !== 'none';

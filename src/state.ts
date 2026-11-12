@@ -256,6 +256,8 @@ export function resetLayer2(): void {
 export const fade = ref(false);
 // Parallax on scroll for the two layers; has an effect only with layer2.
 export const parallax = ref(false);
+// Different angle per section: export-only helper classes; the preview does not change.
+export const sections = ref(false);
 const plateCss = computed(() =>
   cssPlate(roles.background, { opacity: plateOpacity.value, radius: plateRadius.value, blur: plateBlur.value }),
 );
@@ -416,4 +418,5 @@ export function reset(): void {
   resetLayer2();
   fade.value = false;
   parallax.value = false;
+  sections.value = false;
 }

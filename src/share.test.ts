@@ -61,6 +61,7 @@ function randomDesign(r: () => number): Design {
         : { x: int(0, 100), y: int(0, 100), rotate: int(-180, 180), scale: real(0.5, 3), opacity: real(0.1, 1), depth: real(0.25, 4) },
     parallax: r() < 0.5,
     variantOptions: r() < 0.5 ? VARIANT_DEFAULTS : randomVO(r),
+    sections: r() < 0.5,
   };
 }
 
@@ -122,6 +123,7 @@ const FULL: Design = {
   layer2Settings: { x: 100, y: 100, rotate: -180, scale: 2.95, opacity: 0.55, depth: 3.85 }, // the longest the sliders give
   parallax: true,
   variantOptions: { cells: 6, count: 6, orient: true, drop: 'half-drop', depths: true, jitter: 0.55, weights: 0.55, skip: 0.45 }, // the longest the sliders give
+  sections: true,
 };
 
 function assertValid(d: Design, label: string): void {
@@ -193,8 +195,8 @@ test('a design with every field non-default stays short', () => {
   for (const f of Object.keys(DESIGN_DEFAULTS) as (keyof Design)[]) assert.notEqual(FULL[f], DESIGN_DEFAULTS[f], f);
   const s = encodeDesign(FULL);
   // 177 before the variants key, + '&v=1', + '&l2=1&fd=1', + '&l2s=100_100_-180_2.95_0.55_3.85' (32), + '&px=1' (5),
-  // + '&vo=6_6_1_h_1_0.55_0.55_0.45' (28)
-  assert.ok(s.length <= 259, `${s.length}`);
+  // + '&vo=6_6_1_h_1_0.55_0.55_0.45' (28), + '&sx=1' (5)
+  assert.ok(s.length <= 264, `${s.length}`);
   assert.deepEqual(decodeDesign(s), FULL);
 });
 
@@ -290,6 +292,7 @@ test('variants: round trip, absent means false, old links decode as before', () 
     layer2Settings: LAYER2_DEFAULTS,
     parallax: false,
     variantOptions: VARIANT_DEFAULTS,
+    sections: false,
   };
   assert.deepEqual(decodeDesign(old), oldDesign);
   assert.equal(encodeDesign(oldDesign), old);
@@ -367,7 +370,7 @@ test('variant options: one vo key, round trip of 30 random sets, absent means de
   );
   assert.deepEqual(decodeDesign('v=1').variantOptions, VARIANT_DEFAULTS);
   // Appended last: older keys come first.
-  assert.ok(encodeDesign({ ...FULL }).endsWith('&px=1&vo=6_6_1_h_1_0.55_0.55_0.45'));
+  assert.ok(encodeDesign({ ...FULL }).endsWith('&px=1&vo=6_6_1_h_1_0.55_0.55_0.45&sx=1'));
 });
 
 test('variant options: numbers are clamped, malformed values and unsupported pairs give the defaults', () => {
@@ -396,4 +399,15 @@ test('variant options: numbers are clamped, malformed values and unsupported pai
     'x',
   ])
     assert.deepEqual(decodeDesign(`vo=${bad}`).variantOptions, VARIANT_DEFAULTS, bad);
+});
+
+test('sections: key sx last, round-trips, absent means false, old links unchanged', () => {
+  assert.equal(encodeDesign({ ...DESIGN_DEFAULTS, sections: true }), 'sx=1');
+  assert.equal(decodeDesign('sx=1').sections, true);
+  assert.equal(decodeDesign('sx=0').sections, false);
+  assert.equal(decodeDesign('').sections, false);
+  assert.equal(decodeDesign('k=fern&px=1&vo=6_6_1_h_1_0.55_0.55_0.45').sections, false);
+  assert.ok(encodeDesign({ ...FULL, sections: true }).endsWith('&sx=1'));
+  assert.deepEqual(decodeDesign(encodeDesign({ ...FULL, sections: false })), { ...FULL, sections: false });
+  assert.equal(encodeDesign({ ...FULL, sections: false }) + '&sx=1', encodeDesign({ ...FULL, sections: true }));
 });

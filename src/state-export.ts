@@ -19,6 +19,7 @@ import {
   plateOpacity,
   plateRadius,
   roles,
+  sections,
   svg,
   svgForSeed,
   tileSize,
@@ -57,6 +58,7 @@ const exportInput = computed<ExportInput>(() => ({
     : {}),
   fade: fade.value,
   parallax: layer2.value && parallax.value,
+  sections: sections.value,
 }));
 
 export const exportText = computed(() => exportCss(exportInput.value));

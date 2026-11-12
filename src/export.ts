@@ -22,12 +22,13 @@ export interface ExportInput {
   readonly second?: { readonly svg: string; readonly tileSize: number } & Partial<Layer2Settings>;
   readonly fade?: boolean; // a soft mask over the pattern layer(s)
   readonly parallax?: boolean; // the two layers move at different speeds on scroll; needs `second`
+  readonly sections?: boolean; // helper classes fp-a, fp-b, fp-c that turn the pattern per section
 }
 
 // The parallax block for a class and a scroll timeline: the export uses .fp-pattern and the root scroller,
 // the page's demo box its own class and named timeline. Empty without a second layer or without parallax.
 export function exportParallax(i: ExportInput, cls = 'fp-pattern', timeline = 'scroll(root)'): string[] {
-  return i.second && i.parallax ? parallaxBlock(i.motion, i.second, cls, timeline) : [];
+  return i.second && i.parallax ? parallaxBlock(i.motion, i.second, cls, timeline, i.sections === true) : [];
 }
 
 // Inserting a space breaks every comment delimiter and cannot create a new one.
@@ -57,6 +58,7 @@ export function exportCss(i: ExportInput): string {
       'var(--fp-tile)',
       'var(--fp-size)',
       i.second ? { ...i.second, image: 'var(--fp-tile-2)', s: 'var(--fp-size-2)', parallax: i.parallax === true } : undefined,
+      i.sections === true,
     ),
     ...(i.fade
       ? [
@@ -75,9 +77,20 @@ export function exportCss(i: ExportInput): string {
           ...exportParallax(i),
         ]
       : []),
+    ...(i.sections
+      ? [
+          '',
+          '/* Add fp-a, fp-b, or fp-c next to fp-pattern to turn the pattern on that section. */',
+          // Steps of the golden angle (137.5 deg), modulo 180.
+          '.fp-pattern.fp-a { --fp-turn: 137deg; }',
+          '.fp-pattern.fp-b { --fp-turn: 95deg; }',
+          '.fp-pattern.fp-c { --fp-turn: 52deg; }',
+        ]
+      : []),
     '',
     '/* Use: put class="fp-pattern" on the element that shows the pattern.',
     ...(plated ? [' * Put class="fp-plate" on the element that holds the text.'] : []),
+    ...(i.sections ? [' * Add fp-a, fp-b, or fp-c on successive sections to show the pattern at a different angle on each.'] : []),
     ...(drifting ? [' * Add the class fp-paused to pause the motion.'] : []),
     ...(i.second ? [` * This pattern has two layers. It repeats exactly every ${repeatDistance(Number(size), Number(size2))} px.`] : []),
     ' */',

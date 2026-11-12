@@ -393,3 +393,298 @@ test('parallax demo CSS differs from the export block only in the timeline and t
     assert.equal(demo.replaceAll('.fp-parallax-demo', '.fp-pattern').replaceAll('--fp-demo', 'scroll(root)'), block(exportCss(i)));
   }
 });
+
+// Literals taken from the export before the sections option: with sections off, the export stays byte-identical.
+const uri = svgToDataUri(svg);
+const secondOff = { svg, tileSize: 193, x: 25, y: 50, rotate: 15, scale: 1, opacity: 0.5, depth: 2 };
+const offCases: Record<string, ExportInput> = {
+  static: base,
+  turned: { ...base, motion: { ...MOTION_NONE, rotate: 30 } },
+  layer2drift: { ...base, motion: { ...MOTION_NONE, drift: 'xy', speed: 6 }, second: secondOff },
+  parallax: { ...base, second: secondOff, parallax: true },
+};
+const offLiterals: Record<string, string[]> = {
+  static: [
+    '/* Demo: Tree, seed 1, depth 8. Tile 120px. */',
+    '.fp-pattern {',
+    '  --fp-bg: #f5f5f5;',
+    '  --fp-ink: #12232e;',
+    `  --fp-tile: url("${uri}");`,
+    '  --fp-size: 120px;',
+    '  position: relative;',
+    '  isolation: isolate;',
+    '  overflow: hidden;',
+    '  background-color: var(--fp-bg);',
+    '  color: var(--fp-ink);',
+    '}',
+    '.fp-pattern::before {',
+    '  content: "";',
+    '  position: absolute;',
+    '  z-index: -1;',
+    '  inset: 0;',
+    '  background-image: var(--fp-tile);',
+    '  background-size: var(--fp-size) var(--fp-size);',
+    '}',
+    '',
+    '.fp-plate {',
+    '  background-color: rgb(245 245 245 / 0.85);',
+    '  border-radius: 12px;',
+    '  padding: 1rem;',
+    '}',
+    '',
+    '/* Use: put class="fp-pattern" on the element that shows the pattern.',
+    ' * Put class="fp-plate" on the element that holds the text.',
+    ' */',
+  ],
+  turned: [
+    '/* Demo: Tree, seed 1, depth 8. Tile 120px. */',
+    '.fp-pattern {',
+    '  --fp-bg: #f5f5f5;',
+    '  --fp-ink: #12232e;',
+    `  --fp-tile: url("${uri}");`,
+    '  --fp-size: 120px;',
+    '  position: relative;',
+    '  isolation: isolate;',
+    '  overflow: hidden;',
+    '  background-color: var(--fp-bg);',
+    '  color: var(--fp-ink);',
+    '}',
+    '.fp-pattern::before {',
+    '  content: "";',
+    '  position: absolute;',
+    '  z-index: -1;',
+    '  left: 50%;',
+    '  top: 50%;',
+    '  width: 150vmax;',
+    '  height: 150vmax;',
+    '  background-image: var(--fp-tile);',
+    '  background-size: var(--fp-size) var(--fp-size);',
+    '  transform: translate(-50%, -50%) rotate(30deg);',
+    '}',
+    '',
+    '.fp-plate {',
+    '  background-color: rgb(245 245 245 / 0.85);',
+    '  border-radius: 12px;',
+    '  padding: 1rem;',
+    '}',
+    '',
+    '/* Use: put class="fp-pattern" on the element that shows the pattern.',
+    ' * Put class="fp-plate" on the element that holds the text.',
+    ' */',
+  ],
+  layer2drift: [
+    '/* Demo: Tree, seed 1, depth 8. Tile 120px. */',
+    '.fp-pattern {',
+    '  --fp-bg: #f5f5f5;',
+    '  --fp-ink: #12232e;',
+    `  --fp-tile: url("${uri}");`,
+    '  --fp-size: 120px;',
+    `  --fp-tile-2: url("${uri}");`,
+    '  --fp-size-2: 193px;',
+    '  position: relative;',
+    '  isolation: isolate;',
+    '  overflow: hidden;',
+    '  background-color: var(--fp-bg);',
+    '  color: var(--fp-ink);',
+    '}',
+    '.fp-pattern::before {',
+    '  content: "";',
+    '  position: absolute;',
+    '  z-index: -1;',
+    '  inset: 0;',
+    '  background-image: var(--fp-tile);',
+    '  background-size: var(--fp-size) var(--fp-size);',
+    '  animation: fp-drift 6s linear infinite;',
+    '}',
+    '.fp-pattern::after {',
+    '  content: "";',
+    '  position: absolute;',
+    '  z-index: -1;',
+    '  left: 50%;',
+    '  top: 50%;',
+    '  width: 150vmax;',
+    '  height: 150vmax;',
+    '  background-image: var(--fp-tile-2);',
+    '  background-size: var(--fp-size-2) var(--fp-size-2);',
+    '  background-position: calc(var(--fp-size-2) * 0.25) calc(var(--fp-size-2) * 0.5);',
+    '  opacity: 0.5;',
+    '  transform: translate(-50%, -50%) rotate(15deg);',
+    '  animation: fp-drift-2 3s linear infinite;',
+    '}',
+    '',
+    '@keyframes fp-drift {',
+    '  to { background-position: var(--fp-size) var(--fp-size); }',
+    '}',
+    '',
+    '@keyframes fp-drift-2 {',
+    '  to { background-position: calc(var(--fp-size-2) * 1.25) calc(var(--fp-size-2) * 1.5); }',
+    '}',
+    '',
+    '.fp-pattern.fp-paused::before, .fp-pattern.fp-paused::after {',
+    '  animation-play-state: paused;',
+    '}',
+    '',
+    '@media (prefers-reduced-motion: reduce) {',
+    '  .fp-pattern::before, .fp-pattern::after {',
+    '    animation: none;',
+    '  }',
+    '}',
+    '',
+    '.fp-plate {',
+    '  background-color: rgb(245 245 245 / 0.85);',
+    '  border-radius: 12px;',
+    '  padding: 1rem;',
+    '}',
+    '',
+    '/* Use: put class="fp-pattern" on the element that shows the pattern.',
+    ' * Put class="fp-plate" on the element that holds the text.',
+    ' * Add the class fp-paused to pause the motion.',
+    ' * This pattern has two layers. It repeats exactly every 23160 px.',
+    ' */',
+  ],
+  parallax: [
+    '/* Demo: Tree, seed 1, depth 8. Tile 120px. */',
+    '.fp-pattern {',
+    '  --fp-bg: #f5f5f5;',
+    '  --fp-ink: #12232e;',
+    `  --fp-tile: url("${uri}");`,
+    '  --fp-size: 120px;',
+    `  --fp-tile-2: url("${uri}");`,
+    '  --fp-size-2: 193px;',
+    '  position: relative;',
+    '  isolation: isolate;',
+    '  overflow: hidden;',
+    '  background-color: var(--fp-bg);',
+    '  color: var(--fp-ink);',
+    '}',
+    '.fp-pattern::before {',
+    '  content: "";',
+    '  position: absolute;',
+    '  z-index: -1;',
+    '  inset: 0 0 -4vh;',
+    '  background-image: var(--fp-tile);',
+    '  background-size: var(--fp-size) var(--fp-size);',
+    '}',
+    '.fp-pattern::after {',
+    '  content: "";',
+    '  position: absolute;',
+    '  z-index: -1;',
+    '  left: 50%;',
+    '  top: 50%;',
+    '  width: calc(150vmax + 32vh);',
+    '  height: calc(150vmax + 32vh);',
+    '  background-image: var(--fp-tile-2);',
+    '  background-size: var(--fp-size-2) var(--fp-size-2);',
+    '  background-position: calc(var(--fp-size-2) * 0.25) calc(var(--fp-size-2) * 0.5);',
+    '  opacity: 0.5;',
+    '  transform: translate(-50%, -50%) rotate(15deg);',
+    '}',
+    '',
+    '.fp-plate {',
+    '  background-color: rgb(245 245 245 / 0.85);',
+    '  border-radius: 12px;',
+    '  padding: 1rem;',
+    '}',
+    '',
+    '/* Parallax on scroll needs Chrome or Edge 115, Safari 26, or Firefox 159. Other browsers show the two layers without it. */',
+    '@media (prefers-reduced-motion: no-preference) {',
+    '  @supports (animation-timeline: scroll()) {',
+    '    @keyframes fp-scroll-1 {',
+    '      from { transform: translateY(0); }',
+    '      to { transform: translateY(-4vh); }',
+    '    }',
+    '    .fp-pattern::before {',
+    '      animation: fp-scroll-1 linear both;',
+    '      animation-timeline: scroll(root);',
+    '    }',
+    '    @keyframes fp-scroll-2 {',
+    '      from { transform: translateY(0) translate(-50%, -50%) rotate(15deg); }',
+    '      to { transform: translateY(-16vh) translate(-50%, -50%) rotate(15deg); }',
+    '    }',
+    '    .fp-pattern::after {',
+    '      animation: fp-scroll-2 linear both;',
+    '      animation-timeline: scroll(root);',
+    '    }',
+    '  }',
+    '}',
+    '',
+    '/* Use: put class="fp-pattern" on the element that shows the pattern.',
+    ' * Put class="fp-plate" on the element that holds the text.',
+    ' * This pattern has two layers. It repeats exactly every 23160 px.',
+    ' */',
+  ],
+};
+
+test('sections off: the export is byte-identical to the export before the option', () => {
+  for (const [k, i] of Object.entries(offCases)) {
+    const want = offLiterals[k]!.join('\n');
+    assert.equal(exportCss(i), want, k);
+    assert.equal(exportCss({ ...i, sections: false }), want, k);
+  }
+});
+
+const RULES = [
+  '.fp-pattern.fp-a { --fp-turn: 137deg; }',
+  '.fp-pattern.fp-b { --fp-turn: 95deg; }',
+  '.fp-pattern.fp-c { --fp-turn: 52deg; }',
+];
+// Each `.fp-pattern::before {` or `.fp-pattern::after {` block, up to its closing brace.
+const layerBlocks = (s: string) => {
+  const lines = s.split('\n');
+  return lines.flatMap((l, i) => (/^\.fp-pattern::(before|after) \{$/.test(l) ? [lines.slice(i, lines.indexOf('}', i) + 1)] : []));
+};
+
+test('sections on: three helper rules, every layer turns by --fp-turn on the oversized centered box', () => {
+  const inputs = [...Object.values(offCases), ...motions.map((m) => ({ ...base, motion: { ...MOTION_NONE, ...m } }))];
+  for (const i of inputs) {
+    const out = exportCss({ ...i, sections: true });
+    for (const r of RULES) assert.equal(count(out, r), 1, r);
+    assert.equal(count(out, '/* Add fp-a, fp-b, or fp-c next to fp-pattern to turn the pattern on that section. */'), 1);
+    assert.equal(count(out, ' * Add fp-a, fp-b, or fp-c on successive sections'), 1);
+    const blocks = layerBlocks(out);
+    assert.equal(blocks.length, i.second ? 2 : 1);
+    for (const b of blocks) {
+      const t = b.find((l) => l.startsWith('  transform: '));
+      assert.ok(t?.includes('var(--fp-turn, 0deg)'), b.join('\n'));
+      assert.ok(b.includes('  left: 50%;'), b.join('\n'));
+      assert.ok(
+        b.some((l) => /^ {2}width: (calc\()?\d+(\.\d+)?vmax/.test(l)),
+        b.join('\n'),
+      );
+      assert.ok(
+        b.some((l) => /^ {2}height: (calc\()?\d+(\.\d+)?vmax/.test(l)),
+        b.join('\n'),
+      );
+    }
+  }
+});
+
+test('sections on, static design: the layer turns by 0deg plus --fp-turn on the 150vmax box', () => {
+  const block = layerBlocks(exportCss({ ...base, sections: true }))[0]!;
+  assert.deepEqual(block, [
+    '.fp-pattern::before {',
+    '  content: "";',
+    '  position: absolute;',
+    '  z-index: -1;',
+    '  left: 50%;',
+    '  top: 50%;',
+    '  width: 150vmax;',
+    '  height: 150vmax;',
+    '  background-image: var(--fp-tile);',
+    '  background-size: var(--fp-size) var(--fp-size);',
+    '  transform: translate(-50%, -50%) rotate(calc(0deg + var(--fp-turn, 0deg)));',
+    '}',
+  ]);
+});
+
+test('sections on with parallax: the keyframes repeat the layer rule calc( rotation', () => {
+  for (const m of motions) {
+    const out = exportCss({ ...offCases.parallax!, motion: { ...MOTION_NONE, ...m }, sections: true });
+    const kf = out.slice(out.indexOf('@media (prefers-reduced-motion: no-preference)'));
+    for (const b of layerBlocks(out)) {
+      const rot = /rotate\(calc\([^)]*\)\)\)/.exec(b.find((l) => l.startsWith('  transform: ')) ?? '')?.[0];
+      assert.ok(rot, b.join('\n'));
+      assert.equal(count(kf, rot), 2, rot); // from and to
+    }
+  }
+});

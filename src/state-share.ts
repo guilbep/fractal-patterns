@@ -19,6 +19,7 @@ import {
   plateOpacity,
   plateRadius,
   roles,
+  sections,
   source,
   spacing,
   variantOptions,
@@ -49,6 +50,7 @@ export function snapshot(): Design {
     layer2Settings: { ...layer2Settings },
     parallax: parallax.value,
     variantOptions: { ...variantOptions },
+    sections: sections.value,
   };
 }
 
@@ -72,6 +74,7 @@ export function applyDesign(d: Design): void {
   Object.assign(layer2Settings, d.layer2Settings);
   parallax.value = d.parallax;
   Object.assign(variantOptions, d.variantOptions);
+  sections.value = d.sections;
   source.value = 'math';
   lastFix.value = null; // the Fix result no longer describes these colors
 }

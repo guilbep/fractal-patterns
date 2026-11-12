@@ -12,6 +12,7 @@ import {
   params,
   resetLayer2,
   resetVariants,
+  sections,
   tileSize,
   usingImage,
   variantBytes,
@@ -143,5 +144,8 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
 
     <label class="radio"><input id="fade" v-model="fade" type="checkbox" aria-describedby="fade-hint"> Soft fade</label>
     <p id="fade-hint" class="hint-text">A soft light and dark variation over the pattern. CSS only, no extra image.</p>
+
+    <label class="radio"><input id="sections" v-model="sections" type="checkbox" aria-describedby="sections-hint"> Different angle per section</label>
+    <p id="sections-hint" class="hint-text">Adds three helper classes to the CSS, fp-a, fp-b, and fp-c, that turn the pattern by a different angle. Put them on successive sections of a page. The preview does not change.</p>
   </section>
 </template>

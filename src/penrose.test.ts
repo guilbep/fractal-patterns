@@ -1,6 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { approximant, edgeKey, patchEdges, patchSvg, penrosePatch, rhombArcs, type Rhomb } from './penrose.ts';
+import {
+  approximant,
+  edgeKey,
+  gridNormals,
+  patchEdges,
+  patchSvg,
+  penroseArcs,
+  penroseBoth,
+  penroseEdges,
+  penrosePatch,
+  penroseTile,
+  rhombArcs,
+  tilePlan,
+  torusEdgeKey,
+  type Rhomb,
+} from './penrose.ts';
 import { mulberry32, type Pt } from './patterns/util.ts';
 
 const dist = (p: Pt, q: Pt) => Math.hypot(p[0] - q[0], p[1] - q[1]);
@@ -133,6 +148,150 @@ test('patchEdges has no duplicates; patchSvg is one compact line', () => {
   console.log(`patchSvg radius 6 edges: ${svg.length} bytes`);
 });
 
-test('approximant is not implemented yet', () => {
-  assert.equal(approximant(1, 1), null);
+const FIB = [1, 1, 2, 3, 5, 8, 13, 21];
+const S72 = Math.sin((2 * Math.PI) / 5);
+const C72 = Math.cos((2 * Math.PI) / 5);
+const C144 = Math.cos((4 * Math.PI) / 5);
+const S144 = Math.sin((4 * Math.PI) / 5);
+const mod = (v: number, m: number) => v - Math.floor(v / m) * m;
+
+test('approximant: crossing count, unit rhombs, Penrose angles, period formulas', () => {
+  for (let level = 1; level <= 5; level++) {
+    const p = FIB[level + 1]!;
+    const q = FIB[level]!;
+    // Crossings of families j, l in the cell = |det| of the integer shifts of T1, T2 (lattice index).
+    const G = gridNormals(p, q);
+    const n1 = G.map(([x]) => x * 2 * q);
+    const n2 = G.map(([, y]) => (y * p) / S72);
+    let crossings = 0;
+    for (let j = 0; j < 5; j++) for (let l = j + 1; l < 5; l++) crossings += Math.round(Math.abs(n1[j]! * n2[l]! - n1[l]! * n2[j]!));
+    for (let seed = 1; seed <= 3; seed++) {
+      const a = approximant(seed, level);
+      assert.equal(a.rhombs.length, crossings, `level ${level} seed ${seed}`);
+      assert.ok(Math.abs(a.width - (2 * q + 2 * (p - q) * C72 - 2 * p * C144)) < 1e-9);
+      assert.ok(Math.abs(a.height - (2 * p * S72 + 2 * q * S144)) < 1e-9);
+      for (const r of a.rhombs) {
+        const [w, x, y, z] = r.points;
+        for (const [u, v] of [
+          [w, x],
+          [x, y],
+          [y, z],
+          [z, w],
+        ] as const)
+          assert.ok(Math.abs(dist(u, v) - 1) < 1e-9);
+        assert.ok(Math.abs(angle(w, x, z) - (r.fat ? 72 : 144)) < 1e-6);
+      }
+    }
+  }
+});
+
+const torusEdgeCounts = (a: ReturnType<typeof approximant>) => {
+  const m = new Map<string, number>();
+  for (const r of a.rhombs)
+    for (let i = 0; i < 4; i++) {
+      const k = torusEdgeKey(r.points[i]!, r.points[(i + 1) % 4]!, a.width, a.height);
+      m.set(k, (m.get(k) ?? 0) + 1);
+    }
+  return m;
+};
+
+test('approximant tiles the torus: edges shared twice, points covered once, area matches', () => {
+  for (let level = 1; level <= 5; level++) {
+    for (let seed = 1; seed <= 3; seed++) {
+      const a = approximant(seed, level);
+      const msg = `level ${level} seed ${seed}`;
+      for (const n of torusEdgeCounts(a).values()) assert.equal(n, 2, msg);
+      const fat = a.rhombs.filter((r) => r.fat).length;
+      const area = fat * S72 + (a.rhombs.length - fat) * Math.sin(Math.PI / 5);
+      assert.ok(Math.abs(area - a.width * a.height) < 1e-6, msg);
+      const copies: Rhomb[] = [];
+      for (const ox of [-1, 0, 1])
+        for (const oy of [-1, 0, 1])
+          for (const r of a.rhombs)
+            copies.push({
+              ...r,
+              points: r.points.map(([x, y]): Pt => [x + ox * a.width, y + oy * a.height]) as unknown as Rhomb['points'],
+            });
+      const rnd = mulberry32(level * 10 + seed);
+      let n = 0;
+      while (n < 300) {
+        const pt: Pt = [rnd() * a.width, rnd() * a.height];
+        const hits = copies.map((r) => inside(pt, r));
+        if (hits.some(Number.isNaN)) continue;
+        assert.equal(
+          hits.reduce((s, h) => s + h, 0),
+          1,
+          msg,
+        );
+        n++;
+      }
+    }
+  }
+});
+
+test('approximant fat to thin ratio approaches the golden ratio; arc ends matched', () => {
+  // Measured share of matched arc ends per level (seed 1): 94.4, 97.9, 99.2, 99.7, 99.9 percent.
+  const minMatched = [0, 0.9, 0.95, 0.95, 0.95, 0.95];
+  for (let level = 1; level <= 5; level++) {
+    const a = approximant(1, level);
+    const fat = a.rhombs.filter((r) => r.fat).length;
+    const ratio = fat / (a.rhombs.length - fat);
+    const W = Math.round(a.width * 1e5);
+    const H = Math.round(a.height * 1e5);
+    const k = ([x, y]: Pt) => `${Math.round(mod(x, a.width) * 1e5) % W},${Math.round(mod(y, a.height) * 1e5) % H}`;
+    const ends: string[] = [];
+    for (const r of a.rhombs) for (const poly of rhombArcs(r, 2)) ends.push(k(poly[0]!), k(poly[poly.length - 1]!));
+    const count = new Map<string, number>();
+    for (const e of ends) count.set(e, (count.get(e) ?? 0) + 1);
+    const matched = ends.filter((e) => count.get(e) === 2).length / ends.length;
+    console.log(`level ${level}: fat/thin ${ratio.toFixed(4)}, matched arc ends ${(matched * 100).toFixed(1)}%`);
+    if (level >= 3) assert.ok(Math.abs(ratio - 1.618) < 0.2);
+    assert.ok(matched >= minMatched[level]!, `level ${level}: ${matched}`);
+  }
+});
+
+const T = 240;
+const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
+// Seam check copied from src/patterns/themes.test.ts.
+const assertSeamless = (polys: Pt[][], S: number, msg: string) => {
+  const cross = { x0: [] as number[], xS: [] as number[], y0: [] as number[], yS: [] as number[] };
+  for (const poly of polys) {
+    for (let i = 1; i < poly.length; i++) {
+      const [ax, ay] = poly[i - 1]!;
+      const [bx, by] = poly[i]!;
+      for (const e of [0, S]) {
+        assert.ok(!(near(ax, e) && near(bx, e)), `${msg}: segment on x = ${e}`);
+        assert.ok(!(near(ay, e) && near(by, e)), `${msg}: segment on y = ${e}`);
+      }
+    }
+    for (const [x, y] of poly) {
+      if (near(x, 0)) cross.x0.push(y);
+      if (near(x, S)) cross.xS.push(y);
+      if (near(y, 0)) cross.y0.push(x);
+      if (near(y, S)) cross.yS.push(x);
+    }
+  }
+  const same = (a: number[], b: number[], side: string) => {
+    a.sort((p, q) => p - q);
+    b.sort((p, q) => p - q);
+    assert.equal(a.length, b.length, `${msg}: ${side} count`);
+    a.forEach((v, i) => assert.ok(near(v, b[i]!), `${msg}: ${side} ${v} vs ${b[i]}`));
+  };
+  same(cross.x0, cross.xS, 'x');
+  same(cross.y0, cross.yS, 'y');
+};
+
+test('penroseTile is seamless, deterministic, seeded and inside the tile', () => {
+  for (const decorate of ['edges', 'arcs', 'both'] as const)
+    for (let depth = 1; depth <= 4; depth++)
+      for (let seed = 1; seed <= 5; seed++) {
+        const polys = penroseTile(mulberry32(seed), depth, T, decorate);
+        assertSeamless(polys, T, `${decorate} depth ${depth} seed ${seed}`);
+        for (const poly of polys) for (const [x, y] of poly) assert.ok(x >= 0 && x <= T && y >= 0 && y <= T);
+      }
+  for (const gen of [penroseEdges, penroseArcs, penroseBoth]) {
+    assert.deepEqual(gen(mulberry32(1), 2, T), gen(mulberry32(1), 2, T));
+    assert.notDeepEqual(gen(mulberry32(1), 2, T), gen(mulberry32(2), 2, T));
+  }
+  for (let depth = 1; depth <= 4; depth++) console.log(`penroseTile depth ${depth}:`, JSON.stringify(tilePlan(depth)));
 });

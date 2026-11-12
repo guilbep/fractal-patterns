@@ -19,14 +19,20 @@ export function isStatic(m: Motion): boolean {
 const n = (x: number) => String(Number(x));
 
 export function cssMotion(svg: string, background: string, size: number, m: Motion): string {
-  const s = n(size);
+  // Scale goes through the tile size, so the layer itself never shrinks below its box.
+  const s = n(Math.round(size * m.scale * 1000) / 1000);
   const centered = m.rotate !== 0 || m.skew !== 0 || m.tilt !== 0;
+  // Tilt pivots on the box's top edge: with perspective(800px) the far half of the plane never rises more than
+  // 800px * cot(tilt) above the pivot, so the whole box sits on the near half. 225vmax covers a disc of radius
+  // hypot(w/2, h) <= 1.118vmax around the pivot for tilt <= 60 and a box no larger than the viewport.
+  // ponytail: assumes vmax >= 462px (800 * tan 30); half the layer lies above the box, unseen.
+  const base = m.tilt !== 0 ? 225 : 150;
+  const side = `${n(Math.round((base / Math.cos((m.skew * Math.PI) / 180)) * 10) / 10)}vmax`;
   const fns: string[] = [];
   if (centered) fns.push('translate(-50%, -50%)');
   if (m.tilt !== 0) fns.push(`perspective(800px) rotateX(${n(m.tilt)}deg)`);
   if (m.rotate !== 0) fns.push(`rotate(${n(m.rotate)}deg)`);
   if (m.skew !== 0) fns.push(`skewX(${n(m.skew)}deg)`);
-  if (m.scale !== 1) fns.push(`scale(${n(m.scale)})`);
 
   const lines = [
     '.fp-pattern {',
@@ -39,7 +45,9 @@ export function cssMotion(svg: string, background: string, size: number, m: Moti
     '  content: "";',
     '  position: absolute;',
     '  z-index: -1;',
-    ...(centered ? ['  left: 50%;', '  top: 50%;', '  width: 150vmax;', '  height: 150vmax;'] : ['  inset: 0;']),
+    ...(centered
+      ? ['  left: 50%;', `  top: ${m.tilt !== 0 ? '0' : '50%'};`, `  width: ${side};`, `  height: ${side};`]
+      : ['  inset: 0;']),
     `  background-image: url("${svgToDataUri(svg)}");`,
     `  background-size: ${s}px ${s}px;`,
   ];

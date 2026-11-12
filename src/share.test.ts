@@ -48,7 +48,7 @@ function randomDesign(r: () => number): Design {
     layout: pick(['single', 'patchwork'] as const),
     cells: int(2, 4),
     frame: r() < 0.5,
-    families: int(1, 15),
+    families: int(1, 31),
   };
 }
 
@@ -111,7 +111,7 @@ function assertValid(d: Design, label: string): void {
   assert.ok(['single', 'patchwork'].includes(d.layout), label);
   assert.ok(Number.isInteger(d.cells) && inRange(d.cells, 2, 4), label);
   assert.equal(typeof d.frame, 'boolean', label);
-  assert.ok(Number.isInteger(d.families) && inRange(d.families, 1, 15), label);
+  assert.ok(Number.isInteger(d.families) && inRange(d.families, 1, 31), label);
 }
 
 test('defaults encode to the empty string and decode back', () => {
@@ -218,7 +218,7 @@ test('hostile patchwork values fall back or clamp', () => {
   assert.equal(decodeDesign('c=99').cells, 4);
   assert.equal(decodeDesign('c=abc').cells, 3);
   assert.equal(decodeDesign('fa=0').families, DESIGN_DEFAULTS.families);
-  assert.equal(decodeDesign('fa=999').families, 15);
+  assert.equal(decodeDesign('fa=999').families, 31);
   assert.equal(decodeDesign('l=x').layout, 'single');
   assert.equal(decodeDesign('f=yes').frame, false);
   assert.equal(encodeDesign(DESIGN_DEFAULTS), '');

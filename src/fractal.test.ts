@@ -125,7 +125,8 @@ test('source hygiene', () => {
 });
 
 test('families', () => {
-  assert.deepEqual([...FAMILIES], ['fractal', 'line', 'surface', 'symmetry']);
+  assert.deepEqual([...FAMILIES], ['fractal', 'line', 'surface', 'symmetry', 'theme']);
+  for (const kind of ['topo', 'maze', 'circuit'] as const) assert.equal(KIND_FAMILY[kind], 'theme', kind);
   for (const family of FAMILIES) assert.ok(typeof FAMILY_LABELS[family] === 'string' && FAMILY_LABELS[family].length > 0, family);
   assert.deepEqual(Object.keys(KIND_FAMILY).sort(), [...KINDS].sort());
   for (const kind of KINDS) assert.ok((FAMILIES as readonly string[]).includes(KIND_FAMILY[kind]), kind);
@@ -151,7 +152,7 @@ test('families', () => {
 });
 
 test('all kinds are registered', () => {
-  assert.equal(KINDS.length, 37);
+  assert.equal(KINDS.length, 40);
   const ids = [
     'carpet',
     'quadtree',
@@ -190,6 +191,9 @@ test('all kinds are registered', () => {
     'p4',
     'p4m',
     'p4g',
+    'topo',
+    'maze',
+    'circuit',
   ];
   for (const id of ids) assert.ok((KINDS as readonly string[]).includes(id), id);
   for (const kind of ['p1', 'p2', 'pm', 'pg', 'cm', 'pmm', 'pmg', 'pgg', 'cmm', 'p4', 'p4m', 'p4g'] as const)

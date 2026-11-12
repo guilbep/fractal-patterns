@@ -18,10 +18,11 @@ import {
   waves,
   zigzag,
 } from './patterns/surfaces.ts';
+import { circuit, maze, topo } from './patterns/themes.ts';
 import { mulberry32, type Generator, type Pt } from './patterns/util.ts';
 import { sceneToSvg, squareScene } from './scene.ts';
 
-export const FAMILIES = ['fractal', 'line', 'surface', 'symmetry'] as const;
+export const FAMILIES = ['fractal', 'line', 'surface', 'symmetry', 'theme'] as const;
 export type Family = (typeof FAMILIES)[number];
 
 export const FAMILY_LABELS: Readonly<Record<Family, string>> = {
@@ -29,6 +30,7 @@ export const FAMILY_LABELS: Readonly<Record<Family, string>> = {
   line: 'Line art',
   surface: 'Surfaces',
   symmetry: 'Symmetry groups',
+  theme: 'Themes',
 };
 
 export const KINDS = [
@@ -69,6 +71,9 @@ export const KINDS = [
   'p4',
   'p4m',
   'p4g',
+  'topo',
+  'maze',
+  'circuit',
 ] as const;
 export type Kind = (typeof KINDS)[number];
 
@@ -113,6 +118,9 @@ const PATTERNS: Readonly<Record<Kind, { family: Family; label: string; maxDepth:
   p4: { family: 'symmetry', label: 'p4 quarter turn', maxDepth: 3, gen: p4 },
   p4m: { family: 'symmetry', label: 'p4m quarter turn and mirrors', maxDepth: 2, gen: p4m },
   p4g: { family: 'symmetry', label: 'p4g quarter turn and glides', maxDepth: 2, gen: p4g },
+  topo: { family: 'theme', label: 'Topography', maxDepth: 5, gen: topo },
+  maze: { family: 'theme', label: 'Maze', maxDepth: 13, gen: maze },
+  circuit: { family: 'theme', label: 'Circuit', maxDepth: 5, gen: circuit },
 };
 
 const byKind = <T>(f: (k: Kind) => T): Readonly<Record<Kind, T>> => Object.fromEntries(KINDS.map((k) => [k, f(k)])) as Record<Kind, T>;

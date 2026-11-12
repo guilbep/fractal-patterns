@@ -91,7 +91,8 @@ async function toDepth(): Promise<void> {
 }
 
 // The badge keeps the CO₂ part only ("≈ 0.4 mg CO₂"); the Export tab shows the full line.
-const footprintText = () => (gzipped.value === null ? 'computing' : gzipped.value === 'unknown' ? 'size unknown' : (footprint.value ?? '').split(' / ')[0]);
+const footprintFull = () => (gzipped.value === null ? 'computing' : gzipped.value === 'unknown' ? 'size unknown' : (footprint.value ?? ''));
+const footprintText = () => footprintFull().split(' / ')[0];
 
 // Sticky heights for the offsets below the toolbar and for scroll-padding-top.
 const bar = ref<HTMLElement | null>(null);
@@ -134,6 +135,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   </header>
 
   <div ref="bar" class="toolbar" role="toolbar" aria-label="Design actions">
+    <div class="bar-row">
     <button type="button" class="btn primary" :disabled="usingImage" @click="reseed">Shuffle</button>
     <button type="button" class="btn" @click="randomPattern">Random pattern</button>
     <button type="button" class="btn" :disabled="!canUndo" aria-keyshortcuts="Control+Z Meta+Z" @click="undo">Undo</button>
@@ -143,11 +145,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     <button type="button" class="btn" @click="copyCss">Copy CSS</button>
     <a class="btn" :href="svgHref" :download="fileName">Download SVG</a>
     <button type="button" class="btn" @click="copyLink">Copy link</button>
+    </div>
+    <div class="bar-stats">
     <span class="stat" :class="contrast.normal !== 'fail' ? 'ok' : 'bad'">
       <span aria-hidden="true">{{ contrast.normal !== 'fail' ? '✓' : '✗' }}</span>
       Contrast {{ ratioText(contrast.worst) }}:1 {{ contrast.normal !== 'fail' ? 'AA pass' : 'AA fail' }}
     </span>
-    <span class="stat">{{ footprintText() }}</span>
+    <span class="stat" :title="footprintFull()"><span aria-hidden="true">{{ footprintText() }}</span><span class="visually-hidden">{{ footprintFull() }}</span></span>
+    </div>
     <span class="visually-hidden" role="status" aria-live="polite">{{ copyStatus }}</span>
   </div>
 

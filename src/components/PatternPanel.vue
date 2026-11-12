@@ -13,6 +13,12 @@ function pick(): void {
 const groups = computed(() =>
   FAMILIES.map((family) => ({ family, items: previews.value.filter((p) => KIND_FAMILY[p.kind] === family) })).filter((g) => g.items.length),
 );
+// Jump to a family heading without touching the hash: the hash holds the design.
+function jump(family: string): void {
+  const h = document.getElementById(`family-${family}`);
+  h?.scrollIntoView({ block: 'start', behavior: 'auto' });
+  h?.focus({ preventScroll: true });
+}
 </script>
 
 <template>
@@ -54,11 +60,11 @@ const groups = computed(() =>
       <p v-if="usingPatchwork" class="note image-source-note">The tile is a patchwork. Pick a pattern here to go back to a single pattern.</p>
       <p v-if="usingImage" class="note image-source-note">The tile now comes from your image (see From image). Pick a pattern here to go back to math patterns.</p>
       <nav class="family-links" aria-label="Pattern families">
-        <a v-for="g in groups" :key="g.family" :href="`#family-${g.family}`">{{ FAMILY_LABELS[g.family] }}</a>
+        <button v-for="g in groups" :key="g.family" type="button" @click="jump(g.family)">{{ FAMILY_LABELS[g.family] }}</button>
       </nav>
       <!-- One radio group over all kinds: arrow keys move across families in DOM order. -->
       <div v-for="g in groups" :key="g.family" class="family">
-        <h3 :id="`family-${g.family}`" class="family-h">{{ FAMILY_LABELS[g.family] }} <span class="muted">{{ g.items.length }}</span></h3>
+        <h3 :id="`family-${g.family}`" class="family-h" tabindex="-1">{{ FAMILY_LABELS[g.family] }} <span class="muted">{{ g.items.length }}</span></h3>
         <div class="kinds">
           <label v-for="p in g.items" :key="p.kind" class="kind">
             <input v-model="params.kind" type="radio" name="kind" :value="p.kind" class="visually-hidden" @click="pick">

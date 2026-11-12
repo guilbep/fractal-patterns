@@ -30,7 +30,7 @@ async function copy(): Promise<void> {
       <div><dt>Gzipped</dt><dd>{{ gzipBytes === null ? 'computing' : `${gzipBytes.toLocaleString('en')} bytes` }}</dd></div>
       <div class="wide"><dt>Footprint</dt><dd>{{ footprint ?? 'computing' }}</dd></div>
     </dl>
-    <p class="muted">A linear estimate from the gzipped size, the same model as <a href="https://pierreguilbert.com">pierreguilbert.com</a>, calibrated on one websitecarbon.com measurement. It counts only the pattern tile, not the rest of your page.</p>
+    <p class="muted">A rough estimate: a straight line from the compressed size, calibrated on one websitecarbon.com measurement of <a href="https://pierreguilbert.com">pierreguilbert.com</a>. It counts the transfer of the pattern tile once. It does not count the rest of your page, browser caching (a repeat visit transfers nothing), or the energy to draw the pattern on the visitor's device.</p>
   </section>
 
   <section class="panel" aria-labelledby="out-h">

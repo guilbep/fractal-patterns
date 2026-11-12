@@ -87,7 +87,15 @@ The panel shows three values:
 - Gzipped: the size after gzip, a standard compression format.
 - Footprint: the estimated CO2 per visit in milligrams.
 
-The CO2 estimate is linear in the gzipped size. The constant comes from the `inject-co2.mjs` script of pierreguilbert.com. That script uses one websitecarbon.com calibration point: 5.76 KB gives 0.001144 g of CO2. The estimate counts only the tile, not the rest of your page. The browser computes the gzip size with its `CompressionStream` API.
+The CO2 estimate is rough. It is a straight line from the gzipped size. The constant comes from the `inject-co2.mjs` script of pierreguilbert.com. That script uses one websitecarbon.com measurement of pierreguilbert.com: 5.76 KB gives 0.001144 g of CO2. The panel shows the value in milligrams with 1 decimal from 1 mg up, and with 1 significant digit below 1 mg. The browser computes the gzip size with its `CompressionStream` API.
+
+The estimate counts the transfer of the pattern tile once. It does not count these costs:
+
+- The rest of your page.
+- Browser caching. A repeat visit transfers nothing.
+- The energy to draw the pattern on the visitor's device.
+
+Drift repaints the pattern layer on every frame. When drift is on, the "Transform and motion" panel gives an order of magnitude for this cost. It assumes 0.5 W of extra power and a world average grid of 480 g CO2 per kWh. With these values, one minute of drift is about 4 mg of CO2. The panel also tells how many times the transfer footprint of the tile this is. These two values are assumptions, not measurements. A phone can use 0.1 W and a large laptop screen 2 W. Real grids differ several times in both directions. The constants are `DRIFT_WATTS` and `GRID_G_PER_KWH` in `src/co2.ts`.
 
 ### Output
 

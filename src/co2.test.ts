@@ -3,7 +3,16 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { co2Mg, formatFootprint, gzipSize, rawSize } from './co2.ts';
+import {
+  co2Mg,
+  DRIFT_WATTS,
+  driftMgPerMinute,
+  driftMultiple,
+  formatFootprint,
+  GRID_G_PER_KWH,
+  gzipSize,
+  rawSize,
+} from './co2.ts';
 import { generate, KINDS, MAX_DEPTH } from './fractal.ts';
 
 test('co2Mg vectors', () => {
@@ -18,8 +27,28 @@ test('co2Mg at the calibration point', () => {
 });
 
 test('formatFootprint', () => {
-  assert.equal(formatFootprint(2017), '≈ 0.39 mg CO₂ / visit · 1.97 KB compressed');
-  assert.equal(formatFootprint(0), '≈ 0.00 mg CO₂ / visit · 0.00 KB compressed');
+  assert.equal(formatFootprint(2017), '≈ 0.4 mg CO₂ / visit · 1.97 KB compressed');
+  assert.equal(formatFootprint(0), '≈ 0 mg CO₂ / visit · 0.00 KB compressed');
+  assert.equal(formatFootprint(5898.24), '≈ 1.1 mg CO₂ / visit · 5.76 KB compressed');
+  assert.equal(formatFootprint(200), '≈ 0.04 mg CO₂ / visit · 0.20 KB compressed');
+  assert.equal(formatFootprint(60000), '≈ 11.6 mg CO₂ / visit · 58.59 KB compressed');
+});
+
+test('drift constants', () => {
+  assert.equal(DRIFT_WATTS, 0.5);
+  assert.equal(GRID_G_PER_KWH, 480);
+});
+
+test('driftMgPerMinute', () => {
+  assert.ok(Math.abs(driftMgPerMinute() - 4) < 1e-9);
+  assert.ok(Math.abs(driftMgPerMinute(1, 480) - 8) < 1e-9);
+  assert.ok(Math.abs(driftMgPerMinute(0.5, 60) - 0.5) < 1e-9);
+});
+
+test('driftMultiple', () => {
+  assert.ok(Math.abs(driftMultiple(0.4) - 10) < 1e-9);
+  assert.equal(driftMultiple(0), 0);
+  assert.ok(Math.abs(driftMultiple(0.4, 5) - 50) < 1e-9);
 });
 
 test('rawSize counts UTF-8 bytes', () => {

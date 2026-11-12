@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DETECTORS, edges, gaussianBlur, gradient, toGray, type Gray } from './trace.ts';
+import { DETECTOR_LABELS, DETECTORS, edges, gaussianBlur, gradient, thin, toGray, xdogMask, type Gray } from './trace.ts';
 
 const KERNELS = ['sobel', 'prewitt', 'roberts', 'laplacian'] as const;
 
@@ -86,7 +86,9 @@ test('square: every detector traces the outline', () => {
     const pts: [number, number][] = [];
     e.forEach((v, i) => v === 1 && pts.push([i % 32, Math.floor(i / 32)]));
     assert.ok(pts.length > 0, d);
-    for (const [x, y] of pts) assert.ok(Math.min(...sides.map((s) => toSide(x, y, s))) <= 2, `${d} (${x}, ${y})`);
+    // XDoG draws its line on the dark side of an edge by design (deepest dip about 1.5 px out), so it gets 3 px.
+    const tol = d === 'xdog' ? 3 : 2;
+    for (const [x, y] of pts) assert.ok(Math.min(...sides.map((s) => toSide(x, y, s))) <= tol, `${d} (${x}, ${y})`);
     for (const s of sides) assert.ok(pts.filter(([x, y]) => toSide(x, y, s) <= 2).length >= 6, `${d} ${s}`);
   }
 });
@@ -103,4 +105,85 @@ test('gaussianBlur', () => {
 test('trace.ts uses no Node-only or DOM APIs', () => {
   const src = readFileSync(join(import.meta.dirname, 'trace.ts'), 'utf8');
   for (const word of ['node:', 'document', 'canvas']) assert.ok(!src.includes(word), word);
+});
+
+test('DETECTORS: new ids appended, old order kept, every id labelled', () => {
+  assert.deepEqual(DETECTORS.slice(0, 5), ['sobel', 'prewitt', 'roberts', 'laplacian', 'canny']);
+  assert.deepEqual(DETECTORS.slice(-2), ['scharr', 'xdog']);
+  for (const d of DETECTORS) assert.ok(DETECTOR_LABELS[d].length > 0, d);
+});
+
+const R = 20;
+const disc = image(64, 64, (x, y) => (Math.hypot(x - 32, y - 32) <= R ? 255 : 0));
+const toCircle = (i: number) => Math.abs(Math.hypot((i % 64) - 32, Math.floor(i / 64) - 32) - R);
+
+const count = (m: Uint8Array) => m.reduce((s, v) => s + v, 0);
+
+test('disc: scharr and xdog trace the circle, fewer pixels as the threshold rises', () => {
+  for (const d of ['scharr', 'xdog'] as const) {
+    let prev = Infinity;
+    for (const t of [0.2, 0.5, 0.8]) {
+      const e = edges(disc, d, t);
+      const on = [...e.keys()].filter((i) => e[i] === 1);
+      assert.ok(on.length > 0, `${d} ${t}`);
+      assert.ok(
+        on.some((i) => toCircle(i) <= 2.5),
+        `${d} ${t}`,
+      );
+      for (const i of on) assert.ok(toCircle(i) <= 4, `${d} ${t} pixel ${i}`);
+      // XDoG: thinning can make a wider band's skeleton shorter, so the count property is checked on the unthinned mask.
+      const n = d === 'xdog' ? count(xdogMask(disc, t)) : on.length;
+      assert.ok(n <= prev, `${d} ${t}: ${n} > ${prev}`);
+      prev = n;
+    }
+  }
+});
+
+test('scharr is more rotation-symmetric than sobel on a smooth disc', () => {
+  // Measured: on a smooth disc (anti-aliased, blurred sigma 1.5, bilinear sampling) scharr 0.0083 vs sobel 0.0100.
+  // On the hard-edged disc Sobel measures better (nearest pixel 0.0947 vs 0.1074, bilinear 0.0278 vs 0.0397):
+  // pixel aliasing dominates there, so Scharr only helps on smooth edges.
+  const smooth = gaussianBlur(
+    image(64, 64, (x, y) => 255 * Math.min(1, Math.max(0, R + 0.5 - Math.hypot(x - 32, y - 32)))),
+    1.5,
+  );
+  const spread = (d: 'sobel' | 'scharr') => {
+    const m = gradient(smooth, d);
+    const at = (x: number, y: number) => m[y * 64 + x] ?? NaN;
+    const v = Array.from({ length: 72 }, (_, k) => {
+      const a = (k * 2 * Math.PI) / 72;
+      const [sx, sy] = [32 + R * Math.cos(a), 32 + R * Math.sin(a)];
+      const [x0, y0] = [Math.floor(sx), Math.floor(sy)];
+      const [fx, fy] = [sx - x0, sy - y0];
+      return (
+        (1 - fx) * (1 - fy) * at(x0, y0) + fx * (1 - fy) * at(x0 + 1, y0) + (1 - fx) * fy * at(x0, y0 + 1) + fx * fy * at(x0 + 1, y0 + 1)
+      );
+    });
+    const mean = v.reduce((s, x) => s + x, 0) / v.length;
+    return Math.sqrt(v.reduce((s, x) => s + (x - mean) ** 2, 0) / v.length) / mean;
+  };
+  assert.ok(spread('scharr') < spread('sobel'), `${spread('scharr')} vs ${spread('sobel')}`);
+});
+
+test('thin: bar to a line, line kept, empty kept, subset of input', () => {
+  const [w, h] = [50, 15];
+  const bar = new Uint8Array(w * h);
+  for (let y = 5; y < 10; y++) for (let x = 5; x < 45; x++) bar[y * w + x] = 1;
+  const t = thin(bar, w, h);
+  for (let x = 10; x < 40; x++) assert.equal([...Array(h).keys()].filter((y) => t[y * w + x] === 1).length, 1, `x=${x}`);
+  t.forEach((v, i) => assert.ok(v === 0 || bar[i] === 1, `pixel ${i}`));
+  const line = new Uint8Array(w * h);
+  for (let x = 5; x < 45; x++) line[7 * w + x] = 1;
+  assert.deepEqual(thin(line, w, h), line);
+  assert.ok(thin(new Uint8Array(w * h), w, h).every((v) => v === 0));
+});
+
+test('xdog: flat gray has no edge', () => {
+  assert.ok(
+    edges(
+      image(32, 32, () => 128),
+      'xdog',
+      0.1,
+    ).every((v) => v === 0),
+  );
 });

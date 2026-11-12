@@ -251,3 +251,18 @@ test('source hygiene: no node: imports, no Math.random', () => {
   assert.ok(!src.includes('node:'));
   assert.ok(!src.includes('Math.random'));
 });
+
+test('defaults: no new option gives the same bytes as before the repetition options', () => {
+  const sum = (s: string): number => {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) >>> 0;
+    return h;
+  };
+  // Measured on phase-2 before the change.
+  const expected: Record<string, [number, number]> = { tree: [1376, 2574309790], brick: [6446, 412479989], quadtree: [2540, 1461329606] };
+  for (const [kind, pin] of Object.entries(expected)) {
+    const o = { ...base, kind: kind as 'tree' };
+    for (const svg of [superTileSvg(o), superTileSvg({ ...o, orient: false }), superTileSvg({ ...o, cells: 4, count: 4 })])
+      assert.deepEqual([svg.length, sum(svg)], pin, kind);
+  }
+});

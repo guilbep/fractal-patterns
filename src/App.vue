@@ -37,7 +37,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <div class="hero-text" :class="{ 'hero-plate': plateMode === 'plate' }" :style="plateMode === 'plate' ? plateStyle : undefined">
           <h1 :style="{ color: roles.text }">Fractal Patterns</h1>
           <p :class="{ 'hero-plate': plateMode === 'split' }" :style="[plateMode === 'split' ? plateStyle : '', { color: roles.text }]">
-            A {{ KIND_LABELS[params.kind].toLowerCase() }} grown from seed {{ params.seed }}. This text uses your text color and text plate settings, so what you read here is what your visitors will read.
+            Pattern: {{ KIND_LABELS[params.kind] }}, seed {{ params.seed }}. This text uses your text color and text plate settings, so what you read here is what your visitors will read.
           </p>
         </div>
       </div>

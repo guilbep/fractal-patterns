@@ -348,8 +348,12 @@ dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 600; text-align
 .palette[aria-pressed="true"] .palette-name { font-weight: 700; }
 
 /* Pattern */
-.kinds { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); gap: var(--s2); margin-bottom: var(--s4); }
-.kinds legend { grid-column: 1 / -1; }
+.gallery { margin-bottom: var(--s4); }
+.family-links { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); }
+.family-links a { display: inline-flex; align-items: center; min-height: 2.75rem; }
+.family-h { margin: var(--s3) 0 var(--s2); scroll-margin-top: var(--s3); }
+.family-h .muted { font-weight: 400; }
+.kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 6.5rem), 1fr)); gap: var(--s2); }
 .kind {
   display: grid;
   gap: var(--s1);
@@ -365,6 +369,11 @@ dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 600; text-align
 .kind:has(input:checked) .kind-name::before { content: "✓ "; }
 .kind:has(input:focus-visible) { outline: 0.1875rem solid var(--accent); outline-offset: 0.125rem; }
 .fields { display: grid; gap: 0 var(--s4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); }
+.seed-row { display: flex; gap: var(--s2); }
+.seed-row input { flex: 1; }
+.icon-btn { justify-content: center; min-width: 2.75rem; padding: 0; }
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
 /* Performance and output */
 .surfaces dd { white-space: nowrap; }

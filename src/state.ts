@@ -61,10 +61,11 @@ export const cssOut = computed(() => (plateMode.value === 'direct' ? css.value :
 export const svgHref = computed(() => svgToDataUri(svg.value));
 export const fileName = computed(() => `fractal-${params.kind}-${params.seed}.svg`);
 
-// One small live tile per kind, current colors and seed, for the kind picker.
+// One small live tile per kind, current colors and seed, for the gallery.
+// Reads only seed and colors, so slider moves on the selected pattern never regenerate it.
 export const previews = computed(() =>
   KINDS.map((kind) => {
-    const tile = generate({ ...params, kind, size: 64, depth: Math.min(params.depth, MAX_DEPTH[kind]), color: roles.pattern, opacity: opacity.value });
+    const tile = generate({ kind, seed: params.seed, size: 64, depth: Math.min(2, MAX_DEPTH[kind]), strokeWidth: 1, precision: 1, color: roles.pattern, opacity: opacity.value });
     return { kind, css: cssBackground(tile, roles.background) };
   }),
 );

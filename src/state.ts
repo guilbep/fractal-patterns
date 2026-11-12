@@ -8,7 +8,7 @@ import { edges, toGray, type Detector } from '@/trace.ts';
 import { vectorize } from '@/vectorize.ts';
 import { PALETTES, type Palette } from '@/palettes.ts';
 import { blend, contrastRatio, textLevel } from '@/contrast.ts';
-import { fixContrast, fixWithPlate, patternContrast, patternInvisible, pickRoles, plateContrast, swapRoles, worstTextContrast, type Roles } from '@/pairing.ts';
+import { fixContrast, fixSplit, fixWithPlate, patternContrast, patternInvisible, pickRoles, plateContrast, swapRoles, worstTextContrast, type Roles } from '@/pairing.ts';
 import { cssBackground, cssPlate, svgToDataUri } from '@/css.ts';
 import { formatFootprint, gzipSize, rawSize } from '@/co2.ts';
 import { MOTION_NONE, cssMotion, isStatic, type Motion } from '@/motion.ts';
@@ -45,7 +45,8 @@ export const plateBlur = ref(PLATE_DEFAULTS.plateBlur);
 export const palette = computed(() => PALETTES.find((p) => p.name === paletteName.value) ?? null);
 
 // Result of the last Fix click, shown until the colors change by another action.
-export const lastFix = ref<{ target: number; reached: boolean; ratio: number; changed: string } | null>(null);
+// `heading` is set in 'split' mode only, where the fix covers both the paragraph and the heading.
+export const lastFix = ref<{ target: number; reached: boolean; ratio: number; heading: number | undefined; changed: string } | null>(null);
 
 watch(plateMode, () => (lastFix.value = null));
 
@@ -282,24 +283,36 @@ function changedText(parts: string[]): string {
 export function applyFix(target: number): void {
   const before = { text: roles.text, opacity: opacity.value, plate: plateOpacity.value };
   let ratio: number;
-  if (plateMode.value === 'direct') {
+  let heading: number | undefined;
+  let reached: boolean;
+  if (plateMode.value === 'split') {
+    const fix = fixSplit(roles, opacity.value, plateOpacity.value, target);
+    opacity.value = fix.opacity;
+    plateOpacity.value = fix.plate;
+    setRoles({ ...roles, text: fix.text });
+    ratio = fix.paragraph;
+    heading = fix.heading;
+    reached = fix.reached;
+  } else if (plateMode.value === 'direct') {
     const fix = fixContrast(roles, opacity.value, target);
     opacity.value = Math.round(fix.opacity * 100) / 100;
     setRoles({ ...roles, text: fix.text });
     ratio = worstTextContrast(roles, opacity.value); // after opacity rounding
+    reached = ratio >= target;
   } else {
     // The pattern opacity stays: only the plate and, if needed, the text change.
     const fix = fixWithPlate(roles, opacity.value, plateOpacity.value, target);
     plateOpacity.value = fix.plate;
     setRoles({ ...roles, text: fix.text });
     ratio = plateContrast(roles, opacity.value, plateOpacity.value);
+    reached = ratio >= target;
   }
   const changed = changedText([
     ...(plateOpacity.value !== before.plate ? ['plate opacity'] : []),
     ...(opacity.value !== before.opacity ? ['pattern opacity'] : []),
     ...(roles.text !== before.text ? ['text color'] : []),
   ]);
-  lastFix.value = { target, reached: ratio >= target, ratio, changed };
+  lastFix.value = { target, reached, ratio, heading, changed };
 }
 
 // Back to the first-load state, including the seed drawn at load.

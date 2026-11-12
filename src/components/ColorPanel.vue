@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { PALETTES } from '@/palettes.ts';
+import { largeTarget } from '@/pairing.ts';
 import { applyFix, applyPalette, contrast, lastFix, offPalette, opacity, paletteName, plateBlur, plateMode, plateOpacity, plateRadius, ratioText, swap, type PlateMode } from '@/state.ts';
 import RoleInput from './RoleInput.vue';
 
@@ -17,9 +18,12 @@ const modes: { value: PlateMode; label: string }[] = [
   { value: 'split', label: 'Heading on pattern, paragraph on a plate' },
   { value: 'direct', label: 'Text on the pattern' },
 ];
+// In 'split' mode the heading on the bare pattern must also pass, at the large-text threshold.
+const passes = (target: number): boolean =>
+  contrast.value.worst >= target && (plateMode.value !== 'split' || contrast.value.direct >= largeTarget(target));
 const fixes = computed(() => [
-  { name: 'AA', target: 4.5, ok: contrast.value.worst >= 4.5 },
-  { name: 'AAA', target: 7, ok: contrast.value.worst >= 7 },
+  { name: 'AA', target: 4.5, ok: passes(4.5) },
+  { name: 'AAA', target: 7, ok: passes(7) },
 ]);
 </script>
 
@@ -100,7 +104,11 @@ const fixes = computed(() => [
           </button>
         </div>
         <p class="fix-msg" role="status">
-          <template v-if="lastFix && !lastFix.reached">
+          <template v-if="lastFix && lastFix.heading !== undefined && !lastFix.reached">
+            Could not reach {{ lastFix.target }}:1 for the paragraph and {{ largeTarget(lastFix.target) }}:1 for the heading with these colors. {{ lastFix.changed }} Best found: paragraph {{ ratioText(lastFix.ratio) }}:1, heading {{ ratioText(lastFix.heading) }}:1, now applied. Try another background or palette.
+          </template>
+          <template v-else-if="lastFix && lastFix.heading !== undefined">Fixed. {{ lastFix.changed }} Paragraph {{ ratioText(lastFix.ratio) }}:1, heading {{ ratioText(lastFix.heading) }}:1.</template>
+          <template v-else-if="lastFix && !lastFix.reached">
             Could not reach {{ lastFix.target }}:1 with these colors. {{ lastFix.changed }} Best found: {{ ratioText(lastFix.ratio) }}:1, now applied. Try another background or palette.
           </template>
           <template v-else-if="lastFix">Fixed. {{ lastFix.changed }} Now {{ ratioText(lastFix.ratio) }}:1.</template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { KIND_LABELS } from '@/fractal.ts';
 import { DETECTOR_LABELS } from '@/trace.ts';
 import { motionCss, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, reseed, reset, roles, trace, traced, usingImage } from '@/state.ts';
@@ -10,7 +10,26 @@ import ImagePanel from '@/components/ImagePanel.vue';
 import SpacingPanel from '@/components/SpacingPanel.vue';
 import MotionPanel from '@/components/MotionPanel.vue';
 
+// WCAG 2.1.4: a single-key shortcut needs an off switch. The choice survives a reload.
+const SHORTCUT_KEY = 'fp-shortcut';
+function readShortcut(): boolean {
+  try {
+    return localStorage.getItem(SHORTCUT_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+const shortcutOn = ref(readShortcut());
+watch(shortcutOn, (on) => {
+  try {
+    localStorage.setItem(SHORTCUT_KEY, on ? '1' : '0');
+  } catch {
+    /* storage blocked: the choice lasts for this visit only */
+  }
+});
+
 function onKey(e: KeyboardEvent): void {
+  if (!shortcutOn.value) return;
   if (e.key !== 'r' && e.key !== 'R') return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   const t = e.target as HTMLElement | null;
@@ -32,7 +51,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <div class="toolbar">
         <button type="button" class="btn primary" :disabled="usingImage" @click="reseed">Shuffle</button>
         <button type="button" class="btn" @click="reset">Reset</button>
-        <p class="muted hint">{{ usingImage ? 'Shuffle applies to math patterns only.' : '' }}<template v-if="!usingImage">Or click the pattern, or press <kbd>R</kbd>.</template></p>
+        <p class="muted hint">{{ usingImage ? 'Shuffle applies to math patterns only.' : '' }}<template v-if="!usingImage && shortcutOn">Or click the pattern, or press <kbd>R</kbd>.</template><template v-else-if="!usingImage">Or click the pattern.</template></p>
+        <label class="radio"><input v-model="shortcutOn" type="checkbox"> Keyboard shortcut: R shuffles</label>
       </div>
       <!-- ponytail: pointer shortcut only; the Shuffle button is the keyboard path. -->
       <!-- The hero uses the exported .fp-pattern class itself, so what you see is what you copy. -->

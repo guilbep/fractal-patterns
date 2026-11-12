@@ -71,6 +71,13 @@ function onDrop(e: DragEvent): void {
           <input id="minlen" v-model.number="trace.minLength" type="range" min="0" max="40" step="1">
         </div>
         <div class="field">
+          <label for="fit">Fit</label>
+          <select id="fit" v-model="trace.fit">
+            <option value="cover">Fill the tile (crop)</option>
+            <option value="contain">Show the whole image</option>
+          </select>
+        </div>
+        <div class="field">
           <label for="resolution">Resolution <output for="resolution">{{ trace.resolution }} px</output></label>
           <select id="resolution" v-model.number="trace.resolution">
             <option v-for="r in RESOLUTIONS" :key="r" :value="r">{{ r }} px on the longer edge</option>
@@ -86,7 +93,7 @@ function onDrop(e: DragEvent): void {
     </template>
 
     <ul class="image-notes muted">
-      <li>A traced tile repeats without a visible seam only when the source image itself repeats.</li>
+      <li>A traced tile repeats without a visible seam only when the source image itself repeats, or when Mirror is on (see Spacing).</li>
       <li>Traced tiles are heavier than math patterns. Watch the CO2 line and raise Detail or Minimum line length to lighten the tile.</li>
     </ul>
   </section>

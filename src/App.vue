@@ -3,11 +3,12 @@ import { onBeforeUnmount, onMounted } from 'vue';
 import { KIND_LABELS } from '@/fractal.ts';
 import { PALETTE_SOURCE } from '@/palettes.ts';
 import { DETECTOR_LABELS } from '@/trace.ts';
-import { motionCss, motionPaused, params, plateMode, plateStyle, reseed, reset, roles, trace, traced, usingImage } from '@/state.ts';
+import { motionCss, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, reseed, reset, roles, trace, traced, usingImage } from '@/state.ts';
 import ColorPanel from '@/components/ColorPanel.vue';
 import PatternPanel from '@/components/PatternPanel.vue';
 import OutputPanel from '@/components/OutputPanel.vue';
 import ImagePanel from '@/components/ImagePanel.vue';
+import SpacingPanel from '@/components/SpacingPanel.vue';
 import MotionPanel from '@/components/MotionPanel.vue';
 
 function onKey(e: KeyboardEvent): void {
@@ -42,7 +43,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <div class="hero-text" :class="{ 'hero-plate': plateMode === 'plate' }" :style="plateMode === 'plate' ? plateStyle : undefined">
           <h1 :style="{ color: roles.text }">Fractal Patterns</h1>
           <p :class="{ 'hero-plate': plateMode === 'split' }" :style="[plateMode === 'split' ? plateStyle : '', { color: roles.text }]">
-            <template v-if="usingImage">Pattern: traced from your image, {{ DETECTOR_LABELS[trace.detector] }} edges, {{ traced?.length ?? 0 }} lines.</template><template v-else>Pattern: {{ KIND_LABELS[params.kind] }}, seed {{ params.seed }}.</template> This text uses your text color and text plate settings, so what you read here is what your visitors will read.
+            <template v-if="usingImage">Pattern: traced from your image, {{ DETECTOR_LABELS[trace.detector] }} edges, {{ traced?.length ?? 0 }} lines.</template><template v-else-if="usingPatchwork">Pattern: patchwork {{ patch.cells }} by {{ patch.cells }}, seed {{ params.seed }}.</template><template v-else>Pattern: {{ KIND_LABELS[params.kind] }}, seed {{ params.seed }}.</template> This text uses your text color and text plate settings, so what you read here is what your visitors will read.
           </p>
         </div>
       </div>
@@ -51,6 +52,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     <div class="controls">
       <ColorPanel />
       <PatternPanel />
+      <SpacingPanel />
       <ImagePanel />
       <MotionPanel />
       <OutputPanel />

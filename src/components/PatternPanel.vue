@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { FAMILIES, FAMILY_LABELS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH } from '@/fractal.ts';
-import { MAX_SEED, params, previews, reseed, setSeed, source, usingImage } from '@/state.ts';
+import { FAMILIES, FAMILY_LABELS, KINDS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH, type Kind } from '@/fractal.ts';
+import { MAX_SEED, autoCells, layout, params, patch, patchDepthMax, previews, reseed, setPin, setSeed, source, usingImage, usingPatchwork } from '@/state.ts';
+
+const depthMax = computed(() => (usingPatchwork.value ? patchDepthMax.value : MAX_DEPTH[params.kind]));
+
+function pick(): void {
+  source.value = 'math';
+  layout.value = 'single';
+}
 
 const groups = computed(() =>
   FAMILIES.map((family) => ({ family, items: previews.value.filter((p) => KIND_FAMILY[p.kind] === family) })).filter((g) => g.items.length),
@@ -11,8 +18,40 @@ const groups = computed(() =>
 <template>
   <section class="panel" aria-labelledby="pattern-h">
     <h2 id="pattern-h">Pattern</h2>
+    <fieldset class="radios">
+      <legend>Layout</legend>
+      <label class="radio"><input v-model="layout" type="radio" name="layout" value="single"> Single pattern</label>
+      <label class="radio"><input v-model="layout" type="radio" name="layout" value="patchwork"> Patchwork</label>
+    </fieldset>
+
+    <div v-if="layout === 'patchwork'" class="patchwork">
+      <div class="field">
+        <label for="cells">Grid size <output for="cells">{{ patch.cells }} by {{ patch.cells }}</output></label>
+        <select id="cells" v-model.number="patch.cells">
+          <option v-for="n in [2, 3, 4]" :key="n" :value="n">{{ n }} cells per edge</option>
+        </select>
+      </div>
+      <fieldset class="radios">
+        <legend>Families</legend>
+        <label v-for="f in FAMILIES" :key="f" class="radio">
+          <input v-model="patch.families" type="checkbox" :value="f" :disabled="patch.families.length === 1 && patch.families.includes(f)"> {{ FAMILY_LABELS[f] }}
+        </label>
+      </fieldset>
+      <label class="radio"><input v-model="patch.frame" type="checkbox"> Frame lines</label>
+      <ol class="cell-list">
+        <li v-for="(auto, i) in autoCells" :key="i">
+          <label :for="`cell-${i}`">Cell {{ i + 1 }}</label>
+          <select :id="`cell-${i}`" :value="patch.pinned[i] ?? ''" @change="setPin(i, ($event.target as HTMLSelectElement).value as Kind | '')">
+            <option value="">Auto: {{ KIND_LABELS[auto] }}</option>
+            <option v-for="k in KINDS" :key="k" :value="k">{{ KIND_LABELS[k] }}</option>
+          </select>
+        </li>
+      </ol>
+      <button type="button" class="btn" :disabled="Object.keys(patch.pinned).length === 0" @click="patch.pinned = {}">Clear pins</button>
+    </div>
     <fieldset class="gallery">
       <legend>Pattern</legend>
+      <p v-if="usingPatchwork" class="note image-source-note">The tile is a patchwork. Pick a pattern here to go back to a single pattern.</p>
       <p v-if="usingImage" class="note image-source-note">The tile now comes from your image (see From image). Pick a pattern here to go back to math patterns.</p>
       <nav class="family-links" aria-label="Pattern families">
         <a v-for="g in groups" :key="g.family" :href="`#family-${g.family}`">{{ FAMILY_LABELS[g.family] }}</a>
@@ -22,7 +61,7 @@ const groups = computed(() =>
         <h3 :id="`family-${g.family}`" class="family-h">{{ FAMILY_LABELS[g.family] }} <span class="muted">{{ g.items.length }}</span></h3>
         <div class="kinds">
           <label v-for="p in g.items" :key="p.kind" class="kind">
-            <input v-model="params.kind" type="radio" name="kind" :value="p.kind" class="visually-hidden" @click="source = 'math'">
+            <input v-model="params.kind" type="radio" name="kind" :value="p.kind" class="visually-hidden" @click="pick">
             <span class="kind-tile" :style="p.css" aria-hidden="true"></span>
             <span class="kind-name">{{ KIND_LABELS[p.kind] }}</span>
           </label>
@@ -42,8 +81,8 @@ const groups = computed(() =>
         </div>
       </div>
       <div class="field">
-        <label for="depth">Depth <output for="depth">{{ params.depth }} of {{ MAX_DEPTH[params.kind] }}</output></label>
-        <input id="depth" :disabled="usingImage" v-model.number="params.depth" type="range" min="1" :max="MAX_DEPTH[params.kind]" step="1">
+        <label for="depth">Depth <output for="depth">{{ Math.min(params.depth, depthMax) }} of {{ depthMax }}</output></label>
+        <input id="depth" :disabled="usingImage" v-model.number="params.depth" type="range" min="1" :max="depthMax" step="1">
       </div>
       <div class="field">
         <label for="size">Tile size <output for="size">{{ params.size }} px</output></label>

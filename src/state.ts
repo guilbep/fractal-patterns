@@ -1,6 +1,9 @@
 // Module-level reactive state for the page. Randomness lives here, never in fractal.ts.
 import { computed, reactive, ref, shallowRef, watch } from 'vue';
-import { KINDS, MAX_DEPTH, generate, svgFromPolylines, type Kind } from '@/fractal.ts';
+import { FAMILIES, KINDS, MAX_DEPTH, generate, geometry, svgFromPolylines, type Family, type Kind } from '@/fractal.ts';
+import { patchworkCells, patchworkGeometry, type PatchworkParams } from '@/patchwork.ts';
+import { mirrorTile, withGap, zoomWrap } from '@/spacing.ts';
+import type { Pt } from '@/patterns/util.ts';
 import { edges, toGray, type Detector } from '@/trace.ts';
 import { vectorize } from '@/vectorize.ts';
 import { PALETTES, type Palette } from '@/palettes.ts';
@@ -46,6 +49,30 @@ export const lastFix = ref<{ target: number; reached: boolean; ratio: number; ch
 
 watch(plateMode, () => (lastFix.value = null));
 
+// Layout: one kind over the tile, or a grid of cells with one kind each.
+export const layout = ref<'single' | 'patchwork'>('single');
+const PATCH_DEFAULTS = { cells: 3, frame: false };
+export const patch = reactive({ ...PATCH_DEFAULTS, families: [...FAMILIES] as Family[], pinned: {} as Record<number, Kind> });
+const patchParams = computed<PatchworkParams>(() => ({ ...patch, seed: params.seed, depth: params.depth, size: params.size }));
+// What the seed picks for each cell without pins: the "Auto" label of the cell list.
+export const autoCells = computed(() => patchworkCells({ ...patchParams.value, pinned: {} }).map((c) => c.kind));
+// Mirrors depthCap() in patchwork.ts, which is private.
+export const patchDepthMax = computed(() => (patch.cells === 2 ? 3 : 2));
+
+export function setPin(index: number, kind: Kind | ''): void {
+  const pinned = { ...patch.pinned };
+  if (kind) pinned[index] = kind;
+  else delete pinned[index];
+  patch.pinned = pinned;
+}
+
+// White space between repeats, applied after the base geometry for every source.
+const SPACING_DEFAULTS = { zoom: 1, gap: 0, mirror: false };
+export const spacing = reactive({ ...SPACING_DEFAULTS });
+export function resetSpacing(): void {
+  Object.assign(spacing, SPACING_DEFAULTS);
+}
+
 watch(
   () => params.kind,
   (k) => {
@@ -55,7 +82,7 @@ watch(
 
 // Traced-image source. The pixels live in memory only; nothing is uploaded.
 export const RESOLUTIONS = [128, 192, 256] as const;
-const TRACE_DEFAULTS = { detector: 'canny' as Detector, threshold: 0.3, tolerance: 1.5, minLength: 8, resolution: 192 };
+const TRACE_DEFAULTS = { detector: 'canny' as Detector, threshold: 0.3, tolerance: 1.5, minLength: 8, resolution: 192, fit: 'cover' as 'cover' | 'contain' };
 export const source = ref<'math' | 'image'>('math');
 export const trace = reactive({ ...TRACE_DEFAULTS });
 export const image = shallowRef<{ data: Uint8ClampedArray; width: number; height: number } | null>(null);
@@ -117,14 +144,25 @@ const edgeMap = computed(() => {
 export const traced = computed(() => {
   const img = image.value;
   const map = edgeMap.value;
-  return img && map ? vectorize(map, img.width, img.height, { size: params.size, tolerance: trace.tolerance, minLength: trace.minLength }) : null;
+  return img && map ? vectorize(map, img.width, img.height, { size: params.size, tolerance: trace.tolerance, minLength: trace.minLength, fit: trace.fit }) : null;
 });
 export const usingImage = computed(() => source.value === 'image' && traced.value !== null);
 
-export const svg = computed(() => {
-  const p = { ...params, color: roles.pattern, opacity: opacity.value };
-  return usingImage.value && traced.value ? svgFromPolylines(traced.value, p) : generate(p);
+export const usingPatchwork = computed(() => !usingImage.value && layout.value === 'patchwork');
+
+// One pipeline for every source: base polylines, mirror, zoom, gap. The gap gives the final tile size.
+const tile = computed(() => {
+  const size = params.size;
+  let polys: readonly (readonly Pt[])[] =
+    usingImage.value && traced.value ? traced.value : usingPatchwork.value ? patchworkGeometry(patchParams.value) : geometry(params);
+  if (spacing.mirror) polys = mirrorTile(polys, size);
+  if (spacing.zoom !== 1) polys = zoomWrap(polys, size, spacing.zoom);
+  return spacing.gap > 0 ? withGap(polys, size, spacing.gap) : { polys, size };
 });
+export const tileSize = computed(() => tile.value.size);
+export const svg = computed(() =>
+  svgFromPolylines(tile.value.polys, { ...params, size: tileSize.value, color: roles.pattern, opacity: opacity.value }),
+);
 export const css = computed(() => cssBackground(svg.value, roles.background));
 export const plateCss = computed(() =>
   cssPlate(roles.background, { opacity: plateOpacity.value, radius: plateRadius.value, blur: plateBlur.value }),
@@ -134,12 +172,18 @@ export const plateStyle = computed(() => plateCss.value.split('\n').slice(1, -1)
 // Transform and motion of the pattern layer. The hero always renders through motionCss, the exported class.
 export const motion = reactive<{ -readonly [K in keyof Motion]: Motion[K] }>({ ...MOTION_NONE });
 export const motionPaused = ref(false);
-export const motionCss = computed(() => cssMotion(svg.value, roles.background, params.size, motion));
+export const motionCss = computed(() => cssMotion(svg.value, roles.background, tileSize.value, motion));
 export const motionStatic = computed(() => isStatic(motion));
 const patternCss = computed(() => (motionStatic.value ? css.value : motionCss.value));
 export const cssOut = computed(() => (plateMode.value === 'direct' ? patternCss.value : `${patternCss.value}\n\n${plateCss.value}`));
 export const svgHref = computed(() => svgToDataUri(svg.value));
-export const fileName = computed(() => (usingImage.value ? `traced-${trace.detector}.svg` : `fractal-${params.kind}-${params.seed}.svg`));
+export const fileName = computed(() =>
+  usingImage.value
+    ? `traced-${trace.detector}.svg`
+    : usingPatchwork.value
+      ? `patchwork-${patch.cells}x${patch.cells}-${params.seed}.svg`
+      : `fractal-${params.kind}-${params.seed}.svg`,
+);
 
 // One small live tile per kind, current colors and seed, for the gallery.
 // Reads only seed and colors, so slider moves on the selected pattern never regenerate it.
@@ -270,6 +314,9 @@ export function reset(): void {
   applyPalette(DEFAULT_PALETTE);
   Object.assign(trace, TRACE_DEFAULTS);
   removeImage();
+  layout.value = 'single';
+  Object.assign(patch, { ...PATCH_DEFAULTS, families: [...FAMILIES], pinned: {} });
+  resetSpacing();
   Object.assign(motion, MOTION_NONE);
   motionPaused.value = false;
 }

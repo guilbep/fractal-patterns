@@ -429,3 +429,11 @@ select {
 }
 .image-source-note { padding: var(--s2) var(--s3); border-left: 0.25rem solid var(--accent); background: var(--sunk); }
 .field:has(input:disabled) input { opacity: 0.6; cursor: not-allowed; }
+
+/* Patchwork controls and the cell list. */
+.patchwork { display: grid; gap: var(--s3); margin-block: var(--s3); }
+.patchwork .field { margin: 0; }
+.cell-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: var(--s2); }
+.cell-list li { display: grid; gap: var(--s1); }
+.cell-list select { inline-size: 100%; min-inline-size: 0; }
+.patchwork .btn { justify-self: start; }

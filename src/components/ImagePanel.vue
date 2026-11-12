@@ -133,7 +133,7 @@ function onDrop(e: DragEvent): void {
 }
 .sample-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
   gap: var(--s2);
 }
 .sample {
@@ -141,6 +141,8 @@ function onDrop(e: DragEvent): void {
   align-items: center;
   gap: var(--s2);
   text-align: left;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 .sample canvas {
   width: 2rem;

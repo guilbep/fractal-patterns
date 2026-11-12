@@ -86,6 +86,8 @@ The page can trace the edges of your image and turn them into tile lines. An edg
 
 The controls are the edge detector, the threshold, the detail, the minimum line length, the fit and the resolution. The resolution is 128, 192 or 256 px on the longer edge. The vectorizer then follows the edge pixels and turns them into simplified polylines in tile coordinates.
 
+The Image tab has four built-in examples: brick wall, rounded stones, roof tiles and grass tufts. The app draws them in memory. They are not photos, and nothing is downloaded.
+
 Your image stays in your browser. The page uploads nothing. Use only images that you own or have a license for.
 
 A traced tile repeats without a seam only with Mirror or with a source image that already repeats.
@@ -269,6 +271,7 @@ The script writes `candidates.svg` in the current folder. Give a path after `can
 | `src/patterns/util.ts` | Seeded random generator, tile placement and periodic clipping. |
 | `src/patchwork.ts` | The patchwork grid of cells. |
 | `src/spacing.ts` | Zoom with wrap, gap and mirror tiling. |
+| `src/samples.ts` | The four built-in example pictures for the tracer, drawn in memory. |
 | `src/trace.ts` | Image pixels to a binary edge map with five detectors. |
 | `src/vectorize.ts` | Edge map to simplified polylines in tile coordinates. |
 | `src/motion.ts` | Transform and drift CSS on the `::before` layer. |
@@ -313,7 +316,7 @@ Run the tests:
 make test       # npm test
 ```
 
-There are 190 tests now.
+There are 196 tests now.
 
 ## Deployment
 

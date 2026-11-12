@@ -6,11 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "logo": "node scripts/make-logo.ts",
     "typecheck": "vue-tsc --noEmit",
     "test": "node --test 'src/**/*.test.ts'",
-    "lint": "oxlint --deny-warnings src",
-    "format": "oxfmt src vite.config.ts tsconfig.json package.json .github",
-    "format:check": "oxfmt --check src vite.config.ts tsconfig.json package.json .github"
+    "lint": "oxlint --deny-warnings src scripts",
+    "format": "oxfmt src scripts vite.config.ts tsconfig.json package.json .github",
+    "format:check": "oxfmt --check src scripts vite.config.ts tsconfig.json package.json .github"
   },
   "devDependencies": {
     "@types/node": "^22.19.11",

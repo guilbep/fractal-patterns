@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { APP_NAME } from '@/app-name.ts';
+import { LOGO_DEFAULT, logoSvg } from '@/logo.ts';
+import { svgToDataUri } from '@/css.ts';
 import { KIND_LABELS } from '@/fractal.ts';
 import { DETECTOR_LABELS } from '@/trace.ts';
 import { contrast, fileName, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, randomPattern, ratioText, reseed, reset, svgHref, trace, traced, usingImage } from '@/state.ts';
@@ -13,6 +15,8 @@ import ImagePanel from '@/components/ImagePanel.vue';
 import SpacingPanel from '@/components/SpacingPanel.vue';
 import MotionPanel from '@/components/MotionPanel.vue';
 import { canRedo, canUndo, redo, shareUrl, undo } from '@/state-share.ts';
+
+const LOGO_URI = svgToDataUri(logoSvg(LOGO_DEFAULT));
 
 // WCAG 2.1.4: a single-key shortcut needs an off switch. The choice survives a reload.
 const SHORTCUT_KEY = 'fp-shortcut';
@@ -130,7 +134,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
 <template>
   <header class="site-header">
-    <p class="brand">{{ APP_NAME }}</p>
+    <p class="brand"><img class="logo" :src="LOGO_URI" alt="" width="28" height="28">{{ APP_NAME }}</p>
     <p class="tagline">Seeded fractal tiles for CSS backgrounds, with contrast you can trust.</p>
   </header>
 

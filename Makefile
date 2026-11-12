@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install dev lint format format-check typecheck test build preview ci clean
+.PHONY: help install dev lint format format-check typecheck test build preview ci clean logo
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-13s %s\n", $$1, $$2}'
@@ -27,6 +27,9 @@ test: ## Run the unit tests with node --test
 
 build: ## Build the site into dist
 	npm run build
+
+logo: ## Write public/favicon.svg from the logo mark (src/logo.ts)
+	npm run logo
 
 preview: build ## Build, then serve dist locally
 	npx vite preview

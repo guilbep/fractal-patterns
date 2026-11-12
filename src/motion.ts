@@ -18,9 +18,25 @@ export function isStatic(m: Motion): boolean {
 
 const n = (x: number) => String(Number(x));
 
+// Tile side after the motion scale, rounded to 3 decimals, no unit.
+// Scale goes through the tile size, so the layer itself never shrinks below its box.
+export const scaledSize = (size: number, m: Motion): string => n(Math.round(size * m.scale * 1000) / 1000);
+
 export function cssMotion(svg: string, background: string, size: number, m: Motion): string {
-  // Scale goes through the tile size, so the layer itself never shrinks below its box.
-  const s = n(Math.round(size * m.scale * 1000) / 1000);
+  return [
+    '.fp-pattern {',
+    '  position: relative;',
+    '  isolation: isolate;',
+    '  overflow: hidden;',
+    `  background-color: ${background};`,
+    '}',
+    ...motionLayer(m, `url("${svgToDataUri(svg)}")`, `${scaledSize(size, m)}px`),
+  ].join('\n');
+}
+
+// The `.fp-pattern::before` rule, plus keyframes, paused and reduced-motion rules when drifting.
+// `image` is the background-image value; `s` is one tile side with its unit, also the drift distance.
+export function motionLayer(m: Motion, image: string, s: string): string[] {
   const centered = m.rotate !== 0 || m.skew !== 0 || m.tilt !== 0;
   // Tilt pivots on the box's top edge: with perspective(800px) the far half of the plane never rises more than
   // 800px * cot(tilt) above the pivot, so the whole box sits on the near half. 225vmax covers a disc of radius
@@ -35,12 +51,6 @@ export function cssMotion(svg: string, background: string, size: number, m: Moti
   if (m.skew !== 0) fns.push(`skewX(${n(m.skew)}deg)`);
 
   const lines = [
-    '.fp-pattern {',
-    '  position: relative;',
-    '  isolation: isolate;',
-    '  overflow: hidden;',
-    `  background-color: ${background};`,
-    '}',
     '.fp-pattern::before {',
     '  content: "";',
     '  position: absolute;',
@@ -48,13 +58,13 @@ export function cssMotion(svg: string, background: string, size: number, m: Moti
     ...(centered
       ? ['  left: 50%;', `  top: ${m.tilt !== 0 ? '0' : '50%'};`, `  width: ${side};`, `  height: ${side};`]
       : ['  inset: 0;']),
-    `  background-image: url("${svgToDataUri(svg)}");`,
-    `  background-size: ${s}px ${s}px;`,
+    `  background-image: ${image};`,
+    `  background-size: ${s} ${s};`,
   ];
   if (fns.length > 0) lines.push(`  transform: ${fns.join(' ')};`);
-  if (m.drift === 'none') return [...lines, '}'].join('\n');
+  if (m.drift === 'none') return [...lines, '}'];
 
-  const to = { x: `${s}px 0`, y: `0 ${s}px`, xy: `${s}px ${s}px` }[m.drift];
+  const to = { x: `${s} 0`, y: `0 ${s}`, xy: `${s} ${s}` }[m.drift];
   lines.push(
     `  animation: fp-drift ${n(m.speed)}s linear infinite;`,
     '}',
@@ -73,5 +83,5 @@ export function cssMotion(svg: string, background: string, size: number, m: Moti
     '  }',
     '}',
   );
-  return lines.join('\n');
+  return lines;
 }

@@ -2,7 +2,19 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { FAMILIES, FAMILY_LABELS, KINDS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH, generate, geometry, type PatternParams } from './fractal.ts';
+import {
+  FAMILIES,
+  FAMILY_LABELS,
+  KINDS,
+  KIND_FAMILY,
+  KIND_LABELS,
+  MAX_DEPTH,
+  generate,
+  geometry,
+  hasCompat,
+  type Kind,
+  type PatternParams,
+} from './fractal.ts';
 
 const base = { seed: 1, depth: 3, size: 120, strokeWidth: 1, precision: 1, color: '#336699', opacity: 0.5 } as const;
 const params = (kind: PatternParams['kind'], over: Partial<PatternParams> = {}): PatternParams => ({ ...base, kind, ...over });
@@ -289,46 +301,46 @@ const PINS: Readonly<Record<PatternParams['kind'], readonly (readonly [number, n
     [8424, 4179179945],
   ],
   brick: [
-    [686, 3427296643],
-    [6379, 758282201],
-    [686, 3427296643],
-    [6976, 3870900975],
+    [658, 1111932418],
+    [6118, 3122607304],
+    [704, 3774701392],
+    [7010, 378196599],
   ],
   stack: [
-    [867, 3005474261],
-    [8429, 1499612667],
-    [886, 3069893280],
-    [9149, 884229329],
+    [568, 3999388396],
+    [4791, 3639399134],
+    [866, 153160848],
+    [8691, 2729466668],
   ],
   herringbone: [
-    [1414, 1710378433],
-    [3420, 3217173535],
-    [1368, 3107162782],
-    [3290, 3034217418],
+    [1567, 2763474623],
+    [2823, 630801951],
+    [1049, 3069674589],
+    [1945, 2620668206],
   ],
   basket: [
-    [1696, 259194953],
-    [3268, 1305786576],
-    [1696, 3218181801],
-    [3266, 2906136156],
+    [1696, 2090924171],
+    [3262, 3345833484],
+    [1238, 331737724],
+    [2276, 3631796526],
   ],
   hex: [
-    [2239, 1052858778],
-    [3949, 3868869938],
-    [2144, 944034512],
-    [2792, 3033650510],
+    [2111, 2457886277],
+    [2811, 4136593986],
+    [1887, 2868040303],
+    [2486, 3855734519],
   ],
   trinet: [
-    [2180, 3728487575],
-    [4768, 3918578613],
-    [2068, 455262175],
-    [4384, 2535150605],
+    [2243, 579129321],
+    [4400, 1298066207],
+    [1960, 4135657664],
+    [4254, 3993952],
   ],
   nested: [
-    [763, 2190743378],
-    [1360, 584054202],
-    [763, 2190743378],
-    [1282, 331006696],
+    [702, 1087911635],
+    [1172, 1792881661],
+    [569, 650995318],
+    [798, 3938390938],
   ],
   dots: [
     [2639, 368532610],
@@ -458,16 +470,91 @@ const PINS: Readonly<Record<PatternParams['kind'], readonly (readonly [number, n
   ],
 };
 
+// The compatible layouts (compat: true) of the kinds that have one.
+const COMPAT_KINDS = ['brick', 'stack', 'herringbone', 'basket', 'hex', 'trinet', 'nested'] as const;
+const COMPAT_PINS: Readonly<Record<(typeof COMPAT_KINDS)[number], readonly (readonly [number, number])[]>> = {
+  brick: [
+    [686, 3427296643],
+    [6379, 758282201],
+    [686, 3427296643],
+    [6976, 3870900975],
+  ],
+  stack: [
+    [867, 3005474261],
+    [8429, 1499612667],
+    [886, 3069893280],
+    [9149, 884229329],
+  ],
+  herringbone: [
+    [1414, 1710378433],
+    [3420, 3217173535],
+    [1368, 3107162782],
+    [3290, 3034217418],
+  ],
+  basket: [
+    [1696, 259194953],
+    [3268, 1305786576],
+    [1696, 3218181801],
+    [3266, 2906136156],
+  ],
+  hex: [
+    [2239, 1052858778],
+    [3949, 3868869938],
+    [2144, 944034512],
+    [2792, 3033650510],
+  ],
+  trinet: [
+    [2180, 3728487575],
+    [4768, 3918578613],
+    [2068, 455262175],
+    [4384, 2535150605],
+  ],
+  nested: [
+    [763, 2190743378],
+    [1360, 584054202],
+    [763, 2190743378],
+    [1282, 331006696],
+  ],
+};
+
 test('every kind is pinned', () => {
   const sum = (s: string): number => {
     let h = 0;
     for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) >>> 0;
     return h;
   };
-  for (const kind of KINDS) {
-    const got = [1, 7]
-      .flatMap((seed) => [2, MAX_DEPTH[kind]].map((depth) => generate(params(kind, { seed, depth }))))
+  const pins = (kind: Kind, compat: boolean) =>
+    [1, 7]
+      .flatMap((seed) => [2, MAX_DEPTH[kind]].map((depth) => generate(params(kind, { seed, depth, compat }))))
       .map((s) => [s.length, sum(s)]);
-    assert.deepEqual(got, PINS[kind], kind);
-  }
+  for (const kind of KINDS) assert.deepEqual(pins(kind, false), PINS[kind], kind);
+  for (const kind of COMPAT_KINDS) assert.deepEqual(pins(kind, true), COMPAT_PINS[kind], `${kind} compat`);
+});
+
+test('hasCompat holds for exactly the seven compatible kinds; for the others compat changes nothing', () => {
+  assert.deepEqual(KINDS.filter(hasCompat), [...COMPAT_KINDS]);
+  for (const kind of ['tree', 'dots'] as const)
+    for (const depth of [1, 2, 3]) assert.equal(generate(params(kind, { depth, compat: true })), generate(params(kind, { depth })), kind);
+});
+
+test('the free and the compatible layouts differ at depth 3, seed 1', () => {
+  for (const kind of COMPAT_KINDS)
+    assert.notEqual(generate(params(kind, { seed: 1, depth: 3, compat: true })), generate(params(kind, { seed: 1, depth: 3 })), kind);
+});
+
+// Distinct outputs over seeds 1..12 at depth 2, measured. The free mode does NOT give at least as
+// many for stack and basket: distinct strings count small details, not layout variety.
+test('distinct outputs over seeds 1..12 at depth 2, free and compatible', () => {
+  const distinct = (kind: Kind, compat: boolean) =>
+    new Set(Array.from({ length: 12 }, (_, i) => generate(params(kind, { seed: i + 1, depth: 2, compat })))).size;
+  const rows = COMPAT_KINDS.map((kind) => [kind, distinct(kind, false), distinct(kind, true)]);
+  assert.deepEqual(rows, [
+    ['brick', 11, 11],
+    ['stack', 8, 12],
+    ['herringbone', 12, 12],
+    ['basket', 11, 12],
+    ['hex', 12, 12],
+    ['trinet', 12, 12],
+    ['nested', 12, 5],
+  ]);
 });

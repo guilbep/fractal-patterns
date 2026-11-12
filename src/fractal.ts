@@ -5,16 +5,23 @@ import { rosette, spiral, stitch, whirl } from './patterns/lineart.ts';
 import { cm, cmm, p1, p2, p4, p4g, p4m, pg, pgg, pm, pmg, pmm } from './patterns/symmetry.ts';
 import {
   basket,
+  basketCompat,
   brick,
+  brickCompat,
   crosshatch,
   dots,
   hatch,
   herringbone,
+  herringboneCompat,
   hex,
+  hexCompat,
   nested,
+  nestedCompat,
   scales,
   stack,
+  stackCompat,
   trinet,
+  trinetCompat,
   waves,
   zigzag,
 } from './patterns/surfaces.ts';
@@ -138,11 +145,26 @@ export interface PatternParams {
   readonly precision: number;
   readonly color: string;
   readonly opacity: number;
+  readonly compat?: boolean;
 }
 
-export function geometry(p: Pick<PatternParams, 'kind' | 'seed' | 'depth' | 'size'>): readonly (readonly Pt[])[] {
+// Compatible layouts: fixed per depth, so tiles of different seeds can be neighbors (super tile).
+// The default (free) layouts let the seed choose the layout too.
+const COMPAT: Partial<Record<Kind, Generator>> = {
+  brick: brickCompat,
+  stack: stackCompat,
+  herringbone: herringboneCompat,
+  basket: basketCompat,
+  hex: hexCompat,
+  trinet: trinetCompat,
+  nested: nestedCompat,
+};
+export const hasCompat = (kind: Kind): boolean => kind in COMPAT;
+
+export function geometry(p: Pick<PatternParams, 'kind' | 'seed' | 'depth' | 'size' | 'compat'>): readonly (readonly Pt[])[] {
   const depth = Math.min(MAX_DEPTH[p.kind], Math.max(1, Math.floor(p.depth) || 1));
-  return PATTERNS[p.kind].gen(mulberry32(p.seed), depth, p.size);
+  const gen = (p.compat && COMPAT[p.kind]) || PATTERNS[p.kind].gen;
+  return gen(mulberry32(p.seed), depth, p.size);
 }
 
 export function generate(p: PatternParams): string {

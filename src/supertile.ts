@@ -51,7 +51,9 @@ function parts(o: SuperTileOptions) {
   const s = SUPER_CELLS * o.size;
   const head = `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">`;
   const g = `<g fill="none" stroke="${safeColor(o.color)}" stroke-width="${o.strokeWidth}" stroke-opacity="${o.opacity}" stroke-linecap="round">`;
-  const ds = variantSeeds(o.seed).map((seed) => pathData(geometry({ kind: o.kind, seed, depth: o.depth, size: o.size }), o.precision));
+  const ds = variantSeeds(o.seed).map((seed) =>
+    pathData(geometry({ kind: o.kind, seed, depth: o.depth, size: o.size, compat: true }), o.precision),
+  );
   const cells: { v: number; x: number; y: number }[] = [];
   for (let r = 0; r < SUPER_CELLS; r++)
     for (let c = 0; c < SUPER_CELLS; c++) cells.push({ v: variantIndex(r, c), x: c * o.size, y: r * o.size });
@@ -76,6 +78,6 @@ export function superTileBytes(o: SuperTileOptions): { svg: number; expanded: nu
   return {
     svg: bytes(superTileSvg(o)),
     expanded: bytes(expanded),
-    plain: bytes(generate({ ...o, color: safeColor(o.color) })),
+    plain: bytes(generate({ ...o, color: safeColor(o.color), compat: true })),
   };
 }

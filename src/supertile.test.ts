@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { geometry, KINDS, MAX_DEPTH } from './fractal.ts';
+import { geometry, hasCompat, KINDS, MAX_DEPTH } from './fractal.ts';
 import type { Pt } from './patterns/util.ts';
 import { pathData } from './scene.ts';
 import {
@@ -105,7 +105,7 @@ const EPS = 1e-6;
 type Cell = readonly (readonly Pt[])[];
 function edgeFailures(kind: (typeof VARIANT_KINDS)[number], seed: number, depth: number, size: number): string[] {
   const seeds = variantSeeds(seed);
-  const variants = seeds.map((s) => geometry({ kind, seed: s, depth, size }));
+  const variants = seeds.map((s) => geometry({ kind, seed: s, depth, size, compat: hasCompat(kind) }));
   const cellAt = (r: number, c: number): Cell =>
     (variants[variantIndex(r, c)] ?? []).map((p) => p.map(([x, y]) => [x + c * size, y + r * size] as Pt));
   // axis 0: vertical boundary x = at; axis 1: horizontal boundary y = at.
@@ -197,13 +197,14 @@ const BORDER_KINDS: readonly string[] = ['quadtree', 'sierpinski'];
 const coveredSig = (a: Signature, b: Signature) =>
   a.points.every((v) => b.points.some((w) => Math.abs(v - w) < EPS) || b.spans.some(([lo, hi]) => v >= lo - EPS && v <= hi + EPS));
 
-test('boundary signatures agree for every VARIANT_KINDS kind, seeds 1..8 pairwise', () => {
+// Kinds whose boundary signatures disagree between seeds 1..8, with the first failing pair.
+function boundaryFailures(kinds: readonly (typeof VARIANT_KINDS)[number][], compat: boolean): Record<string, string> {
   const size = 60;
   const failing: Record<string, string> = {};
-  for (const kind of VARIANT_KINDS)
+  for (const kind of kinds)
     for (const depth of new Set([2, MAX_DEPTH[kind]].map((d) => Math.min(d, MAX_DEPTH[kind])))) {
       const sigs = Array.from({ length: 8 }, (_, i) => {
-        const geo = geometry({ kind, seed: i + 1, depth, size });
+        const geo = geometry({ kind, seed: i + 1, depth, size, compat: compat && hasCompat(kind) });
         return { left: signature(geo, 0, 0), right: signature(geo, 0, size), top: signature(geo, 1, 0), bottom: signature(geo, 1, size) };
       });
       const match = BORDER_KINDS.includes(kind) ? (a: Signature, b: Signature) => coveredSig(a, b) && coveredSig(b, a) : sameSig;
@@ -216,7 +217,17 @@ test('boundary signatures agree for every VARIANT_KINDS kind, seeds 1..8 pairwis
               `depth ${depth} seeds ${a + 1}|${b + 1}: right ${JSON.stringify(A.right)} left ${JSON.stringify(B.left)} bottom ${JSON.stringify(A.bottom)} top ${JSON.stringify(B.top)}`;
         }
     }
-  assert.deepEqual(failing, {});
+  return failing;
+}
+
+test('boundary signatures agree for every VARIANT_KINDS kind, seeds 1..8 pairwise', () => {
+  assert.deepEqual(boundaryFailures(VARIANT_KINDS, true), {});
+});
+
+test('the free layouts break the boundary agreement, so the super tile needs compat', () => {
+  const failing = Object.keys(boundaryFailures(VARIANT_KINDS.filter(hasCompat), false));
+  // Measured: every one of the 7 kinds fails in free mode.
+  assert.deepEqual(failing, ['brick', 'stack', 'herringbone', 'basket', 'hex', 'trinet', 'nested']);
 });
 
 test('superTileSvg throws RangeError for a kind that cannot vary', () => {

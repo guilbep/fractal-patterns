@@ -1,6 +1,7 @@
 // Binary edge map to simplified polylines in tile coordinates. Pure array code, runs in the browser and in Node.
 
 import type { Pt } from './patterns/util.ts';
+import { clipToTile } from './spacing.ts';
 
 // 4-connected first, then diagonals: the walk prefers straight steps.
 const NEIGHBORS = [[1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, 1], [-1, -1], [1, -1]] as const;
@@ -69,17 +70,21 @@ export interface TraceOptions {
   readonly size: number;
   readonly tolerance: number;
   readonly minLength: number;
+  // 'contain' fits the whole image and leaves a blank strip; 'cover' fills the tile and crops the longer axis.
+  readonly fit?: 'contain' | 'cover';
 }
 
 const length = (poly: readonly Pt[]) =>
   poly.slice(1).reduce((s, [x, y], i) => s + Math.hypot(x - (poly[i]?.[0] ?? x), y - (poly[i]?.[1] ?? y)), 0);
 
 export function vectorize(map: Uint8Array, width: number, height: number, o: TraceOptions): Pt[][] {
-  const s = o.size / Math.max(width, height);
+  const cover = o.fit === 'cover';
+  const s = o.size / (cover ? Math.min(width, height) : Math.max(width, height));
   const ox = (o.size - width * s) / 2;
   const oy = (o.size - height * s) / 2;
   return chains(map, width, height)
     .map((c) => c.map(([x, y]): Pt => [ox + x * s, oy + y * s]))
+    .flatMap((c) => (cover ? clipToTile(c, o.size) : [c]))
     .filter((c) => c.length >= 2 && length(c) >= o.minLength)
     .map((c) => simplify(c, o.tolerance));
 }

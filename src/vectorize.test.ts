@@ -102,6 +102,32 @@ test('svgFromPolylines', () => {
   }
 });
 
+test('vectorize cover: fills the tile', () => {
+  const ps = vectorize(grid(16, 8, vertical), 16, 8, { ...opts, fit: 'cover' });
+  assert.equal(ps.length, 1);
+  const p = ps[0] ?? [];
+  assert.equal(p.length, 2);
+  for (const [x] of p) near(x, 67.5);
+  const ys = p.map(([, y]) => y).sort((a, b) => a - b);
+  near(ys[0] ?? NaN, 22.5);
+  near(ys[1] ?? NaN, 97.5);
+});
+
+test('vectorize cover clips to the tile', () => {
+  const ps = vectorize(grid(16, 8, (x, y) => vertical(x, y) || y === 4), 16, 8, { ...opts, fit: 'cover' });
+  assert.ok(ps.flat().every(([x, y]) => x >= 0 && x <= 120 && y >= 0 && y <= 120));
+  // chains() splits the run at the junction with the vertical, so the horizontal line comes back in two
+  // polylines; together their points on y = 67.5 reach both tile edges.
+  const xs = ps.flat().filter(([, y]) => Math.abs(y - 67.5) <= 1e-9).map(([x]) => x);
+  near(Math.min(...xs), 0, 1e-6);
+  near(Math.max(...xs), 120, 1e-6);
+});
+
+test('vectorize contain is the default', () => {
+  const m = grid(16, 8, (x, y) => vertical(x, y) || y === 4);
+  assert.deepEqual(vectorize(m, 16, 8, { ...opts, fit: 'contain' }), vectorize(m, 16, 8, opts));
+});
+
 test('vectorize source hygiene', () => {
   const src = readFileSync(join(import.meta.dirname, 'vectorize.ts'), 'utf8');
   for (const word of ['node:', 'document', 'canvas']) assert.ok(!src.includes(word), word);

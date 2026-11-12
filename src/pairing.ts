@@ -80,3 +80,29 @@ export function fixContrast(r: Roles, opacity: number, target = 4.5): Fix {
     if (o === 0) return best;
   }
 }
+
+// A plate of opacity p over a stroke at `opacity` shows the stroke at opacity * (1 - p).
+export function plateContrast(r: Roles, opacity: number, plate: number): number {
+  return worstTextContrast(r, opacity * (1 - Math.min(1, Math.max(0, plate))));
+}
+
+export interface PlateFix {
+  readonly text: string;
+  readonly plate: number;
+  readonly ratio: number;
+  readonly reached: boolean;
+}
+
+export function fixWithPlate(r: Roles, opacity: number, plate: number, target = 4.5): PlateFix {
+  const start = plateContrast(r, opacity, plate);
+  if (start >= target) return { text: r.text, plate, ratio: start, reached: true };
+  for (let k = 1; ; k++) {
+    const p = Math.min(1, Math.round((plate + k * 0.05) * 100) / 100);
+    const ratio = plateContrast(r, opacity, p);
+    if (ratio >= target) return { text: r.text, plate: p, ratio, reached: true };
+    if (p === 1) break;
+  }
+  // Plate 1 hides the pattern: only the text against the bare background is left.
+  const f = fixContrast(r, 0, target);
+  return { text: f.text, plate: 1, ratio: plateContrast({ ...r, text: f.text }, opacity, 1), reached: f.reached };
+}

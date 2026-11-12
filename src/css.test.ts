@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cssBackground, svgToDataUri } from './css.ts';
+import { cssBackground, cssPlate, svgToDataUri } from './css.ts';
 import { generate, KINDS } from './fractal.ts';
 
 const PREFIX = 'data:image/svg+xml,';
@@ -40,4 +40,22 @@ test('every generated kind encodes safely and round-trips', () => {
     assert.doesNotMatch(uri, /[#<>"\n]/, kind);
     assert.equal(roundTrip(uri), out, kind);
   }
+});
+
+test('cssPlate without blur', () => {
+  assert.equal(
+    cssPlate('#ffffff', { opacity: 0.85, radius: 12, blur: 0 }),
+    '.fp-plate {\n  background-color: rgb(255 255 255 / 0.85);\n  border-radius: 12px;\n  padding: 1rem;\n}',
+  );
+});
+
+test('cssPlate with blur', () => {
+  assert.equal(
+    cssPlate('#12232e', { opacity: 0.5, radius: 0, blur: 4 }),
+    '.fp-plate {\n  background-color: rgb(18 35 46 / 0.5);\n  border-radius: 0px;\n  padding: 1rem;\n  backdrop-filter: blur(4px);\n  -webkit-backdrop-filter: blur(4px);\n}',
+  );
+});
+
+test('cssPlate prints opacity 1 without decimals', () => {
+  assert.ok(cssPlate('#ffffff', { opacity: 1, radius: 8, blur: 0 }).includes('rgb(255 255 255 / 1);'));
 });

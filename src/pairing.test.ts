@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PALETTES } from './palettes.ts';
-import { PATTERN_VISIBLE_MIN, fixContrast, patternContrast, patternInvisible, pickRoles, swapRoles, worstTextContrast, type Roles } from './pairing.ts';
+import { PATTERN_VISIBLE_MIN, fixContrast, fixWithPlate, patternContrast, patternInvisible, pickRoles, plateContrast, swapRoles, worstTextContrast, type Roles } from './pairing.ts';
 
 const OPACITIES = [0.1, 0.4, 1];
 
@@ -91,4 +91,62 @@ test('patternInvisible flags a pattern below PATTERN_VISIBLE_MIN', () => {
   assert.equal(patternInvisible(r('#ffffff', '#000000'), 0.05), true); // ~1.12
   assert.equal(patternInvisible(r('#12232e', '#12232e'), 1), true); // 1
   assert.equal(PATTERN_VISIBLE_MIN, 1.2);
+});
+
+const A: Roles = { background: '#ffffff', pattern: '#000000', text: '#000000' };
+const B: Roles = { background: '#ffffff', pattern: '#333333', text: '#777777' };
+const C: Roles = { background: '#12232e', pattern: '#4da8da', text: '#eefbfb' };
+const near = (actual: number, expected: number, msg?: string) =>
+  assert.ok(Math.abs(actual - expected) < 1e-6, msg ?? `${actual} vs ${expected}`);
+
+test('plateContrast vectors', () => {
+  near(plateContrast(A, 1, 0.85), 14.877435225839799);
+  near(plateContrast(A, 1, 0), 1);
+  near(plateContrast(A, 1, 1), 21);
+  assert.equal(plateContrast(A, 1, 2), plateContrast(A, 1, 1));
+  near(plateContrast(C, 0.6, 0), 4.910599091568643);
+  near(plateContrast(C, 0.6, 0.85), 13.126997604344183);
+});
+
+test('plateContrast at plate 0 equals worstTextContrast', () => {
+  for (const r of [A, B, C]) assert.equal(plateContrast(r, 0.6, 0), worstTextContrast(r, 0.6));
+});
+
+test('fixWithPlate raises the plate to the first passing step', () => {
+  const f = fixWithPlate(A, 1, 0);
+  assert.equal(f.text, '#000000');
+  assert.equal(f.plate, 0.5);
+  near(f.ratio, 5.317210002277984);
+  assert.equal(f.reached, true);
+  const g = fixWithPlate(A, 1, 0, 7);
+  assert.equal(g.text, '#000000');
+  assert.equal(g.plate, 0.6);
+  near(g.ratio, 7.3709355625018365);
+  assert.equal(g.reached, true);
+});
+
+test('fixWithPlate changes the text when plate 1 still fails', () => {
+  const f = fixWithPlate(B, 1, 0.5);
+  assert.equal(f.text, '#767676');
+  assert.equal(f.plate, 1);
+  near(f.ratio, 4.542224959605253);
+  assert.equal(f.reached, true);
+});
+
+test('fixWithPlate leaves a passing combination unchanged', () => {
+  const f = fixWithPlate(C, 0.6, 0.85);
+  assert.equal(f.text, '#eefbfb');
+  assert.equal(f.plate, 0.85);
+  assert.equal(f.reached, true);
+});
+
+test('fixWithPlate reaches 4.5 for every palette', () => {
+  for (const p of PALETTES) {
+    const r = pickRoles(p.colors);
+    const f = fixWithPlate(r, 1, 0);
+    assert.equal(f.reached, true, p.name);
+    assert.ok(f.ratio >= 4.5, `${p.name}: ratio ${f.ratio}`);
+    assert.ok(f.plate >= 0 && f.plate <= 1, `${p.name}: plate ${f.plate}`);
+    near(f.ratio, plateContrast({ ...r, text: f.text }, 1, f.plate), p.name);
+  }
 });

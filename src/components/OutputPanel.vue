@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { cssOut, fileName, footprint, gzipBytes, motionStatic, params, plateMode, rawBytes, svgHref } from '@/state.ts';
+import { fileName, footprint, gzipBytes, params, rawBytes, svgHref, usingImage } from '@/state.ts';
+import { exportHtml } from '@/export.ts';
+import { cssBytes, exportScript, exportText, scriptBytes, scriptCount, scriptEvent, scriptOn } from '@/state-export.ts';
+
+const html = exportHtml();
 
 const copyStatus = ref('');
 let timer: ReturnType<typeof setTimeout> | undefined;
 
-async function copy(): Promise<void> {
+async function copy(text: string): Promise<void> {
   try {
-    await navigator.clipboard.writeText(cssOut.value);
+    await navigator.clipboard.writeText(text);
     copyStatus.value = 'Copied';
   } catch {
     copyStatus.value = 'Copy failed. Select the code and copy it by hand.';
@@ -36,12 +40,57 @@ async function copy(): Promise<void> {
   <section class="panel" aria-labelledby="out-h">
     <h2 id="out-h">Use it</h2>
     <div class="out-actions">
-      <button type="button" class="btn primary" @click="copy">Copy CSS</button>
       <a class="btn" :href="svgHref" :download="fileName">Download SVG</a>
       <span class="copy-status" role="status" aria-live="polite">{{ copyStatus }}</span>
     </div>
-    <pre class="code" tabindex="0" aria-label="Generated CSS"><code>{{ cssOut }}</code></pre>
-    <p v-if="!motionStatic" class="muted out-note">Put the class <code>fp-pattern</code> on the element that shows the pattern.</p>
-    <p v-if="plateMode !== 'direct'" class="muted out-note">Put the class <code>fp-plate</code> on the element that holds the text.</p>
+
+    <div class="block">
+      <div class="block-head">
+        <h3 id="out-css">CSS</h3>
+        <button type="button" class="btn primary" @click="copy(exportText)">Copy CSS</button>
+      </div>
+      <pre class="code" tabindex="0" aria-labelledby="out-css"><code>{{ exportText }}</code></pre>
+    </div>
+
+    <div class="block">
+      <div class="block-head">
+        <h3 id="out-html">HTML</h3>
+        <button type="button" class="btn" @click="copy(html)">Copy HTML</button>
+      </div>
+      <pre class="code" tabindex="0" aria-labelledby="out-html"><code>{{ html }}</code></pre>
+    </div>
+
+    <label class="radio"><input v-model="scriptOn" type="checkbox" :disabled="usingImage" :aria-describedby="usingImage ? 'script-note' : undefined"> Add a script that changes the tile</label>
+    <p v-if="usingImage" id="script-note" class="muted out-note">A traced image has one tile.</p>
+    <template v-if="scriptOn && !usingImage">
+      <div class="field">
+        <label for="script-event">When</label>
+        <select id="script-event" v-model="scriptEvent">
+          <option value="click">On each click</option>
+          <option value="load">On each page load</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="script-count">Variants <output for="script-count">{{ scriptCount }}</output></label>
+        <input id="script-count" v-model.number="scriptCount" type="range" min="2" max="5" step="1">
+      </div>
+      <p class="muted out-note">The script holds the variants as data, so each variant adds bytes.</p>
+      <div class="block">
+        <div class="block-head">
+          <h3 id="out-js">Script</h3>
+          <button type="button" class="btn" @click="copy(exportScript)">Copy script</button>
+        </div>
+        <pre class="code" tabindex="0" aria-labelledby="out-js"><code>{{ exportScript }}</code></pre>
+      </div>
+    </template>
+
+    <p class="muted out-note">CSS: {{ cssBytes.toLocaleString('en') }} bytes<template v-if="exportScript">. Script: {{ scriptBytes.toLocaleString('en') }} bytes</template>.</p>
   </section>
 </template>
+
+<style scoped>
+.block { margin-bottom: var(--s3); min-inline-size: 0; }
+.block-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s2); margin-bottom: var(--s2); }
+.block-head h3 { margin: 0; }
+.code { max-inline-size: 100%; }
+</style>

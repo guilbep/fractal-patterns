@@ -2,7 +2,8 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { KIND_LABELS } from '@/fractal.ts';
 import { DETECTOR_LABELS } from '@/trace.ts';
-import { motionCss, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, reseed, reset, roles, trace, traced, usingImage } from '@/state.ts';
+import { motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, reseed, reset, trace, traced, usingImage } from '@/state.ts';
+import { exportText } from '@/state-export.ts';
 import ColorPanel from '@/components/ColorPanel.vue';
 import VisionPanel from '@/components/VisionPanel.vue';
 import PatternPanel from '@/components/PatternPanel.vue';
@@ -57,12 +58,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       </div>
       <!-- ponytail: pointer shortcut only; the Shuffle button is the keyboard path. -->
       <!-- The hero uses the exported .fp-pattern class itself, so what you see is what you copy. -->
-      <component :is="'style'">{{ motionCss }}</component>
+      <component :is="'style'">{{ exportText }}</component>
       <div class="hero fp-pattern" :class="{ 'fp-paused': motionPaused }" @click="reseed">
         <!-- The plate sits on the wrapper in 'plate' mode, on the paragraph in 'split', nowhere in 'direct'. -->
         <div class="hero-text" :class="{ 'hero-plate': plateMode === 'plate' }" :style="plateMode === 'plate' ? plateStyle : undefined">
-          <h1 :style="{ color: roles.text }">Fractal Patterns</h1>
-          <p :class="{ 'hero-plate': plateMode === 'split' }" :style="[plateMode === 'split' ? plateStyle : '', { color: roles.text }]">
+          <h1>Fractal Patterns</h1>
+          <p :class="{ 'hero-plate': plateMode === 'split' }" :style="plateMode === 'split' ? plateStyle : undefined">
             <template v-if="usingImage">Pattern: traced from your image, {{ DETECTOR_LABELS[trace.detector] }} edges, {{ traced?.length ?? 0 }} lines.</template><template v-else-if="usingPatchwork">Pattern: patchwork {{ patch.cells }} by {{ patch.cells }}, seed {{ params.seed }}.</template><template v-else>Pattern: {{ KIND_LABELS[params.kind] }}, seed {{ params.seed }}.</template> This text uses your text color and text plate settings, so what you read here is what your visitors will read.
           </p>
         </div>

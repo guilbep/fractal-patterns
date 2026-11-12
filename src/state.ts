@@ -11,7 +11,7 @@ import { blend, contrastRatio, textLevel } from '@/contrast.ts';
 import { fixContrast, fixSplit, fixWithPlate, patternContrast, patternInvisible, pickRoles, plateContrast, swapRoles, worstTextContrast, type Roles } from '@/pairing.ts';
 import { cssBackground, cssPlate, svgToDataUri } from '@/css.ts';
 import { formatFootprint, gzipSize, rawSize } from '@/co2.ts';
-import { MOTION_NONE, cssMotion, isStatic, type Motion } from '@/motion.ts';
+import { MOTION_NONE, isStatic, type Motion } from '@/motion.ts';
 
 export const MAX_SEED = 0xffffffff;
 
@@ -152,31 +152,36 @@ export const usingImage = computed(() => source.value === 'image' && traced.valu
 export const usingPatchwork = computed(() => !usingImage.value && layout.value === 'patchwork');
 
 // One pipeline for every source: base polylines, mirror, zoom, gap. The gap gives the final tile size.
-const tile = computed(() => {
+function tileFor(seed: number): { polys: readonly (readonly Pt[])[]; size: number } {
   const size = params.size;
   let polys: readonly (readonly Pt[])[] =
-    usingImage.value && traced.value ? traced.value : usingPatchwork.value ? patchworkGeometry(patchParams.value) : geometry(params);
+    usingImage.value && traced.value
+      ? traced.value
+      : usingPatchwork.value
+        ? patchworkGeometry({ ...patchParams.value, seed })
+        : geometry({ ...params, seed });
   if (spacing.mirror) polys = mirrorTile(polys, size);
   if (spacing.zoom !== 1) polys = zoomWrap(polys, size, spacing.zoom);
   return spacing.gap > 0 ? withGap(polys, size, spacing.gap) : { polys, size };
-});
+}
+const tile = computed(() => tileFor(params.seed));
 export const tileSize = computed(() => tile.value.size);
-export const svg = computed(() =>
-  svgFromPolylines(tile.value.polys, { ...params, size: tileSize.value, color: roles.pattern, opacity: opacity.value }),
-);
+// The tile for any seed with the current settings; a traced image gives the same tile for every seed.
+export function svgForSeed(seed: number): string {
+  const t = seed === params.seed ? tile.value : tileFor(seed);
+  return svgFromPolylines(t.polys, { ...params, size: t.size, color: roles.pattern, opacity: opacity.value });
+}
+export const svg = computed(() => svgForSeed(params.seed));
 export const css = computed(() => cssBackground(svg.value, roles.background));
 export const plateCss = computed(() =>
   cssPlate(roles.background, { opacity: plateOpacity.value, radius: plateRadius.value, blur: plateBlur.value }),
 );
 // The hero plate uses the declarations of the exported class itself, so the two never drift apart.
 export const plateStyle = computed(() => plateCss.value.split('\n').slice(1, -1).join(''));
-// Transform and motion of the pattern layer. The hero always renders through motionCss, the exported class.
+// Transform and motion of the pattern layer. The hero renders through exportText (state-export.ts), the exported class.
 export const motion = reactive<{ -readonly [K in keyof Motion]: Motion[K] }>({ ...MOTION_NONE });
 export const motionPaused = ref(false);
-export const motionCss = computed(() => cssMotion(svg.value, roles.background, tileSize.value, motion));
 export const motionStatic = computed(() => isStatic(motion));
-const patternCss = computed(() => (motionStatic.value ? css.value : motionCss.value));
-export const cssOut = computed(() => (plateMode.value === 'direct' ? patternCss.value : `${patternCss.value}\n\n${plateCss.value}`));
 export const svgHref = computed(() => svgToDataUri(svg.value));
 export const fileName = computed(() =>
   usingImage.value

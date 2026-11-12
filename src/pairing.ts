@@ -1,0 +1,82 @@
+import { blend, contrastRatio, relativeLuminance } from './contrast.ts';
+
+export interface Roles {
+  readonly background: string;
+  readonly pattern: string;
+  readonly text: string;
+}
+
+export interface Fix {
+  readonly text: string;
+  readonly opacity: number;
+  readonly ratio: number;
+  readonly reached: boolean;
+}
+
+const TEXT_STEPS = 100;
+const OPACITY_STEP = 0.05;
+
+export function pickRoles(colors: readonly string[]): Roles {
+  if (colors.length < 2) throw new Error('pickRoles needs at least 2 colors');
+  let best: [string, string] | undefined;
+  let bestRatio = -1;
+  for (const [i, a] of colors.entries()) {
+    for (const b of colors.slice(i + 1)) {
+      const r = contrastRatio(a, b);
+      if (r > bestRatio) [best, bestRatio] = [[a, b], r];
+    }
+  }
+  const [a, b] = best!;
+  const [background, text] = relativeLuminance(a) >= relativeLuminance(b) ? [a, b] : [b, a];
+  let pattern = text;
+  let patternRatio = -1;
+  for (const c of colors) {
+    if (c === background || c === text) continue;
+    const r = contrastRatio(c, text);
+    if (r > patternRatio) [pattern, patternRatio] = [c, r];
+  }
+  return { background, pattern, text };
+}
+
+export function swapRoles(r: Roles): Roles {
+  return { background: r.text, pattern: r.pattern, text: r.background };
+}
+
+export function worstTextContrast(r: Roles, opacity: number): number {
+  return Math.min(
+    contrastRatio(r.text, r.background),
+    contrastRatio(r.text, blend(r.pattern, r.background, opacity)),
+  );
+}
+
+export function patternContrast(r: Roles, opacity: number): number {
+  return contrastRatio(blend(r.pattern, r.background, opacity), r.background);
+}
+
+export const PATTERN_VISIBLE_MIN = 1.2;
+
+export function patternInvisible(r: Roles, opacity: number): boolean {
+  return patternContrast(r, opacity) < PATTERN_VISIBLE_MIN;
+}
+
+export function fixContrast(r: Roles, opacity: number, target = 4.5): Fix {
+  const start = worstTextContrast(r, opacity);
+  if (start >= target) return { text: r.text, opacity, ratio: start, reached: true };
+  let best: Fix = { text: r.text, opacity, ratio: start, reached: false };
+  for (let k = 0; ; k++) {
+    const o = Math.max(0, opacity - k * OPACITY_STEP);
+    for (let i = 0; i <= TEXT_STEPS; i++) {
+      // Same t passing in both directions: keep the higher ratio.
+      let hit: Fix | undefined;
+      for (const end of ['#000000', '#ffffff']) {
+        const text = blend(end, r.text, i / TEXT_STEPS);
+        const ratio = worstTextContrast({ ...r, text }, o);
+        const cand: Fix = { text, opacity: o, ratio, reached: ratio >= target };
+        if (ratio > best.ratio) best = cand;
+        if (cand.reached && (!hit || ratio > hit.ratio)) hit = cand;
+      }
+      if (hit) return hit;
+    }
+    if (o === 0) return best;
+  }
+}

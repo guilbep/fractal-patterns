@@ -1,4 +1,4 @@
-// Seeded pattern tiles: geometry as polylines, serialized to one compact SVG path.
+// Seeded pattern tiles: geometry as polylines, serialized through the scene model (src/scene.ts).
 // Every kind is one generator function registered in PATTERNS; the generators live in src/patterns/.
 import { carpet, fold, hilbert, htree, koch, quadtree, sierpinski, tree } from './patterns/fractals.ts';
 import { rosette, spiral, stitch, whirl } from './patterns/lineart.ts';
@@ -19,6 +19,7 @@ import {
   zigzag,
 } from './patterns/surfaces.ts';
 import { mulberry32, type Generator, type Pt } from './patterns/util.ts';
+import { sceneToSvg, squareScene } from './scene.ts';
 
 export const FAMILIES = ['fractal', 'line', 'surface', 'symmetry'] as const;
 export type Family = (typeof FAMILIES)[number];
@@ -136,44 +137,6 @@ export function geometry(p: Pick<PatternParams, 'kind' | 'seed' | 'depth' | 'siz
   return PATTERNS[p.kind].gen(mulberry32(p.seed), depth, p.size);
 }
 
-function num(n: number, precision: number): string {
-  let s = n.toFixed(precision);
-  if (s.includes('.')) s = s.replace(/\.?0+$/, '');
-  return s === '-0' ? '0' : s;
-}
-
-// Relative path data from rounded absolute points: h/v for axis moves, z for closed polylines.
-function pathData(polys: readonly (readonly Pt[])[], precision: number): string {
-  const f = 10 ** precision;
-  const r = (v: number) => Math.round(v * f) / f;
-  const cmd = (c: string, ...ns: number[]) =>
-    ns.reduce((acc, n, i) => {
-      const s = num(n, precision);
-      return acc + (i > 0 && !s.startsWith('-') ? ' ' : '') + s;
-    }, c);
-  let d = '';
-  for (const poly of polys) {
-    const pts = poly.map(([x, y]) => [r(x), r(y)] as const);
-    const [first] = pts;
-    if (!first) continue;
-    let seg = '';
-    let [px, py] = first;
-    for (const [x, y] of pts.slice(1)) {
-      const dx = r(x - px);
-      const dy = r(y - py);
-      if (dx === 0 && dy === 0) continue;
-      seg += dy === 0 ? cmd('h', dx) : dx === 0 ? cmd('v', dy) : cmd('l', dx, dy);
-      px = x;
-      py = y;
-    }
-    if (!seg) continue;
-    const last = pts[pts.length - 1];
-    if (pts.length > 3 && last && last[0] === first[0] && last[1] === first[1]) seg = seg.replace(/[hvl][^hvl]*$/, 'z');
-    d += cmd('M', first[0], first[1]) + seg;
-  }
-  return d;
-}
-
 export function generate(p: PatternParams): string {
   return svgFromPolylines(geometry(p), p);
 }
@@ -182,9 +145,5 @@ export function svgFromPolylines(
   polys: readonly (readonly Pt[])[],
   p: Pick<PatternParams, 'size' | 'strokeWidth' | 'precision' | 'color' | 'opacity'>,
 ): string {
-  const d = pathData(polys, p.precision);
-  return (
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${p.size}" height="${p.size}" viewBox="0 0 ${p.size} ${p.size}">` +
-    `<path d="${d}" fill="none" stroke="${p.color}" stroke-width="${p.strokeWidth}" stroke-opacity="${p.opacity}" stroke-linecap="round"/></svg>`
-  );
+  return sceneToSvg(squareScene(polys, p), p.precision);
 }

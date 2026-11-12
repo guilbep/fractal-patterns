@@ -14,6 +14,10 @@ export const GROUP_OPS: Readonly<Record<string, readonly Op[]>> = {
   p2: [(p) => p, ([x, y]) => [1 - x, 1 - y]],
   pm: [(p) => p, ([x, y]) => [1 - x, y]],
   pg: [(p) => p, ([x, y]) => [mod1(x + 0.5), 1 - y]],
+  cm: [(p) => p, ([x, y]) => [1 - x, y], ([x, y]) => [mod1(x + 0.5), mod1(y + 0.5)], ([x, y]) => [mod1(0.5 - x), mod1(y + 0.5)]],
+  pmm: [(p) => p, ([x, y]) => [1 - x, y], ([x, y]) => [x, 1 - y], ([x, y]) => [1 - x, 1 - y]],
+  pmg: [(p) => p, ([x, y]) => [1 - x, 1 - y], ([x, y]) => [mod1(x + 0.5), 1 - y], ([x, y]) => [mod1(0.5 - x), y]],
+  pgg: [(p) => p, ([x, y]) => [1 - x, 1 - y], ([x, y]) => [mod1(x + 0.5), mod1(0.5 - y)], ([x, y]) => [mod1(0.5 - x), mod1(y + 0.5)]],
 };
 
 // Fundamental region of each group as a box [x0, y0, x1, y1] in the unit cell; the motif fills it.
@@ -22,6 +26,11 @@ export const GROUP_REGION: Readonly<Record<string, readonly [number, number, num
   p2: [0, 0, 0.5, 1],
   pm: [0, 0, 0.5, 1],
   pg: [0, 0, 0.5, 1],
+  cm: [0, 0, 0.5, 0.5],
+  pmm: [0, 0, 0.5, 0.5],
+  // pmg: [0, 0, 0.5, 0.5] would collide (half turn and glide both land on the top right quarter).
+  pmg: [0.25, 0, 0.75, 0.5],
+  pgg: [0, 0, 0.5, 0.5],
 };
 
 const N = 90; // samples per shape before thinning
@@ -97,12 +106,13 @@ function motif(rnd: Rng, depth: number, [x0, y0, x1, y1]: readonly [number, numb
 }
 
 // depth 1..3: the stem plus depth shapes in the motif; 1 cell per tile edge at depth 1, then 2
-// (3 cells crowd a 120 px tile and break the size cap).
+// (3 cells crowd a 120 px tile and break the size cap). Groups of 4 ops keep 1 cell: 2 by 2 cells
+// of them pass 20k chars at depth 3, and the quarter region would shrink to 30 px.
 export function wallpaper(group: string): Generator {
   const ops = GROUP_OPS[group] ?? [];
   const region = GROUP_REGION[group] ?? [0, 0, 1, 1];
   return (rnd, depth, size) => {
-    const n = Math.min(depth, 2);
+    const n = ops.length >= 4 ? 1 : Math.min(depth, 2);
     const cell = size / n;
     const shapes = motif(rnd, depth, region);
     const out: Poly[] = [];
@@ -130,3 +140,7 @@ export const p1 = wallpaper('p1');
 export const p2 = wallpaper('p2');
 export const pm = wallpaper('pm');
 export const pg = wallpaper('pg');
+export const cm = wallpaper('cm');
+export const pmm = wallpaper('pmm');
+export const pmg = wallpaper('pmg');
+export const pgg = wallpaper('pgg');

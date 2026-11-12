@@ -40,7 +40,7 @@ test('half turn and mirror are involutions, glide twice is a cell translation', 
 });
 
 test('motif fills the tile at depth 1', () => {
-  for (const kind of ['p1', 'p2', 'pm', 'pg'] as const) {
+  for (const kind of ['p1', 'p2', 'pm', 'pg', 'cm', 'pmm', 'pmg', 'pgg'] as const) {
     for (let seed = 1; seed <= 20; seed++) {
       const pts = geometry({ kind, seed, depth: 1, size: 120 }).flat();
       const xs = pts.map((p) => p[0]);
@@ -53,5 +53,25 @@ test('motif fills the tile at depth 1', () => {
 });
 
 test('op counts', () => {
-  for (const [group, count] of [['p1', 1], ['p2', 2], ['pm', 2], ['pg', 2]] as const) assert.equal(GROUP_OPS[group]?.length, count, group);
+  for (const [group, count] of [['p1', 1], ['p2', 2], ['pm', 2], ['pg', 2], ['cm', 4], ['pmm', 4], ['pmg', 4], ['pgg', 4]] as const) assert.equal(GROUP_OPS[group]?.length, count, group);
+});
+
+// Equal modulo 1: each coordinate difference is 0 or 1 (x = 1 - eps and x = 0 are the same point).
+const sameMod1 = (a: Pt, b: Pt): boolean =>
+  [0, 1].every((k) => {
+    const d = Math.abs((a[k] ?? NaN) - (b[k] ?? NaN));
+    return Math.min(d, Math.abs(1 - d)) < eps;
+  });
+
+test('every op list is a group modulo the lattice', () => {
+  for (const [group, ops] of Object.entries(GROUP_OPS)) {
+    for (const p of samples().slice(0, 20)) {
+      for (const [i, f] of ops.entries()) {
+        for (const [j, g] of ops.entries()) {
+          const q = f(g(p));
+          assert.ok(ops.some((h) => sameMod1(h(p), q)), `${group}: op ${i} after op ${j} at ${p}`);
+        }
+      }
+    }
+  }
 });

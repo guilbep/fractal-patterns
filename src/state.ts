@@ -8,6 +8,7 @@ import { blend, contrastRatio, textLevel } from '@/contrast.ts';
 import { fixContrast, fixWithPlate, patternContrast, patternInvisible, pickRoles, plateContrast, swapRoles, worstTextContrast, type Roles } from '@/pairing.ts';
 import { cssBackground, cssPlate, svgToDataUri } from '@/css.ts';
 import { formatFootprint, gzipSize, rawSize } from '@/co2.ts';
+import { MOTION_NONE, cssMotion, isStatic, type Motion } from '@/motion.ts';
 
 export const MAX_SEED = 0xffffffff;
 
@@ -130,7 +131,13 @@ export const plateCss = computed(() =>
 );
 // The hero plate uses the declarations of the exported class itself, so the two never drift apart.
 export const plateStyle = computed(() => plateCss.value.split('\n').slice(1, -1).join(''));
-export const cssOut = computed(() => (plateMode.value === 'direct' ? css.value : `${css.value}\n\n${plateCss.value}`));
+// Transform and motion of the pattern layer. The hero always renders through motionCss, the exported class.
+export const motion = reactive<{ -readonly [K in keyof Motion]: Motion[K] }>({ ...MOTION_NONE });
+export const motionPaused = ref(false);
+export const motionCss = computed(() => cssMotion(svg.value, roles.background, params.size, motion));
+export const motionStatic = computed(() => isStatic(motion));
+const patternCss = computed(() => (motionStatic.value ? css.value : motionCss.value));
+export const cssOut = computed(() => (plateMode.value === 'direct' ? patternCss.value : `${patternCss.value}\n\n${plateCss.value}`));
 export const svgHref = computed(() => svgToDataUri(svg.value));
 export const fileName = computed(() => (usingImage.value ? `traced-${trace.detector}.svg` : `fractal-${params.kind}-${params.seed}.svg`));
 
@@ -263,4 +270,6 @@ export function reset(): void {
   applyPalette(DEFAULT_PALETTE);
   Object.assign(trace, TRACE_DEFAULTS);
   removeImage();
+  Object.assign(motion, MOTION_NONE);
+  motionPaused.value = false;
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { cssOut, fileName, footprint, gzipBytes, params, plateMode, rawBytes, svgHref } from '@/state.ts';
+import { cssOut, fileName, footprint, gzipBytes, motionStatic, params, plateMode, rawBytes, svgHref } from '@/state.ts';
 
 const copyStatus = ref('');
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -41,6 +41,7 @@ async function copy(): Promise<void> {
       <span class="copy-status" role="status" aria-live="polite">{{ copyStatus }}</span>
     </div>
     <pre class="code" tabindex="0" aria-label="Generated CSS"><code>{{ cssOut }}</code></pre>
+    <p v-if="!motionStatic" class="muted out-note">Put the class <code>fp-pattern</code> on the element that shows the pattern.</p>
     <p v-if="plateMode !== 'direct'" class="muted out-note">Put the class <code>fp-plate</code> on the element that holds the text.</p>
   </section>
 </template>

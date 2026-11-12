@@ -3,11 +3,12 @@ import { onBeforeUnmount, onMounted } from 'vue';
 import { KIND_LABELS } from '@/fractal.ts';
 import { PALETTE_SOURCE } from '@/palettes.ts';
 import { DETECTOR_LABELS } from '@/trace.ts';
-import { css, params, plateMode, plateStyle, reseed, reset, roles, trace, traced, usingImage } from '@/state.ts';
+import { motionCss, motionPaused, params, plateMode, plateStyle, reseed, reset, roles, trace, traced, usingImage } from '@/state.ts';
 import ColorPanel from '@/components/ColorPanel.vue';
 import PatternPanel from '@/components/PatternPanel.vue';
 import OutputPanel from '@/components/OutputPanel.vue';
 import ImagePanel from '@/components/ImagePanel.vue';
+import MotionPanel from '@/components/MotionPanel.vue';
 
 function onKey(e: KeyboardEvent): void {
   if (e.key !== 'r' && e.key !== 'R') return;
@@ -34,7 +35,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <p class="muted hint">{{ usingImage ? 'Shuffle applies to math patterns only.' : '' }}<template v-if="!usingImage">Or click the pattern, or press <kbd>R</kbd>.</template></p>
       </div>
       <!-- ponytail: pointer shortcut only; the Shuffle button is the keyboard path. -->
-      <div class="hero" :style="css" @click="reseed">
+      <!-- The hero uses the exported .fp-pattern class itself, so what you see is what you copy. -->
+      <component :is="'style'">{{ motionCss }}</component>
+      <div class="hero fp-pattern" :class="{ 'fp-paused': motionPaused }" @click="reseed">
         <!-- The plate sits on the wrapper in 'plate' mode, on the paragraph in 'split', nowhere in 'direct'. -->
         <div class="hero-text" :class="{ 'hero-plate': plateMode === 'plate' }" :style="plateMode === 'plate' ? plateStyle : undefined">
           <h1 :style="{ color: roles.text }">Fractal Patterns</h1>
@@ -49,6 +52,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <ColorPanel />
       <PatternPanel />
       <ImagePanel />
+      <MotionPanel />
       <OutputPanel />
     </div>
   </main>

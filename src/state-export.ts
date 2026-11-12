@@ -5,7 +5,10 @@ import { formatFootprint, gzipSize } from '@/co2.ts';
 import { exportCss, exportJs } from '@/export.ts';
 import { KIND_LABELS } from '@/fractal.ts';
 import { DETECTOR_LABELS } from '@/trace.ts';
+import { secondSize } from '@/layers.ts';
 import {
+  fade,
+  layer2,
   motion,
   params,
   patch,
@@ -41,6 +44,9 @@ export const exportText = computed(() =>
     motion,
     label: exportLabel.value,
     appName: APP_NAME,
+    // The second tile: the next seed (a traced image gives the same tile), at a size coprime with the first.
+    ...(layer2.value ? { second: { svg: svgForSeed((params.seed + 1) >>> 0), tileSize: secondSize(tileSize.value) } } : {}),
+    fade: fade.value,
   }),
 );
 

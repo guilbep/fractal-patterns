@@ -240,3 +240,16 @@ test('two layers, tilt 30: ::after has the same box and transform as ::before', 
 test('exportHtml: three-line sample', () => {
   assert.equal(exportHtml(), '<section class="fp-pattern">\n  <p class="fp-plate">Your text</p>\n</section>');
 });
+
+test('fade: mask lines when on, byte-identical to before when off', () => {
+  const before =
+    '/* Demo: Tree, seed 1, depth 8. Tile 120px. */\n.fp-pattern {\n  --fp-bg: #f5f5f5;\n  --fp-ink: #12232e;\n  --fp-tile: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'4\' height=\'4\'%3E%3Cpath d=\'M0 0h4\'/%3E%3C/svg%3E");\n  --fp-size: 120px;\n  position: relative;\n  isolation: isolate;\n  overflow: hidden;\n  background-color: var(--fp-bg);\n  color: var(--fp-ink);\n}\n.fp-pattern::before {\n  content: "";\n  position: absolute;\n  z-index: -1;\n  inset: 0;\n  background-image: var(--fp-tile);\n  background-size: var(--fp-size) var(--fp-size);\n}\n\n.fp-plate {\n  background-color: rgb(245 245 245 / 0.85);\n  border-radius: 12px;\n  padding: 1rem;\n}\n\n/* Use: put class="fp-pattern" on the element that shows the pattern.\n * Put class="fp-plate" on the element that holds the text.\n */';
+  assert.equal(css(), before);
+  assert.equal(css({}, { fade: false }), before);
+  const on = css({}, { fade: true });
+  assert.ok(on.includes('  mask-image: radial-gradient('));
+  assert.ok(on.includes('  -webkit-mask-image: radial-gradient('));
+  assert.ok(on.includes('.fp-pattern::before {\n  -webkit-mask-image'));
+  const both = css({}, { fade: true, second: { svg, tileSize: 193 } });
+  assert.ok(both.includes('.fp-pattern::before, .fp-pattern::after {\n  -webkit-mask-image'));
+});

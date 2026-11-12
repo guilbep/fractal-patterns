@@ -51,6 +51,8 @@ function randomDesign(r: () => number): Design {
     frame: r() < 0.5,
     families: int(1, 31),
     variants: r() < 0.5,
+    layer2: r() < 0.5,
+    fade: r() < 0.5,
   };
 }
 
@@ -85,6 +87,8 @@ const FULL: Design = {
   frame: true,
   families: 5,
   variants: true,
+  layer2: true,
+  fade: true,
 };
 
 function assertValid(d: Design, label: string): void {
@@ -116,6 +120,8 @@ function assertValid(d: Design, label: string): void {
   assert.equal(typeof d.frame, 'boolean', label);
   assert.ok(Number.isInteger(d.families) && inRange(d.families, 1, 31), label);
   assert.equal(typeof d.variants, 'boolean', label);
+  assert.equal(typeof d.layer2, 'boolean', label);
+  assert.equal(typeof d.fade, 'boolean', label);
 }
 
 test('defaults encode to the empty string and decode back', () => {
@@ -150,7 +156,7 @@ test('encoding is stable and one field changes the string', () => {
 test('a design with every field non-default stays short', () => {
   for (const f of Object.keys(DESIGN_DEFAULTS) as (keyof Design)[]) assert.notEqual(FULL[f], DESIGN_DEFAULTS[f], f);
   const s = encodeDesign(FULL);
-  assert.ok(s.length <= 184, `${s.length}`); // 177 before the variants key, + '&v=1'
+  assert.ok(s.length <= 194, `${s.length}`); // 177 before the variants key, + '&v=1', + '&l2=1&fd=1'
   assert.deepEqual(decodeDesign(s), FULL);
 });
 
@@ -238,8 +244,8 @@ test('variants: round trip, absent means false, old links decode as before', () 
   assert.equal(encodeDesign({ ...DESIGN_DEFAULTS, kind: 'brick', seed: 7, mirror: true }), 'k=brick&s=7&m=1');
   const old =
     'k=koch&s=123456789&d=3&z=160&w=1.5&p=2&bg=0a0b0c&fg=d0e0f0&tx=fedcba&o=0.45&pm=plate&po=0.9&pr=16&pb=4&r=-30&sc=1.5&sk=10&t=20&dr=xy&sp=12&zm=2&g=24&m=1&l=patchwork&c=2&f=1&fa=5';
-  assert.deepEqual(decodeDesign(old), { ...FULL, variants: false });
-  assert.equal(encodeDesign({ ...FULL, variants: false }), old);
+  assert.deepEqual(decodeDesign(old), { ...FULL, variants: false, layer2: false, fade: false });
+  assert.equal(encodeDesign({ ...FULL, variants: false, layer2: false, fade: false }), old);
 });
 
 test('undo restores the previous value of the variants switch', () => {
@@ -248,4 +254,18 @@ test('undo restores the previous value of the variants switch', () => {
   assert.equal(h.current().variants, true);
   assert.equal(h.undo()?.variants, false);
   assert.equal(h.redo()?.variants, true);
+});
+
+test('layer2 and fade: round trip, absent means false, old links decode as before', () => {
+  const d = { ...DESIGN_DEFAULTS, kind: 'brick', seed: 7, variants: true, layer2: true, fade: true } as const;
+  assert.equal(encodeDesign(d), 'k=brick&s=7&v=1&l2=1&fd=1');
+  assert.deepEqual(decodeDesign(encodeDesign(d)), d);
+  for (const f of ['layer2', 'fade'] as const) {
+    const one = { ...DESIGN_DEFAULTS, [f]: true };
+    assert.deepEqual(decodeDesign(encodeDesign(one)), one);
+  }
+  const old = decodeDesign('k=brick&s=7&v=1');
+  assert.equal(old.layer2, false);
+  assert.equal(old.fade, false);
+  assert.equal(encodeDesign(old), 'k=brick&s=7&v=1');
 });

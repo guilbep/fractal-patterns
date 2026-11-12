@@ -1,5 +1,6 @@
 // One pasteable export: the .fp-pattern class with custom properties, the optional plate, usage, and a tile-switching script.
 import { cssPlate, svgToDataUri } from './css.ts';
+import { fadeMask } from './fade.ts';
 import { repeatDistance } from './layers.ts';
 import { motionLayer, scaledSize, type Motion } from './motion.ts';
 
@@ -18,6 +19,7 @@ export interface ExportInput {
   readonly label: string; // how to make the tile again, e.g. "Herringbone, seed 123, depth 3"
   readonly appName: string;
   readonly second?: { readonly svg: string; readonly tileSize: number }; // a second layer, its size coprime with tileSize
+  readonly fade?: boolean; // a soft mask over the pattern layer(s)
 }
 
 // Inserting a space breaks every comment delimiter and cannot create a new one.
@@ -48,6 +50,15 @@ export function exportCss(i: ExportInput): string {
       'var(--fp-size)',
       i.second ? { image: 'var(--fp-tile-2)', s: 'var(--fp-size-2)' } : undefined,
     ),
+    ...(i.fade
+      ? [
+          '',
+          '/* Soft fade: a large, soft light and dark variation that dims the pattern in places, so the grid is harder to see. */',
+          `.fp-pattern::before${i.second ? ', .fp-pattern::after' : ''} {`,
+          ...fadeMask(Number(size)).map((l) => `  ${l}`),
+          '}',
+        ]
+      : []),
     ...(plated ? ['', cssPlate(i.background, i.plate)] : []),
     '',
     '/* Use: put class="fp-pattern" on the element that shows the pattern.',

@@ -4,7 +4,9 @@ import { FAMILIES } from '@/fractal.ts';
 import { createHistory } from '@/history.ts';
 import { DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design } from '@/share.ts';
 import {
+  fade,
   lastFix,
+  layer2,
   layout,
   motion,
   opacity,
@@ -39,6 +41,8 @@ export function snapshot(): Design {
     // An empty family list is not reachable in the panel; it maps to the default rather than to 0.
     families: FAMILIES.reduce((m, f, i) => (patch.families.includes(f) ? m | (1 << i) : m), 0) || DESIGN_DEFAULTS.families,
     variants: variants.value,
+    layer2: layer2.value,
+    fade: fade.value,
   };
 }
 
@@ -57,6 +61,8 @@ export function applyDesign(d: Design): void {
   patch.frame = d.frame;
   patch.families = FAMILIES.filter((_, i) => d.families & (1 << i));
   variants.value = d.variants;
+  layer2.value = d.layer2;
+  fade.value = d.fade;
   source.value = 'math';
   lastFix.value = null; // the Fix result no longer describes these colors
 }

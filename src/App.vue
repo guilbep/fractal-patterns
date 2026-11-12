@@ -15,6 +15,7 @@ import OutputPanel from '@/components/OutputPanel.vue';
 import ImagePanel from '@/components/ImagePanel.vue';
 import SpacingPanel from '@/components/SpacingPanel.vue';
 import MotionPanel from '@/components/MotionPanel.vue';
+import RepetitionPanel from '@/components/RepetitionPanel.vue';
 import { canRedo, canUndo, redo, shareUrl, undo } from '@/state-share.ts';
 
 const LOGO_URI = svgToDataUri(logoSvg(LOGO_DEFAULT));
@@ -187,6 +188,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           <p class="muted hint">{{ usingImage ? 'Shuffle applies to math patterns only.' : '' }}<template v-if="!usingImage && shortcutOn">Or click the pattern, or press <kbd>R</kbd>.</template><template v-else-if="!usingImage">Or click the pattern.</template></p>
         </div>
         <PatternPanel />
+        <!-- One instance at a time (v-if on the tab): the ids inside stay unique while both tabs offer it. -->
+        <RepetitionPanel v-if="tab === 'pattern'" />
         <SpacingPanel />
       </div>
       <div v-show="tab === 'colors'" id="panel-colors" class="tabpanel" role="tabpanel" aria-labelledby="tab-colors">
@@ -195,6 +198,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       </div>
       <div v-show="tab === 'image'" id="panel-image" class="tabpanel" role="tabpanel" aria-labelledby="tab-image">
         <ImagePanel />
+        <RepetitionPanel v-if="tab === 'image'" />
       </div>
       <div v-show="tab === 'motion'" id="panel-motion" class="tabpanel" role="tabpanel" aria-labelledby="tab-motion">
         <MotionPanel />

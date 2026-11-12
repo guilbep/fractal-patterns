@@ -22,3 +22,14 @@ export function repeatDistance(a: number, b: number): number {
   const y = Math.round(b);
   return (x / gcd(x, y)) * y;
 }
+
+// Stroke opacity where `layers` copies at `opacity` overlap: 1 - (1 - o)^layers.
+export function effectiveOpacity(opacity: number, layers: number): number {
+  return 1 - (1 - opacity) ** layers;
+}
+
+// Worst text contrast over a surface with spots under one layer and spots under all of them.
+// A min over both ends, because contrast is not monotonic in opacity when the text lies between pattern and background.
+export function layeredWorst(contrastAt: (opacity: number) => number, opacity: number, layers: number): number {
+  return layers > 1 ? Math.min(contrastAt(opacity), contrastAt(effectiveOpacity(opacity, layers))) : contrastAt(opacity);
+}

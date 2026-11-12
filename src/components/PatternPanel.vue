@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { FAMILIES, FAMILY_LABELS, KINDS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH, hasCompat, type Kind } from '@/fractal.ts';
-import { canVary } from '@/supertile.ts';
-import { MAX_SEED, autoCells, layout, params, patch, patchDepthMax, previews, reseed, setPin, setSeed, source, usingImage, usingPatchwork, variantBytes, variants } from '@/state.ts';
+import { FAMILIES, FAMILY_LABELS, KINDS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH, type Kind } from '@/fractal.ts';
+import { MAX_SEED, autoCells, layout, params, patch, patchDepthMax, previews, reseed, setPin, setSeed, source, usingImage, usingPatchwork } from '@/state.ts';
 
 const depthMax = computed(() => (usingPatchwork.value ? patchDepthMax.value : MAX_DEPTH[params.kind]));
 
@@ -30,14 +29,6 @@ function jump(family: string): void {
       <label class="radio"><input v-model="layout" type="radio" name="layout" value="single"> Single pattern</label>
       <label class="radio"><input v-model="layout" type="radio" name="layout" value="patchwork"> Patchwork</label>
     </fieldset>
-
-    <label class="radio"><input id="variants" v-model="variants" type="checkbox" :disabled="!canVary(params.kind)" aria-describedby="variants-hint"> Reduce repetition</label>
-    <p id="variants-hint" class="hint-text">
-      <template v-if="!canVary(params.kind)">Not available for this pattern yet.</template>
-      <template v-else>Shows 4 variants in a 4 by 4 tile. The same picture comes back 4 times less often.</template>
-      <template v-if="variants && canVary(params.kind) && hasCompat(params.kind)"> This pattern uses its fixed layout in this mode.</template>
-      <template v-if="variantBytes">{{ ' ' }}{{ variantBytes.svg.toLocaleString('en') }} bytes against {{ variantBytes.plain.toLocaleString('en') }} for one tile.</template>
-    </p>
 
     <div v-if="layout === 'patchwork'" class="patchwork">
       <div class="field">

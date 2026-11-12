@@ -27,6 +27,7 @@ import { rawSize } from '@/co2.ts';
 import { MOTION_NONE, type Motion } from '@/motion.ts';
 import { superTileBytes } from '@/supertile.ts';
 import { variantTile, variantsActive } from '@/variants.ts';
+import { layeredWorst } from '@/layers.ts';
 
 export const MAX_SEED = 0xffffffff;
 
@@ -252,6 +253,9 @@ export function svgForSeed(seed: number): string {
   return tileSvg(seed === params.seed ? tile.value : tileFor(seed));
 }
 export const svg = computed(() => svgForSeed(params.seed));
+// Against repetition, for every source: a second copy at a coprime size, and a soft CSS fade.
+export const layer2 = ref(false);
+export const fade = ref(false);
 const plateCss = computed(() =>
   cssPlate(roles.background, { opacity: plateOpacity.value, radius: plateRadius.value, blur: plateBlur.value }),
 );
@@ -290,8 +294,10 @@ export const previews = computed(() =>
 export const contrast = computed(() => {
   const textOnBackground = contrastRatio(roles.text, roles.background);
   const textOnPattern = contrastRatio(roles.text, blend(roles.pattern, roles.background, opacity.value));
-  const direct = worstTextContrast(roles, opacity.value);
-  const onPlate = plateContrast(roles, opacity.value, plateOpacity.value);
+  // With a second layer, crossings carry the strokes at 1 - (1 - o)^2: the badge takes the worse of both.
+  const layers = layer2.value ? 2 : 1;
+  const direct = layeredWorst((o) => worstTextContrast(roles, o), opacity.value, layers);
+  const onPlate = layeredWorst((o) => plateContrast(roles, o, plateOpacity.value), opacity.value, layers);
   // The paragraph's surface: the plate in 'plate' and 'split', the bare pattern in 'direct'.
   const worst = plateMode.value === 'direct' ? direct : onPlate;
   return {
@@ -419,4 +425,6 @@ export function reset(): void {
   Object.assign(motion, MOTION_NONE);
   motionPaused.value = false;
   variants.value = false;
+  layer2.value = false;
+  fade.value = false;
 }

@@ -6,6 +6,7 @@ import { mirrorTile, withGap, zoomWrap } from '@/spacing.ts';
 import type { Pt } from '@/patterns/util.ts';
 import { edges, toGray, type Detector } from '@/trace.ts';
 import { vectorize } from '@/vectorize.ts';
+import { curveTileSvg } from '@/smoothtrace.ts';
 import { sampleImage, type Sample } from '@/samples.ts';
 import { PALETTES, type Palette } from '@/palettes.ts';
 import { blend, contrastRatio, textLevel } from '@/contrast.ts';
@@ -104,6 +105,7 @@ const TRACE_DEFAULTS = {
   minLength: 8,
   resolution: 192,
   fit: 'cover' as 'cover' | 'contain',
+  curves: false, // Smooth curves: Bézier curves from traceCurves in place of polylines
 };
 export const source = ref<'math' | 'image'>('math');
 export const trace = reactive({ ...TRACE_DEFAULTS });
@@ -171,10 +173,11 @@ export function removeImage(): void {
   source.value = 'math';
 }
 
-const edgeMap = computed(() => {
+const gray = computed(() => {
   const img = image.value;
-  return img ? edges(toGray(img.data, img.width, img.height), trace.detector, trace.threshold) : null;
+  return img ? toGray(img.data, img.width, img.height) : null;
 });
+const edgeMap = computed(() => (gray.value ? edges(gray.value, trace.detector, trace.threshold) : null));
 export const traced = computed(() => {
   const img = image.value;
   const map = edgeMap.value;
@@ -200,6 +203,34 @@ function tileFor(seed: number): { polys: readonly (readonly Pt[])[]; size: numbe
   return spacing.gap > 0 ? withGap(polys, size, spacing.gap) : { polys, size };
 }
 const tile = computed(() => tileFor(params.seed));
+const tileSvg = (t: { polys: readonly (readonly Pt[])[]; size: number }) =>
+  svgFromPolylines(t.polys, { ...params, size: t.size, color: roles.pattern, opacity: opacity.value });
+
+// Smooth curves: the traced tile from traceCurves.
+// ponytail: spacing (mirror, zoom, gap) is skipped in this mode, it works on polylines; combine it when a ticket asks.
+export const curvesOn = computed(() => usingImage.value && trace.curves);
+const curveSvg = computed(() =>
+  curvesOn.value && gray.value
+    ? curveTileSvg(gray.value, {
+        detector: trace.detector,
+        threshold: trace.threshold,
+        size: params.size,
+        minLength: trace.minLength,
+        smooth: 1.5,
+        tolerance: 1.2,
+        refineSteps: 40,
+        fit: trace.fit,
+        strokeWidth: params.strokeWidth,
+        precision: params.precision,
+        color: roles.pattern,
+        opacity: opacity.value,
+      })
+    : null,
+);
+// The measured cost shown under the checkbox: the curve tile against the straight tile with the same settings.
+export const curveBytes = computed(() =>
+  curveSvg.value === null ? null : { svg: rawSize(curveSvg.value), plain: rawSize(tileSvg(tile.value)) },
+);
 
 // Reduce repetition: a 4 by 4 super tile of 4 seeded variants, whose cell edge is the tile size.
 // ponytail: spacing (mirror, zoom, gap) is skipped in this mode; combine it when a ticket asks.
@@ -211,12 +242,14 @@ const variantOptions = (seed: number) => ({ ...params, seed, color: roles.patter
 // The measured cost shown under the switch: the super tile against one plain tile.
 export const variantBytes = computed(() => (variantsOn.value ? superTileBytes(variantOptions(params.seed)) : null));
 
-export const tileSize = computed(() => (variantsOn.value ? variantTile(variantOptions(params.seed)).size : tile.value.size));
+export const tileSize = computed(() =>
+  variantsOn.value ? variantTile(variantOptions(params.seed)).size : curveSvg.value !== null ? params.size : tile.value.size,
+);
 // The tile for any seed with the current settings; a traced image gives the same tile for every seed.
 export function svgForSeed(seed: number): string {
   if (variantsOn.value) return variantTile(variantOptions(seed)).svg;
-  const t = seed === params.seed ? tile.value : tileFor(seed);
-  return svgFromPolylines(t.polys, { ...params, size: t.size, color: roles.pattern, opacity: opacity.value });
+  if (curveSvg.value !== null) return curveSvg.value;
+  return tileSvg(seed === params.seed ? tile.value : tileFor(seed));
 }
 export const svg = computed(() => svgForSeed(params.seed));
 const plateCss = computed(() =>

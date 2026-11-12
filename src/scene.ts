@@ -11,6 +11,8 @@ export interface Paint {
 export interface SceneLayer {
   readonly polys: readonly (readonly Pt[])[];
   readonly paint: Paint;
+  // Raw path data (curves): written in place of the path data of `polys` when present.
+  readonly d?: string;
 }
 // The tile is a rectangle; layers draw in order, the first at the bottom.
 export interface Scene {
@@ -67,12 +69,12 @@ const closedPathData = (polys: readonly (readonly Pt[])[], precision: number): s
 export function sceneToSvg(scene: Scene, precision: number): string {
   const { width: w, height: h } = scene;
   let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`;
-  for (const { polys, paint } of scene.layers) {
-    if (polys.length === 0) continue;
+  for (const { polys, paint, d } of scene.layers) {
+    if (polys.length === 0 && !d) continue;
     out +=
       paint.mode === 'stroke'
-        ? `<path d="${pathData(polys, precision)}" fill="none" stroke="${paint.color}" stroke-width="${paint.width}" stroke-opacity="${paint.opacity}" stroke-linecap="round"/>`
-        : `<path d="${closedPathData(polys, precision)}" fill="${paint.color}" fill-opacity="${paint.opacity}" fill-rule="evenodd"/>`;
+        ? `<path d="${d ?? pathData(polys, precision)}" fill="none" stroke="${paint.color}" stroke-width="${paint.width}" stroke-opacity="${paint.opacity}" stroke-linecap="round"/>`
+        : `<path d="${d ?? closedPathData(polys, precision)}" fill="${paint.color}" fill-opacity="${paint.opacity}" fill-rule="evenodd"/>`;
   }
   return out + '</svg>';
 }
@@ -103,6 +105,7 @@ export interface CanvasLike {
   globalAlpha: number;
 }
 
+// ponytail: draws polylines only and ignores a layer's raw `d` (curves); use Path2D when the canvas needs curves.
 export function drawScene(ctx: CanvasLike, scene: Scene): void {
   for (const { polys, paint } of scene.layers) {
     if (polys.length === 0) continue;

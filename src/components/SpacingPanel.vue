@@ -1,23 +1,27 @@
 <script setup lang="ts">
-import { resetSpacing, spacing, variantsOn } from '@/state.ts';
+import { computed } from 'vue';
+import { curvesOn, resetSpacing, spacing, variantsOn } from '@/state.ts';
+
+const off = computed(() => variantsOn.value || curvesOn.value);
 </script>
 
 <template>
   <section class="panel" aria-labelledby="spacing-h">
     <h2 id="spacing-h">Spacing</h2>
     <p v-if="variantsOn" class="hint-text">Not combined with Reduce repetition yet.</p>
+    <p v-if="curvesOn" class="hint-text">Not combined with Smooth curves yet.</p>
     <p class="hint-text">Zoom above 1 removes the empty margin around a pattern. Gap adds space between repeats.</p>
     <div class="fields">
       <div class="field">
         <label for="zoom">Zoom <output for="zoom">{{ spacing.zoom.toFixed(2) }}×</output></label>
-        <input id="zoom" :disabled="variantsOn" v-model.number="spacing.zoom" type="range" min="0.5" max="3" step="0.05">
+        <input id="zoom" :disabled="off" v-model.number="spacing.zoom" type="range" min="0.5" max="3" step="0.05">
       </div>
       <div class="field">
         <label for="gap">Gap <output for="gap">{{ spacing.gap }} px</output></label>
-        <input id="gap" :disabled="variantsOn" v-model.number="spacing.gap" type="range" min="0" max="120" step="2">
+        <input id="gap" :disabled="off" v-model.number="spacing.gap" type="range" min="0" max="120" step="2">
       </div>
     </div>
-    <label class="radio"><input v-model="spacing.mirror" type="checkbox" :disabled="variantsOn" aria-describedby="mirror-hint"> Mirror</label>
+    <label class="radio"><input v-model="spacing.mirror" type="checkbox" :disabled="off" aria-describedby="mirror-hint"> Mirror</label>
     <p id="mirror-hint" class="hint-text">Makes any tile repeat without a seam. Use it for traced photos.</p>
     <button type="button" class="btn" @click="resetSpacing">Reset spacing</button>
   </section>

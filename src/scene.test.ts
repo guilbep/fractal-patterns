@@ -114,3 +114,31 @@ test('scene.ts stays pure', () => {
   assert.ok(!src.includes('node:'));
   assert.ok(!src.includes('document'));
 });
+
+test('sceneToSvg writes a layer d verbatim in place of its polylines', () => {
+  const d = 'M10 10C20 0 40 0 50 10c5 5 5 15 0 20';
+  const scene = squareScene([], { size: 60, strokeWidth: 2, color: '#123456', opacity: 0.6 });
+  const svg = sceneToSvg({ ...scene, layers: scene.layers.map((l) => ({ ...l, d })) }, 1);
+  assert.ok(svg.includes(`<path d="${d}" fill="none"`));
+  assert.ok(!svg.includes('L'));
+});
+
+test('sceneToSvg without a d layer is unchanged', () => {
+  const polys: Pt[][] = [
+    [
+      [10, 10],
+      [50, 10],
+      [50, 40],
+    ],
+    [
+      [5, 5],
+      [20, 30],
+      [40, 5],
+      [5, 5],
+    ],
+  ];
+  assert.equal(
+    sceneToSvg(squareScene(polys, { size: 60, strokeWidth: 2, color: '#123456', opacity: 0.6 }), 1),
+    '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><path d="M10 10h40v30M5 5l15 25l20-25z" fill="none" stroke="#123456" stroke-width="2" stroke-opacity="0.6" stroke-linecap="round"/></svg>',
+  );
+});

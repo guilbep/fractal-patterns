@@ -2,8 +2,9 @@
 // least squares fit, then refinement on the blurred edge strength. Pure: no DOM, no randomness.
 import { curvePathData, fitCurves, refine, sampleField, smoothChain, type Cubic, type Field } from './curvefit.ts';
 import type { Pt } from './patterns/util.ts';
+import { sceneToSvg, squareScene } from './scene.ts';
 import { edges, gaussianBlur, gradient, type Detector, type Gray } from './trace.ts';
-import { tileScale, vectorize } from './vectorize.ts';
+import { tileScale, vectorize, type TraceOptions } from './vectorize.ts';
 
 export interface CurveTraceOptions {
   readonly detector: Detector;
@@ -13,18 +14,19 @@ export interface CurveTraceOptions {
   readonly smooth: number;
   readonly tolerance: number;
   readonly refineSteps: number;
+  readonly fit?: 'contain' | 'cover';
 }
 
 const RATE = 1;
 const SMOOTH = 0.001;
 
 // Sobel magnitude, blurred (sigma 1.5 px), scaled to a maximum of 1 and resampled to tile coordinates.
-function edgeField(g: Gray, size: number): Field {
+function edgeField(g: Gray, size: number, fit: TraceOptions['fit']): Field {
   const blurred = gaussianBlur({ data: gradient(g, 'sobel'), width: g.width, height: g.height }, 1.5);
   let max = 0;
   for (const v of blurred.data) if (v > max) max = v;
   const img: Field = { width: g.width, height: g.height, data: blurred.data };
-  const { s, ox, oy } = tileScale(g.width, g.height, size);
+  const { s, ox, oy } = tileScale(g.width, g.height, size, fit);
   const data = new Float32Array(size * size);
   // Tile point t is image point (t - offset) / s; pixel centers sit at index + 0.5.
   for (let y = 0; y < size; y++)
@@ -34,9 +36,9 @@ function edgeField(g: Gray, size: number): Field {
 
 export function traceCurves(g: Gray, o: CurveTraceOptions): { chains: Cubic[][]; d(precision: number): string } {
   const map = edges(g, o.detector, o.threshold);
-  const { s } = tileScale(g.width, g.height, o.size);
-  const field = o.refineSteps > 0 ? edgeField(g, o.size) : null;
-  const chains = vectorize(map, g.width, g.height, { size: o.size, tolerance: 0, minLength: o.minLength }).map((raw) => {
+  const { s } = tileScale(g.width, g.height, o.size, o.fit);
+  const field = o.refineSteps > 0 ? edgeField(g, o.size, o.fit) : null;
+  const chains = vectorize(map, g.width, g.height, { ...o, tolerance: 0 }).map((raw) => {
     // A walk around a loop ends next to its start: close it.
     const a = raw[0]!;
     const b = raw[raw.length - 1]!;
@@ -45,4 +47,14 @@ export function traceCurves(g: Gray, o: CurveTraceOptions): { chains: Cubic[][];
     return field ? refine(fitted, field, { steps: o.refineSteps, rate: RATE, smooth: SMOOTH }) : fitted;
   });
   return { chains, d: (precision) => curvePathData(chains, precision) };
+}
+
+// The traced tile in curve mode: the same root and stroke attributes as the polyline tile, curves in the path.
+export function curveTileSvg(
+  g: Gray,
+  o: CurveTraceOptions & { readonly strokeWidth: number; readonly precision: number; readonly color: string; readonly opacity: number },
+): string {
+  const scene = squareScene([], o);
+  const d = traceCurves(g, o).d(o.precision);
+  return sceneToSvg({ ...scene, layers: scene.layers.map((l) => ({ ...l, d })) }, o.precision);
 }

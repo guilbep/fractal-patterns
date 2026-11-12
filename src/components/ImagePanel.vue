@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { DETECTORS, DETECTOR_LABELS } from '@/trace.ts';
-import { RESOLUTIONS, activeSample, image, loadImage, loadSample, rawBytes, removeImage, source, trace, traced, usingImage } from '@/state.ts';
+import { RESOLUTIONS, activeSample, curveBytes, image, loadImage, loadSample, rawBytes, removeImage, source, trace, traced, usingImage } from '@/state.ts';
 import { SAMPLES, SAMPLE_LABELS, sampleImage, type Sample } from '@/samples.ts';
 
 const painted = new WeakSet<Element>();
@@ -64,6 +64,13 @@ function onDrop(e: DragEvent): void {
       <input type="file" accept="image/*" @change="onPick">
     </label>
     <p class="error" role="alert">{{ error }}</p>
+
+    <label class="radio"><input id="trace-curves" v-model="trace.curves" type="checkbox" :disabled="!usingImage" aria-describedby="trace-curves-hint"> Smooth curves</label>
+    <p id="trace-curves-hint" class="hint-text">
+      <template v-if="!usingImage">Load an image or pick a sample first.</template>
+      <template v-else>Draws round Bézier curves in place of straight segments. Smoother, and usually 1.3 to 3 times larger.</template>
+      <template v-if="curveBytes">{{ ' ' }}{{ curveBytes.svg.toLocaleString('en') }} bytes against {{ curveBytes.plain.toLocaleString('en') }} with straight segments.</template>
+    </p>
 
     <template v-if="image">
       <div class="out-actions">

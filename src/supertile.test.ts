@@ -266,3 +266,46 @@ test('defaults: no new option gives the same bytes as before the repetition opti
       assert.deepEqual([svg.length, sum(svg)], pin, kind);
   }
 });
+
+test('per-cell options at their neutral values give the default bytes', () => {
+  for (const kind of ['tree', 'brick', 'quadtree'] as const) {
+    const o = { ...base, kind };
+    const def = superTileSvg(o);
+    for (const extra of [{ weights: 0 }, { skip: 0 }, { jitter: 0 }, { depths: false }, { drop: 'none' as const }])
+      assert.equal(superTileSvg({ ...o, ...extra }), def, `${kind} ${JSON.stringify(extra)}`);
+  }
+});
+
+test('weights: per-cell width and opacity in range, smooth, geometry unchanged (brick)', () => {
+  const o: SuperTileOptions = { ...base, kind: 'brick', cells: 4, weights: 1 };
+  const svg = superTileSvg(o);
+  const uses = [...svg.matchAll(/<use [^>]*\/>/g)].map((m) => m[0]);
+  assert.equal(uses.length, 16);
+  const ws = uses.map((u) => Number(/stroke-width="([^"]*)"/.exec(u)?.[1] ?? o.strokeWidth));
+  const os = uses.map((u) => Number(/stroke-opacity="([^"]*)"/.exec(u)?.[1] ?? o.opacity));
+  for (const w of ws) assert.ok(w >= 0.5 - 1e-9 && w <= 1.5 + 1e-9, `${w}`);
+  for (const op of os) assert.ok(op / o.opacity <= 1 && op / o.opacity >= 0.6 - 0.02, `${op}`);
+  assert.ok(new Set(ws).size >= 3, JSON.stringify(ws));
+  for (let r = 0; r < 4; r++)
+    for (let c = 0; c < 4; c++) assert.ok(Math.abs(ws[r * 4 + c]! - ws[r * 4 + ((c + 1) % 4)]!) < 0.5, `${r},${c}`);
+  const strip = (s: string) => s.replace(/<use [^>]*\/>/g, (u) => u.replace(/ stroke-(width|opacity)="[^"]*"/g, ''));
+  assert.equal(strip(svg), superTileSvg({ ...o, weights: 0 }));
+});
+
+test('skip: tree has 1..4 empty cells, never neighbors, deterministic; brick has none', () => {
+  const o: SuperTileOptions = { ...base, cells: 4, skip: 0.25 };
+  const svg = superTileSvg(o);
+  assert.equal(superTileSvg(o), svg);
+  const at = new Set(
+    [...svg.matchAll(/<use href="#\w"(?: transform="translate\(([\d.]+) ([\d.]+)\)")?\/>/g)].map(
+      (m) => `${Number(m[2] ?? 0) / 60},${Number(m[1] ?? 0) / 60}`,
+    ),
+  );
+  const empty: [number, number][] = [];
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) if (!at.has(`${r},${c}`)) empty.push([r, c]);
+  assert.ok(empty.length >= 1 && empty.length <= 4, JSON.stringify(empty));
+  for (const [r, c] of empty)
+    for (const [r2, c2] of empty)
+      assert.ok(!((r === r2 && (c2 - c + 4) % 4 === 1) || (c === c2 && (r2 - r + 4) % 4 === 1)), `${r},${c} ${r2},${c2}`);
+  assert.equal(superTileSvg({ ...o, kind: 'brick' }).split('<use ').length - 1, 16);
+});

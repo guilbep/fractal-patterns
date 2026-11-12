@@ -3,7 +3,19 @@
 import { generate, geometry, hasCompat, MAX_DEPTH, type Kind } from './fractal.ts';
 import type { Pt } from './patterns/util.ts';
 import { pathData } from './scene.ts';
-import { safeColor, SUPER_CELLS, superTileSvg, VARIANT_KINDS, type SuperTileOptions } from './supertile.ts';
+import {
+  canVary,
+  cellMargin,
+  DEPTH_MIX_KINDS,
+  MARGIN_KINDS,
+  MIN_MARGIN,
+  orientationKinds,
+  safeColor,
+  SUPER_CELLS,
+  superTileSvg,
+  VARIANT_KINDS,
+  type SuperTileOptions,
+} from './supertile.ts';
 
 type Geo = readonly (readonly Pt[])[];
 const EPS = 1e-6;
@@ -83,4 +95,47 @@ export function measureOrientationKinds(): Kind[] {
       [1, 2, 3, 4].every((seed) => orientable(geometry({ kind, seed, depth, size: 60, compat: hasCompat(kind) }), 60)),
     ),
   );
+}
+
+// The measurement behind MARGIN_KINDS in src/supertile.ts: seeds 1..4, depth 2 and MAX_DEPTH, size 60.
+export function measureMarginKinds(): Kind[] {
+  return VARIANT_KINDS.filter((kind) => [2, MAX_DEPTH[kind]].every((depth) => cellMargin(kind, 1, depth, 60, 4) >= MIN_MARGIN));
+}
+
+// The measurement behind DEPTH_MIX_KINDS in src/supertile.ts: orientable kinds whose 4 edge
+// signatures agree between depth d and d - 1, every d from 2 to MAX_DEPTH, seeds 1..4, size 60.
+export function measureDepthMixKinds(): Kind[] {
+  const edges = (geo: Geo) => [signature(geo, 0, 0), signature(geo, 0, 60), signature(geo, 1, 0), signature(geo, 1, 60)];
+  return orientationKinds().filter((kind) =>
+    Array.from({ length: MAX_DEPTH[kind] - 1 }, (_, i) => i + 2).every((depth) =>
+      [1, 2, 3, 4].every((seed) => {
+        const a = edges(geometry({ kind, seed, depth, size: 60, compat: hasCompat(kind) }));
+        const b = edges(geometry({ kind, seed, depth: depth - 1, size: 60, compat: hasCompat(kind) }));
+        return a.every((e, i) => sameSig(e, b[i]!));
+      }),
+    ),
+  );
+}
+
+// Which super tile options change the picture for a kind.
+export function optionsFor(kind: Kind): {
+  weights: boolean;
+  skip: boolean;
+  jitter: boolean;
+  depths: boolean;
+  drop: boolean;
+  orient: boolean;
+  variants: boolean;
+} {
+  const orient = orientationKinds().includes(kind);
+  const margin = MARGIN_KINDS.includes(kind);
+  return {
+    weights: canVary(kind),
+    skip: orient,
+    jitter: margin,
+    depths: DEPTH_MIX_KINDS.includes(kind),
+    drop: margin,
+    orient,
+    variants: canVary(kind),
+  };
 }

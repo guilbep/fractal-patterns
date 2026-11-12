@@ -2,8 +2,29 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generate, geometry, hasCompat, KINDS, MAX_DEPTH, type Kind } from './fractal.ts';
 import type { Pt } from './patterns/util.ts';
-import { measureOrientationKinds, mirrorSuperSvg, orientable, repetitionBytes, sameSig, signature, type Signature } from './repetition.ts';
-import { ORIENTATIONS, orientationKinds, superTileSvg, VARIANT_KINDS, variantSeeds, type SuperTileOptions } from './supertile.ts';
+import { pathData } from './scene.ts';
+import {
+  measureDepthMixKinds,
+  measureMarginKinds,
+  measureOrientationKinds,
+  mirrorSuperSvg,
+  optionsFor,
+  orientable,
+  repetitionBytes,
+  sameSig,
+  signature,
+  type Signature,
+} from './repetition.ts';
+import {
+  DEPTH_MIX_KINDS,
+  MARGIN_KINDS,
+  ORIENTATIONS,
+  orientationKinds,
+  superTileSvg,
+  VARIANT_KINDS,
+  variantSeeds,
+  type SuperTileOptions,
+} from './supertile.ts';
 
 type Geo = readonly (readonly Pt[])[];
 const EPS = 1e-6;
@@ -207,4 +228,109 @@ test('repetitionBytes: period, growth with count, flat-ish in cells', () => {
   assert.ok(b22.svg < b44.svg && b64.svg < b66.svg);
   // Measured: 1768 -> 2696 bytes, +52.5 percent (20 more <use> on a 385 byte path), not under 25.
   assert.ok(b64.svg / b44.svg - 1 < 0.53, `${b44.svg} -> ${b64.svg}`);
+});
+
+test('the pinned MARGIN_KINDS and DEPTH_MIX_KINDS equal their measurement', () => {
+  assert.deepEqual(measureMarginKinds(), [...MARGIN_KINDS]);
+  assert.deepEqual(measureDepthMixKinds(), [...DEPTH_MIX_KINDS]);
+  for (const kind of VARIANT_KINDS) {
+    const f = optionsFor(kind);
+    assert.deepEqual(f, {
+      weights: true,
+      skip: orientationKinds().includes(kind),
+      jitter: MARGIN_KINDS.includes(kind),
+      depths: DEPTH_MIX_KINDS.includes(kind),
+      drop: MARGIN_KINDS.includes(kind),
+      orient: orientationKinds().includes(kind),
+      variants: true,
+    });
+  }
+});
+
+// Each <use> as [variant index, transform].
+const usesOf = (svg: string): [number, string][] =>
+  [...svg.matchAll(/<use href="#(\w)"(?: transform="([^"]*)")?[^>]*\/>/g)].map((m) => ['abcdef'.indexOf(m[1]!), m[2] ?? '']);
+const defsOf = (svg: string): string[] => [...svg.matchAll(/<path id="\w" d="([^"]*)"\/>/g)].map((m) => m[1]!);
+const geosOf = (o: SuperTileOptions, depths: number[]): Geo[] =>
+  variantSeeds(o.seed, o.count ?? 4).map((seed, v) => geometry({ kind: o.kind, seed, depth: depths[v]!, size: o.size, compat: true }));
+
+test('jitter: every point stays in its own cell; a kind without margin is unchanged', () => {
+  for (const kind of VARIANT_KINDS)
+    for (const depth of [2, MAX_DEPTH[kind]])
+      for (const seed of [1, 2, 3]) {
+        const o: SuperTileOptions = { ...base, kind, seed, depth, jitter: 1 };
+        const svg = superTileSvg(o);
+        if (!optionsFor(kind).jitter) {
+          assert.equal(svg, superTileSvg({ ...o, jitter: 0 }), kind);
+          continue;
+        }
+        const geos = geosOf(o, [depth, depth, depth, depth]);
+        const uses = usesOf(svg);
+        assert.equal(uses.length, 16);
+        assert.ok(new Set(uses.map((u) => u[1])).size >= 3);
+        uses.forEach(([v, t], i) => {
+          const [r, c] = [Math.floor(i / 4), i % 4];
+          for (const poly of placed(geos[v]!, t, c * 60, r * 60))
+            for (const [x, y] of poly)
+              assert.ok(x >= -EPS && x <= 60 + EPS && y >= -EPS && y <= 60 + EPS, `${kind} ${seed} ${depth} cell ${i} ${x},${y}`);
+        });
+      }
+});
+
+test('depths: count / 2 variants at depth - 1, and the seams still agree', () => {
+  for (const kind of DEPTH_MIX_KINDS)
+    for (const depth of [3, MAX_DEPTH[kind]]) {
+      const o: SuperTileOptions = { ...base, kind, depth, depths: true };
+      const svg = superTileSvg(o);
+      const at = (d: number) => variantSeeds(o.seed).map((seed) => pathData(geometry({ kind, seed, depth: d, size: 60, compat: true }), 1));
+      const [hi, lo] = [at(depth), at(depth - 1)];
+      const defs = defsOf(svg);
+      assert.equal(defs.filter((d, v) => d === lo[v] && d !== hi[v]).length, 2, `${kind} ${depth}`);
+      assert.equal(defs.filter((d, v) => d === hi[v]).length, 2, `${kind} ${depth}`);
+      const levels = defs.map((d, v) => (d === hi[v] ? depth : depth - 1));
+      const geos = geosOf(o, levels);
+      const grid: Geo[][] = [];
+      usesOf(svg).forEach(([v, t], i) => {
+        const [r, c] = [Math.floor(i / 4), i % 4];
+        (grid[r] ??= [])[c] = placed(geos[v]!, t, c * 60, r * 60);
+      });
+      assert.deepEqual(seamFailures(kind, grid, 60), []);
+    }
+});
+
+test('drop: half-cell offsets, wrapped copies, invariant under a shift by the tile size', () => {
+  for (const drop of ['half-drop', 'brick'] as const) {
+    const o: SuperTileOptions = { ...base, depth: 3, cells: 4, drop };
+    const svg = superTileSvg(o);
+    const uses = usesOf(svg);
+    assert.equal(uses.length, 16 + 2, drop);
+    const geos = geosOf(o, [3, 3, 3, 3]);
+    const key = (x: number, y: number) => `${(((x % 240) + 240) % 240).toFixed(3)},${(((y % 240) + 240) % 240).toFixed(3)}`;
+    const pts = new Set<string>();
+    const raw: Pt[] = [];
+    const offset = (t: string): number[] => (/translate\(([-\d.]+) ([-\d.]+)\)/.exec(t)?.slice(1) ?? ['0', '0']).map(Number);
+    for (const [v, t] of uses) {
+      const [tx, ty] = offset(t) as [number, number];
+      assert.ok((tx / 30) % 1 === 0 && (ty / 30) % 1 === 0, t);
+      for (const poly of placed(geos[v]!, t, 0, 0))
+        for (const p of poly) {
+          raw.push(p);
+          pts.add(key(p[0], p[1]));
+        }
+    }
+    const shifted = uses.filter(([, t]) => offset(t).some((n) => n % 60 !== 0));
+    assert.equal(shifted.length, 8 + 2, drop);
+    // The points inside the tile, taken modulo the size, are the same set as all points modulo the size.
+    const inside = new Set(raw.filter(([x, y]) => x >= 0 && x < 240 && y >= 0 && y < 240).map(([x, y]) => key(x, y)));
+    assert.deepEqual([...pts].sort(), [...inside].sort(), drop);
+  }
+});
+
+test('all options combined on tree: deterministic, one line, sized by repetitionBytes', () => {
+  const o: SuperTileOptions = { ...base, depth: 4, orient: true, weights: 1, skip: 0.25, jitter: 1, depths: true };
+  const svg = superTileSvg(o);
+  assert.equal(superTileSvg(o), svg);
+  assert.ok(!svg.includes('\n'));
+  assert.equal(repetitionBytes(o).svg, new TextEncoder().encode(svg).length);
+  assert.notEqual(svg, superTileSvg({ ...base, depth: 4 }));
 });

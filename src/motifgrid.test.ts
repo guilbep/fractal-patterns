@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { arrange, motifGridBytes, motifGridSvg, parseMotifs, safePathData, type MotifGridOptions } from './motifgrid.ts';
 
-const REF = '/Users/guilbert/works/git/github/co2-calculator/frontend/src/assets/login-img.svg';
+const REF = process.env['FP_REFERENCE_SVG'] ?? '';
 
 function torusOk(order: readonly number[], n: number): boolean {
   for (let r = 0; r < n; r++)
@@ -108,7 +108,8 @@ test('motifGridBytes: <use> is at least 4 times smaller than the expanded pictur
   assert.ok(b4.svg * 4 <= b4.expanded, `${b4.svg} vs ${b4.expanded}`);
 });
 
-test('reproduces the hand-optimized reference file', { skip: !existsSync(REF) }, () => {
+// Run with: FP_REFERENCE_SVG=/path/to/reference.svg npm test
+test('reproduces the hand-optimized reference file', { skip: REF === '' || !existsSync(REF) }, () => {
   const file = readFileSync(REF, 'utf8');
   // The root has width="238" and no viewBox; the icons are drawn in 24 x 24, so pass the box.
   const motifs = parseMotifs(file, 24, 24);

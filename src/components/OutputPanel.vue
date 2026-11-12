@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { fileName, footprint, gzipBytes, params, rawBytes, svgHref, usingImage } from '@/state.ts';
+import { fileName, params, rawBytes, svgHref, usingImage } from '@/state.ts';
 import { exportHtml } from '@/export.ts';
-import { cssBytes, exportScript, exportText, scriptBytes, scriptCount, scriptEvent, scriptOn } from '@/state-export.ts';
+import { cssBytes, exportScript, exportText, footprint, gzipped, scriptBytes, scriptCount, scriptEvent, scriptOn } from '@/state-export.ts';
+
+const sizeText = (pick: (g: { css: number; script: number }) => string) =>
+  gzipped.value === null ? 'computing' : gzipped.value === 'unknown' ? 'size unknown' : pick(gzipped.value);
+const bytes = (n: number) => `${n.toLocaleString('en')} bytes`;
 
 const html = exportHtml();
 
@@ -30,11 +34,12 @@ async function copy(text: string): Promise<void> {
       <input id="precision" v-model.number="params.precision" type="range" min="0" max="3" step="1">
     </div>
     <dl class="stats">
-      <div><dt>SVG size</dt><dd>{{ rawBytes.toLocaleString('en') }} bytes</dd></div>
-      <div><dt>Gzipped</dt><dd>{{ gzipBytes === null ? 'computing' : `${gzipBytes.toLocaleString('en')} bytes` }}</dd></div>
-      <div class="wide"><dt>Footprint</dt><dd>{{ footprint ?? 'computing' }}</dd></div>
+      <div><dt>Tile SVG</dt><dd>{{ bytes(rawBytes) }}</dd></div>
+      <div><dt>Exported CSS, compressed</dt><dd>{{ sizeText((g) => bytes(g.css)) }}</dd></div>
+      <div v-if="exportScript"><dt>Script, compressed</dt><dd>{{ sizeText((g) => bytes(g.script)) }}</dd></div>
+      <div class="wide"><dt>Footprint</dt><dd>{{ sizeText(() => footprint ?? '') }}</dd></div>
     </dl>
-    <p class="muted">A rough estimate: a straight line from the compressed size, calibrated on one websitecarbon.com measurement of <a href="https://pierreguilbert.com">pierreguilbert.com</a>. It counts the transfer of the pattern tile once. It does not count the rest of your page, browser caching (a repeat visit transfers nothing), or the energy to draw the pattern on the visitor's device.</p>
+    <p class="muted">A rough estimate: a straight line from the compressed size, calibrated on one websitecarbon.com measurement of <a href="https://pierreguilbert.com">pierreguilbert.com</a>. It counts one transfer of the exported CSS, and of the script when you add it. It does not count the rest of your page, browser caching (a repeat visit transfers nothing), or the energy to draw the pattern on the visitor's device.</p>
   </section>
 
   <section class="panel" aria-labelledby="out-h">

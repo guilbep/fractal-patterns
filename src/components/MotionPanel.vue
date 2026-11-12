@@ -2,12 +2,13 @@
 import { computed } from 'vue';
 import { co2Mg, DRIFT_WATTS, driftMgPerMinute, driftMultiple, GRID_G_PER_KWH } from '@/co2.ts';
 import { MOTION_NONE } from '@/motion.ts';
-import { gzipBytes, motion, motionPaused } from '@/state.ts';
+import { motion, motionPaused } from '@/state.ts';
+import { exportGzipBytes } from '@/state-export.ts';
 
 const perMinute = Number(driftMgPerMinute().toPrecision(1));
 // ponytail: "many" from 1000 up, where a whole number reads as false precision.
 const multiple = computed(() => {
-  const m = Math.round(driftMultiple(co2Mg(gzipBytes.value ?? 0)));
+  const m = Math.round(driftMultiple(co2Mg(exportGzipBytes.value ?? 0)));
   return m >= 1000 ? 'many' : String(m);
 });
 
@@ -66,7 +67,7 @@ function resetMotion(): void {
     <ul class="image-notes">
       <li v-if="motion.drift === 'none'">Drift repaints the pattern layer on every frame, which uses energy on your visitor's device.</li>
       <li v-else>
-        Drift repaints the pattern layer on every frame.<template v-if="gzipBytes !== null"> Order of magnitude: about {{ perMinute }} mg CO₂ for each minute a visitor watches. That is about {{ multiple }} times the transfer footprint of this tile. This assumes {{ DRIFT_WATTS }} W of extra power and an average grid ({{ GRID_G_PER_KWH }} g CO₂ per kWh). Your visitors' devices and grids differ.</template>
+        Drift repaints the pattern layer on every frame.<template v-if="exportGzipBytes !== null"> Order of magnitude: about {{ perMinute }} mg CO₂ for each minute a visitor watches. That is about {{ multiple }} times the transfer footprint of the exported CSS and script. This assumes {{ DRIFT_WATTS }} W of extra power and an average grid ({{ GRID_G_PER_KWH }} g CO₂ per kWh). Your visitors' devices and grids differ.</template>
       </li>
       <li>Content that moves for more than 5 seconds needs a pause control (<a href="https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html">WCAG 2.2.2</a>). The exported CSS includes a paused state: add the class <code>fp-paused</code>.</li>
       <li>The exported CSS stops the drift for visitors who ask for reduced motion.</li>

@@ -10,8 +10,8 @@ import { PALETTES, type Palette } from '@/palettes.ts';
 import { blend, contrastRatio, textLevel } from '@/contrast.ts';
 import { fixContrast, fixSplit, fixWithPlate, patternContrast, patternInvisible, pickRoles, plateContrast, swapRoles, worstTextContrast, type Roles } from '@/pairing.ts';
 import { cssBackground, cssPlate, svgToDataUri } from '@/css.ts';
-import { formatFootprint, gzipSize, rawSize } from '@/co2.ts';
-import { MOTION_NONE, isStatic, type Motion } from '@/motion.ts';
+import { rawSize } from '@/co2.ts';
+import { MOTION_NONE, type Motion } from '@/motion.ts';
 
 export const MAX_SEED = 0xffffffff;
 
@@ -172,8 +172,7 @@ export function svgForSeed(seed: number): string {
   return svgFromPolylines(t.polys, { ...params, size: t.size, color: roles.pattern, opacity: opacity.value });
 }
 export const svg = computed(() => svgForSeed(params.seed));
-export const css = computed(() => cssBackground(svg.value, roles.background));
-export const plateCss = computed(() =>
+const plateCss = computed(() =>
   cssPlate(roles.background, { opacity: plateOpacity.value, radius: plateRadius.value, blur: plateBlur.value }),
 );
 // The hero plate uses the declarations of the exported class itself, so the two never drift apart.
@@ -181,7 +180,6 @@ export const plateStyle = computed(() => plateCss.value.split('\n').slice(1, -1)
 // Transform and motion of the pattern layer. The hero renders through exportText (state-export.ts), the exported class.
 export const motion = reactive<{ -readonly [K in keyof Motion]: Motion[K] }>({ ...MOTION_NONE });
 export const motionPaused = ref(false);
-export const motionStatic = computed(() => isStatic(motion));
 export const svgHref = computed(() => svgToDataUri(svg.value));
 export const fileName = computed(() =>
   usingImage.value
@@ -227,23 +225,6 @@ export function ratioText(r: number): string {
 }
 
 export const rawBytes = computed(() => rawSize(svg.value));
-export const gzipBytes = ref<number | null>(null);
-export const footprint = computed(() => (gzipBytes.value === null ? null : formatFootprint(gzipBytes.value)));
-
-let request = 0;
-watch(
-  svg,
-  async (s) => {
-    const id = ++request;
-    try {
-      const n = await gzipSize(s);
-      if (id === request) gzipBytes.value = n;
-    } catch {
-      if (id === request) gzipBytes.value = null;
-    }
-  },
-  { immediate: true },
-);
 
 // No-op in image mode: the seed does not shape a traced tile.
 export function reseed(): void {

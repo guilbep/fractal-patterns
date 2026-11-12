@@ -146,7 +146,6 @@ test('encoding is stable and one field changes the string', () => {
 test('a design with every field non-default stays short', () => {
   for (const f of Object.keys(DESIGN_DEFAULTS) as (keyof Design)[]) assert.notEqual(FULL[f], DESIGN_DEFAULTS[f], f);
   const s = encodeDesign(FULL);
-  console.log(`full design: ${s} (${s.length} chars)`);
   assert.ok(s.length <= 180, `${s.length}`);
   assert.deepEqual(decodeDesign(s), FULL);
 });

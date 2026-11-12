@@ -1,6 +1,7 @@
 // What the page copies: the complete CSS, and an optional script that switches the tile. Reads state.ts only.
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { APP_NAME } from '@/app-name.ts';
+import { formatFootprint, gzipSize } from '@/co2.ts';
 import { exportCss, exportJs } from '@/export.ts';
 import { KIND_LABELS } from '@/fractal.ts';
 import { DETECTOR_LABELS } from '@/trace.ts';
@@ -43,4 +44,23 @@ export const exportScript = computed(() => {
 const utf8 = new TextEncoder();
 export const cssBytes = computed(() => utf8.encode(exportText.value).length);
 export const scriptBytes = computed(() => utf8.encode(exportScript.value).length);
-export const exportBytes = computed(() => cssBytes.value + scriptBytes.value);
+
+// What a visitor downloads: the gzipped CSS plus the gzipped script when there is one.
+// null while the first sizes compute; 'unknown' when gzip fails. Latest wins.
+export const gzipped = ref<{ css: number; script: number } | null | 'unknown'>(null);
+let request = 0;
+watch(
+  [exportText, exportScript],
+  async ([c, s]) => {
+    const id = ++request;
+    try {
+      const [css, script] = await Promise.all([gzipSize(c), s ? gzipSize(s) : 0]);
+      if (id === request) gzipped.value = { css, script };
+    } catch {
+      if (id === request) gzipped.value = 'unknown';
+    }
+  },
+  { immediate: true },
+);
+export const exportGzipBytes = computed(() => (gzipped.value && gzipped.value !== 'unknown' ? gzipped.value.css + gzipped.value.script : null));
+export const footprint = computed(() => (exportGzipBytes.value === null ? null : formatFootprint(exportGzipBytes.value)));

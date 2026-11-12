@@ -2,6 +2,7 @@
 // Every kind is one generator function registered in PATTERNS; the generators live in src/patterns/.
 import { carpet, fold, hilbert, htree, koch, quadtree, sierpinski, tree } from './patterns/fractals.ts';
 import { rosette, spiral, stitch, whirl } from './patterns/lineart.ts';
+import { p1, p2, pg, pm } from './patterns/symmetry.ts';
 import { basket, brick, crosshatch, dots, hatch, herringbone, hex, nested, scales, stack, trinet, waves, zigzag } from './patterns/surfaces.ts';
 import { mulberry32, type Generator, type Pt } from './patterns/util.ts';
 
@@ -15,7 +16,7 @@ export const FAMILY_LABELS: Readonly<Record<Family, string>> = {
   symmetry: 'Symmetry groups',
 };
 
-export const KINDS = ['carpet', 'quadtree', 'tree', 'fold', 'hilbert', 'koch', 'sierpinski', 'htree', 'stitch', 'whirl', 'rosette', 'spiral', 'brick', 'stack', 'herringbone', 'basket', 'hex', 'trinet', 'nested', 'dots', 'hatch', 'crosshatch', 'zigzag', 'scales', 'waves'] as const;
+export const KINDS = ['carpet', 'quadtree', 'tree', 'fold', 'hilbert', 'koch', 'sierpinski', 'htree', 'stitch', 'whirl', 'rosette', 'spiral', 'brick', 'stack', 'herringbone', 'basket', 'hex', 'trinet', 'nested', 'dots', 'hatch', 'crosshatch', 'zigzag', 'scales', 'waves', 'p1', 'p2', 'pm', 'pg'] as const;
 export type Kind = (typeof KINDS)[number];
 
 // maxDepth: the measured worst case over many seeds stays near or under 20k chars at precision 1,
@@ -46,6 +47,10 @@ const PATTERNS: Readonly<Record<Kind, { family: Family; label: string; maxDepth:
   zigzag: { family: 'surface', label: 'Zigzag', maxDepth: 5, gen: zigzag },
   scales: { family: 'surface', label: 'Fish scales', maxDepth: 3, gen: scales },
   waves: { family: 'surface', label: 'Waves', maxDepth: 6, gen: waves },
+  p1: { family: 'symmetry', label: 'p1 translation', maxDepth: 3, gen: p1 },
+  p2: { family: 'symmetry', label: 'p2 half turn', maxDepth: 3, gen: p2 },
+  pm: { family: 'symmetry', label: 'pm mirror', maxDepth: 3, gen: pm },
+  pg: { family: 'symmetry', label: 'pg glide', maxDepth: 3, gen: pg },
 };
 
 const byKind = <T>(f: (k: Kind) => T): Readonly<Record<Kind, T>> => Object.fromEntries(KINDS.map((k) => [k, f(k)])) as Record<Kind, T>;

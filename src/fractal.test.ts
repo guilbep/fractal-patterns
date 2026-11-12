@@ -127,9 +127,10 @@ test('families', () => {
 });
 
 test('all kinds are registered', () => {
-  assert.equal(KINDS.length, 25);
-  const ids = ['carpet', 'quadtree', 'tree', 'fold', 'hilbert', 'koch', 'sierpinski', 'htree', 'stitch', 'whirl', 'rosette', 'spiral', 'brick', 'stack', 'herringbone', 'basket', 'hex', 'trinet', 'nested', 'dots', 'hatch', 'crosshatch', 'zigzag', 'scales', 'waves'];
+  assert.equal(KINDS.length, 29);
+  const ids = ['carpet', 'quadtree', 'tree', 'fold', 'hilbert', 'koch', 'sierpinski', 'htree', 'stitch', 'whirl', 'rosette', 'spiral', 'brick', 'stack', 'herringbone', 'basket', 'hex', 'trinet', 'nested', 'dots', 'hatch', 'crosshatch', 'zigzag', 'scales', 'waves', 'p1', 'p2', 'pm', 'pg'];
   for (const id of ids) assert.ok((KINDS as readonly string[]).includes(id), id);
+  for (const kind of ['p1', 'p2', 'pm', 'pg'] as const) assert.equal(KIND_FAMILY[kind], 'symmetry', kind);
 });
 
 // Pins the four original kinds to their output before the pattern library split.

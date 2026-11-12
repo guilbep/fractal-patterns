@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { THEME_EARTH_MAX_DEPTH, cracks, crossOnTorus, roots, starLayout, stars } from './themes-earth.ts';
+import { pathData } from '../scene.ts';
 import { mulberry32, type Poly } from './util.ts';
 
 const S = 120;
@@ -104,4 +105,13 @@ test('roots end quickly for every seed at the maximum depth', () => {
     run('roots', seed, THEME_EARTH_MAX_DEPTH.roots);
     assert.ok(performance.now() - t < 200, `seed ${seed}`);
   }
+});
+
+test('roots: denser at the maximum depth than at depth 3', () => {
+  const chars = (seed: number, depth: number) => pathData(run('roots', seed, depth), 1).length;
+  for (let seed = 1; seed <= 10; seed++)
+    assert.ok(
+      chars(seed, THEME_EARTH_MAX_DEPTH.roots) > chars(seed, 3),
+      `seed ${seed}: ${chars(seed, 3)} -> ${chars(seed, THEME_EARTH_MAX_DEPTH.roots)}`,
+    );
 });

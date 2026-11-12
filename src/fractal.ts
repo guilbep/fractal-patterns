@@ -25,6 +25,10 @@ import {
   waves,
   zigzag,
 } from './patterns/surfaces.ts';
+import { THEME_AIR_MAX_DEPTH, chain, feathers } from './patterns/themes-air.ts';
+import { THEME_CRAFT_MAX_DEPTH, knot, roof } from './patterns/themes-craft.ts';
+import { THEME_EARTH_MAX_DEPTH, cracks, roots, stars } from './patterns/themes-earth.ts';
+import { THEME_WATER_MAX_DEPTH, rain, ridges, seigaiha } from './patterns/themes-water.ts';
 import { circuit, maze, topo } from './patterns/themes.ts';
 import { mulberry32, type Generator, type Pt } from './patterns/util.ts';
 import { sceneToSvg, squareScene } from './scene.ts';
@@ -81,6 +85,16 @@ export const KINDS = [
   'topo',
   'maze',
   'circuit',
+  'seigaiha',
+  'rain',
+  'ridges',
+  'stars',
+  'roots',
+  'cracks',
+  'knot',
+  'roof',
+  'feathers',
+  'chain',
 ] as const;
 export type Kind = (typeof KINDS)[number];
 
@@ -128,6 +142,16 @@ const PATTERNS: Readonly<Record<Kind, { family: Family; label: string; maxDepth:
   topo: { family: 'theme', label: 'Topography', maxDepth: 5, gen: topo },
   maze: { family: 'theme', label: 'Maze', maxDepth: 13, gen: maze },
   circuit: { family: 'theme', label: 'Circuit', maxDepth: 5, gen: circuit },
+  seigaiha: { family: 'theme', label: 'Waves (seigaiha)', maxDepth: THEME_WATER_MAX_DEPTH.seigaiha, gen: seigaiha },
+  rain: { family: 'theme', label: 'Rain', maxDepth: THEME_WATER_MAX_DEPTH.rain, gen: rain },
+  ridges: { family: 'theme', label: 'Mountain ridges', maxDepth: THEME_WATER_MAX_DEPTH.ridges, gen: ridges },
+  stars: { family: 'theme', label: 'Constellations', maxDepth: THEME_EARTH_MAX_DEPTH.stars, gen: stars },
+  roots: { family: 'theme', label: 'Roots', maxDepth: THEME_EARTH_MAX_DEPTH.roots, gen: roots },
+  cracks: { family: 'theme', label: 'Cracked earth', maxDepth: THEME_EARTH_MAX_DEPTH.cracks, gen: cracks },
+  knot: { family: 'theme', label: 'Knotwork', maxDepth: THEME_CRAFT_MAX_DEPTH.knot, gen: knot },
+  roof: { family: 'theme', label: 'Roof tiles', maxDepth: THEME_CRAFT_MAX_DEPTH.roof, gen: roof },
+  feathers: { family: 'theme', label: 'Feathers', maxDepth: THEME_AIR_MAX_DEPTH.feathers, gen: feathers },
+  chain: { family: 'theme', label: 'Chain and fence', maxDepth: THEME_AIR_MAX_DEPTH.chain, gen: chain },
 };
 
 const byKind = <T>(f: (k: Kind) => T): Readonly<Record<Kind, T>> => Object.fromEntries(KINDS.map((k) => [k, f(k)])) as Record<Kind, T>;

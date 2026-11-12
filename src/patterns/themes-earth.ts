@@ -110,9 +110,10 @@ export const stars: Generator = (rnd, depth, size) => {
 };
 
 // Root systems: main roots wander downward, side roots branch at shallow angles, shorter at
-// each level. A coarse torus occupancy grid stops a root that runs into another one.
+// each level. A torus occupancy grid stops a root that runs into another one; the grid gets finer
+// and the main roots more numerous with depth, so the density keeps rising up to the maximum depth.
 export const roots: Generator = (rnd, depth, size) => {
-  const G = 40;
+  const G = 20 + 10 * depth;
   const cell = size / G;
   const step = size / 30;
   const grid = new Int32Array(G * G).fill(-1);
@@ -123,7 +124,7 @@ export const roots: Generator = (rnd, depth, size) => {
   };
   const levels = depth >= 3 ? 3 : 2;
   type Job = { p: Pt; a: number; len: number; level: number; parent: number };
-  const jobs: Job[] = Array.from({ length: 2 + 2 * depth }, () => ({
+  const jobs: Job[] = Array.from({ length: 2 + depth * depth }, () => ({
     p: [rnd() * size, rnd() * size] as Pt,
     a: Math.PI / 2 + (rnd() - 0.5) * 0.5,
     len: size * (0.55 + 0.35 * rnd()),

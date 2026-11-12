@@ -138,7 +138,22 @@ test('source hygiene', () => {
 
 test('families', () => {
   assert.deepEqual([...FAMILIES], ['fractal', 'line', 'surface', 'symmetry', 'theme']);
-  for (const kind of ['topo', 'maze', 'circuit'] as const) assert.equal(KIND_FAMILY[kind], 'theme', kind);
+  for (const kind of [
+    'topo',
+    'maze',
+    'circuit',
+    'seigaiha',
+    'rain',
+    'ridges',
+    'stars',
+    'roots',
+    'cracks',
+    'knot',
+    'roof',
+    'feathers',
+    'chain',
+  ] as const)
+    assert.equal(KIND_FAMILY[kind], 'theme', kind);
   for (const family of FAMILIES) assert.ok(typeof FAMILY_LABELS[family] === 'string' && FAMILY_LABELS[family].length > 0, family);
   assert.deepEqual(Object.keys(KIND_FAMILY).sort(), [...KINDS].sort());
   for (const kind of KINDS) assert.ok((FAMILIES as readonly string[]).includes(KIND_FAMILY[kind]), kind);
@@ -164,7 +179,7 @@ test('families', () => {
 });
 
 test('all kinds are registered', () => {
-  assert.equal(KINDS.length, 40);
+  assert.equal(KINDS.length, 50);
   const ids = [
     'carpet',
     'quadtree',
@@ -206,6 +221,16 @@ test('all kinds are registered', () => {
     'topo',
     'maze',
     'circuit',
+    'seigaiha',
+    'rain',
+    'ridges',
+    'stars',
+    'roots',
+    'cracks',
+    'knot',
+    'roof',
+    'feathers',
+    'chain',
   ];
   for (const id of ids) assert.ok((KINDS as readonly string[]).includes(id), id);
   for (const kind of ['p1', 'p2', 'pm', 'pg', 'cm', 'pmm', 'pmg', 'pgg', 'cmm', 'p4', 'p4m', 'p4g'] as const)
@@ -467,6 +492,66 @@ const PINS: Readonly<Record<PatternParams['kind'], readonly (readonly [number, n
     [3393, 275250863],
     [1596, 1451272234],
     [3173, 4257413840],
+  ],
+  seigaiha: [
+    [4358, 1341764974],
+    [5400, 3142934253],
+    [3727, 3589165545],
+    [4403, 222214902],
+  ],
+  rain: [
+    [1305, 425290469],
+    [2602, 2487345899],
+    [1061, 3908686537],
+    [2289, 467214959],
+  ],
+  ridges: [
+    [927, 2684168796],
+    [1371, 509724153],
+    [856, 983763702],
+    [1269, 2490662448],
+  ],
+  stars: [
+    [1977, 1751550229],
+    [3884, 3549015369],
+    [1855, 204746269],
+    [3778, 1349270411],
+  ],
+  roots: [
+    [1334, 3005360599],
+    [2331, 2696580939],
+    [956, 100405250],
+    [2282, 646059734],
+  ],
+  cracks: [
+    [2174, 1333504645],
+    [3160, 1032476330],
+    [2153, 3394787634],
+    [3292, 3727290274],
+  ],
+  knot: [
+    [989, 2397143373],
+    [3297, 3102048544],
+    [877, 1436506350],
+    [2610, 1900145100],
+  ],
+  roof: [
+    [1193, 1761430929],
+    [3486, 2021280794],
+    [1463, 1561041351],
+    [4382, 2062858093],
+  ],
+  feathers: [
+    [3085, 3321380633],
+    [3991, 3969648057],
+    [3037, 2689398739],
+    [3889, 1593919680],
+  ],
+  chain: [
+    [2471, 4293182795],
+    [4930, 363413214],
+    [3218, 3413979123],
+    [7137, 3186133837],
   ],
 };
 

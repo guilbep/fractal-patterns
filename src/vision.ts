@@ -77,3 +77,27 @@ export function cvdReport(r: Roles, opacity: number): CvdResult[] {
 export function cvdWorstText(r: Roles, opacity: number): number {
   return Math.min(...cvdReport(r, opacity).map((c) => c.text));
 }
+
+// CIE L* (0 to 100) from the WCAG relative luminance Y.
+export function lstar(hex: string): number {
+  const y = relativeLuminance(hex);
+  const d = 6 / 29;
+  const f = y > d ** 3 ? Math.cbrt(y) : y / (3 * d * d) + 4 / 29;
+  return 116 * f - 16;
+}
+
+export interface LightnessDiff {
+  readonly value: number;
+  readonly polarity: 'dark-on-light' | 'light-on-dark' | 'same';
+}
+
+export function lightnessDiff(text: string, surface: string): LightnessDiff {
+  const d = lstar(surface) - lstar(text);
+  const value = Math.abs(d);
+  return { value, polarity: value < 0.5 ? 'same' : d > 0 ? 'dark-on-light' : 'light-on-dark' };
+}
+
+// The pattern opacity as seen through a text plate, the same rule as plateContrast.
+export function effectiveOpacity(opacity: number, plate: number): number {
+  return opacity * (1 - Math.min(1, Math.max(0, plate)));
+}

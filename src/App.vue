@@ -4,6 +4,7 @@ import { KIND_LABELS } from '@/fractal.ts';
 import { DETECTOR_LABELS } from '@/trace.ts';
 import { motionCss, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, reseed, reset, roles, trace, traced, usingImage } from '@/state.ts';
 import ColorPanel from '@/components/ColorPanel.vue';
+import VisionPanel from '@/components/VisionPanel.vue';
 import PatternPanel from '@/components/PatternPanel.vue';
 import OutputPanel from '@/components/OutputPanel.vue';
 import ImagePanel from '@/components/ImagePanel.vue';
@@ -70,6 +71,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
     <div class="controls">
       <ColorPanel />
+      <VisionPanel />
       <PatternPanel />
       <SpacingPanel />
       <ImagePanel />

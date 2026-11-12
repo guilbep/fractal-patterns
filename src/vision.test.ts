@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { parseHex, toHex } from './contrast.ts';
 import { patternContrast, worstTextContrast, type Roles } from './pairing.ts';
 import { mulberry32 } from './patterns/util.ts';
-import { CVD_LABELS, CVD_MATRICES, CVD_TYPES, betweenSurfaces, cvdReport, cvdWorstText, simulate, simulateRoles } from './vision.ts';
+import { CVD_LABELS, CVD_MATRICES, CVD_TYPES, betweenSurfaces, cvdReport, cvdWorstText, effectiveOpacity, lightnessDiff, lstar, simulate, simulateRoles } from './vision.ts';
 
 const dist = (a: string, b: string): number => {
   const [x, y] = [parseHex(a), parseHex(b)];
@@ -88,6 +88,30 @@ test('cvdReport and cvdWorstText', () => {
     assert.ok(Math.abs(c.pattern - patternContrast(r, 0.6)) <= 0.2, `${c.type} pattern ${c.pattern}`);
   }
   assert.equal(cvdWorstText(r, 0.6), Math.min(...rep.map((c) => c.text)));
+});
+
+test('lstar', () => {
+  assert.ok(Math.abs(lstar('#ffffff') - 100) <= 1e-6);
+  assert.ok(Math.abs(lstar('#000000')) <= 1e-6);
+  const grays = ['#000000', '#333333', '#777777', '#bbbbbb', '#ffffff'].map(lstar);
+  for (let i = 1; i < grays.length; i++) assert.ok(grays[i]! > grays[i - 1]!, `${grays[i]} > ${grays[i - 1]}`);
+  assert.ok(Math.abs(lstar('#777777') - 50) <= 0.5, `${lstar('#777777')}`);
+});
+
+test('lightnessDiff', () => {
+  const a = lightnessDiff('#000000', '#ffffff');
+  assert.ok(Math.abs(a.value - 100) <= 1e-6);
+  assert.equal(a.polarity, 'dark-on-light');
+  const b = lightnessDiff('#ffffff', '#000000');
+  assert.ok(Math.abs(b.value - 100) <= 1e-6);
+  assert.equal(b.polarity, 'light-on-dark');
+  assert.deepEqual(lightnessDiff('#777777', '#777777'), { value: 0, polarity: 'same' });
+});
+
+test('effectiveOpacity', () => {
+  assert.ok(Math.abs(effectiveOpacity(0.6, 0.85) - 0.09) <= 1e-9);
+  assert.equal(effectiveOpacity(0.6, 0), 0.6);
+  assert.equal(effectiveOpacity(0.6, 2), 0);
 });
 
 test('source hygiene', () => {

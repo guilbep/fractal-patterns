@@ -18,6 +18,37 @@ export const GROUP_OPS: Readonly<Record<string, readonly Op[]>> = {
   pmm: [(p) => p, ([x, y]) => [1 - x, y], ([x, y]) => [x, 1 - y], ([x, y]) => [1 - x, 1 - y]],
   pmg: [(p) => p, ([x, y]) => [1 - x, 1 - y], ([x, y]) => [mod1(x + 0.5), 1 - y], ([x, y]) => [mod1(0.5 - x), y]],
   pgg: [(p) => p, ([x, y]) => [1 - x, 1 - y], ([x, y]) => [mod1(x + 0.5), mod1(0.5 - y)], ([x, y]) => [mod1(0.5 - x), mod1(y + 0.5)]],
+  cmm: [
+    (p) => p,
+    ([x, y]) => [mod1(-x), mod1(-y)],
+    ([x, y]) => [mod1(-x), y],
+    ([x, y]) => [x, mod1(-y)],
+    ([x, y]) => [mod1(x + 0.5), mod1(y + 0.5)],
+    ([x, y]) => [mod1(0.5 - x), mod1(0.5 - y)],
+    ([x, y]) => [mod1(0.5 - x), mod1(y + 0.5)],
+    ([x, y]) => [mod1(x + 0.5), mod1(0.5 - y)],
+  ],
+  p4: [(p) => p, ([x, y]) => [1 - y, x], ([x, y]) => [1 - x, 1 - y], ([x, y]) => [y, 1 - x]],
+  p4m: [
+    (p) => p,
+    ([x, y]) => [1 - y, x],
+    ([x, y]) => [1 - x, 1 - y],
+    ([x, y]) => [y, 1 - x],
+    ([x, y]) => [1 - x, y],
+    ([x, y]) => [x, 1 - y],
+    ([x, y]) => [y, x],
+    ([x, y]) => [1 - y, 1 - x],
+  ],
+  p4g: [
+    (p) => p,
+    ([x, y]) => [mod1(-x), mod1(-y)],
+    ([x, y]) => [mod1(-y), x],
+    ([x, y]) => [y, mod1(-x)],
+    ([x, y]) => [mod1(0.5 - x), mod1(y + 0.5)],
+    ([x, y]) => [mod1(x + 0.5), mod1(0.5 - y)],
+    ([x, y]) => [mod1(y + 0.5), mod1(x + 0.5)],
+    ([x, y]) => [mod1(0.5 - y), mod1(0.5 - x)],
+  ],
 };
 
 // Fundamental region of each group as a box [x0, y0, x1, y1] in the unit cell; the motif fills it.
@@ -31,6 +62,12 @@ export const GROUP_REGION: Readonly<Record<string, readonly [number, number, num
   // pmg: [0, 0, 0.5, 0.5] would collide (half turn and glide both land on the top right quarter).
   pmg: [0.25, 0, 0.75, 0.5],
   pgg: [0, 0, 0.5, 0.5],
+  cmm: [0, 0, 0.5, 0.5],
+  p4: [0, 0, 0.5, 0.5],
+  // p4m and p4g: the true region is a triangle (1/8 cell); this quarter box contains one, so the
+  // motif overlaps its own image across the mirror or glide line, which keeps the symmetry.
+  p4m: [0, 0, 0.5, 0.5],
+  p4g: [0, 0, 0.5, 0.5],
 };
 
 const N = 90; // samples per shape before thinning
@@ -114,7 +151,8 @@ export function wallpaper(group: string): Generator {
   return (rnd, depth, size) => {
     const n = ops.length >= 4 ? 1 : Math.min(depth, 2);
     const cell = size / n;
-    const shapes = motif(rnd, depth, region);
+    // 8 copies overlap more: the stem plus depth - 1 shapes keeps the tile readable and small.
+    const shapes = motif(rnd, ops.length >= 8 ? depth - 1 : depth, region);
     const out: Poly[] = [];
     for (const op of ops) {
       for (const shape of shapes) {
@@ -144,3 +182,7 @@ export const cm = wallpaper('cm');
 export const pmm = wallpaper('pmm');
 export const pmg = wallpaper('pmg');
 export const pgg = wallpaper('pgg');
+export const cmm = wallpaper('cmm');
+export const p4 = wallpaper('p4');
+export const p4m = wallpaper('p4m');
+export const p4g = wallpaper('p4g');

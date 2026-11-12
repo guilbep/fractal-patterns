@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { geometry } from '../fractal.ts';
-import { GROUP_OPS, type Op } from './symmetry.ts';
+import { GROUP_OPS, GROUP_REGION, type Op } from './symmetry.ts';
 import { mulberry32, type Pt } from './util.ts';
 
 const eps = 1e-9;
@@ -40,7 +40,7 @@ test('half turn and mirror are involutions, glide twice is a cell translation', 
 });
 
 test('motif fills the tile at depth 1', () => {
-  for (const kind of ['p1', 'p2', 'pm', 'pg', 'cm', 'pmm', 'pmg', 'pgg'] as const) {
+  for (const kind of ['p1', 'p2', 'pm', 'pg', 'cm', 'pmm', 'pmg', 'pgg', 'cmm', 'p4', 'p4m', 'p4g'] as const) {
     for (let seed = 1; seed <= 20; seed++) {
       const pts = geometry({ kind, seed, depth: 1, size: 120 }).flat();
       const xs = pts.map((p) => p[0]);
@@ -53,7 +53,7 @@ test('motif fills the tile at depth 1', () => {
 });
 
 test('op counts', () => {
-  for (const [group, count] of [['p1', 1], ['p2', 2], ['pm', 2], ['pg', 2], ['cm', 4], ['pmm', 4], ['pmg', 4], ['pgg', 4]] as const) assert.equal(GROUP_OPS[group]?.length, count, group);
+  for (const [group, count] of [['p1', 1], ['p2', 2], ['pm', 2], ['pg', 2], ['cm', 4], ['pmm', 4], ['pmg', 4], ['pgg', 4], ['cmm', 8], ['p4', 4], ['p4m', 8], ['p4g', 8]] as const) assert.equal(GROUP_OPS[group]?.length, count, group);
 });
 
 // Equal modulo 1: each coordinate difference is 0 or 1 (x = 1 - eps and x = 0 are the same point).
@@ -71,6 +71,25 @@ test('every op list is a group modulo the lattice', () => {
           const q = f(g(p));
           assert.ok(ops.some((h) => sameMod1(h(p), q)), `${group}: op ${i} after op ${j} at ${p}`);
         }
+      }
+    }
+  }
+});
+
+// The images of each region cover the whole cell, so no part of the tile is empty by construction.
+test('images of the region cover the cell', () => {
+  assert.deepEqual(Object.keys(GROUP_OPS).sort(), Object.keys(GROUP_REGION).sort());
+  assert.equal(Object.keys(GROUP_OPS).length, 12); // also the groups the closure test runs over
+  for (const [group, ops] of Object.entries(GROUP_OPS)) {
+    const box = GROUP_REGION[group];
+    assert.ok(box, group);
+    const [x0, y0, x1, y1] = box;
+    const m = (v: number): number => v - Math.floor(v);
+    const inside = ([x, y]: Pt): boolean => m(x) >= x0 - eps && m(x) <= x1 + eps && m(y) >= y0 - eps && m(y) <= y1 + eps;
+    for (let i = 0; i < 20; i++) {
+      for (let j = 0; j < 20; j++) {
+        const p: Pt = [(i + 0.5) / 20, (j + 0.5) / 20];
+        assert.ok(ops.some((f) => inside(f(p))), `${group}: ${p} reaches no op into ${box}`);
       }
     }
   }

@@ -2,7 +2,7 @@
 // Every kind is one generator function registered in PATTERNS; the generators live in src/patterns/.
 import { carpet, fold, hilbert, htree, koch, quadtree, sierpinski, tree } from './patterns/fractals.ts';
 import { rosette, spiral, stitch, whirl } from './patterns/lineart.ts';
-import { cm, p1, p2, pg, pgg, pm, pmg, pmm } from './patterns/symmetry.ts';
+import { cm, cmm, p1, p2, p4, p4g, p4m, pg, pgg, pm, pmg, pmm } from './patterns/symmetry.ts';
 import { basket, brick, crosshatch, dots, hatch, herringbone, hex, nested, scales, stack, trinet, waves, zigzag } from './patterns/surfaces.ts';
 import { mulberry32, type Generator, type Pt } from './patterns/util.ts';
 
@@ -16,7 +16,7 @@ export const FAMILY_LABELS: Readonly<Record<Family, string>> = {
   symmetry: 'Symmetry groups',
 };
 
-export const KINDS = ['carpet', 'quadtree', 'tree', 'fold', 'hilbert', 'koch', 'sierpinski', 'htree', 'stitch', 'whirl', 'rosette', 'spiral', 'brick', 'stack', 'herringbone', 'basket', 'hex', 'trinet', 'nested', 'dots', 'hatch', 'crosshatch', 'zigzag', 'scales', 'waves', 'p1', 'p2', 'pm', 'pg', 'cm', 'pmm', 'pmg', 'pgg'] as const;
+export const KINDS = ['carpet', 'quadtree', 'tree', 'fold', 'hilbert', 'koch', 'sierpinski', 'htree', 'stitch', 'whirl', 'rosette', 'spiral', 'brick', 'stack', 'herringbone', 'basket', 'hex', 'trinet', 'nested', 'dots', 'hatch', 'crosshatch', 'zigzag', 'scales', 'waves', 'p1', 'p2', 'pm', 'pg', 'cm', 'pmm', 'pmg', 'pgg', 'cmm', 'p4', 'p4m', 'p4g'] as const;
 export type Kind = (typeof KINDS)[number];
 
 // maxDepth: the measured worst case over many seeds stays near or under 20k chars at precision 1,
@@ -55,6 +55,11 @@ const PATTERNS: Readonly<Record<Kind, { family: Family; label: string; maxDepth:
   pmm: { family: 'symmetry', label: 'pmm two mirrors', maxDepth: 3, gen: pmm },
   pmg: { family: 'symmetry', label: 'pmg mirror and glide', maxDepth: 3, gen: pmg },
   pgg: { family: 'symmetry', label: 'pgg two glides', maxDepth: 3, gen: pgg },
+  // 8 copies of the motif: depth 3 reaches 17k chars, so these stop at 2.
+  cmm: { family: 'symmetry', label: 'cmm two mirrors, centered', maxDepth: 2, gen: cmm },
+  p4: { family: 'symmetry', label: 'p4 quarter turn', maxDepth: 3, gen: p4 },
+  p4m: { family: 'symmetry', label: 'p4m quarter turn and mirrors', maxDepth: 2, gen: p4m },
+  p4g: { family: 'symmetry', label: 'p4g quarter turn and glides', maxDepth: 2, gen: p4g },
 };
 
 const byKind = <T>(f: (k: Kind) => T): Readonly<Record<Kind, T>> => Object.fromEntries(KINDS.map((k) => [k, f(k)])) as Record<Kind, T>;

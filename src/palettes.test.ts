@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { contrastRatio } from './contrast.ts';
 import { PICK_OPACITY, patternInvisible, pickRoles, swapRoles, worstTextContrast } from './pairing.ts';
+import { worstTextContrastSurfaces } from './fills.ts';
 import { PALETTES, PALETTE_SPECS, SCHEMES, makePalette } from './palettes.ts';
 
 test('there are 24 palettes, 6 hues x 4 schemes', () => {
@@ -79,5 +80,16 @@ test('different schemes of the same hue differ in at least 2 colors', () => {
         assert.ok(diff >= 2, `hue ${hue}: ${a} vs ${b} differ in ${diff}`);
       }
     }
+  }
+});
+
+test('a soft fill keeps AAA text and a light accent fill keeps AA', () => {
+  for (const p of PALETTES) {
+    const [paper, ink, stroke, accent, soft] = p.colors as [string, string, string, string, string];
+    const s = { background: paper, pattern: stroke, patternOpacity: 0.6 };
+    const softWorst = worstTextContrastSurfaces(ink, { ...s, fill: soft, fillOpacity: 1 });
+    const accentWorst = worstTextContrastSurfaces(ink, { ...s, fill: accent, fillOpacity: 0.25 });
+    assert.ok(softWorst >= 7, `${p.name}: soft ${softWorst.toFixed(2)}`);
+    assert.ok(accentWorst >= 4.5, `${p.name}: accent ${accentWorst.toFixed(2)}`);
   }
 });

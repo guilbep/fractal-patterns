@@ -19,7 +19,7 @@ function randomSeed(): number {
   return crypto.getRandomValues(new Uint32Array(1))[0] ?? 0;
 }
 
-const DEFAULT_PALETTE = PALETTES.find((p) => p.name === 'Classic Double Blue') ?? PALETTES[0]!;
+const DEFAULT_PALETTE = PALETTES.find((p) => p.name === 'Lagoon, mono') ?? PALETTES[0]!;
 const INITIAL_SEED = randomSeed();
 const DEFAULTS = { kind: 'tree' as Kind, depth: 8, size: 120, strokeWidth: 2, precision: 1, opacity: 0.6 };
 const PLATE_DEFAULTS = { plateMode: 'split' as PlateMode, plateOpacity: 0.85, plateRadius: 12, plateBlur: 0 };

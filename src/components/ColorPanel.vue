@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { PALETTES, PALETTE_SOURCE } from '@/palettes.ts';
+import { PALETTES } from '@/palettes.ts';
 import { applyFix, applyPalette, contrast, lastFix, offPalette, opacity, paletteName, plateBlur, plateMode, plateOpacity, plateRadius, ratioText, swap, type PlateMode } from '@/state.ts';
 import RoleInput from './RoleInput.vue';
 
@@ -115,7 +115,7 @@ const fixes = computed(() => [
     </div>
 
     <h3 id="palettes-h">Start from a palette</h3>
-    <p class="muted">Picking one assigns the strongest pair to background and text. Palettes from <a :href="PALETTE_SOURCE">Hook Agency's website color schemes</a>.</p>
+    <p class="muted">Picking one assigns the strongest pair to background and text. The app generates the palettes by rule from a hue and a harmony scheme in the OKLCH color space.</p>
     <ul class="palettes" aria-labelledby="palettes-h">
       <li v-for="p in PALETTES" :key="p.name">
         <button type="button" class="palette" :aria-pressed="paletteName === p.name" @click="applyPalette(p)">

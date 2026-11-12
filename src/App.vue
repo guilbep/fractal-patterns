@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted } from 'vue';
 import { KIND_LABELS } from '@/fractal.ts';
-import { PALETTE_SOURCE } from '@/palettes.ts';
 import { DETECTOR_LABELS } from '@/trace.ts';
 import { motionCss, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, reseed, reset, roles, trace, traced, usingImage } from '@/state.ts';
 import ColorPanel from '@/components/ColorPanel.vue';
@@ -60,6 +59,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   </main>
 
   <footer class="site-footer">
-    <p>Palettes from <a :href="PALETTE_SOURCE">Hook Agency</a>. Contrast follows WCAG 2.2: <a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html">1.4.3</a>, <a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-enhanced.html">1.4.6</a>, <a href="https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html">1.4.11</a>.</p>
+    <p>The app generates the palettes by rule from a hue and a harmony scheme in the OKLCH color space. Contrast follows WCAG 2.2: <a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html">1.4.3</a>, <a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-enhanced.html">1.4.6</a>, <a href="https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html">1.4.11</a>.</p>
   </footer>
 </template>

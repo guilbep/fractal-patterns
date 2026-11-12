@@ -37,7 +37,7 @@ The Reset button returns all values to the first-load state, including the seed 
 
 ### Palettes and color roles
 
-The page has 35 palettes from <https://hookagency.com/website-color-schemes>. The default palette is Classic Double Blue.
+The page has 24 palettes. The app generates them by rule from a hue and a harmony scheme in the OKLCH color space. The default palette is Lagoon, mono.
 
 The tile uses three color roles:
 
@@ -184,6 +184,6 @@ Do these steps one time, before the first deployment:
 
 ## Credits
 
-- Palettes: [Hook Agency website color schemes](https://hookagency.com/website-color-schemes).
+- Palettes: the app generates them by rule from a hue and a harmony scheme in the OKLCH color space.
 - Contrast formulas: [WCAG 2.2](https://www.w3.org/TR/WCAG22/).
 - CO2 model: [pierreguilbert.com](https://pierreguilbert.com).

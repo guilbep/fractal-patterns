@@ -11,6 +11,7 @@ import OutputPanel from '@/components/OutputPanel.vue';
 import ImagePanel from '@/components/ImagePanel.vue';
 import SpacingPanel from '@/components/SpacingPanel.vue';
 import MotionPanel from '@/components/MotionPanel.vue';
+import { canRedo, canUndo, redo, shareUrl, undo } from '@/state-share.ts';
 
 // WCAG 2.1.4: a single-key shortcut needs an off switch. The choice survives a reload.
 const SHORTCUT_KEY = 'fp-shortcut';
@@ -30,7 +31,26 @@ watch(shortcutOn, (on) => {
   }
 });
 
+const linkStatus = ref('');
+async function copyLink(): Promise<void> {
+  linkStatus.value = '';
+  try {
+    await navigator.clipboard.writeText(shareUrl());
+    linkStatus.value = 'Link copied';
+  } catch {
+    linkStatus.value = 'Could not copy the link. Copy it from the address bar.';
+  }
+}
+
 function onKey(e: KeyboardEvent): void {
+  // Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z: design undo and redo, except in form fields, where native text undo wins.
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'z') {
+    if ((e.target as HTMLElement | null)?.closest('input, textarea, select, [contenteditable="true"]')) return;
+    e.preventDefault();
+    if (e.shiftKey) redo();
+    else undo();
+    return;
+  }
   if (!shortcutOn.value) return;
   if (e.key !== 'r' && e.key !== 'R') return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -53,6 +73,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <div class="toolbar">
         <button type="button" class="btn primary" :disabled="usingImage" @click="reseed">Shuffle</button>
         <button type="button" class="btn" @click="reset">Reset</button>
+        <button type="button" class="btn" :disabled="!canUndo" aria-keyshortcuts="Control+Z Meta+Z" @click="undo">Undo</button>
+        <button type="button" class="btn" :disabled="!canRedo" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" @click="redo">Redo</button>
+        <button type="button" class="btn" @click="copyLink">Copy link</button>
+        <span class="visually-hidden" role="status" aria-live="polite">{{ linkStatus }}</span>
         <p class="muted hint">{{ usingImage ? 'Shuffle applies to math patterns only.' : '' }}<template v-if="!usingImage && shortcutOn">Or click the pattern, or press <kbd>R</kbd>.</template><template v-else-if="!usingImage">Or click the pattern.</template></p>
         <label class="radio"><input v-model="shortcutOn" type="checkbox"> Keyboard shortcut: R shuffles</label>
       </div>

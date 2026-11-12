@@ -45,11 +45,15 @@ function randomDesign(r: () => number): Design {
     zoom: real(0.25, 4),
     gap: real(0, 120),
     mirror: r() < 0.5,
+    layout: pick(['single', 'patchwork'] as const),
+    cells: int(2, 4),
+    frame: r() < 0.5,
+    families: int(1, 15),
   };
 }
 
 // Every field non-default, with values the sliders produce (whole or half steps).
-// ponytail: the worst case (longest kind, max seed, x.5 everywhere) encodes to 184 characters.
+// ponytail: the worst case (longest kind, max seed, x.5 everywhere) encodes to 210 characters (184 before the patchwork keys).
 const FULL: Design = {
   kind: 'koch',
   seed: 123456789,
@@ -74,6 +78,10 @@ const FULL: Design = {
   zoom: 2,
   gap: 24,
   mirror: true,
+  layout: 'patchwork',
+  cells: 2,
+  frame: true,
+  families: 5,
 };
 
 function assertValid(d: Design, label: string): void {
@@ -100,6 +108,10 @@ function assertValid(d: Design, label: string): void {
   assert.ok(inRange(d.zoom, 0.25, 4), label);
   assert.ok(inRange(d.gap, 0, 120), label);
   assert.equal(typeof d.mirror, 'boolean', label);
+  assert.ok(['single', 'patchwork'].includes(d.layout), label);
+  assert.ok(Number.isInteger(d.cells) && inRange(d.cells, 2, 4), label);
+  assert.equal(typeof d.frame, 'boolean', label);
+  assert.ok(Number.isInteger(d.families) && inRange(d.families, 1, 15), label);
 }
 
 test('defaults encode to the empty string and decode back', () => {
@@ -135,7 +147,7 @@ test('a design with every field non-default stays short', () => {
   for (const f of Object.keys(DESIGN_DEFAULTS) as (keyof Design)[]) assert.notEqual(FULL[f], DESIGN_DEFAULTS[f], f);
   const s = encodeDesign(FULL);
   console.log(`full design: ${s} (${s.length} chars)`);
-  assert.ok(s.length <= 160, `${s.length}`);
+  assert.ok(s.length <= 180, `${s.length}`);
   assert.deepEqual(decodeDesign(s), FULL);
 });
 
@@ -179,4 +191,23 @@ test('no __proto__ or constructor key on the result', () => {
 test('sameDesign compares field by field', () => {
   assert.equal(sameDesign(FULL, { ...FULL }), true);
   assert.equal(sameDesign(FULL, { ...FULL, gap: 0 }), false);
+});
+
+test('round trip of 100 random patchwork designs', () => {
+  const r = rng(5);
+  for (let n = 0; n < 100; n++) {
+    const d: Design = { ...randomDesign(r), layout: 'patchwork' };
+    assert.deepEqual(decodeDesign(encodeDesign(d)), d, encodeDesign(d));
+  }
+});
+
+test('hostile patchwork values fall back or clamp', () => {
+  for (const q of ['c=99', 'c=abc', 'fa=0', 'fa=999', 'fa=-4', 'l=x', 'f=yes']) assertValid(decodeDesign(q), q);
+  assert.equal(decodeDesign('c=99').cells, 4);
+  assert.equal(decodeDesign('c=abc').cells, 3);
+  assert.equal(decodeDesign('fa=0').families, DESIGN_DEFAULTS.families);
+  assert.equal(decodeDesign('fa=999').families, 15);
+  assert.equal(decodeDesign('l=x').layout, 'single');
+  assert.equal(decodeDesign('f=yes').frame, false);
+  assert.equal(encodeDesign(DESIGN_DEFAULTS), '');
 });

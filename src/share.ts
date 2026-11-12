@@ -1,6 +1,6 @@
 // A design as a short URL query string, and back. The query is untrusted input: decodeDesign never throws
 // and every field falls back to its default or is clamped to its range.
-import { KINDS, MAX_DEPTH, type Kind } from './fractal.ts';
+import { FAMILIES, KINDS, MAX_DEPTH, type Kind } from './fractal.ts';
 import { MOTION_NONE, type Motion } from './motion.ts';
 
 export interface Design extends Motion {
@@ -21,7 +21,15 @@ export interface Design extends Motion {
   readonly zoom: number;
   readonly gap: number;
   readonly mirror: boolean;
+  readonly layout: 'single' | 'patchwork';
+  readonly cells: number;
+  readonly frame: boolean;
+  readonly families: number; // bit mask over FAMILIES in order, bit 0 = the first family
 }
+// Not in the URL: pinned patchwork cells (a per-session tweak), the palette name (the roles carry the colors),
+// and the image source (the pixels never leave the browser).
+
+const ALL_FAMILIES = (1 << FAMILIES.length) - 1;
 
 export const DESIGN_DEFAULTS: Design = {
   kind: 'tree',
@@ -42,6 +50,10 @@ export const DESIGN_DEFAULTS: Design = {
   zoom: 1,
   gap: 0,
   mirror: false,
+  layout: 'single',
+  cells: 3,
+  frame: false,
+  families: ALL_FAMILIES,
 };
 
 // Field to short key. The insertion order is the order of the encoded string.
@@ -69,6 +81,10 @@ const KEYS: Readonly<Record<keyof Design, string>> = {
   zoom: 'zm',
   gap: 'g',
   mirror: 'm',
+  layout: 'l',
+  cells: 'c',
+  frame: 'f',
+  families: 'fa',
 };
 const FIELDS = Object.keys(KEYS) as (keyof Design)[];
 
@@ -102,7 +118,7 @@ export function decodeDesign(query: string): Design {
   };
   const oneOf = <T extends string>(f: keyof Design, values: readonly T[], fallback: T): T => values.find((v) => v === get(f)) ?? fallback;
   const kind = oneOf('kind', KINDS, D.kind);
-  const m = get('mirror');
+  const bool = (f: 'mirror' | 'frame'): boolean => (get(f) === '1' ? true : get(f) === '0' ? false : D[f]);
   return {
     kind,
     seed: num('seed', 0, 0xffffffff, true),
@@ -126,7 +142,11 @@ export function decodeDesign(query: string): Design {
     speed: num('speed', 2, 30),
     zoom: num('zoom', 0.25, 4),
     gap: num('gap', 0, 120),
-    mirror: m === '1' ? true : m === '0' ? false : D.mirror,
+    mirror: bool('mirror'),
+    layout: oneOf('layout', ['single', 'patchwork'], D.layout),
+    cells: num('cells', 2, 4, true),
+    frame: bool('frame'),
+    families: num('families', 0, ALL_FAMILIES, true) || ALL_FAMILIES, // no family at all is not a design
   };
 }
 

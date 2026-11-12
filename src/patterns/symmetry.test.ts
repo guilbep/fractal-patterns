@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { geometry } from '../fractal.ts';
 import { GROUP_OPS, type Op } from './symmetry.ts';
 import { mulberry32, type Pt } from './util.ts';
 
@@ -35,6 +36,19 @@ test('half turn and mirror are involutions, glide twice is a cell translation', 
     const [x, y] = op('pg', 1)(op('pg', 1)(p));
     const dx = Math.abs(x - p[0]);
     assert.ok(Math.min(dx, 1 - dx) < eps && Math.abs(y - p[1]) < eps, `pg: ${p} -> ${x}, ${y}`);
+  }
+});
+
+test('motif fills the tile at depth 1', () => {
+  for (const kind of ['p1', 'p2', 'pm', 'pg'] as const) {
+    for (let seed = 1; seed <= 20; seed++) {
+      const pts = geometry({ kind, seed, depth: 1, size: 120 }).flat();
+      const xs = pts.map((p) => p[0]);
+      const ys = pts.map((p) => p[1]);
+      const msg = `${kind} seed ${seed}`;
+      assert.ok(Math.max(...xs) - Math.min(...xs) >= 72, msg);
+      assert.ok(Math.max(...ys) - Math.min(...ys) >= 72, msg);
+    }
   }
 });
 

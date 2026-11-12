@@ -561,6 +561,17 @@ legend .muted {
   font-size: 0.875rem;
   color: var(--muted);
 }
+/* The parallax demo: a small scroller whose own named timeline drives the layers (see parallaxDemoCss). */
+.parallax-demo {
+  height: 220px;
+  overflow: auto;
+  scroll-timeline: --fp-demo y;
+  border: 1px solid var(--line);
+  margin-block: var(--s2);
+}
+.parallax-demo > .fp-pattern {
+  height: 900px;
+}
 .heading-line {
   margin: 0 0 var(--s3);
 }

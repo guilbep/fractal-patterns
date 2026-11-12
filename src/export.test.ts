@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { exportCss, exportHtml, exportJs, type ExportInput } from './export.ts';
+import { exportCss, exportHtml, exportJs, exportParallax, type ExportInput } from './export.ts';
 import { gcd, LAYER2_DEFAULTS, scaledSecondSize } from './layers.ts';
-import { cssMotion, MOTION_NONE, type Motion } from './motion.ts';
+import { cssMotion, MOTION_NONE, parallaxTravel, type Motion } from './motion.ts';
 import { svgToDataUri } from './css.ts';
 
 const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><path d="M0 0h4"/></svg>';
@@ -310,4 +310,86 @@ test('second-layer settings: each one changes its own declaration', () => {
 test('second-layer size stays coprime with the first', () => {
   for (const t of [60, 120, 200]) for (const sc of [0.5, 1, 1.5, 2, 3]) assert.equal(gcd(t, scaledSecondSize(t, sc)), 1, `${t} x ${sc}`);
   assert.equal(scaledSecondSize(120, 1), 193);
+});
+
+// Parallax on scroll.
+const px = (m: Partial<Motion>, l2: Partial<typeof LAYER2_DEFAULTS> = {}, parallax = true) =>
+  exportCss({ ...L2_INPUT, motion: { ...MOTION_NONE, ...m }, second: { ...L2_INPUT.second, ...l2 }, parallax });
+const block = (s: string) => s.slice(s.indexOf('@media (prefers-reduced-motion: no-preference) {'), s.indexOf('\n\n/* Use:'));
+
+test('parallax off: output equals the literals copied before the change', () => {
+  const drifting = { rotate: 15, drift: 'xy' as const, speed: 6 };
+  assert.equal(px(drifting, {}, false), BEFORE_L2_DRIFT);
+  assert.equal(px({}, {}, false), BEFORE_L2_STATIC);
+  // Without a second layer, parallax does nothing.
+  assert.equal(exportCss({ ...base, parallax: true }), exportCss(base));
+});
+
+test('parallax: the block sits inside the reduced-motion query and the @supports test, after the support comment', () => {
+  const out = px({});
+  assert.ok(
+    out.includes(
+      '/* Parallax on scroll needs Chrome or Edge 115, Safari 26, or Firefox 159. Other browsers show the two layers without it. */\n' +
+        '@media (prefers-reduced-motion: no-preference) {\n  @supports (animation-timeline: scroll()) {\n',
+    ),
+  );
+  const b = block(out);
+  assert.ok(b.endsWith('\n  }\n}'));
+  assert.equal(count(b, '{'), count(b, '}'));
+  assert.equal(count(out, 'animation-timeline: scroll(root)'), 2);
+  assert.ok(out.lastIndexOf('animation-timeline') < out.indexOf('/* Use:'));
+});
+
+test('parallax: animation-timeline follows animation in each rule', () => {
+  for (const m of [{}, { drift: 'x' as const }]) {
+    const lines = block(px(m)).split('\n');
+    const at = lines.flatMap((l, i) => (/^ {6}animation-timeline: /.test(l) ? [i] : []));
+    assert.equal(at.length, 2);
+    for (const i of at) assert.match(lines[i - 1] ?? '', /^ {6}animation: /);
+  }
+});
+
+test('parallax: travel follows depth, clamped to 2vh and 32vh, and the boxes grow by it', () => {
+  for (const [depth, vh] of [
+    [0.5, 4],
+    [1, 8],
+    [2, 16],
+    [0.25, 2],
+    [4, 32],
+  ] as const) {
+    assert.equal(parallaxTravel(depth), vh);
+    const out = px({}, { depth });
+    assert.ok(out.includes(`to { transform: translateY(-${vh}vh); }`), `${depth}`);
+    assert.ok(out.includes(`  inset: 0 0 -${vh}vh;`), `${depth}`);
+  }
+  assert.equal(parallaxTravel(0.1), 2);
+  assert.equal(parallaxTravel(10), 32);
+  const out = px({}, { depth: 0.5 });
+  assert.ok(out.includes('to { transform: translateY(-8vh); }'));
+  assert.ok(out.includes('  inset: 0 0 -8vh;'));
+  // A centered box grows by the travel on each side, the same box rule as for rotation.
+  const turned = px({ rotate: 15 }, { depth: 2 });
+  assert.ok(turned.includes('  width: calc(150vmax + 16vh);\n  height: calc(150vmax + 16vh);'));
+  assert.ok(turned.includes('  width: calc(150vmax + 32vh);\n  height: calc(150vmax + 32vh);'));
+  assert.ok(turned.includes('to { transform: translateY(-16vh) translate(-50%, -50%) rotate(15deg); }'));
+  assert.ok(turned.includes('from { transform: translateY(0) translate(-50%, -50%) rotate(15deg); }'));
+});
+
+test('parallax with a drift: both animations and both timelines, in the same order', () => {
+  const b = block(px({ drift: 'x', speed: 6 }, { depth: 0.5 }));
+  assert.ok(
+    b.includes('      animation: fp-drift 6s linear infinite, fp-scroll-1 linear both;\n      animation-timeline: auto, scroll(root);'),
+  );
+  assert.ok(
+    b.includes('      animation: fp-drift-2 12s linear infinite, fp-scroll-2 linear both;\n      animation-timeline: auto, scroll(root);'),
+  );
+});
+
+test('parallax demo CSS differs from the export block only in the timeline and the class name', () => {
+  for (const m of [{}, { drift: 'xy' as const, rotate: 20 }]) {
+    const i = { ...L2_INPUT, motion: { ...MOTION_NONE, ...m }, second: { ...L2_INPUT.second, depth: 0.5, rotate: 30 }, parallax: true };
+    const demo = exportParallax(i, 'fp-parallax-demo', '--fp-demo').join('\n');
+    assert.ok(!demo.includes('fp-pattern') && !demo.includes('scroll(root)'));
+    assert.equal(demo.replaceAll('.fp-parallax-demo', '.fp-pattern').replaceAll('--fp-demo', 'scroll(root)'), block(exportCss(i)));
+  }
 });

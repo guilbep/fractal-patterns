@@ -58,6 +58,7 @@ function randomDesign(r: () => number): Design {
       r() < 0.5
         ? LAYER2_DEFAULTS
         : { x: int(0, 100), y: int(0, 100), rotate: int(-180, 180), scale: real(0.5, 3), opacity: real(0.1, 1), depth: real(0.25, 4) },
+    parallax: r() < 0.5,
   };
 }
 
@@ -95,6 +96,7 @@ const FULL: Design = {
   layer2: true,
   fade: true,
   layer2Settings: { x: 100, y: 100, rotate: -180, scale: 2.95, opacity: 0.55, depth: 3.85 }, // the longest the sliders give
+  parallax: true,
 };
 
 function assertValid(d: Design, label: string): void {
@@ -165,8 +167,8 @@ test('encoding is stable and one field changes the string', () => {
 test('a design with every field non-default stays short', () => {
   for (const f of Object.keys(DESIGN_DEFAULTS) as (keyof Design)[]) assert.notEqual(FULL[f], DESIGN_DEFAULTS[f], f);
   const s = encodeDesign(FULL);
-  // 177 before the variants key, + '&v=1', + '&l2=1&fd=1', + '&l2s=100_100_-180_2.95_0.55_3.85' (32)
-  assert.ok(s.length <= 226, `${s.length}`);
+  // 177 before the variants key, + '&v=1', + '&l2=1&fd=1', + '&l2s=100_100_-180_2.95_0.55_3.85' (32), + '&px=1' (5)
+  assert.ok(s.length <= 231, `${s.length}`);
   assert.deepEqual(decodeDesign(s), FULL);
 });
 
@@ -254,7 +256,7 @@ test('variants: round trip, absent means false, old links decode as before', () 
   assert.equal(encodeDesign({ ...DESIGN_DEFAULTS, kind: 'brick', seed: 7, mirror: true }), 'k=brick&s=7&m=1');
   const old =
     'k=koch&s=123456789&d=3&z=160&w=1.5&p=2&bg=0a0b0c&fg=d0e0f0&tx=fedcba&o=0.45&pm=plate&po=0.9&pr=16&pb=4&r=-30&sc=1.5&sk=10&t=20&dr=xy&sp=12&zm=2&g=24&m=1&l=patchwork&c=2&f=1&fa=5';
-  const oldDesign = { ...FULL, variants: false, layer2: false, fade: false, layer2Settings: LAYER2_DEFAULTS };
+  const oldDesign = { ...FULL, variants: false, layer2: false, fade: false, layer2Settings: LAYER2_DEFAULTS, parallax: false };
   assert.deepEqual(decodeDesign(old), oldDesign);
   assert.equal(encodeDesign(oldDesign), old);
 });
@@ -297,4 +299,18 @@ test('second-layer settings: one key last, round trip, clamped, malformed gives 
   h.push(d);
   assert.deepEqual(h.undo()?.layer2Settings, LAYER2_DEFAULTS);
   assert.deepEqual(h.redo()?.layer2Settings, l2);
+});
+
+test('parallax: one key after l2s, round trip, absent is off, old links unchanged', () => {
+  const l2 = { x: 25, y: 10, rotate: 30, scale: 1.5, opacity: 0.6, depth: 0.5 };
+  const d = { ...DESIGN_DEFAULTS, kind: 'brick', seed: 7, layer2: true, layer2Settings: l2, parallax: true } as const;
+  assert.equal(encodeDesign(d), 'k=brick&s=7&l2=1&l2s=25_10_30_1.5_0.6_0.5&px=1');
+  assert.deepEqual(decodeDesign(encodeDesign(d)), d);
+  assert.equal(encodeDesign({ ...d, parallax: false }), 'k=brick&s=7&l2=1&l2s=25_10_30_1.5_0.6_0.5');
+  assert.equal(decodeDesign('k=brick&s=7&l2=1&l2s=25_10_30_1.5_0.6_0.5').parallax, false);
+  assert.equal(decodeDesign('px=yes').parallax, false);
+  // Literals from encodeDesign before the key existed.
+  for (const old of ['k=brick&s=7&v=1&l2=1&fd=1', 'k=brick&s=7&l2=1&fd=1&l2s=25_10_30_1.5_0.6_0.5'])
+    assert.equal(encodeDesign(decodeDesign(old)), old);
+  assert.equal(sameDesign(d, { ...d, parallax: false }), false);
 });

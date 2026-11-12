@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { APP_NAME } from '@/app-name.ts';
 import { formatFootprint, gzipSize } from '@/co2.ts';
-import { exportCss, exportJs } from '@/export.ts';
+import { exportCss, exportJs, exportParallax, type ExportInput } from '@/export.ts';
 import { KIND_LABELS } from '@/fractal.ts';
 import { DETECTOR_LABELS } from '@/trace.ts';
 import { scaledSecondSize } from '@/layers.ts';
@@ -12,6 +12,7 @@ import {
   layer2Settings,
   motion,
   params,
+  parallax,
   patch,
   plateBlur,
   plateMode,
@@ -35,29 +36,32 @@ export const exportLabel = computed(() =>
       : `${KIND_LABELS[params.kind]}, seed ${params.seed}, depth ${params.depth}`,
 );
 
-export const exportText = computed(() =>
-  exportCss({
-    svg: svg.value,
-    tileSize: tileSize.value,
-    background: roles.background,
-    text: roles.text,
-    plate: { mode: plateMode.value, opacity: plateOpacity.value, radius: plateRadius.value, blur: plateBlur.value },
-    motion,
-    label: exportLabel.value,
-    appName: APP_NAME,
-    // The second tile: the next seed (a traced image gives the same tile), at a size coprime with the first, with its own settings.
-    ...(layer2.value
-      ? {
-          second: {
-            ...layer2Settings,
-            svg: svgForSeed((params.seed + 1) >>> 0),
-            tileSize: scaledSecondSize(tileSize.value, layer2Settings.scale),
-          },
-        }
-      : {}),
-    fade: fade.value,
-  }),
-);
+const exportInput = computed<ExportInput>(() => ({
+  svg: svg.value,
+  tileSize: tileSize.value,
+  background: roles.background,
+  text: roles.text,
+  plate: { mode: plateMode.value, opacity: plateOpacity.value, radius: plateRadius.value, blur: plateBlur.value },
+  motion,
+  label: exportLabel.value,
+  appName: APP_NAME,
+  // The second tile: the next seed (a traced image gives the same tile), at a size coprime with the first, with its own settings.
+  ...(layer2.value
+    ? {
+        second: {
+          ...layer2Settings,
+          svg: svgForSeed((params.seed + 1) >>> 0),
+          tileSize: scaledSecondSize(tileSize.value, layer2Settings.scale),
+        },
+      }
+    : {}),
+  fade: fade.value,
+  parallax: layer2.value && parallax.value,
+}));
+
+export const exportText = computed(() => exportCss(exportInput.value));
+// The demo box under the Parallax control: the export's parallax block on the box's own named scroll timeline.
+export const parallaxDemoCss = computed(() => exportParallax(exportInput.value, 'fp-parallax-demo', '--fp-demo').join('\n'));
 
 export const scriptOn = ref(false);
 export const scriptEvent = ref<'click' | 'load'>('click');

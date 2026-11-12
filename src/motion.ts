@@ -39,23 +39,37 @@ export function cssMotion(svg: string, background: string, size: number, m: Moti
 // `image` is the background-image value; `s` is one tile side with its unit, also the drift distance.
 // With `second`, a `.fp-pattern::after` layer follows with its own `fp-drift-2` keyframes, and its own offset
 // (x, y in percent of its tile), extra rotation, opacity, and depth (drift speed relative to the first layer).
-export type SecondLayer = { readonly image: string; readonly s: string } & Partial<Layer2Settings>;
+// With `parallax`, each layer box grows by its scroll travel (see parallaxBlock), so the move never shows an edge.
+export type SecondLayer = { readonly image: string; readonly s: string; readonly parallax?: boolean } & Partial<Layer2Settings>;
+
+// The layer's static transform functions; empty when the layer is not centered.
+function layerFns(lm: Motion): string[] {
+  const fns: string[] = [];
+  if (lm.rotate !== 0 || lm.skew !== 0 || lm.tilt !== 0) fns.push('translate(-50%, -50%)');
+  if (lm.tilt !== 0) fns.push(`perspective(800px) rotateX(${n(lm.tilt)}deg)`);
+  if (lm.rotate !== 0) fns.push(`rotate(${n(lm.rotate)}deg)`);
+  if (lm.skew !== 0) fns.push(`skewX(${n(lm.skew)}deg)`);
+  return fns;
+}
+
+// Scroll travel in vh (a positive number; the layer moves up): 8vh for the first layer, 8vh * depth for the second,
+// clamped to 2..32vh. Depth below 1 travels less and looks farther away.
+export const parallaxTravel = (depth = 1): number => Math.min(32, Math.max(2, Math.round(8 * depth * 1000) / 1000));
 
 export function motionLayer(m: Motion, image: string, s: string, second?: SecondLayer): string[] {
   const drift = m.drift;
-  const rule = (pseudo: string, img: string, size: string, name: string, lm: Motion, extra: string[], seconds: number) => {
+  const rule = (pseudo: string, img: string, size: string, name: string, lm: Motion, extra: string[], seconds: number, travel: number) => {
     const centered = lm.rotate !== 0 || lm.skew !== 0 || lm.tilt !== 0;
     // Tilt pivots on the box's top edge: with perspective(800px) the far half of the plane never rises more than
     // 800px * cot(tilt) above the pivot, so the whole box sits on the near half. 225vmax covers a disc of radius
     // hypot(w/2, h) <= 1.118vmax around the pivot for tilt <= 60 and a box no larger than the viewport.
     // ponytail: assumes vmax >= 462px (800 * tan 30); half the layer lies above the box, unseen.
     const base = lm.tilt !== 0 ? 225 : 150;
-    const side = `${n(Math.round((base / Math.cos((lm.skew * Math.PI) / 180)) * 10) / 10)}vmax`;
-    const fns: string[] = [];
-    if (centered) fns.push('translate(-50%, -50%)');
-    if (lm.tilt !== 0) fns.push(`perspective(800px) rotateX(${n(lm.tilt)}deg)`);
-    if (lm.rotate !== 0) fns.push(`rotate(${n(lm.rotate)}deg)`);
-    if (lm.skew !== 0) fns.push(`skewX(${n(lm.skew)}deg)`);
+    const vmax = `${n(Math.round((base / Math.cos((lm.skew * Math.PI) / 180)) * 10) / 10)}vmax`;
+    // Parallax: the centered box grows by the travel on each side, so a disc it covered still lies inside after the move;
+    // the plain box grows downward, since the layer moves up.
+    const side = travel === 0 ? vmax : `calc(${vmax} + ${n(2 * travel)}vh)`;
+    const fns = layerFns(lm);
     return [
       `.fp-pattern::${pseudo} {`,
       '  content: "";',
@@ -63,7 +77,7 @@ export function motionLayer(m: Motion, image: string, s: string, second?: Second
       '  z-index: -1;',
       ...(centered
         ? ['  left: 50%;', `  top: ${lm.tilt !== 0 ? '0' : '50%'};`, `  width: ${side};`, `  height: ${side};`]
-        : ['  inset: 0;']),
+        : [travel === 0 ? '  inset: 0;' : `  inset: 0 0 -${n(travel)}vh;`]),
       `  background-image: ${img};`,
       `  background-size: ${size} ${size};`,
       ...extra,
@@ -77,7 +91,8 @@ export function motionLayer(m: Motion, image: string, s: string, second?: Second
     v === 0 ? (tiles === 0 ? '0' : size) : `calc(${size} * ${n(Math.round((tiles + v / 100) * 1e6) / 1e6)})`;
   const x2 = second?.x ?? 0;
   const y2 = second?.y ?? 0;
-  const lines = [...rule('before', image, s, 'fp-drift', m, [], m.speed)];
+  const px = second?.parallax === true;
+  const lines = [...rule('before', image, s, 'fp-drift', m, [], m.speed, px ? parallaxTravel() : 0)];
   if (second) {
     const offset = x2 !== 0 || y2 !== 0 ? [`  background-position: ${at(second.s, x2, 0)} ${at(second.s, y2, 0)};`] : [];
     const opacity = (second.opacity ?? 1) !== 1 ? [`  opacity: ${n(second.opacity ?? 1)};`] : [];
@@ -91,6 +106,7 @@ export function motionLayer(m: Motion, image: string, s: string, second?: Second
         { ...m, rotate: m.rotate + (second.rotate ?? 0) },
         [...offset, ...opacity],
         seconds,
+        px ? parallaxTravel(second.depth) : 0,
       ),
     );
   }
@@ -119,4 +135,38 @@ export function motionLayer(m: Motion, image: string, s: string, second?: Second
     '}',
   );
   return lines;
+}
+
+// Parallax on scroll for the two layers: a scroll-driven translateY before each layer's own transform, only for visitors
+// without a reduced-motion wish and in browsers with scroll timelines. `cls` and `timeline` differ for the page's demo box.
+// A drift keeps its own animation: both are listed, with `auto` as the drift's timeline.
+export function parallaxBlock(m: Motion, second: Partial<Layer2Settings>, cls: string, timeline: string): string[] {
+  const depth = second.depth ?? 1;
+  const layer = (pseudo: string, k: number, lm: Motion, travel: number, drift: string) => {
+    const fns = layerFns(lm).join(' ');
+    const at = (y: string) => `transform: translateY(${y})${fns ? ` ${fns}` : ''};`;
+    const name = `fp-scroll-${k}`;
+    const drifting = m.drift !== 'none';
+    return [
+      `    @keyframes ${name} {`,
+      `      from { ${at('0')} }`,
+      `      to { ${at(`-${n(travel)}vh`)} }`,
+      '    }',
+      `    .${cls}::${pseudo} {`,
+      drifting
+        ? `      animation: ${drift} ${n(lm.speed)}s linear infinite, ${name} linear both;`
+        : `      animation: ${name} linear both;`,
+      drifting ? `      animation-timeline: auto, ${timeline};` : `      animation-timeline: ${timeline};`,
+      '    }',
+    ];
+  };
+  const seconds = Math.round((m.speed / depth) * 1000) / 1000;
+  return [
+    '@media (prefers-reduced-motion: no-preference) {',
+    '  @supports (animation-timeline: scroll()) {',
+    ...layer('before', 1, m, parallaxTravel(), 'fp-drift'),
+    ...layer('after', 2, { ...m, rotate: m.rotate + (second.rotate ?? 0), speed: seconds }, parallaxTravel(depth), 'fp-drift-2'),
+    '  }',
+    '}',
+  ];
 }

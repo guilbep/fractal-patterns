@@ -3,10 +3,12 @@ import { computed } from 'vue';
 import { hasCompat } from '@/fractal.ts';
 import { repeatDistance, scaledSecondSize } from '@/layers.ts';
 import { canVary } from '@/supertile.ts';
-import { fade, layer2, layer2Settings, params, resetLayer2, tileSize, usingImage, variantBytes, variants } from '@/state.ts';
+import { fade, layer2, layer2Settings, parallax, params, resetLayer2, tileSize, usingImage, variantBytes, variants } from '@/state.ts';
+import { parallaxDemoCss } from '@/state-export.ts';
 
 const size2 = computed(() => scaledSecondSize(tileSize.value, layer2Settings.scale));
 const repeat = computed(() => repeatDistance(tileSize.value, size2.value));
+const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-timeline: scroll()');
 </script>
 
 <template>
@@ -55,6 +57,15 @@ const repeat = computed(() => repeatDistance(tileSize.value, size2.value));
           <p id="l2-depth-hint" class="hint-text">Only visible when the pattern drifts (Motion tab). Below 1 the layer moves slower and looks farther away.</p>
         </div>
       </div>
+      <label class="radio"><input id="parallax" v-model="parallax" type="checkbox" aria-describedby="parallax-hint"> Parallax on scroll</label>
+      <p id="parallax-hint" class="hint-text">The two layers move at different speeds when the page scrolls. Uses the Depth value. Off for visitors who ask for reduced motion.</p>
+      <template v-if="parallax">
+        <component :is="'style'">{{ parallaxDemoCss }}</component>
+        <div id="parallax-demo" class="parallax-demo">
+          <div v-if="scrollTimelines" class="fp-pattern fp-parallax-demo"></div>
+          <p v-else class="hint-text">This browser does not support parallax on scroll. The export still works where it is supported.</p>
+        </div>
+      </template>
       <div class="out-actions">
         <button type="button" class="btn" @click="resetLayer2">Reset second layer</button>
       </div>

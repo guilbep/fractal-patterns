@@ -2,7 +2,7 @@
 import { cssPlate, svgToDataUri } from './css.ts';
 import { fadeMask } from './fade.ts';
 import { repeatDistance, type Layer2Settings } from './layers.ts';
-import { motionLayer, scaledSize, type Motion } from './motion.ts';
+import { motionLayer, parallaxBlock, scaledSize, type Motion } from './motion.ts';
 
 export interface ExportInput {
   readonly svg: string;
@@ -21,6 +21,13 @@ export interface ExportInput {
   // A second layer, its size coprime with tileSize, with its own offset, extra rotation, opacity, and depth (see motionLayer).
   readonly second?: { readonly svg: string; readonly tileSize: number } & Partial<Layer2Settings>;
   readonly fade?: boolean; // a soft mask over the pattern layer(s)
+  readonly parallax?: boolean; // the two layers move at different speeds on scroll; needs `second`
+}
+
+// The parallax block for a class and a scroll timeline: the export uses .fp-pattern and the root scroller,
+// the page's demo box its own class and named timeline. Empty without a second layer or without parallax.
+export function exportParallax(i: ExportInput, cls = 'fp-pattern', timeline = 'scroll(root)'): string[] {
+  return i.second && i.parallax ? parallaxBlock(i.motion, i.second, cls, timeline) : [];
 }
 
 // Inserting a space breaks every comment delimiter and cannot create a new one.
@@ -49,7 +56,7 @@ export function exportCss(i: ExportInput): string {
       i.motion,
       'var(--fp-tile)',
       'var(--fp-size)',
-      i.second ? { ...i.second, image: 'var(--fp-tile-2)', s: 'var(--fp-size-2)' } : undefined,
+      i.second ? { ...i.second, image: 'var(--fp-tile-2)', s: 'var(--fp-size-2)', parallax: i.parallax === true } : undefined,
     ),
     ...(i.fade
       ? [
@@ -61,6 +68,13 @@ export function exportCss(i: ExportInput): string {
         ]
       : []),
     ...(plated ? ['', cssPlate(i.background, i.plate)] : []),
+    ...(i.second && i.parallax
+      ? [
+          '',
+          '/* Parallax on scroll needs Chrome or Edge 115, Safari 26, or Firefox 159. Other browsers show the two layers without it. */',
+          ...exportParallax(i),
+        ]
+      : []),
     '',
     '/* Use: put class="fp-pattern" on the element that shows the pattern.',
     ...(plated ? [' * Put class="fp-plate" on the element that holds the text.'] : []),

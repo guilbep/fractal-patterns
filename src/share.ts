@@ -30,6 +30,7 @@ export interface Design extends Motion {
   readonly layer2: boolean; // a second copy of the tile at a coprime size
   readonly fade: boolean; // a soft mask over the pattern
   readonly layer2Settings: Layer2Settings; // offset, turn, size, strength, and depth of the second layer
+  readonly parallax: boolean; // the two layers move at different speeds on scroll
 }
 // Not in the URL: pinned patchwork cells (a per-session tweak), the palette name (the roles carry the colors),
 // and the image source (the pixels never leave the browser).
@@ -63,6 +64,7 @@ export const DESIGN_DEFAULTS: Design = {
   layer2: false,
   fade: false,
   layer2Settings: LAYER2_DEFAULTS,
+  parallax: false,
 };
 
 // Field to short key. The insertion order is the order of the encoded string.
@@ -97,7 +99,8 @@ const KEYS: Readonly<Record<keyof Design, string>> = {
   variants: 'v',
   layer2: 'l2',
   fade: 'fd',
-  layer2Settings: 'l2s', // keep new keys last: older links stay valid
+  layer2Settings: 'l2s',
+  parallax: 'px', // keep new keys last: older links stay valid
 };
 const FIELDS = Object.keys(KEYS) as (keyof Design)[];
 
@@ -162,7 +165,8 @@ export function decodeDesign(query: string): Design {
   };
   const oneOf = <T extends string>(f: keyof Design, values: readonly T[], fallback: T): T => values.find((v) => v === get(f)) ?? fallback;
   const kind = oneOf('kind', KINDS, D.kind);
-  const bool = (f: 'mirror' | 'frame' | 'variants' | 'layer2' | 'fade'): boolean => (get(f) === '1' ? true : get(f) === '0' ? false : D[f]);
+  const bool = (f: 'mirror' | 'frame' | 'variants' | 'layer2' | 'fade' | 'parallax'): boolean =>
+    get(f) === '1' ? true : get(f) === '0' ? false : D[f];
   return {
     kind,
     seed: num('seed', 0, 0xffffffff, true),
@@ -195,6 +199,7 @@ export function decodeDesign(query: string): Design {
     layer2: bool('layer2'),
     fade: bool('fade'),
     layer2Settings: decodeL2(get('layer2Settings')),
+    parallax: bool('parallax'),
   };
 }
 

@@ -249,6 +249,8 @@ export function resetLayer2(): void {
   Object.assign(layer2Settings, LAYER2_DEFAULTS);
 }
 export const fade = ref(false);
+// Parallax on scroll for the two layers; has an effect only with layer2.
+export const parallax = ref(false);
 const plateCss = computed(() =>
   cssPlate(roles.background, { opacity: plateOpacity.value, radius: plateRadius.value, blur: plateBlur.value }),
 );
@@ -407,4 +409,5 @@ export function reset(): void {
   layer2.value = false;
   resetLayer2();
   fade.value = false;
+  parallax.value = false;
 }

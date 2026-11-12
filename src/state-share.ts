@@ -12,6 +12,7 @@ import {
   motion,
   opacity,
   params,
+  parallax,
   patch,
   plateBlur,
   plateMode,
@@ -45,6 +46,7 @@ export function snapshot(): Design {
     layer2: layer2.value,
     fade: fade.value,
     layer2Settings: { ...layer2Settings },
+    parallax: parallax.value,
   };
 }
 
@@ -66,6 +68,7 @@ export function applyDesign(d: Design): void {
   layer2.value = d.layer2;
   fade.value = d.fade;
   Object.assign(layer2Settings, d.layer2Settings);
+  parallax.value = d.parallax;
   source.value = 'math';
   lastFix.value = null; // the Fix result no longer describes these colors
 }

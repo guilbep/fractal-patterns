@@ -8,6 +8,28 @@ The site will be at <https://guilbep.github.io/fractal-patterns/> after the firs
 
 ## What it does
 
+### Page layout
+
+The header shows the logo and the app name. The toolbar under it has these buttons, in order:
+
+- Shuffle: draws a new seed for the current kind.
+- Random pattern: picks a different kind and a new seed, and goes back to a single pattern. The colors, plate, spacing and motion stay.
+- Undo and Redo.
+- Reset.
+- Copy CSS.
+- Download SVG.
+- Copy link.
+
+Two badges sit at the end of the toolbar. The first shows the worst text contrast and an AA pass or fail. The second shows the CO2 footprint of the export.
+
+The hero is the large preview under the toolbar. It uses the exported `.fp-pattern` class, so it shows what you copy. Five tabs below it hold the controls:
+
+- Pattern: the R key option, the pattern controls and the spacing.
+- Colors: the colors and contrast, and the Second opinion panel.
+- Image: the trace from your image.
+- Motion: the transform and motion controls.
+- Export: the performance settings and the "Use it" panel.
+
 ### Pattern library
 
 The page draws 37 pattern kinds in four families:
@@ -35,11 +57,15 @@ These user events draw a new random seed:
 
 A checkbox turns the R key shortcut off, as WCAG 2.1.4 requires for single-key shortcuts. The page keeps this choice after a reload. Shuffle applies to math patterns only.
 
+Shuffle changes only the seed. Random pattern also changes the kind.
+
 The Undo and Redo buttons step through the history of the design. Ctrl+Z or Cmd+Z undoes a change. Ctrl+Shift+Z or Cmd+Shift+Z redoes it. In a form field, the browser text undo applies instead. The Reset button returns all values to the first-load state.
+
+The page does not keep the undo history after a reload. The design stays, because the URL holds it.
 
 ### Patchwork
 
-The patchwork layout splits the tile into a grid of cells, and each cell gets a different kind. The grid is 2 by 2, 3 by 3 or 4 by 4. You choose the families that the cells can use. You can pin a kind to a cell, and Shuffle then keeps that cell. An option draws frame lines between the cells. The maximum depth is 3 for a 2 by 2 grid and 2 for the larger grids.
+The patchwork layout splits the tile into a grid of cells, and each cell gets a different kind. The grid is 2 by 2, 3 by 3 or 4 by 4. You choose the families that the cells can use. You can pin a kind to a cell. Shuffle keeps the kind of a pinned cell. The new seed can give the other cells new kinds. An option draws frame lines between the cells. The maximum depth is 3 for a 2 by 2 grid and 2 for the larger grids.
 
 ### Spacing
 
@@ -74,7 +100,7 @@ The tile uses three color roles:
 - Pattern: the strokes, drawn at the pattern opacity.
 - Text: the text that sits on top of the tile.
 
-When you pick a palette, the page chooses the roles by contrast. You can also set each role with a color picker, a hex field or the chips of the current palette. The Swap button exchanges background and text.
+When you click a palette, the page assigns the roles by contrast. The pair of colors with the highest contrast becomes background and text. The lighter color of the pair is the background. The pattern is the remaining color that stays visible and keeps the best text contrast. You can also set each role with a color picker, a hex field or the chips of the current palette. The "Swap background and text" button exchanges the two colors.
 
 The text plate is a box with a background color behind the text. It has three modes:
 
@@ -101,13 +127,13 @@ The pattern is decorative, so it is exempt from WCAG 1.4.11. The page shows a pa
 - [Understanding 1.4.6](https://www.w3.org/WAI/WCAG22/Understanding/contrast-enhanced.html), the AAA level for text.
 - [Understanding 1.4.11](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html), non-text contrast.
 
-The Fix buttons target AA or AAA. The fix depends on the plate mode:
+There are two Fix buttons: "Fix contrast for AA (4.5:1)" and "Fix contrast for AAA (7:1)". When a level passes, its button reads "AA passes, nothing to fix" or "AAA passes, nothing to fix". The fix depends on the plate mode:
 
 - Direct: the fix moves the text toward black or white. If that is not enough, it lowers the pattern opacity in steps of 0.05 and tries again.
-- Plate: the fix raises the plate opacity in steps of 0.05. At a full plate, it changes the text color.
-- Split: the fix first brings the heading to the large-text level on the bare pattern. Then it fixes the paragraph with the plate.
+- Plate: the fix raises the plate opacity in steps of 0.05. At a full plate, it changes the text color. The pattern opacity stays.
+- Split: the fix first brings the heading to the large-text level on the bare pattern. Then it fixes the paragraph with the plate. It can change the text color, the pattern opacity and the plate opacity.
 
-If the fix cannot reach the target, the page applies the best result and tells you.
+After a fix, the page names what it changed. If the fix cannot reach the target, the page applies the best result and tells you.
 
 The Second opinion panel adds three checks:
 
@@ -151,7 +177,7 @@ The page keeps the design in the URL hash. The hash holds the kind, seed, contro
 
 The "Performance settings" panel controls the coordinate precision, from 0 to 3 decimals. Fewer decimals and less depth give a smaller tile.
 
-The panel shows the size of the export and a footprint. Gzip is a standard compression format that web servers use. The footprint counts the exported CSS plus the script, each compressed with gzip. The browser computes the gzip size with its `CompressionStream` API.
+The panel shows these sizes: "Tile SVG", "Exported CSS, compressed" and "Footprint". With the script on, it also shows "Script, compressed". Gzip is a standard compression format that web servers use. The footprint counts the exported CSS plus the script, each compressed with gzip. The browser computes the gzip size with its `CompressionStream` API.
 
 The CO2 estimate is rough. It is a straight line from the gzipped size. The constant comes from the `inject-co2.mjs` script of pierreguilbert.com. That script uses one websitecarbon.com measurement of pierreguilbert.com: 5.76 KB gives 0.001144 g of CO2. The panel shows the value in milligrams with 1 decimal from 1 mg up, and with 1 significant digit below 1 mg.
 
@@ -161,9 +187,17 @@ The estimate counts one transfer of the export. It does not count these costs:
 - Browser caching. A repeat visit transfers nothing.
 - The energy to draw the pattern on the visitor's device.
 
+### Logo and favicon
+
+The logo is one of the app's own patterns: the Whirl kind, seed 1, in the Lagoon, mono colors. `src/logo.ts` draws it. The command `make logo` writes it to `public/favicon.svg`.
+
+While the page is open, the browser tab icon follows the current kind, seed and colors. With an image or a patchwork, the icon keeps the last single pattern.
+
 ## Requirements
 
-- Node.js `>= 26 || ^24 || ^22.12`, from `engines` in `package.json`.
+You need these tools:
+
+- Node.js 24 or later, from `engines` in `package.json`.
 - npm.
 
 ## Quick start
@@ -188,16 +222,40 @@ make typecheck  # npm run typecheck
 make test       # npm test
 make build      # npm run build
 make preview    # npm run build, then npx vite preview
-make ci         # typecheck, test and build, like the GitHub workflow
+make ci         # lint, format check, typecheck, test and build, like the GitHub workflow
 make clean      # remove dist
 ```
+
+## Lint and format
+
+A linter finds likely bugs and style problems in code. The project uses oxlint 1.91.0 for this. A formatter rewrites code to one layout. The project uses oxfmt 0.76.0. Both versions are pinned in `package.json`.
+
+```sh
+make lint          # npm run lint
+make format        # npm run format
+make format-check  # npm run format:check
+make logo          # npm run logo
+```
+
+`make format` writes the changes. `make format-check` only reports the files that need a change.
+
+oxfmt does not format the `.vue` files. It changed the text that the page shows, so `.oxfmtrc.json` ignores them.
+
+To choose a new mark, write a contact sheet of candidates:
+
+```sh
+npm run logo -- candidates
+```
+
+The script writes `candidates.svg` in the current folder. Give a path after `candidates` to write the sheet there.
 
 ## Project layout
 
 | File | Role |
 | --- | --- |
-| `src/main.ts` | Mounts the Vue app and loads the stylesheet. |
-| `src/App.vue` | Page layout, hero, Shuffle, Reset, Undo, Redo, Copy link and the R key. |
+| `src/main.ts` | Mounts the Vue app, loads the stylesheet and keeps the favicon in step with the pattern. |
+| `src/App.vue` | Header, toolbar, badges, hero, tabs and the R key. |
+| `src/logo.ts` | The logo mark and its default kind, seed and colors. |
 | `src/app-name.ts` | The app name. |
 | `src/state.ts` | Reactive state, user actions and derived values for the page. |
 | `src/state-export.ts` | The exported CSS and script, and their gzip size and footprint. |
@@ -207,6 +265,7 @@ make clean      # remove dist
 | `src/patterns/lineart.ts` | Generators of the Line art family. |
 | `src/patterns/surfaces.ts` | Generators of the Surfaces family. |
 | `src/patterns/symmetry.ts` | Generators of the 12 square wallpaper groups. |
+| `src/patterns/symmetry.test.ts` | Tests of the wallpaper groups. |
 | `src/patterns/util.ts` | Seeded random generator, tile placement and periodic clipping. |
 | `src/patchwork.ts` | The patchwork grid of cells. |
 | `src/spacing.ts` | Zoom with wrap, gap and mirror tiling. |
@@ -234,6 +293,13 @@ make clean      # remove dist
 | `src/css/app.css` | Page styles. |
 | `src/env.d.ts` | Type declarations for Vite and `.vue` files. |
 | `src/*.test.ts` | Unit tests, one file beside each logic module. |
+| `scripts/make-logo.ts` | Writes `public/favicon.svg`, or a contact sheet of logo candidates. |
+| `public/favicon.svg` | The static favicon. Vite copies it into `dist`. |
+| `index.html` | The page shell that loads `src/main.ts`. |
+| `Makefile` | The make targets. |
+| `.oxlintrc.json` | The oxlint rules. |
+| `.oxfmtrc.json` | The oxfmt settings. |
+| `.github/workflows/deploy.yml` | The build and deployment workflow. |
 
 ## Tests
 
@@ -247,7 +313,7 @@ Run the tests:
 make test       # npm test
 ```
 
-There are 188 tests now.
+There are 190 tests now.
 
 ## Deployment
 
@@ -255,9 +321,16 @@ The workflow `.github/workflows/deploy.yml` runs on each push to `main`. You can
 
 The build job does these steps:
 
-1. Installs Node 24 and runs `npm ci`.
-2. Runs `npm run typecheck`, `npm test` and `npm run build`.
-3. Uploads `dist` as the GitHub Pages artifact.
+1. Checks out the repository.
+2. Installs Node 24 with the npm cache.
+3. Runs `npm ci`.
+4. Runs `npm run lint`.
+5. Runs `npm run format:check`.
+6. Runs `npm run typecheck`.
+7. Runs `npm test`.
+8. Runs `npm run build`.
+9. Configures GitHub Pages.
+10. Uploads `dist` as the GitHub Pages artifact.
 
 The deploy job then publishes that artifact to GitHub Pages.
 

@@ -153,34 +153,97 @@ export function wallpaper(group: string): Generator {
   const region = GROUP_REGION[group] ?? [0, 0, 1, 1];
   return (rnd, depth, size) => {
     const n = ops.length >= 4 ? 1 : Math.min(depth, 2);
-    const cell = size / n;
     // 8 copies overlap more: the stem plus depth - 1 shapes keeps the tile readable and small.
-    const shapes = motif(rnd, ops.length >= 8 ? depth - 1 : depth, region);
-    const out: Poly[] = [];
-    for (const op of ops) {
-      for (const shape of shapes) {
-        // Ops taken modulo 1 (the glide) can split a shape that leaves its region; undo the jumps
-        // so the polyline stays continuous and wrap() carries it across the border instead.
-        const moved: Pt[] = [];
-        for (const p of shape.map(op)) {
-          const q = moved[moved.length - 1];
-          moved.push(q ? [p[0] - Math.round(p[0] - q[0]), p[1] - Math.round(p[1] - q[1])] : p);
-        }
-        for (let i = 0; i < n; i++) {
-          for (let j = 0; j < n; j++) {
-            out.push(
-              thin(
-                moved.map(([x, y]): Pt => [(x + i) * cell, (y + j) * cell]),
-                2,
-              ),
-            );
-          }
+    return repeat(ops, motif(rnd, ops.length >= 8 ? depth - 1 : depth, region), n, size);
+  };
+}
+
+// Shapes already in unit cell coordinates: every op, n by n cells, modulo jumps undone, wrapped.
+// keep: per shape, which points to emit (applyGroup inserts helper points, dropped after the undo).
+function repeat(
+  ops: readonly Op[],
+  shapes: readonly (readonly Pt[])[],
+  n: number,
+  size: number,
+  keep?: readonly (readonly boolean[])[],
+): Poly[] {
+  const cell = size / n;
+  const out: Poly[] = [];
+  for (const op of ops) {
+    for (const [s, shape] of shapes.entries()) {
+      // Ops taken modulo 1 (the glide) can split a shape that leaves its region; undo the jumps
+      // so the polyline stays continuous and wrap() carries it across the border instead.
+      let moved: Pt[] = [];
+      for (const p of shape.map(op)) {
+        const q = moved[moved.length - 1];
+        moved.push(q ? [p[0] - Math.round(p[0] - q[0]), p[1] - Math.round(p[1] - q[1])] : p);
+      }
+      const k = keep?.[s];
+      if (k) moved = moved.filter((_, i) => k[i]);
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          out.push(
+            thin(
+              moved.map(([x, y]): Pt => [(x + i) * cell, (y + j) * cell]),
+              2,
+            ),
+          );
         }
       }
     }
-    return wrap(out, size);
-  };
+  }
+  return wrap(out, size);
 }
+
+// Polylines in region coordinates ((0,0)..(1,1) spans the group's GROUP_REGION box) repeated by
+// the group over cells by cells unit cells of a size by size tile. Unknown group: empty list.
+// wallpaper() calls repeat() directly: its motif is already in cell coordinates (byte-identical pins).
+export function applyGroup(group: string, motifInRegion: readonly (readonly Pt[])[], cells: number, size: number): Pt[][] {
+  const ops = GROUP_OPS[group] ?? [];
+  const [x0, y0, x1, y1] = GROUP_REGION[group] ?? [0, 0, 1, 1];
+  // The jump undo assumes consecutive points closer than half a cell; hand-drawn segments can be
+  // longer, so insert helper points every 0.25 cell (ops are isometries) and drop them afterwards.
+  const shapes: Pt[][] = [];
+  const keep: boolean[][] = [];
+  for (const stroke of motifInRegion) {
+    const pts: Pt[] = [];
+    const k: boolean[] = [];
+    let prev: Pt | undefined;
+    for (const [u, v] of stroke) {
+      const p: Pt = [x0 + u * (x1 - x0), y0 + v * (y1 - y0)];
+      if (prev) {
+        const steps = Math.ceil(Math.hypot(p[0] - prev[0], p[1] - prev[1]) / 0.25);
+        for (let i = 1; i < steps; i++) {
+          pts.push([prev[0] + ((p[0] - prev[0]) * i) / steps, prev[1] + ((p[1] - prev[1]) * i) / steps]);
+          k.push(false);
+        }
+      }
+      pts.push(p);
+      k.push(true);
+      prev = p;
+    }
+    shapes.push(pts);
+    keep.push(k);
+  }
+  return repeat(ops, shapes, cells, size, keep);
+}
+
+export const GROUPS: readonly string[] = Object.keys(GROUP_OPS);
+
+export const GROUP_LABELS: Readonly<Record<string, string>> = {
+  p1: 'p1 translation',
+  p2: 'p2 half turn',
+  pm: 'pm mirror',
+  pg: 'pg glide',
+  cm: 'cm mirror and glide',
+  pmm: 'pmm two mirrors',
+  pmg: 'pmg mirror and glide',
+  pgg: 'pgg two glides',
+  cmm: 'cmm two mirrors, centered',
+  p4: 'p4 quarter turn',
+  p4m: 'p4m quarter turn and mirrors',
+  p4g: 'p4g quarter turn and glides',
+};
 
 export const p1 = wallpaper('p1');
 export const p2 = wallpaper('p2');

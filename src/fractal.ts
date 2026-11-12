@@ -28,6 +28,7 @@ import {
 import { THEME_AIR_MAX_DEPTH, chain, feathers } from './patterns/themes-air.ts';
 import { THEME_CRAFT_MAX_DEPTH, knot, roof } from './patterns/themes-craft.ts';
 import { THEME_EARTH_MAX_DEPTH, cracks, roots, stars } from './patterns/themes-earth.ts';
+import { PIPES_MAX_DEPTH, pipes } from './patterns/themes-pipes.ts';
 import { THEME_WATER_MAX_DEPTH, rain, ridges, seigaiha } from './patterns/themes-water.ts';
 import { circuit, maze, topo } from './patterns/themes.ts';
 import { mulberry32, type Generator, type Pt } from './patterns/util.ts';
@@ -95,6 +96,7 @@ export const KINDS = [
   'roof',
   'feathers',
   'chain',
+  'pipes',
 ] as const;
 export type Kind = (typeof KINDS)[number];
 
@@ -152,6 +154,7 @@ const PATTERNS: Readonly<Record<Kind, { family: Family; label: string; maxDepth:
   roof: { family: 'theme', label: 'Roof tiles', maxDepth: THEME_CRAFT_MAX_DEPTH.roof, gen: roof },
   feathers: { family: 'theme', label: 'Feathers', maxDepth: THEME_AIR_MAX_DEPTH.feathers, gen: feathers },
   chain: { family: 'theme', label: 'Chain and fence', maxDepth: THEME_AIR_MAX_DEPTH.chain, gen: chain },
+  pipes: { family: 'theme', label: 'Pipes', maxDepth: PIPES_MAX_DEPTH, gen: pipes },
 };
 
 const byKind = <T>(f: (k: Kind) => T): Readonly<Record<Kind, T>> => Object.fromEntries(KINDS.map((k) => [k, f(k)])) as Record<Kind, T>;

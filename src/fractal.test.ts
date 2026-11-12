@@ -152,6 +152,7 @@ test('families', () => {
     'roof',
     'feathers',
     'chain',
+    'pipes',
   ] as const)
     assert.equal(KIND_FAMILY[kind], 'theme', kind);
   for (const family of FAMILIES) assert.ok(typeof FAMILY_LABELS[family] === 'string' && FAMILY_LABELS[family].length > 0, family);
@@ -179,7 +180,7 @@ test('families', () => {
 });
 
 test('all kinds are registered', () => {
-  assert.equal(KINDS.length, 50);
+  assert.equal(KINDS.length, 51);
   const ids = [
     'carpet',
     'quadtree',
@@ -231,6 +232,7 @@ test('all kinds are registered', () => {
     'roof',
     'feathers',
     'chain',
+    'pipes',
   ];
   for (const id of ids) assert.ok((KINDS as readonly string[]).includes(id), id);
   for (const kind of ['p1', 'p2', 'pm', 'pg', 'cm', 'pmm', 'pmg', 'pgg', 'cmm', 'p4', 'p4m', 'p4g'] as const)
@@ -552,6 +554,12 @@ const PINS: Readonly<Record<PatternParams['kind'], readonly (readonly [number, n
     [4930, 363413214],
     [3218, 3413979123],
     [7137, 3186133837],
+  ],
+  pipes: [
+    [3558, 3952300901],
+    [12629, 641918205],
+    [3208, 3436706001],
+    [12147, 2126258508],
   ],
 };
 

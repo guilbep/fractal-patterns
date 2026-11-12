@@ -105,8 +105,11 @@ function stub(style: WangStyle, s: number): Poly[] {
   ];
 }
 
-/** The content of one tile in 0..size: lines meet the edges coded 1 at their midpoints (weave: at +-WEAVE_HALF * size). */
-export function tileGeometry(style: WangStyle, edges: Edges, variant: number, size: number): Poly[] {
+/**
+ * The content of one tile in 0..size: lines meet the edges coded 1 at their midpoints (weave: at +-WEAVE_HALF * size).
+ * crossGap: false draws a four-way crossing as a plain join (no over and under gap).
+ */
+export function tileGeometry(style: WangStyle, edges: Edges, variant: number, size: number, crossGap = true): Poly[] {
   const s = size;
   const c = s / 2;
   const on = [0, 1, 2, 3].filter((e) => edges[e] === 1);
@@ -139,7 +142,7 @@ export function tileGeometry(style: WangStyle, edges: Edges, variant: number, si
     default:
       return alt
         ? [...arcs(style, s), ...turn(arcs(style, s), 2, s)]
-        : [...turn(straight(style, s, false), 1, s), ...straight(style, s, true)];
+        : [...turn(straight(style, s, false), 1, s), ...straight(style, s, crossGap)];
   }
 }
 

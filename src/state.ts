@@ -3,8 +3,8 @@ import { computed, reactive, ref, watch } from 'vue';
 import { KINDS, MAX_DEPTH, generate, type Kind } from '@/fractal.ts';
 import { PALETTES, type Palette } from '@/palettes.ts';
 import { blend, contrastRatio, textLevel } from '@/contrast.ts';
-import { fixContrast, patternContrast, patternInvisible, pickRoles, swapRoles, worstTextContrast, type Roles } from '@/pairing.ts';
-import { cssBackground, svgToDataUri } from '@/css.ts';
+import { fixContrast, fixWithPlate, patternContrast, patternInvisible, pickRoles, plateContrast, swapRoles, worstTextContrast, type Roles } from '@/pairing.ts';
+import { cssBackground, cssPlate, svgToDataUri } from '@/css.ts';
 import { formatFootprint, gzipSize, rawSize } from '@/co2.ts';
 
 export const MAX_SEED = 0xffffffff;
@@ -16,6 +16,10 @@ function randomSeed(): number {
 const DEFAULT_PALETTE = PALETTES.find((p) => p.name === 'Classic Double Blue') ?? PALETTES[0]!;
 const INITIAL_SEED = randomSeed();
 const DEFAULTS = { kind: 'tree' as Kind, depth: 8, size: 120, strokeWidth: 2, precision: 1, opacity: 0.6 };
+const PLATE_DEFAULTS = { plateMode: 'split' as PlateMode, plateOpacity: 0.85, plateRadius: 12, plateBlur: 0 };
+
+// 'plate': heading and paragraph on the plate. 'split': only the paragraph. 'direct': no plate.
+export type PlateMode = 'plate' | 'split' | 'direct';
 
 export const params = reactive({
   kind: DEFAULTS.kind,
@@ -28,10 +32,16 @@ export const params = reactive({
 export const roles = reactive<{ -readonly [K in keyof Roles]: string }>({ ...pickRoles(DEFAULT_PALETTE.colors) });
 export const opacity = ref(DEFAULTS.opacity);
 export const paletteName = ref<string | null>(DEFAULT_PALETTE.name);
+export const plateMode = ref<PlateMode>(PLATE_DEFAULTS.plateMode);
+export const plateOpacity = ref(PLATE_DEFAULTS.plateOpacity);
+export const plateRadius = ref(PLATE_DEFAULTS.plateRadius);
+export const plateBlur = ref(PLATE_DEFAULTS.plateBlur);
 export const palette = computed(() => PALETTES.find((p) => p.name === paletteName.value) ?? null);
 
 // Result of the last Fix click, shown until the colors change by another action.
-export const lastFix = ref<{ target: number; reached: boolean; ratio: number } | null>(null);
+export const lastFix = ref<{ target: number; reached: boolean; ratio: number; changed: string } | null>(null);
+
+watch(plateMode, () => (lastFix.value = null));
 
 watch(
   () => params.kind,
@@ -42,6 +52,12 @@ watch(
 
 export const svg = computed(() => generate({ ...params, color: roles.pattern, opacity: opacity.value }));
 export const css = computed(() => cssBackground(svg.value, roles.background));
+export const plateCss = computed(() =>
+  cssPlate(roles.background, { opacity: plateOpacity.value, radius: plateRadius.value, blur: plateBlur.value }),
+);
+// The hero plate uses the declarations of the exported class itself, so the two never drift apart.
+export const plateStyle = computed(() => plateCss.value.split('\n').slice(1, -1).join(''));
+export const cssOut = computed(() => (plateMode.value === 'direct' ? css.value : `${css.value}\n\n${plateCss.value}`));
 export const svgHref = computed(() => svgToDataUri(svg.value));
 export const fileName = computed(() => `fractal-${params.kind}-${params.seed}.svg`);
 
@@ -56,10 +72,16 @@ export const previews = computed(() =>
 export const contrast = computed(() => {
   const textOnBackground = contrastRatio(roles.text, roles.background);
   const textOnPattern = contrastRatio(roles.text, blend(roles.pattern, roles.background, opacity.value));
-  const worst = worstTextContrast(roles, opacity.value);
+  const direct = worstTextContrast(roles, opacity.value);
+  const onPlate = plateContrast(roles, opacity.value, plateOpacity.value);
+  // The paragraph's surface: the plate in 'plate' and 'split', the bare pattern in 'direct'.
+  const worst = plateMode.value === 'direct' ? direct : onPlate;
   return {
     textOnBackground,
     textOnPattern,
+    direct,
+    onPlate,
+    heading: textLevel(direct, true),
     worst,
     pattern: patternContrast(roles, opacity.value),
     patternInvisible: patternInvisible(roles, opacity.value),
@@ -126,12 +148,31 @@ export function swap(): void {
   setRoles(swapRoles(roles));
 }
 
+function changedText(parts: string[]): string {
+  return parts.length ? `Changed the ${new Intl.ListFormat('en', { type: 'conjunction' }).format(parts)}.` : 'Changed nothing.';
+}
+
 export function applyFix(target: number): void {
-  const fix = fixContrast(roles, opacity.value, target);
-  opacity.value = Math.round(fix.opacity * 100) / 100;
-  setRoles({ ...roles, text: fix.text });
-  const ratio = worstTextContrast(roles, opacity.value); // after opacity rounding
-  lastFix.value = { target, reached: ratio >= target, ratio };
+  const before = { text: roles.text, opacity: opacity.value, plate: plateOpacity.value };
+  let ratio: number;
+  if (plateMode.value === 'direct') {
+    const fix = fixContrast(roles, opacity.value, target);
+    opacity.value = Math.round(fix.opacity * 100) / 100;
+    setRoles({ ...roles, text: fix.text });
+    ratio = worstTextContrast(roles, opacity.value); // after opacity rounding
+  } else {
+    // The pattern opacity stays: only the plate and, if needed, the text change.
+    const fix = fixWithPlate(roles, opacity.value, plateOpacity.value, target);
+    plateOpacity.value = fix.plate;
+    setRoles({ ...roles, text: fix.text });
+    ratio = plateContrast(roles, opacity.value, plateOpacity.value);
+  }
+  const changed = changedText([
+    ...(plateOpacity.value !== before.plate ? ['plate opacity'] : []),
+    ...(opacity.value !== before.opacity ? ['pattern opacity'] : []),
+    ...(roles.text !== before.text ? ['text color'] : []),
+  ]);
+  lastFix.value = { target, reached: ratio >= target, ratio, changed };
 }
 
 // Back to the first-load state, including the seed drawn at load.
@@ -139,5 +180,9 @@ export function reset(): void {
   const { opacity: o, ...rest } = DEFAULTS;
   Object.assign(params, { ...rest, seed: INITIAL_SEED });
   opacity.value = o;
+  plateMode.value = PLATE_DEFAULTS.plateMode;
+  plateOpacity.value = PLATE_DEFAULTS.plateOpacity;
+  plateRadius.value = PLATE_DEFAULTS.plateRadius;
+  plateBlur.value = PLATE_DEFAULTS.plateBlur;
   applyPalette(DEFAULT_PALETTE);
 }

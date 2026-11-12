@@ -2,7 +2,7 @@
 import { onBeforeUnmount, onMounted } from 'vue';
 import { KIND_LABELS } from '@/fractal.ts';
 import { PALETTE_SOURCE } from '@/palettes.ts';
-import { css, params, reseed, reset, roles } from '@/state.ts';
+import { css, params, plateMode, plateStyle, reseed, reset, roles } from '@/state.ts';
 import ColorPanel from '@/components/ColorPanel.vue';
 import PatternPanel from '@/components/PatternPanel.vue';
 import OutputPanel from '@/components/OutputPanel.vue';
@@ -33,10 +33,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       </div>
       <!-- ponytail: pointer shortcut only; the Shuffle button is the keyboard path. -->
       <div class="hero" :style="css" @click="reseed">
-        <h1 :style="{ color: roles.text }">Fractal Patterns</h1>
-        <p :style="{ color: roles.text }">
-          A {{ KIND_LABELS[params.kind].toLowerCase() }} grown from seed {{ params.seed }}. This text uses your text color right on the pattern, so what you read here is what your visitors will read.
-        </p>
+        <!-- The plate sits on the wrapper in 'plate' mode, on the paragraph in 'split', nowhere in 'direct'. -->
+        <div class="hero-text" :class="{ 'hero-plate': plateMode === 'plate' }" :style="plateMode === 'plate' ? plateStyle : undefined">
+          <h1 :style="{ color: roles.text }">Fractal Patterns</h1>
+          <p :class="{ 'hero-plate': plateMode === 'split' }" :style="[plateMode === 'split' ? plateStyle : '', { color: roles.text }]">
+            A {{ KIND_LABELS[params.kind].toLowerCase() }} grown from seed {{ params.seed }}. This text uses your text color and text plate settings, so what you read here is what your visitors will read.
+          </p>
+        </div>
       </div>
     </div>
 

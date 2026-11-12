@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { css, fileName, footprint, gzipBytes, params, rawBytes, svgHref } from '@/state.ts';
+import { cssOut, fileName, footprint, gzipBytes, params, plateMode, rawBytes, svgHref } from '@/state.ts';
 
 const copyStatus = ref('');
 let timer: ReturnType<typeof setTimeout> | undefined;
 
 async function copy(): Promise<void> {
   try {
-    await navigator.clipboard.writeText(css.value);
+    await navigator.clipboard.writeText(cssOut.value);
     copyStatus.value = 'Copied';
   } catch {
     copyStatus.value = 'Copy failed. Select the code and copy it by hand.';
@@ -40,6 +40,7 @@ async function copy(): Promise<void> {
       <a class="btn" :href="svgHref" :download="fileName">Download SVG</a>
       <span class="copy-status" role="status" aria-live="polite">{{ copyStatus }}</span>
     </div>
-    <pre class="code" tabindex="0" aria-label="Generated CSS"><code>{{ css }}</code></pre>
+    <pre class="code" tabindex="0" aria-label="Generated CSS"><code>{{ cssOut }}</code></pre>
+    <p v-if="plateMode !== 'direct'" class="muted out-note">Put the class <code>fp-plate</code> on the element that holds the text.</p>
   </section>
 </template>

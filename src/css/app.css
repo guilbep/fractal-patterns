@@ -109,6 +109,8 @@ p { margin: 0 0 var(--s3); }
   max-width: 10ch;
 }
 .hero p { max-width: 38ch; font-size: 1.125rem; margin: 0; }
+.hero-text { max-width: 100%; }
+.hero-plate { inline-size: fit-content; }
 
 .toolbar {
   display: flex;
@@ -230,6 +232,16 @@ legend .muted { font-weight: 400; }
   transform: scale(0.7);
   background-image: linear-gradient(to top right, transparent 45%, #fff 45%, #fff 48%, #000 48%, #000 52%, #fff 52%, #fff 55%, transparent 55%);
 }
+.plate-group { display: grid; gap: var(--s3); }
+.plate-group legend { margin-bottom: var(--s2); }
+.plate-group .field { margin: 0; }
+.radios { display: grid; gap: var(--s1); }
+.radio { display: flex; align-items: center; gap: var(--s2); min-height: 2.75rem; cursor: pointer; }
+.radio input { inline-size: 1.25rem; block-size: 1.25rem; margin: 0; flex: none; accent-color: var(--accent); }
+.field:has(input:disabled) label { color: var(--muted); }
+.hint-text { margin: 0; font-size: 0.875rem; color: var(--muted); }
+.heading-line { margin: 0 0 var(--s3); }
+.heading-line > span:not(.badge-label) { flex: none; white-space: nowrap; }
 .adjusted { margin: 0; font-size: 0.9375rem; color: var(--muted); }
 .adjusted:empty, .pattern-warn:empty { display: none; }
 .pattern-warn { display: flex; gap: var(--s2); align-items: baseline; margin: 0 0 var(--s3); font-weight: 600; color: var(--fail); }
@@ -359,6 +371,7 @@ dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 600; text-align
 .stats div { flex-wrap: wrap; }
 .out-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); margin-bottom: var(--s3); }
 .copy-status { font-weight: 600; }
+.out-note { margin: var(--s2) 0 0; font-size: 0.9375rem; }
 .code {
   margin: 0;
   max-height: 14rem;

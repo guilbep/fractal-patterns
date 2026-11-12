@@ -2,7 +2,7 @@
 // rectangle; units are generated once per lattice period and wrap() carries the ones that cross
 // the tile edge to the opposite side. The lattice is offset by a fraction of a unit, so no joint
 // lies on the tile border (it would be drawn by both neighbouring tiles).
-import { TAU, wrap, type Poly, type Pt, type Rng } from './util.ts';
+import { TAU, thin, wrap, type Poly, type Pt, type Rng } from './util.ts';
 
 const rect = (x: number, y: number, w: number, h: number): Poly => [[x, y], [x + w, y], [x + w, y + h], [x, y + h], [x, y]];
 
@@ -221,6 +221,143 @@ export function dots(rnd: Rng, depth: number, size: number): Poly[] {
         if (u < 1 / 3) out.push(circle(x, y, 1.6 * r));
         else if (u < 2 / 3) out.push([[x - 1.5 * r, y], [x + 1.5 * r, y]], [[x, y - 1.5 * r], [x, y + 1.5 * r]]);
       }
+    }
+  }
+  return wrap(out, size);
+}
+
+// Hatches and curves. Every line is one full period on the torus (it closes on itself across
+// the tile), and wrap() cuts it at the edges, so each strand is drawn once and meets itself.
+
+// Slopes (p, q) whose lines close after p tiles across and q tiles down: 45, 135, 1:2 and 2:1.
+const SLOPES: readonly Pt[] = [[1, 1], [1, -1], [1, 2], [2, 1], [1, -2], [2, -1]];
+
+// The torus line through (x, y) with direction (p, q), as k pieces of which keep(j) are drawn,
+// each covering the fraction f of its piece; kept neighbours with f = 1 are merged into one run.
+// x is reduced into [0, size) so the period spans at most [-size, 2 size], the reach of wrap().
+function torusLine(out: Poly[], x: number, y: number, [p, q]: Pt, size: number, k: number, f: number, keep: (j: number) => boolean): void {
+  const x0 = x % size;
+  const at = (t: number): Pt => [x0 + (t - 0.5) * p * size, y + (t - 0.5) * q * size];
+  let run: Poly | null = null;
+  for (let j = 0; j < k; j++) {
+    if (!keep(j)) run = null;
+    else if (run && f === 1) run[1] = at((j + 1) / k);
+    else {
+      run = [at(j / k), at((j + f) / k)];
+      out.push(run);
+    }
+  }
+}
+
+// Parallel hatch: n lines (an even count) across the tile, about 3 depth per tile width.
+// Seed: slope, even or wide-narrow rhythm, dashed lines.
+export function hatch(rnd: Rng, depth: number, size: number): Poly[] {
+  const d = SLOPES[Math.floor(rnd() * SLOPES.length)]!;
+  const r = rnd() < 0.5 ? 0 : 0.25 + 0.15 * rnd();
+  const pDash = 0.1 + 0.25 * rnd();
+  const len = Math.hypot(d[0], d[1]);
+  const n = 2 * Math.max(1, Math.round((1.5 * depth) / len));
+  const step = size / (n * Math.abs(d[1])); // spacing of the strands along a horizontal
+  const s = (0.1 + 0.3 * rnd()) * step;
+  const y = (0.1 + 0.8 * rnd()) * size; // a round value put dash ends on the border
+  const out: Poly[] = [];
+  for (let i = 0; i < n; i++) {
+    const x = s + (i + (i % 2) * r) * step;
+    if (rnd() < pDash) torusLine(out, x, y, d, size, Math.round(10 * len), 0.6, () => true);
+    else torusLine(out, x, y, d, size, 1, 1, () => true);
+  }
+  return wrap(out, size);
+}
+
+// Crosshatch: two families of different slopes, each line cut at about 4 depth pieces per tile
+// width, seeded pieces omitted.
+export function crosshatch(rnd: Rng, depth: number, size: number): Poly[] {
+  const i = Math.floor(rnd() * SLOPES.length);
+  const j = (i + 1 + Math.floor(rnd() * (SLOPES.length - 1))) % SLOPES.length;
+  const pGap = 0.04 + 0.12 * rnd();
+  const out: Poly[] = [];
+  for (const d of [SLOPES[i]!, SLOPES[j]!]) {
+    const len = Math.hypot(d[0], d[1]);
+    const n = Math.max(1, Math.round((2 * depth) / len));
+    const step = size / (n * Math.abs(d[1]));
+    const s = (0.1 + 0.8 * rnd()) * step;
+    const y = (0.1 + 0.8 * rnd()) * size;
+    for (let l = 0; l < n; l++) torusLine(out, s + l * step, y, d, size, Math.round(4 * len * depth), 1, () => rnd() >= pGap);
+  }
+  return wrap(out, size);
+}
+
+// Zigzag: n = 2 depth + 2 rows of m chevrons; rows sit at half steps and the amplitude is 0.3 to
+// 0.45 of a row, so no corner touches the border. Seed: amplitude, m, orientation, half-shifted rows.
+export function zigzag(rnd: Rng, depth: number, size: number): Poly[] {
+  const vertical = rnd() < 0.5;
+  const n = 2 * depth + 2;
+  const h = size / n;
+  const amp = (0.3 + 0.15 * rnd()) * h;
+  const m = Math.max(2, Math.round(n * (0.5 + 0.7 * rnd())));
+  const w = size / m;
+  const pShift = 0.15 + 0.3 * rnd();
+  const s = (0.1 + 0.3 * rnd()) * w;
+  const out: Poly[] = [];
+  for (let i = 0; i < n; i++) {
+    const x0 = s + (rnd() < pShift ? w / 2 : 0);
+    out.push(Array.from({ length: 2 * m + 1 }, (_, j): Pt => [x0 + (j * w) / 2, (i + 0.5) * h + (j % 2 ? amp : -amp)]));
+  }
+  const polys = wrap(out, size);
+  return vertical ? swap(polys) : polys;
+}
+
+// Fish scales: 2m staggered rows of m half circles, m = depth + 2, rows a radius apart. Centres
+// sit at a fifth and a third of a step (a quarter would put arc samples on the border), so no arc end or bottom lies on the border. Seed: a
+// second concentric arc, orientation, scales with an extra inner arc.
+export function scales(rnd: Rng, depth: number, size: number): Poly[] {
+  const orient = Math.floor(rnd() * 4);
+  const two = rnd() < 0.5;
+  const pInner = 0.08 + 0.15 * rnd();
+  const m = depth + 2;
+  const w = size / m;
+  const r = w / 2;
+  const arc = (cx: number, cy: number, rad: number): Poly => {
+    const k = Math.max(4, Math.ceil((Math.PI * rad) / 2));
+    return Array.from({ length: k + 1 }, (_, t): Pt => [cx + rad * Math.cos((Math.PI * t) / k), cy + rad * Math.sin((Math.PI * t) / k)]);
+  };
+  const out: Poly[] = [];
+  for (let i = 0; i < 2 * m; i++) {
+    for (let j = 0; j < m; j++) {
+      const cx = (j + 0.2 + (i % 2) / 2) * w;
+      const cy = (i + 1 / 3) * r;
+      out.push(arc(cx, cy, r));
+      if (two) out.push(arc(cx, cy, 0.65 * r));
+      if (rnd() < pInner) out.push(arc(cx, cy, 0.35 * r));
+    }
+  }
+  const polys = wrap(out, size);
+  if (orient === 1) return polys.map((p) => p.map(([x, y]): Pt => [x, size - y]));
+  if (orient === 2) return swap(polys);
+  if (orient === 3) return swap(polys).map((p) => p.map(([x, y]): Pt => [size - x, y]));
+  return polys;
+}
+
+// Waves: n = depth + 2 rows of sine curves with k whole periods per tile; the phase steps by
+// c / n of a turn per row, so row n meets row 0. Seed: amplitude, k, c, doubled rows.
+export function waves(rnd: Rng, depth: number, size: number): Poly[] {
+  const n = depth + 2;
+  const h = size / n;
+  const amp = (0.12 + 0.18 * rnd()) * h;
+  const k = 1 + Math.floor(rnd() * 3) + Math.floor(depth / 2);
+  const dphi = (TAU * Math.floor(rnd() * 3)) / n;
+  const pDouble = 0.1 + 0.25 * rnd();
+  const s = rnd() * size;
+  const out: Poly[] = [];
+  for (let i = 0; i < n; i++) {
+    const offs = rnd() < pDouble ? [0, 0.3 * h] : [0];
+    for (const o of offs) {
+      const y0 = (i + 0.4) * h + o;
+      const pts = Array.from({ length: 4 * size + 1 }, (_, t): Pt => {
+        const x = s + t / 4;
+        return [x, y0 + amp * Math.sin((TAU * k * (x - s)) / size + i * dphi)];
+      });
+      out.push(thin(pts, 2));
     }
   }
   return wrap(out, size);

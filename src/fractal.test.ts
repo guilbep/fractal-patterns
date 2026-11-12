@@ -123,12 +123,12 @@ test('families', () => {
   for (const kind of KINDS) assert.ok((FAMILIES as readonly string[]).includes(KIND_FAMILY[kind]), kind);
   for (const kind of ['carpet', 'quadtree', 'tree', 'fold', 'hilbert', 'koch', 'sierpinski', 'htree'] as const) assert.equal(KIND_FAMILY[kind], 'fractal', kind);
   for (const kind of ['stitch', 'whirl', 'rosette', 'spiral'] as const) assert.equal(KIND_FAMILY[kind], 'line', kind);
-  for (const kind of ['brick', 'stack', 'herringbone', 'basket', 'hex', 'trinet', 'nested', 'dots'] as const) assert.equal(KIND_FAMILY[kind], 'surface', kind);
+  for (const kind of ['brick', 'stack', 'herringbone', 'basket', 'hex', 'trinet', 'nested', 'dots', 'hatch', 'crosshatch', 'zigzag', 'scales', 'waves'] as const) assert.equal(KIND_FAMILY[kind], 'surface', kind);
 });
 
 test('all kinds are registered', () => {
-  assert.equal(KINDS.length, 20);
-  const ids = ['carpet', 'quadtree', 'tree', 'fold', 'hilbert', 'koch', 'sierpinski', 'htree', 'stitch', 'whirl', 'rosette', 'spiral', 'brick', 'stack', 'herringbone', 'basket', 'hex', 'trinet', 'nested', 'dots'];
+  assert.equal(KINDS.length, 25);
+  const ids = ['carpet', 'quadtree', 'tree', 'fold', 'hilbert', 'koch', 'sierpinski', 'htree', 'stitch', 'whirl', 'rosette', 'spiral', 'brick', 'stack', 'herringbone', 'basket', 'hex', 'trinet', 'nested', 'dots', 'hatch', 'crosshatch', 'zigzag', 'scales', 'waves'];
   for (const id of ids) assert.ok((KINDS as readonly string[]).includes(id), id);
 });
 

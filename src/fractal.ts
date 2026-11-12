@@ -2,7 +2,7 @@
 // Every kind is one generator function registered in PATTERNS; the generators live in src/patterns/.
 import { carpet, fold, hilbert, htree, koch, quadtree, sierpinski, tree } from './patterns/fractals.ts';
 import { rosette, spiral, stitch, whirl } from './patterns/lineart.ts';
-import { basket, brick, dots, herringbone, hex, nested, stack, trinet } from './patterns/surfaces.ts';
+import { basket, brick, crosshatch, dots, hatch, herringbone, hex, nested, scales, stack, trinet, waves, zigzag } from './patterns/surfaces.ts';
 import { mulberry32, type Generator, type Pt } from './patterns/util.ts';
 
 export const FAMILIES = ['fractal', 'line', 'surface', 'symmetry'] as const;
@@ -15,7 +15,7 @@ export const FAMILY_LABELS: Readonly<Record<Family, string>> = {
   symmetry: 'Symmetry groups',
 };
 
-export const KINDS = ['carpet', 'quadtree', 'tree', 'fold', 'hilbert', 'koch', 'sierpinski', 'htree', 'stitch', 'whirl', 'rosette', 'spiral', 'brick', 'stack', 'herringbone', 'basket', 'hex', 'trinet', 'nested', 'dots'] as const;
+export const KINDS = ['carpet', 'quadtree', 'tree', 'fold', 'hilbert', 'koch', 'sierpinski', 'htree', 'stitch', 'whirl', 'rosette', 'spiral', 'brick', 'stack', 'herringbone', 'basket', 'hex', 'trinet', 'nested', 'dots', 'hatch', 'crosshatch', 'zigzag', 'scales', 'waves'] as const;
 export type Kind = (typeof KINDS)[number];
 
 // maxDepth: the measured worst case over many seeds stays near or under 20k chars at precision 1,
@@ -41,6 +41,11 @@ const PATTERNS: Readonly<Record<Kind, { family: Family; label: string; maxDepth:
   trinet: { family: 'surface', label: 'Triangular net', maxDepth: 5, gen: trinet },
   nested: { family: 'surface', label: 'Nested boxes', maxDepth: 3, gen: nested },
   dots: { family: 'surface', label: 'Dot grid', maxDepth: 3, gen: dots },
+  hatch: { family: 'surface', label: 'Hatch', maxDepth: 6, gen: hatch },
+  crosshatch: { family: 'surface', label: 'Crosshatch', maxDepth: 8, gen: crosshatch },
+  zigzag: { family: 'surface', label: 'Zigzag', maxDepth: 5, gen: zigzag },
+  scales: { family: 'surface', label: 'Fish scales', maxDepth: 3, gen: scales },
+  waves: { family: 'surface', label: 'Waves', maxDepth: 6, gen: waves },
 };
 
 const byKind = <T>(f: (k: Kind) => T): Readonly<Record<Kind, T>> => Object.fromEntries(KINDS.map((k) => [k, f(k)])) as Record<Kind, T>;

@@ -65,7 +65,7 @@ async function copy(text: string): Promise<void> {
       <pre class="code" tabindex="0" aria-labelledby="out-html"><code>{{ html }}</code></pre>
     </div>
 
-    <label class="radio"><input v-model="scriptOn" type="checkbox" :disabled="usingImage" :aria-describedby="usingImage ? 'script-note' : undefined"> Add a script that changes the tile</label>
+    <label class="radio"><input type="checkbox" :checked="scriptOn && !usingImage" :disabled="usingImage" @change="scriptOn = ($event.target as HTMLInputElement).checked" :aria-describedby="usingImage ? 'script-note' : undefined"> Add a script that changes the tile</label>
     <p v-if="usingImage" id="script-note" class="muted out-note">A traced image has one tile.</p>
     <template v-if="scriptOn && !usingImage">
       <div class="field">

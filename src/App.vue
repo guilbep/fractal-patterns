@@ -2,10 +2,12 @@
 import { onBeforeUnmount, onMounted } from 'vue';
 import { KIND_LABELS } from '@/fractal.ts';
 import { PALETTE_SOURCE } from '@/palettes.ts';
-import { css, params, plateMode, plateStyle, reseed, reset, roles } from '@/state.ts';
+import { DETECTOR_LABELS } from '@/trace.ts';
+import { css, params, plateMode, plateStyle, reseed, reset, roles, trace, traced, usingImage } from '@/state.ts';
 import ColorPanel from '@/components/ColorPanel.vue';
 import PatternPanel from '@/components/PatternPanel.vue';
 import OutputPanel from '@/components/OutputPanel.vue';
+import ImagePanel from '@/components/ImagePanel.vue';
 
 function onKey(e: KeyboardEvent): void {
   if (e.key !== 'r' && e.key !== 'R') return;
@@ -27,9 +29,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   <main class="layout">
     <div class="stage">
       <div class="toolbar">
-        <button type="button" class="btn primary" @click="reseed">Shuffle</button>
+        <button type="button" class="btn primary" :disabled="usingImage" @click="reseed">Shuffle</button>
         <button type="button" class="btn" @click="reset">Reset</button>
-        <p class="muted hint">Or click the pattern, or press <kbd>R</kbd>.</p>
+        <p class="muted hint">{{ usingImage ? 'Shuffle applies to math patterns only.' : '' }}<template v-if="!usingImage">Or click the pattern, or press <kbd>R</kbd>.</template></p>
       </div>
       <!-- ponytail: pointer shortcut only; the Shuffle button is the keyboard path. -->
       <div class="hero" :style="css" @click="reseed">
@@ -37,7 +39,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <div class="hero-text" :class="{ 'hero-plate': plateMode === 'plate' }" :style="plateMode === 'plate' ? plateStyle : undefined">
           <h1 :style="{ color: roles.text }">Fractal Patterns</h1>
           <p :class="{ 'hero-plate': plateMode === 'split' }" :style="[plateMode === 'split' ? plateStyle : '', { color: roles.text }]">
-            Pattern: {{ KIND_LABELS[params.kind] }}, seed {{ params.seed }}. This text uses your text color and text plate settings, so what you read here is what your visitors will read.
+            <template v-if="usingImage">Pattern: traced from your image, {{ DETECTOR_LABELS[trace.detector] }} edges, {{ traced?.length ?? 0 }} lines.</template><template v-else>Pattern: {{ KIND_LABELS[params.kind] }}, seed {{ params.seed }}.</template> This text uses your text color and text plate settings, so what you read here is what your visitors will read.
           </p>
         </div>
       </div>
@@ -46,6 +48,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     <div class="controls">
       <ColorPanel />
       <PatternPanel />
+      <ImagePanel />
       <OutputPanel />
     </div>
   </main>

@@ -1,6 +1,8 @@
 // Module-level reactive state for the page. Randomness lives here, never in fractal.ts.
-import { computed, reactive, ref, watch } from 'vue';
-import { KINDS, MAX_DEPTH, generate, type Kind } from '@/fractal.ts';
+import { computed, reactive, ref, shallowRef, watch } from 'vue';
+import { KINDS, MAX_DEPTH, generate, svgFromPolylines, type Kind } from '@/fractal.ts';
+import { edges, toGray, type Detector } from '@/trace.ts';
+import { vectorize } from '@/vectorize.ts';
 import { PALETTES, type Palette } from '@/palettes.ts';
 import { blend, contrastRatio, textLevel } from '@/contrast.ts';
 import { fixContrast, fixWithPlate, patternContrast, patternInvisible, pickRoles, plateContrast, swapRoles, worstTextContrast, type Roles } from '@/pairing.ts';
@@ -50,7 +52,78 @@ watch(
   },
 );
 
-export const svg = computed(() => generate({ ...params, color: roles.pattern, opacity: opacity.value }));
+// Traced-image source. The pixels live in memory only; nothing is uploaded.
+export const RESOLUTIONS = [128, 192, 256] as const;
+const TRACE_DEFAULTS = { detector: 'canny' as Detector, threshold: 0.3, tolerance: 1.5, minLength: 8, resolution: 192 };
+export const source = ref<'math' | 'image'>('math');
+export const trace = reactive({ ...TRACE_DEFAULTS });
+export const image = shallowRef<{ data: Uint8ClampedArray; width: number; height: number } | null>(null);
+// ponytail: the File stays referenced so a resolution change can re-downscale; dropped by removeImage().
+let imageFile: Blob | null = null;
+
+async function downscale(file: Blob, edge: number): Promise<{ data: Uint8ClampedArray; width: number; height: number }> {
+  const bitmap = await createImageBitmap(file);
+  try {
+    const s = edge / Math.max(bitmap.width, bitmap.height);
+    const width = Math.max(1, Math.round(bitmap.width * s));
+    const height = Math.max(1, Math.round(bitmap.height * s));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) throw new Error('no 2d context');
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    return { data: ctx.getImageData(0, 0, width, height).data, width, height };
+  } finally {
+    bitmap.close();
+  }
+}
+
+// Throws a plain-language Error the panel shows as is.
+export async function loadImage(file: File): Promise<void> {
+  if (!file.type.startsWith('image/')) throw new Error(`"${file.name}" is not an image. Choose a JPEG, PNG, WebP, or GIF file.`);
+  try {
+    image.value = await downscale(file, trace.resolution);
+  } catch {
+    throw new Error(`The browser could not read "${file.name}" as an image. Try another file or format.`);
+  }
+  imageFile = file;
+  source.value = 'image';
+}
+
+watch(
+  () => trace.resolution,
+  async (r) => {
+    if (!imageFile) return;
+    try {
+      image.value = await downscale(imageFile, r);
+    } catch {
+      /* the file decoded once at this point; keep the previous pixels */
+    }
+  },
+);
+
+export function removeImage(): void {
+  imageFile = null;
+  image.value = null;
+  source.value = 'math';
+}
+
+const edgeMap = computed(() => {
+  const img = image.value;
+  return img ? edges(toGray(img.data, img.width, img.height), trace.detector, trace.threshold) : null;
+});
+export const traced = computed(() => {
+  const img = image.value;
+  const map = edgeMap.value;
+  return img && map ? vectorize(map, img.width, img.height, { size: params.size, tolerance: trace.tolerance, minLength: trace.minLength }) : null;
+});
+export const usingImage = computed(() => source.value === 'image' && traced.value !== null);
+
+export const svg = computed(() => {
+  const p = { ...params, color: roles.pattern, opacity: opacity.value };
+  return usingImage.value && traced.value ? svgFromPolylines(traced.value, p) : generate(p);
+});
 export const css = computed(() => cssBackground(svg.value, roles.background));
 export const plateCss = computed(() =>
   cssPlate(roles.background, { opacity: plateOpacity.value, radius: plateRadius.value, blur: plateBlur.value }),
@@ -59,7 +132,7 @@ export const plateCss = computed(() =>
 export const plateStyle = computed(() => plateCss.value.split('\n').slice(1, -1).join(''));
 export const cssOut = computed(() => (plateMode.value === 'direct' ? css.value : `${css.value}\n\n${plateCss.value}`));
 export const svgHref = computed(() => svgToDataUri(svg.value));
-export const fileName = computed(() => `fractal-${params.kind}-${params.seed}.svg`);
+export const fileName = computed(() => (usingImage.value ? `traced-${trace.detector}.svg` : `fractal-${params.kind}-${params.seed}.svg`));
 
 // One small live tile per kind, current colors and seed, for the gallery.
 // Reads only seed and colors, so slider moves on the selected pattern never regenerate it.
@@ -115,7 +188,9 @@ watch(
   { immediate: true },
 );
 
+// No-op in image mode: the seed does not shape a traced tile.
 export function reseed(): void {
+  if (usingImage.value) return;
   params.seed = randomSeed();
 }
 
@@ -186,4 +261,6 @@ export function reset(): void {
   plateRadius.value = PLATE_DEFAULTS.plateRadius;
   plateBlur.value = PLATE_DEFAULTS.plateBlur;
   applyPalette(DEFAULT_PALETTE);
+  Object.assign(trace, TRACE_DEFAULTS);
+  removeImage();
 }

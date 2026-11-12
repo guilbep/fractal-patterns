@@ -232,6 +232,17 @@ export function reseed(): void {
   params.seed = randomSeed();
 }
 
+// A different kind, a new seed, a single layout; colors, plate, spacing, and motion stay.
+export function randomPattern(): void {
+  source.value = 'math';
+  layout.value = 'single';
+  const others = KINDS.filter((k) => k !== params.kind);
+  const kind = others[randomSeed() % others.length] ?? params.kind;
+  params.kind = kind;
+  params.seed = randomSeed();
+  params.depth = Math.max(Math.min(params.depth, MAX_DEPTH[kind]), Math.min(2, MAX_DEPTH[kind]));
+}
+
 export function setSeed(value: string): void {
   const n = Number(value);
   if (value.trim() !== '' && Number.isInteger(n) && n >= 0 && n <= MAX_SEED) params.seed = n;

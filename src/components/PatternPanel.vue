@@ -50,7 +50,7 @@ const groups = computed(() =>
       <button type="button" class="btn" :disabled="Object.keys(patch.pinned).length === 0" @click="patch.pinned = {}">Clear pins</button>
     </div>
     <fieldset class="gallery">
-      <legend>Pattern</legend>
+      <legend>Library</legend>
       <p v-if="usingPatchwork" class="note image-source-note">The tile is a patchwork. Pick a pattern here to go back to a single pattern.</p>
       <p v-if="usingImage" class="note image-source-note">The tile now comes from your image (see From image). Pick a pattern here to go back to math patterns.</p>
       <nav class="family-links" aria-label="Pattern families">

@@ -9,6 +9,7 @@ const sizeText = (pick: (g: { css: number; script: number }) => string) =>
 const bytes = (n: number) => `${n.toLocaleString('en')} bytes`;
 
 const html = exportHtml();
+const emit = defineEmits<{ depth: [] }>();
 
 const copyStatus = ref('');
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -28,7 +29,7 @@ async function copy(text: string): Promise<void> {
 <template>
   <section class="panel" aria-labelledby="perf-h">
     <h2 id="perf-h">Performance settings</h2>
-    <p class="lede">Fewer decimals and less depth make a lighter tile. <a href="#depth">Depth</a> is set under Pattern.</p>
+    <p class="lede">Fewer decimals and less depth make a lighter tile. <button type="button" class="link-btn" @click="emit('depth')">Depth</button> is set under Pattern.</p>
     <div class="field">
       <label for="precision">Coordinate precision <output for="precision">{{ params.precision }} {{ params.precision === 1 ? 'decimal' : 'decimals' }}</output></label>
       <input id="precision" v-model.number="params.precision" type="range" min="0" max="3" step="1">

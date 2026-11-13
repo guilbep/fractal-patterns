@@ -84,7 +84,10 @@ test('size cap', () => {
       const len = generate(params(kind, { seed, depth: MAX_DEPTH[kind] })).length;
       // The Penrose kinds are allowed more: the owner accepts a heavy tile there (the page shows its bytes), so
       // their cap is 125000, measured worst 118102 for 'penroseboth' depth 4 at size 120.
-      assert.ok(len <= (tileAspect(kind) === 1 ? 60000 : 125000), `${kind} seed ${seed}: ${len}`);
+      // The same holds for the 8-fold quasicrystal kinds at depth 3, size 120, seeds 1 to 20:
+      // measured worst 93016 for 'octa' (seed 18) and 100040 for 'octastars' (seed 14).
+      const cap = tileAspect(kind) !== 1 ? 125000 : kind === 'octa' ? 95000 : kind === 'octastars' ? 105000 : 60000;
+      assert.ok(len <= cap, `${kind} seed ${seed}: ${len}`);
     }
     const deep = generate(params(kind, { depth: MAX_DEPTH[kind] })).length;
     const shallow = generate(params(kind, { depth: 1 })).length;
@@ -144,7 +147,8 @@ test('source hygiene', () => {
 test('families', () => {
   assert.deepEqual([...FAMILIES], ['fractal', 'line', 'surface', 'symmetry', 'theme', 'quasi']);
   assert.equal(FAMILY_LABELS.quasi, 'Quasicrystals');
-  for (const kind of ['penrose', 'penrosearcs', 'penroseboth'] as const) assert.equal(KIND_FAMILY[kind], 'quasi', kind);
+  for (const kind of ['penrose', 'penrosearcs', 'penroseboth', 'octa', 'octastars', 'dodeca', 'dodecastars'] as const)
+    assert.equal(KIND_FAMILY[kind], 'quasi', kind);
   for (const kind of [
     'topo',
     'maze',
@@ -160,6 +164,7 @@ test('families', () => {
     'feathers',
     'chain',
     'pipes',
+    'chladni',
   ] as const)
     assert.equal(KIND_FAMILY[kind], 'theme', kind);
   for (const family of FAMILIES) assert.ok(typeof FAMILY_LABELS[family] === 'string' && FAMILY_LABELS[family].length > 0, family);
@@ -187,7 +192,7 @@ test('families', () => {
 });
 
 test('all kinds are registered', () => {
-  assert.equal(KINDS.length, 54);
+  assert.equal(KINDS.length, 59);
   const ids = [
     'carpet',
     'quadtree',
@@ -243,6 +248,11 @@ test('all kinds are registered', () => {
     'penrose',
     'penrosearcs',
     'penroseboth',
+    'chladni',
+    'octa',
+    'octastars',
+    'dodeca',
+    'dodecastars',
   ];
   for (const id of ids) assert.ok((KINDS as readonly string[]).includes(id), id);
   for (const kind of ['p1', 'p2', 'pm', 'pg', 'cm', 'pmm', 'pmg', 'pgg', 'cmm', 'p4', 'p4m', 'p4g'] as const)
@@ -588,6 +598,36 @@ const PINS: Readonly<Record<PatternParams['kind'], readonly (readonly [number, n
     [118102, 3289418917],
     [18420, 3219815402],
     [117872, 966209441],
+  ],
+  chladni: [
+    [1303, 672125876],
+    [2780, 1541374676],
+    [1182, 3482209262],
+    [3697, 3866082923],
+  ],
+  octa: [
+    [16032, 4137623251],
+    [92618, 3584427911],
+    [16238, 2630596331],
+    [92824, 22219930],
+  ],
+  octastars: [
+    [17709, 3347306865],
+    [100004, 2537374824],
+    [17268, 3074400373],
+    [99263, 845989535],
+  ],
+  dodeca: [
+    [13859, 2051765636],
+    [25161, 1491003487],
+    [14057, 2554691103],
+    [25301, 1548947765],
+  ],
+  dodecastars: [
+    [14535, 1457518766],
+    [26832, 1440312088],
+    [15005, 3140798711],
+    [27456, 966033677],
   ],
 };
 

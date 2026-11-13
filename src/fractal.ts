@@ -28,10 +28,12 @@ import {
 import { THEME_AIR_MAX_DEPTH, chain, feathers } from './patterns/themes-air.ts';
 import { THEME_CRAFT_MAX_DEPTH, knot, roof } from './patterns/themes-craft.ts';
 import { THEME_EARTH_MAX_DEPTH, cracks, roots, stars } from './patterns/themes-earth.ts';
+import { CHLADNI_MAX_DEPTH, chladni } from './patterns/themes-chladni.ts';
 import { PIPES_MAX_DEPTH, pipes } from './patterns/themes-pipes.ts';
 import { THEME_WATER_MAX_DEPTH, rain, ridges, seigaiha } from './patterns/themes-water.ts';
 import { circuit, maze, topo } from './patterns/themes.ts';
 import { PENROSE_ASPECT, PENROSE_MAX_DEPTH, penroseArcs, penroseBoth, penroseEdges } from './penrose.ts';
+import { QUASI_MAX_DEPTH, dodecaEdges, dodecaStars, octaEdges, octaStars } from './quasi.ts';
 import { mulberry32, type Generator, type Pt } from './patterns/util.ts';
 import { sceneToSvg, squareScene } from './scene.ts';
 
@@ -102,6 +104,11 @@ export const KINDS = [
   'penrose',
   'penrosearcs',
   'penroseboth',
+  'chladni',
+  'octa',
+  'octastars',
+  'dodeca',
+  'dodecastars',
 ] as const;
 export type Kind = (typeof KINDS)[number];
 
@@ -164,6 +171,11 @@ const PATTERNS: Readonly<Record<Kind, { family: Family; label: string; maxDepth:
   penrose: { family: 'quasi', label: 'Penrose rhombs', maxDepth: PENROSE_MAX_DEPTH, gen: penroseEdges, aspect: PENROSE_ASPECT },
   penrosearcs: { family: 'quasi', label: 'Penrose arcs', maxDepth: PENROSE_MAX_DEPTH, gen: penroseArcs, aspect: PENROSE_ASPECT },
   penroseboth: { family: 'quasi', label: 'Penrose rhombs and arcs', maxDepth: PENROSE_MAX_DEPTH, gen: penroseBoth, aspect: PENROSE_ASPECT },
+  chladni: { family: 'theme', label: 'Chladni figures', maxDepth: CHLADNI_MAX_DEPTH, gen: chladni },
+  octa: { family: 'quasi', label: 'Eightfold rhombs', maxDepth: QUASI_MAX_DEPTH, gen: octaEdges },
+  octastars: { family: 'quasi', label: 'Eightfold stars', maxDepth: QUASI_MAX_DEPTH, gen: octaStars },
+  dodeca: { family: 'quasi', label: 'Twelvefold rhombs', maxDepth: QUASI_MAX_DEPTH, gen: dodecaEdges },
+  dodecastars: { family: 'quasi', label: 'Twelvefold stars', maxDepth: QUASI_MAX_DEPTH, gen: dodecaStars },
 };
 
 const byKind = <T>(f: (k: Kind) => T): Readonly<Record<Kind, T>> => Object.fromEntries(KINDS.map((k) => [k, f(k)])) as Record<Kind, T>;

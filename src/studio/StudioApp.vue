@@ -8,6 +8,7 @@ import { svgToDataUri } from '@/css.ts';
 import SponsorBanner from '@/components/SponsorBanner.vue';
 import SizeBadge from '@/components/SizeBadge.vue';
 import UiFileDrop from '@/components/UiFileDrop.vue';
+import UiSegmented from '@/components/UiSegmented.vue';
 import { copyText } from '@/clipboard.ts';
 import { decodeImage, sample } from '@/image-file.ts';
 import { rawSize } from '@/co2.ts';
@@ -327,9 +328,38 @@ async function copyCss(): Promise<void> {
   copyTimer = setTimeout(() => (copyStatus.value = ''), 2500);
 }
 
+// Preview chips and the folded sections' one-line summaries.
+const themeLabel = computed(() => THEMES.find((t) => t.id === design.theme)?.label ?? design.theme);
+const tracked = computed(() => studioTracking(studio.value));
+const bal = computed(() => (tracked.value ? balance(tracked.value) : null));
+const optionsSummary = computed(
+  () =>
+    [design.balance && 'auto balance', design.ground && 'ground', design.large && 'large tile', design.stems && 'stems'].filter(Boolean).join(' · ') ||
+    'none',
+);
+const OWN_SUMMARY: Record<OwnMethod, string> = { color: 'color shapes', ink: 'ink', lines: 'line drawing' };
+const ownSummary = computed(() => (!ownResult.value ? 'none · drop an SVG or image' : ownVector.value ? 'SVG shapes' : OWN_SUMMARY[own.method]));
+const SIZE_PRESETS = [200, 300, 400, 500].map((v) => ({ value: v, label: String(v) }));
+// Decorative theme pictures for the theme cards, as on the design board (picture colors, not UI colors).
+const THEME_THUMBS: Record<Theme, string> = {
+  floral: `url("${svgToDataUri(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="308" height="308" viewBox="0 0 200 200"><rect width="200" height="200" fill="#F2ECE0"/><path d="M20 120C34 92 44 62 70 40" fill="none" stroke="#5E7B5A" stroke-width="2"/><path d="M44 84C30 80 22 68 24 56C38 60 46 72 44 84Z" fill="#7E9A73"/><path d="M52 70C62 60 76 58 86 64C78 74 64 76 52 70Z" fill="#5E7B5A"/><g transform="translate(70 40)" fill="#C8553D"><circle r="7"/><circle cy="-11" r="7"/><circle cx="10" cy="-4" r="7"/><circle cx="7" cy="9" r="7"/><circle cx="-7" cy="9" r="7"/><circle cx="-10" cy="-4" r="7"/><circle r="5" fill="#F0B84A"/></g><path d="M100 116C108 104 118 98 128 98C124 110 112 118 100 116Z" fill="#7E9A73"/><circle cx="104" cy="22" r="4" fill="#F0B84A"/><circle cx="112" cy="30" r="3" fill="#C8553D"/><circle cx="16" cy="18" r="3" fill="#5E7B5A"/><circle cx="24" cy="28" r="2.5" fill="#5E7B5A"/></svg>',
+  )}")`,
+  sea: `url("${svgToDataUri(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="24"><rect width="40" height="24" fill="#E3EEF0"/><path d="M0 12Q10 2 20 12T40 12" fill="none" stroke="#2C6E80" stroke-width="2"/><circle cx="30" cy="20" r="2" fill="#E07A3F"/></svg>',
+  )}")`,
+  orchard: `url("${svgToDataUri(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36"><rect width="36" height="36" fill="#F3EEDC"/><circle cx="12" cy="14" r="6" fill="#B8432F"/><path d="M12 8C14 4 18 3 20 4C18 7 15 8 12 8Z" fill="#5E7B5A"/><circle cx="28" cy="30" r="4" fill="#E0A82E"/></svg>',
+  )}")`,
+};
+
 // Sticky offset under the toolbar, as in the pattern tool.
 const bar = ref<HTMLElement | null>(null);
 useBarHeight(bar);
+// The preview fills the window under the header and the toolbar, so its corner chips show at load.
+const head = ref<HTMLElement | null>(null);
+onMounted(() => (head.value = document.querySelector<HTMLElement>('.site-header')));
+useBarHeight(head, '--head-h');
 </script>
 
 <template>
@@ -358,57 +388,68 @@ useBarHeight(bar);
     <div ref="stage" class="stage">
       <ShortcutHint :on="shortcutOn" />
       <div id="wall" class="wall" role="img" :aria-label="`Wallpaper preview, ${REPEAT_INFO.find(([r]) => r === design.repeat)?.[1]} repeat, seed ${design.seed}`" :style="wallStyle"></div>
+      <div class="wall-chips">
+        <span class="wall-chip mono">{{ themeLabel }} · seed {{ design.seed }} · {{ design.size }} px</span>
+        <span v-if="bal" id="tracking" class="wall-chip balance" :class="bal.label" :title="`${studioTries(studio) ? `Best of ${studioTries(studio)} tries. ` : ''}Worst part: ${bal.worst}`"><template v-if="bal.label === 'good'">✓ </template>Balance {{ bal.label }}</span>
+      </div>
+      <button type="button" class="wall-full" aria-label="Full screen" title="Full screen (F)" :aria-keyshortcuts="shortcutOn ? 'F' : undefined" @click="fullscreen">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" /></svg>
+      </button>
     </div>
 
-    <div class="controls">
+    <div class="controls studio-controls">
       <section v-if="showCss" class="panel" aria-labelledby="css-h">
         <h2 id="css-h">CSS</h2>
         <label for="css-out" class="visually-hidden">CSS rule</label>
         <textarea id="css-out" class="code" readonly rows="4" :value="css" @focus="($event.target as HTMLTextAreaElement).select()"></textarea>
       </section>
 
-      <section class="panel" aria-labelledby="design-h">
-        <h2 id="design-h">Design</h2>
-        <div class="fields">
-          <div class="field">
-            <label for="seed">Seed</label>
-            <div class="seed-row">
-              <input id="seed" type="number" min="0" :max="MAX_SEED" step="1" :value="design.seed" @input="setSeed(($event.target as HTMLInputElement).value)" @change="($event.target as HTMLInputElement).value = String(design.seed)">
-              <button type="button" class="btn" @click="shuffle">Shuffle</button>
-            </div>
-            <p v-if="studioTracking(studio)" id="tracking" class="hint-text" :title="`${studioTries(studio) ? `Best of ${studioTries(studio)} tries. ` : ''}Worst part: ${balance(studioTracking(studio)!).worst}`">Balance: {{ balance(studioTracking(studio)!).label }}</p>
+      <section class="s-card design-card" aria-label="Design">
+        <fieldset class="span-2 theme-field" :aria-describedby="THEME_HINTS[design.theme] ? 'theme-hint' : undefined">
+          <legend class="s-label">Theme</legend>
+          <div class="theme-cards">
+            <label v-for="t in THEMES" :key="t.id" class="theme-card">
+              <input :id="`theme-${t.id}`" class="visually-hidden" type="radio" name="theme" :value="t.id" :checked="design.theme === t.id" @change="setTheme(t.id)">
+              <span class="theme-thumb" :style="{ backgroundImage: THEME_THUMBS[t.id] }" aria-hidden="true"></span>
+              <span class="theme-name">{{ t.label }}</span>
+            </label>
           </div>
-          <div class="field">
-            <label for="theme">Theme</label>
-            <select id="theme" :value="design.theme" :aria-describedby="THEME_HINTS[design.theme] ? 'theme-hint' : undefined" @change="setTheme(($event.target as HTMLSelectElement).value as Theme)">
-              <option v-for="t in THEMES" :key="t.id" :value="t.id">{{ t.label }}</option>
-            </select>
-            <p v-if="THEME_HINTS[design.theme]" id="theme-hint" class="hint-text">{{ THEME_HINTS[design.theme] }}</p>
-          </div>
-          <div class="field">
-            <label for="palette">Palette</label>
-            <select id="palette" :value="design.palette.name" @change="pickPalette(($event.target as HTMLSelectElement).value)">
-              <option v-if="isRandom" value="Random">Random</option>
-              <optgroup v-for="g in PALETTE_GROUPS" :key="g.label" :label="g.label">
-                <option v-for="p in g.palettes" :key="p.name" :value="p.name">{{ p.name }}</option>
-              </optgroup>
-            </select>
-          </div>
-          <div class="field">
-            <label for="density">Density <output for="density">{{ Math.round(design.density * 100) }} %</output></label>
-            <input id="density" v-model.number="design.density" type="range" min="0" max="1" step="0.01">
-          </div>
-          <div class="field">
-            <label for="size">Tile size <output for="size">{{ design.size }} px</output></label>
-            <input id="size" v-model.number="design.size" type="range" :min="SIZE_MIN" :max="SIZE_MAX" :step="SIZE_STEP">
-          </div>
-          <div class="field">
-            <label for="zoom">Preview zoom <output for="zoom">{{ zoom }} %</output></label>
-            <input id="zoom" v-model.number="zoom" type="range" min="50" max="200" step="10">
+          <p v-if="THEME_HINTS[design.theme]" id="theme-hint" class="hint-text">{{ THEME_HINTS[design.theme] }}</p>
+        </fieldset>
+        <div class="field">
+          <label for="seed">Seed</label>
+          <div class="seed-row">
+            <input id="seed" type="number" min="0" :max="MAX_SEED" step="1" :value="design.seed" @input="setSeed(($event.target as HTMLInputElement).value)" @change="($event.target as HTMLInputElement).value = String(design.seed)">
+            <button type="button" class="seed-shuffle" aria-label="Shuffle" title="Shuffle: another seed" @click="shuffle"><span aria-hidden="true">↻</span></button>
           </div>
         </div>
-        <!-- The options sit under the grid, one per row: inside a grid cell they stretched the selects of their row. -->
-        <div class="options">
+        <div class="field">
+          <label for="palette">Palette</label>
+          <select id="palette" :value="design.palette.name" @change="pickPalette(($event.target as HTMLSelectElement).value)">
+            <option v-if="isRandom" value="Random">Random</option>
+            <optgroup v-for="g in PALETTE_GROUPS" :key="g.label" :label="g.label">
+              <option v-for="p in g.palettes" :key="p.name" :value="p.name">{{ p.name }}</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="field size-field">
+          <label for="size">Tile size <output for="size">{{ design.size }} px</output></label>
+          <UiSegmented class="size-presets" name="size-preset" label="Tile size presets" :options="SIZE_PRESETS" :model-value="design.size" @update:model-value="(v) => (design.size = Number(v))" />
+          <input id="size" v-model.number="design.size" type="range" :min="SIZE_MIN" :max="SIZE_MAX" :step="SIZE_STEP">
+        </div>
+        <div class="field">
+          <label for="density">Density <output for="density">{{ Math.round(design.density * 100) }} %</output></label>
+          <input id="density" v-model.number="design.density" type="range" min="0" max="1" step="0.01">
+        </div>
+        <div class="field">
+          <label for="zoom">Preview zoom <output for="zoom">{{ zoom }} %</output></label>
+          <input id="zoom" v-model.number="zoom" type="range" min="50" max="200" step="10">
+        </div>
+      </section>
+
+      <details class="s-card fold">
+        <summary><span class="fold-title">Options</span><span class="fold-sum">{{ optionsSummary }}</span><span class="fold-mark" aria-hidden="true">▸</span></summary>
+        <div class="fold-body options">
           <label class="radio"><input id="balance" v-model="design.balance" type="checkbox" aria-describedby="balance-hint"> Balance automatically</label>
           <p id="balance-hint" class="hint-text">Composes again when the wallpaper has a dense strip or a large empty area, and keeps the best of up to six tries. Not used with Large tile.</p>
           <label class="radio"><input id="ground" v-model="design.ground" type="checkbox" aria-describedby="ground-hint"> Ground layer</label>
@@ -417,11 +458,11 @@ useBarHeight(bar);
           <p id="large-hint" class="hint-text">Composes one tile of twice the width and height, with about four times the plants. The picture comes back four times less often. About three times the bytes.</p>
           <label class="radio"><input id="stems" v-model="design.stems" type="checkbox"> Show stems</label>
         </div>
-      </section>
+      </details>
 
-      <section class="panel" aria-labelledby="repeat-h">
-        <h2 id="repeat-h">Repeat</h2>
-        <fieldset>
+      <details class="s-card fold">
+        <summary><span class="fold-title">Repeat</span><span class="fold-sum">{{ design.repeat }}</span><span class="fold-mark" aria-hidden="true">▸</span></summary>
+        <fieldset class="fold-body">
           <legend class="visually-hidden">Repeat type</legend>
           <div class="radios">
             <label v-for="[r, label, desc] in REPEAT_INFO" :key="r" class="radio">
@@ -430,11 +471,11 @@ useBarHeight(bar);
             </label>
           </div>
         </fieldset>
-      </section>
+      </details>
 
-      <section class="panel" aria-labelledby="families-h">
-        <h2 id="families-h">Motif families</h2>
-        <fieldset>
+      <details class="s-card fold">
+        <summary><span class="fold-title">Motif families</span><span class="fold-sum">{{ design.families.length }} of {{ families.length }}</span><span class="fold-mark" aria-hidden="true">▸</span></summary>
+        <fieldset class="fold-body">
           <legend class="visually-hidden">Motif families (at least one)</legend>
           <div class="families">
             <label v-for="f in families" :key="f.id" class="radio">
@@ -443,11 +484,11 @@ useBarHeight(bar);
             </label>
           </div>
         </fieldset>
-        <p id="summary" class="summary muted">{{ summary.instances }} placements, {{ summary.motifs }} motif definitions, {{ summary.plates }} colors (plates).<template v-if="ownResult"> Your motif: {{ ownResult.count }}.</template></p>
-      </section>
+      </details>
 
-      <section class="panel" aria-labelledby="own-h">
-        <h2 id="own-h">Your own motif</h2>
+      <details class="s-card fold">
+        <summary><span class="fold-title">Your own motif</span><span class="fold-sum sans">{{ ownSummary }}</span><span class="fold-mark" aria-hidden="true">▸</span></summary>
+        <div class="fold-body">
         <ul class="image-notes">
           <li>Use only images that you own or have a license for.</li>
           <li>Your image stays in your browser. Nothing is uploaded.</li>
@@ -534,7 +575,10 @@ useBarHeight(bar);
           <button id="own-remove" type="button" class="btn" @click="removeOwn">Remove my motif</button>
         </template>
         <p class="muted">Your motif is not part of the link.</p>
-      </section>
+        </div>
+      </details>
+
+      <p id="summary" class="summary muted">{{ summary.instances }} placements, {{ summary.motifs }} motif definitions, {{ summary.plates }} colors (plates).<template v-if="ownResult"> Your motif: {{ ownResult.count }}.</template></p>
     </div>
   </main>
   <footer class="site-footer">

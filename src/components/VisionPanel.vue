@@ -1,27 +1,34 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { blend } from '@/contrast.ts';
-import { opacity, plateMode, plateOpacity, ratioText, roles } from '@/state.ts';
+import { contrast, fill, opacity, plateMode, plateOpacity, ratioText, roles } from '@/state.ts';
 import { CVD_LABELS, betweenSurfaces, cvdReport, effectiveOpacity, lightnessDiff, type LightnessDiff } from '@/vision.ts';
 
 // The paragraph sits on the plate in 'plate' and 'split', the heading only in 'plate'.
 const paraOpacity = computed(() => (plateMode.value === 'direct' ? opacity.value : effectiveOpacity(opacity.value, plateOpacity.value)));
 const headOpacity = computed(() => (plateMode.value === 'plate' ? paraOpacity.value : opacity.value));
 
+// The fill counts where the main panel shows "On the fill".
+const shownFill = computed(() => (contrast.value.onFill === null ? null : { color: fill.color, opacity: fill.opacity }));
+
 const POLARITY: Record<LightnessDiff['polarity'], string> = {
   'dark-on-light': 'dark text on light',
   'light-on-dark': 'light text on dark',
   same: 'same lightness',
 };
-const rows = computed(() => [
-  { label: 'Text on the background', diff: lightnessDiff(roles.text, roles.background) },
-  { label: 'Text on the pattern strokes', diff: lightnessDiff(roles.text, blend(roles.pattern, roles.background, paraOpacity.value)) },
-]);
+const rows = computed(() => {
+  const f = shownFill.value;
+  return [
+    { label: 'Text on the background', diff: lightnessDiff(roles.text, roles.background) },
+    { label: 'Text on the pattern strokes', diff: lightnessDiff(roles.text, blend(roles.pattern, roles.background, paraOpacity.value)) },
+    ...(f ? [{ label: 'Text on the fill', diff: lightnessDiff(roles.text, blend(f.color, roles.background, f.opacity)) }] : []),
+  ];
+});
 
 // In 'plate' and 'direct' both texts share one surface, so one hit concerns both.
 const between = computed(() => {
-  const p = betweenSurfaces(roles, paraOpacity.value);
-  const h = betweenSurfaces(roles, headOpacity.value);
+  const p = betweenSurfaces(roles, paraOpacity.value, shownFill.value);
+  const h = betweenSurfaces(roles, headOpacity.value, shownFill.value);
   return p && h ? 'paragraph and the heading' : p ? 'paragraph' : h ? 'heading' : null;
 });
 
@@ -30,7 +37,7 @@ const SWATCHES = [
   { key: 'pattern', label: 'Pattern' },
   { key: 'text', label: 'Text' },
 ] as const;
-const cvd = computed(() => cvdReport(roles, paraOpacity.value).map((c) => ({ ...c, pass: c.text >= 4.5 })));
+const cvd = computed(() => cvdReport(roles, paraOpacity.value, shownFill.value).map((c) => ({ ...c, pass: c.text >= 4.5 })));
 </script>
 
 <template>
@@ -70,6 +77,10 @@ const cvd = computed(() => cvdReport(roles, paraOpacity.value).map((c) => ({ ...
           <span v-for="s in SWATCHES" :key="s.key" class="cvd-swatch">
             <span class="chip" role="img" :aria-label="`${s.label} ${c.roles[s.key]}`" :title="`${s.label} ${c.roles[s.key]}`" :style="{ backgroundColor: c.roles[s.key] }"></span>
             <code aria-hidden="true">{{ c.roles[s.key] }}</code>
+          </span>
+          <span v-if="c.fill" class="cvd-swatch">
+            <span class="chip" role="img" :aria-label="`Fill ${c.fill}`" :title="`Fill ${c.fill}`" :style="{ backgroundColor: c.fill }"></span>
+            <code aria-hidden="true">{{ c.fill }}</code>
           </span>
         </span>
         <span class="badge" :class="c.pass ? 'pass' : 'fail'">

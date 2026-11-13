@@ -3,7 +3,20 @@ import { PATTERN_VISIBLE_MIN, patternContrast, worstTextContrast, type Roles } f
 
 // True when the text is darker than one surface and lighter than the other:
 // strokes then cross the letters with reversed polarity, which the ratio alone does not show.
-export function betweenSurfaces(r: Roles, opacity: number): boolean {
+// The fill as composited in state.ts: its color over the background at its opacity; null when off.
+export interface Fill {
+  readonly color: string;
+  readonly opacity: number;
+}
+
+const onFill = (r: Roles, f: Fill): Roles => ({ ...r, background: blend(f.color, r.background, f.opacity) });
+
+// With a fill, text can also sit on the fill surface and on strokes over it.
+export function betweenSurfaces(r: Roles, opacity: number, fill?: Fill | null): boolean {
+  return between(r, opacity) || (!!fill && between(onFill(r, fill), opacity));
+}
+
+function between(r: Roles, opacity: number): boolean {
   if (patternContrast(r, opacity) < PATTERN_VISIBLE_MIN) return false;
   const t = relativeLuminance(r.text);
   const a = relativeLuminance(r.background);
@@ -65,17 +78,27 @@ export interface CvdResult {
   readonly roles: Roles;
   readonly text: number;
   readonly pattern: number;
+  // The simulated fill color, null without a fill.
+  readonly fill: string | null;
 }
 
-export function cvdReport(r: Roles, opacity: number): CvdResult[] {
+export function cvdReport(r: Roles, opacity: number, fill?: Fill | null): CvdResult[] {
   return CVD_TYPES.map((type) => {
     const roles = simulateRoles(r, type);
-    return { type, roles, text: worstTextContrast(roles, opacity), pattern: patternContrast(roles, opacity) };
+    const f = fill ? { color: simulate(fill.color, type), opacity: fill.opacity } : null;
+    const text = worstTextContrast(roles, opacity);
+    return {
+      type,
+      roles,
+      text: f ? Math.min(text, worstTextContrast(onFill(roles, f), opacity)) : text,
+      pattern: patternContrast(roles, opacity),
+      fill: f?.color ?? null,
+    };
   });
 }
 
-export function cvdWorstText(r: Roles, opacity: number): number {
-  return Math.min(...cvdReport(r, opacity).map((c) => c.text));
+export function cvdWorstText(r: Roles, opacity: number, fill?: Fill | null): number {
+  return Math.min(...cvdReport(r, opacity, fill).map((c) => c.text));
 }
 
 // CIE L* (0 to 100) from the WCAG relative luminance Y.

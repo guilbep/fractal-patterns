@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseHex, toHex } from './contrast.ts';
+import { blend, contrastRatio, parseHex, toHex } from './contrast.ts';
 import { patternContrast, worstTextContrast, type Roles } from './pairing.ts';
 import { mulberry32 } from './patterns/util.ts';
 import {
@@ -107,6 +107,32 @@ test('cvdReport and cvdWorstText', () => {
     assert.ok(Math.abs(c.pattern - patternContrast(r, 0.6)) <= 0.2, `${c.type} pattern ${c.pattern}`);
   }
   assert.equal(cvdWorstText(r, 0.6), Math.min(...rep.map((c) => c.text)));
+});
+
+test('cvdReport with a fill', () => {
+  const r: Roles = { background: '#ffffff', pattern: '#808080', text: '#000000' };
+  // Absent or null fill: same results as before.
+  assert.deepEqual(
+    cvdReport(r, 0.6, null),
+    cvdReport(r, 0.6).map((c) => ({ ...c, fill: null })),
+  );
+  assert.equal(cvdWorstText(r, 0.6, null), cvdWorstText(r, 0.6));
+  // A dark fill under black text: worse than the background and the strokes.
+  const fill = { color: '#404040', opacity: 0.8 };
+  const rep = cvdReport(r, 0.6, fill);
+  for (const c of rep) {
+    const surface = blend(simulate(fill.color, c.type), c.roles.background, fill.opacity);
+    const onFill = Math.min(contrastRatio(c.roles.text, surface), contrastRatio(c.roles.text, blend(c.roles.pattern, surface, 0.6)));
+    assert.ok(onFill < worstTextContrast(c.roles, 0.6));
+    assert.equal(c.text, onFill);
+    assert.equal(c.fill, simulate(fill.color, c.type));
+  }
+  assert.equal(cvdWorstText(r, 0.6, fill), Math.min(...rep.map((c) => c.text)));
+  assert.ok(cvdWorstText(r, 0.6, fill) < cvdWorstText(r, 0.6));
+  // betweenSurfaces sees text between the fill and the strokes over it.
+  const mid: Roles = { background: '#000000', pattern: '#000000', text: '#808080' };
+  assert.equal(betweenSurfaces({ ...mid, pattern: '#000000' }, 1), false);
+  assert.equal(betweenSurfaces(mid, 1, { color: '#ffffff', opacity: 1 }), true);
 });
 
 test('lstar', () => {

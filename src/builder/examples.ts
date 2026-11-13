@@ -7,7 +7,7 @@ import type { Design, Item, Stamp } from './types.ts';
 const basic = (name: string): Stamp => BASIC_STAMPS.find((s) => s.name === name)!;
 const mod = (a: number, m: number): number => ((a % m) + m) % m;
 
-type Spec = { stamp: number; x: number; y: number; scale: number; rotate?: number; colors: string[] };
+type Spec = { stamp: number; x: number; y: number; scale: number; rotate?: number; flip?: boolean; colors: string[] };
 
 function design(base: Omit<Design, 'items'>, specs: readonly Spec[]): Design {
   const items: Item[] = specs.map((s, k) => ({
@@ -17,7 +17,7 @@ function design(base: Omit<Design, 'items'>, specs: readonly Spec[]): Design {
     y: mod(s.y, base.height),
     scale: s.scale,
     rotate: mod(s.rotate ?? 0, 360),
-    flip: false,
+    flip: s.flip ?? false,
     opacity: 1,
     colors: s.colors,
   }));
@@ -65,23 +65,33 @@ function squiggles(): Design {
   );
 }
 
+const SAGE = '#8fa58a';
+const LIGHT = '#f4f6f2';
+const INNER = { d: 'M36 55V41C36 33 46 31 50 23C54 31 64 33 64 41V55z', paint: 'fill', color: '#b9c8b4' } as const;
+// The upper part of the Petal arch, down to box y 55 where its straight sides begin.
+const CAP = 'M15 55C15 35 40 30 50 10C60 30 85 35 85 55';
+
 function scales(): Design {
-  const outer: Spec[] = [];
-  const inner: Spec[] = [];
-  // Tile 120 x 72: arches 63 wide on a 60 step, rows 36 apart, every other row shifted half an arch.
-  // ponytail: all outer arches share one color and all inner arches come last, so the drawing order never shows at the wrap.
-  for (let r = 0; r < 2; r++) {
-    for (let c = 0; c < 2; c++) {
-      const x = c * 60 + r * 30;
-      const y = r * 36;
-      outer.push({ stamp: 0, x, y, scale: 0.9, colors: ['#8fa58a'] });
-      inner.push({ stamp: 0, x, y: y + 4, scale: 0.36, colors: ['#f4f6f2'] });
-    }
-  }
-  return design({ width: 120, height: 72, background: '#dfe5df', repeat: 'straight', strokeWidth: 3, stamps: [basic('Petal arch')] }, [
-    ...outer,
-    ...inner,
-  ]);
+  const arch = basic('Petal arch').parts[0]!.d;
+  const scale: Stamp = {
+    name: 'Scale',
+    box: 100,
+    parts: [{ d: arch, paint: 'fill', color: SAGE }, { d: arch, paint: 'stroke', color: LIGHT }, INNER],
+  };
+  const cap: Stamp = {
+    name: 'Scale cap',
+    box: 100,
+    parts: [{ d: `${CAP}z`, paint: 'fill', color: SAGE }, { d: CAP, paint: 'stroke', color: LIGHT }, INNER],
+  };
+  const specs: Spec[] = [];
+  // Tile 120 x 104: arches 77 wide and 88 high (scale 1.1) on a 60 step, rows 52 apart, every other row shifted half an arch.
+  // Each row covers the lower corners of the row above. Row 0 sits on the top edge; it is the only row that crosses it.
+  for (let r = 0; r < 2; r++) for (let c = 0; c < 2; c++) specs.push({ stamp: 0, x: c * 60 + r * 30, y: r * 52, scale: 1.1, colors: [] });
+  // The model has no cyclic drawing order: the wrapped copy of row 0 at the bottom edge is drawn with row 0, first,
+  // so the last row would cover its tip. Row 0 comes again at the end as its cap only (flip: true, the arch is symmetric):
+  // the cap's copy at the bottom edge goes on top of the last row, and its copy at the top edge falls outside the tile.
+  for (let c = 0; c < 2; c++) specs.push({ stamp: 1, x: c * 60, y: 0, scale: 1.1, flip: true, colors: [] });
+  return design({ width: 120, height: 104, background: '#dfe5df', repeat: 'straight', strokeWidth: 2.5, stamps: [scale, cap] }, specs);
 }
 
 const LEAF_STAMPS = ['Leaf', 'Frond', 'Sprig'];

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { EXAMPLES } from './examples.ts';
 import { designSvg, parseDesign } from './design.ts';
+import { BASIC_STAMPS } from './stamps.ts';
 import type { Design } from './types.ts';
 
 const BACKGROUNDS: Record<string, string> = {
@@ -34,7 +35,7 @@ for (const e of EXAMPLES) {
     for (const it of d.items) {
       assert.ok(d.stamps[it.stamp] !== undefined);
       assert.ok(it.x >= 0 && it.x < d.width && it.y >= 0 && it.y < d.height, `${it.x},${it.y}`);
-      keys.add([it.stamp, it.x, it.y, it.rotate, it.scale].join('|'));
+      keys.add([it.stamp, it.x, it.y, it.rotate, it.scale, it.flip].join('|'));
     }
     assert.equal(keys.size, d.items.length, 'no doubled item');
     assert.equal(d.background?.toLowerCase(), BACKGROUNDS[e.id]);
@@ -49,12 +50,29 @@ test('each example uses the stamps of its picture', () => {
   const leaves = get('leaves');
   assert.ok(new Set(leaves.items.map((it) => it.stamp)).size >= 3);
   assert.ok(new Set(leaves.items.map((it) => it.rotate)).size >= 5);
-  assert.ok(stampNames(get('scales')).has('Petal arch'));
   const drops = get('drops');
   assert.ok(stampNames(drops).has('Drop'));
   assert.ok(new Set(drops.items.map((it) => it.colors[0])).size >= 2);
   const squiggles = stampNames(get('squiggles'));
   assert.ok(squiggles.has('Wave') && squiggles.has('Zigzag'));
+});
+
+test('scales has a Scale stamp: the Petal arch filled, then stroked', () => {
+  const petal = BASIC_STAMPS.find((s) => s.name === 'Petal arch')!;
+  const scale = get('scales').stamps.find((s) => s.name === 'Scale')!;
+  assert.equal(scale.parts[0]!.d, petal.parts[0]!.d);
+  assert.ok(scale.parts.length >= 2);
+  assert.equal(scale.parts[0]!.paint, 'fill');
+  assert.ok(scale.parts.slice(1).some((p) => p.paint === 'stroke'));
+});
+
+test('scales: the flipped items come last, each over an unflipped item at the same place', () => {
+  const items = get('scales').items;
+  const first = items.findIndex((it) => it.flip);
+  assert.ok(first > 0);
+  assert.ok(items.slice(first).every((it) => it.flip));
+  for (const it of items.slice(first))
+    assert.ok(items.slice(0, first).some((o) => !o.flip && o.x === it.x && o.y === it.y && o.scale === it.scale && o.rotate === it.rotate));
 });
 
 test('examples.ts uses no randomness, clock or DOM', () => {

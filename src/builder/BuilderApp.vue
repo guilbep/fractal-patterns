@@ -5,17 +5,20 @@ import SiteHeader from '@/components/SiteHeader.vue';
 import SponsorBanner from '@/components/SponsorBanner.vue';
 import { isTyping } from '@/shortcuts.ts';
 import { canRedo, canUndo, commit, redo, resetDesign, selectedId, undo } from './store.ts';
-import { EXAMPLES } from './examples.ts';
+import { EXAMPLE_LIST } from './example-list.ts';
 import BuilderStage from './BuilderStage.vue';
 import StampPanel from './StampPanel.vue';
 import ItemPanel from './ItemPanel.vue';
 import TilePanel from './TilePanel.vue';
 import ExportPanel from './ExportPanel.vue';
 
-function openExample(e: Event): void {
+// The example designs load on demand: "Falling leaves" needs the studio's motif generators.
+async function openExample(e: Event): Promise<void> {
   const select = e.target as HTMLSelectElement;
-  const example = EXAMPLES.find((x) => x.id === select.value);
+  const id = select.value;
   select.selectedIndex = 0;
+  const { EXAMPLES } = await import('./examples.ts');
+  const example = EXAMPLES.find((x) => x.id === id);
   if (!example) return;
   selectedId.value = null;
   commit(example.make());
@@ -43,7 +46,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <label for="examples" class="visually-hidden">Examples</label>
       <select id="examples" class="examples" @change="openExample">
         <option value="" disabled selected>Open an example</option>
-        <option v-for="x in EXAMPLES" :key="x.id" :value="x.id">{{ x.label }}</option>
+        <option v-for="x in EXAMPLE_LIST" :key="x.id" :value="x.id">{{ x.label }}</option>
       </select>
     </div>
   </div>

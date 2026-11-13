@@ -1,7 +1,8 @@
 // Example designs for the builder: wallpaper-like patterns made from the stamp library.
 // Pure and deterministic. A lattice divides the tile evenly, so items on an edge wrap with no seam.
 import { gridFill } from './fill.ts';
-import { BASIC_STAMPS, studioStamps } from './stamps.ts';
+import { BASIC_STAMPS } from './stamps.ts';
+import { studioStamps } from './studio-stamps.ts';
 import type { Design, Item, Stamp } from './types.ts';
 
 const basic = (name: string): Stamp => BASIC_STAMPS.find((s) => s.name === name)!;

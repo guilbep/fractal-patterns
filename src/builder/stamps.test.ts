@@ -2,10 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { safePathData } from '../motifgrid.ts';
-import { MOTIF_FAMILIES, MOTIF_LABELS, motifBounds } from '../studio/motifs.ts';
-import { SEA_FAMILIES, SEA_LABELS } from '../studio/motifs-sea.ts';
-import { ORCHARD_FAMILIES, ORCHARD_LABELS } from '../studio/motifs-orchard.ts';
-import { BASIC_STAMPS, stampFromShapes, stampFromSvg, studioStamps } from './stamps.ts';
+import { motifBounds } from '../studio/motifs.ts';
+import { BASIC_STAMPS, stampFromShapes } from './stamps.ts';
 import type { Stamp } from './types.ts';
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -38,60 +36,6 @@ test('BASIC_STAMPS: 12 named shapes inside the box', () => {
   }
 });
 
-test('studioStamps: 18 family stamps, deterministic', () => {
-  const a = studioStamps(1);
-  assert.equal(a.length, 18);
-  assert.deepEqual(
-    a.map((s) => s.name),
-    [
-      ...MOTIF_FAMILIES.map((f) => MOTIF_LABELS[f]),
-      ...SEA_FAMILIES.map((f) => SEA_LABELS[f]),
-      ...ORCHARD_FAMILIES.map((f) => ORCHARD_LABELS[f]),
-    ],
-  );
-  for (const s of a) {
-    assert.ok(s.parts.length === 1 || s.parts.length === 2, s.name);
-    assert.equal(s.parts[0]!.paint, 'fill');
-    checkClean(s);
-  }
-  assert.ok(a.filter((s) => s.parts.length === 2).length >= 15);
-  assert.deepEqual(studioStamps(1), a);
-  assert.notDeepEqual(studioStamps(2), a);
-});
-
-test('stampFromSvg: a red square', () => {
-  const s = stampFromSvg(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#ff0000" d="M2 2h20v20H2z"/></svg>',
-    'red square.svg',
-  );
-  assert.ok(s);
-  assert.equal(s.name, 'red square');
-  assert.equal(s.parts.length, 1);
-  assert.equal(s.parts[0]!.color.toLowerCase(), '#ff0000');
-  assert.equal(s.parts[0]!.paint, 'fill');
-  const b = motifBounds(s.parts[0]!.d);
-  assert.ok(b.minX >= 0 && b.minY >= 0 && b.maxX <= s.box && b.maxY <= s.box, JSON.stringify(b));
-  checkClean(s);
-});
-
-test('stampFromSvg: two fills keep file order', () => {
-  const s = stampFromSvg(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#00ff00" d="M2 2h8v8H2z"/><path fill="#0000ff" d="M12 12h8v8h-8z"/></svg>',
-    'two',
-  );
-  assert.ok(s);
-  assert.deepEqual(
-    s.parts.map((p) => p.color.toLowerCase()),
-    ['#00ff00', '#0000ff'],
-  );
-  checkClean(s);
-});
-
-test('stampFromSvg: rejects non-SVG and script-only files', () => {
-  assert.equal(stampFromSvg('not an svg', 'x'), null);
-  assert.equal(stampFromSvg('<svg><script>alert(1)</script></svg>', 'x'), null);
-});
-
 test('stampFromShapes: traced fills', () => {
   const s = stampFromShapes([{ color: '#112233', d: 'M0 0h10v10H0z' }], 100, 'trace');
   assert.ok(s);
@@ -113,4 +57,9 @@ test('stampFromShapes: traced fills', () => {
 test('stamps.ts source hygiene', () => {
   const src = readFileSync(new URL('./stamps.ts', import.meta.url), 'utf8');
   for (const w of ['Math.random', 'Date', 'document', 'window']) assert.ok(!src.includes(w), w);
+});
+
+test('stamps.ts imports no studio motif generator and no SVG importer (they load on demand)', () => {
+  const src = readFileSync(new URL('./stamps.ts', import.meta.url), 'utf8');
+  assert.ok(!/from '\.\.\/studio\/(motifs|svg-import)/.test(src));
 });

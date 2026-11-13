@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { EXAMPLES } from './examples.ts';
+import { EXAMPLE_LIST } from './example-list.ts';
 import { designSvg, parseDesign } from './design.ts';
 import { BASIC_STAMPS } from './stamps.ts';
 import type { Design } from './types.ts';
@@ -23,6 +24,13 @@ test('five examples with the expected ids and unique labels', () => {
     ['beads', 'drops', 'squiggles', 'scales', 'leaves'],
   );
   assert.equal(new Set(EXAMPLES.map((e) => e.label)).size, 5);
+});
+
+test('EXAMPLE_LIST has the ids and labels of EXAMPLES, in the same order', () => {
+  assert.deepEqual(
+    EXAMPLE_LIST.map((e) => [e.id, e.label]),
+    EXAMPLES.map((e) => [e.id, e.label]),
+  );
 });
 
 for (const e of EXAMPLES) {

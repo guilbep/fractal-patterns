@@ -1,16 +1,12 @@
-// The stamp library of the pattern builder: built-in basic shapes, the wallpaper
-// studio's generated motifs, and stamps from a person's own SVG file or traced image.
+// The stamp library of the pattern builder: built-in basic shapes and stamps from a traced image.
+// The studio drawings (studio-stamps.ts) and SVG files (svg-stamps.ts) load on demand: do not import them here.
 // Pure: no DOM, no clock, no randomness. Every path that leaves passes safePathData.
 import { safePathData } from '../motifgrid.ts';
-import { MOTIF_FAMILIES, MOTIF_LABELS, makeMotif } from '../studio/motifs.ts';
-import { SEA_FAMILIES, SEA_LABELS, makeSeaMotif } from '../studio/motifs-sea.ts';
-import { ORCHARD_FAMILIES, ORCHARD_LABELS, makeOrchardMotif } from '../studio/motifs-orchard.ts';
-import { importSvg } from '../studio/svg-import.ts';
 import type { Stamp, StampPart } from './types.ts';
 
 const INK = '#333333';
 const HEX = /^#[0-9a-f]{6}$/i;
-const color = (c: string) => (HEX.test(c) ? c : INK);
+export const color = (c: string) => (HEX.test(c) ? c : INK);
 const basic = (name: string, paint: 'fill' | 'stroke', d: string): Stamp => ({ name, box: 100, parts: [{ d, paint, color: INK }] });
 
 export const BASIC_STAMPS: readonly Stamp[] = [
@@ -28,38 +24,7 @@ export const BASIC_STAMPS: readonly Stamp[] = [
   basic('Plus', 'stroke', 'M50 15V85M15 50H85'),
 ];
 
-const motifStamp = (name: string, m: { silhouette: { d: string }; detail: { d: string } }): Stamp => {
-  const parts: StampPart[] = [];
-  const fill = safePathData(m.silhouette.d);
-  const detail = safePathData(m.detail.d);
-  if (fill) parts.push({ d: fill, paint: 'fill', color: '#7a9e87' });
-  if (detail) parts.push({ d: detail, paint: 'stroke', color: '#2f3e36' });
-  return { name, box: 100, parts };
-};
-
-/** One stamp per studio family: floral, then sea, then orchard. */
-export function studioStamps(seed: number): Stamp[] {
-  return [
-    ...MOTIF_FAMILIES.map((f) => motifStamp(MOTIF_LABELS[f], makeMotif(f, seed))),
-    ...SEA_FAMILIES.map((f) => motifStamp(SEA_LABELS[f], makeSeaMotif(f, seed))),
-    ...ORCHARD_FAMILIES.map((f) => motifStamp(ORCHARD_LABELS[f], makeOrchardMotif(f, seed))),
-  ];
-}
-
-const stampName = (name: string) => name.replace(/\.svg$/i, '').slice(0, 60);
-
-/** A stamp from a person's own SVG file (untrusted: importSvg rebuilds every path from numbers). */
-export function stampFromSvg(text: string, name: string): Stamp | null {
-  const imp = importSvg(text);
-  if (!imp) return null;
-  // ponytail: the file's stroke widths are dropped; the design has one stroke width for all stroke parts.
-  const parts: StampPart[] = [];
-  for (const s of imp.shapes) {
-    const d = safePathData(s.d);
-    if (d) parts.push({ d, paint: s.paint, color: color(s.color) });
-  }
-  return parts.length ? { name: stampName(name), box: imp.box, parts } : null;
-}
+export const stampName = (name: string) => name.replace(/\.svg$/i, '').slice(0, 60);
 
 /** A stamp from a traced image: all parts are fills. */
 export function stampFromShapes(

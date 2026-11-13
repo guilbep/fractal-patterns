@@ -5,14 +5,30 @@ import { computed, ref } from 'vue';
 import { readImage } from '@/image-file.ts';
 import { isSvgFile } from '@/studio/own-motif.ts';
 import { addItem } from './design.ts';
-import { stampFromShapes, stampFromSvg, studioStamps } from './stamps.ts';
+import { stampFromShapes } from './stamps.ts';
 import { commit, design, selectedId, useStamp } from './store.ts';
 import type { Stamp } from './types.ts';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const seed = ref(1);
-const studio = computed(() => studioStamps(seed.value));
 const status = ref('');
+let svgFailed = false; // set by stampFromFile when the SVG module cannot load
+
+// The studio drawings: the motif generators load only when the group opens the first time.
+type StudioMod = typeof import('./studio-stamps.ts');
+const studioMod = ref<StudioMod | null>(null);
+const studioState = ref<'' | 'loading' | 'failed'>('');
+const studio = computed(() => studioMod.value?.studioStamps(seed.value) ?? []);
+async function onStudioToggle(e: Event): Promise<void> {
+  if (!(e.target as HTMLDetailsElement).open || studioMod.value || studioState.value === 'loading') return;
+  studioState.value = 'loading';
+  try {
+    studioMod.value = await import('./studio-stamps.ts');
+    studioState.value = '';
+  } catch {
+    studioState.value = 'failed';
+  }
+}
 
 // The math patterns: their generators load only when the group opens the first time.
 type PatternMod = typeof import('./pattern-stamps.ts');
@@ -52,7 +68,15 @@ function place(stamps: readonly number[]): void {
 }
 
 async function stampFromFile(file: File): Promise<Stamp | null> {
-  if (isSvgFile(file.name, file.type)) return stampFromSvg(await file.text(), file.name);
+  if (isSvgFile(file.name, file.type)) {
+    // The SVG importer loads with the first SVG file.
+    const [mod, text] = await Promise.all([import('./svg-stamps.ts').catch(() => null), file.text()]);
+    if (!mod) {
+      svgFailed = true;
+      return null;
+    }
+    return mod.stampFromSvg(text, file.name);
+  }
   if (!file.type.startsWith('image/')) return null;
   const [{ traceColors, cropToSubject }, img] = await Promise.all([import('@/studio/colortrace.ts'), readImage(file, 256)]);
   // The studio's options for a color image (StudioApp.vue, method 'color' with its defaults); centered, as a stamp is.
@@ -65,7 +89,8 @@ async function onFiles(e: Event): Promise<void> {
   const files = [...(input.files ?? [])];
   input.value = ''; // the same files can be chosen again
   if (!files.length) return;
-  status.value = 'Reading…';
+  status.value = 'Loading…';
+  svgFailed = false;
   const added: number[] = [];
   const failed: string[] = [];
   const big: string[] = [];
@@ -87,6 +112,7 @@ async function onFiles(e: Event): Promise<void> {
   if (added.length) msg.push(`Added ${added.length} ${added.length === 1 ? 'shape' : 'shapes'}.`);
   if (failed.length) msg.push(`${failed.length} ${failed.length === 1 ? 'file' : 'files'} could not be read as shapes: ${failed.join(', ')}.`);
   if (big.length) msg.push(`Over 5 MB, not read: ${big.join(', ')}.`);
+  if (svgFailed) msg.push('The SVG reader could not be loaded. Reload the page to try again.');
   status.value = msg.join(' ');
 }
 </script>
@@ -106,16 +132,18 @@ async function onFiles(e: Event): Promise<void> {
       </button>
     </div>
 
-    <details class="group">
+    <details class="group" @toggle="onStudioToggle">
       <summary>Studio drawings</summary>
-      <div class="stamp-grid">
+      <p v-if="studioState === 'loading'" class="hint-text" role="status">Loading…</p>
+      <p v-else-if="studioState === 'failed'" class="hint-text" role="status">The studio drawings could not be loaded. Reload the page to try again.</p>
+      <div v-if="studioMod" class="stamp-grid">
         <button v-for="(s, i) in studio" :key="i" type="button" class="stamp-btn" :aria-label="s.name" :title="s.name" @click="place([useStamp(s)])">
           <svg :viewBox="`0 0 ${s.box} ${s.box}`" aria-hidden="true">
             <path v-for="(p, j) in s.parts" :key="j" :d="p.d" :fill="p.paint === 'fill' ? p.color : 'none'" :fill-rule="p.evenodd ? 'evenodd' : undefined" :stroke="p.paint === 'stroke' ? p.color : 'none'" :stroke-width="p.paint === 'stroke' ? s.box / 25 : undefined" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </button>
       </div>
-      <button type="button" class="btn group-end" @click="seed++">Other drawings</button>
+      <button v-if="studioMod" type="button" class="btn group-end" @click="seed++">Other drawings</button>
     </details>
 
     <details class="group" @toggle="onMathToggle">

@@ -160,22 +160,87 @@ html {
 }
 .hero h1 {
   margin: 0 0 var(--s2);
-  font-size: clamp(1.5rem, 4vw + 0.5rem, 5.5rem);
-  line-height: 0.95;
-  font-weight: 700;
-  letter-spacing: -0.035em;
-  max-width: 10ch;
+  font-size: 1.5rem;
+  line-height: 1.1;
+  font-weight: 750;
+  letter-spacing: -0.02em;
 }
 .hero p {
-  max-width: 38ch;
   font-size: 0.875rem;
+  line-height: 1.55;
   margin: 0;
 }
 .hero-text {
   max-width: 100%;
 }
-.hero-plate {
+/* The T button hides the text for viewing only: it stays in the page and in the contrast check. */
+.hero-text.text-off {
+  visibility: hidden;
+}
+/* Only the paragraph carries the plate in 'split' mode: it hugs its text. */
+p.hero-plate {
   inline-size: fit-content;
+}
+/* The one-tile marker: on a tile seam, right of center and one row down when it fits, else at 0,0. */
+.one-tile {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  left: round(down, calc((100% - var(--tile-w)) * 0.8), var(--tile-w));
+  top: 0;
+  top: round(down, calc((100% - var(--tile-h)) * 0.2), var(--tile-h));
+  width: var(--tile-w);
+  height: var(--tile-h);
+  outline: 2px dashed var(--accent);
+  outline-offset: -1px;
+  pointer-events: none;
+}
+/* Caption and view buttons over the preview corners, outside the hero so a click on them does not shuffle. */
+.hero-caption,
+.hero-actions {
+  position: absolute;
+  z-index: 2;
+  bottom: var(--s3);
+  display: flex;
+  gap: 6px;
+  margin: 0;
+}
+.hero-caption {
+  left: var(--s3);
+  align-items: center;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  max-width: calc(100% - 7rem);
+  overflow: hidden;
+}
+.hero-actions {
+  right: var(--s3);
+}
+.hero-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  color: var(--ink);
+  cursor: pointer;
+}
+.hero-btn[aria-pressed='false'] {
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+/* The shortcut hint moves up, above the view buttons. */
+.stage:has(> .hero) > .shortcut-hint {
+  right: var(--s3);
+  bottom: calc(var(--s3) + 36px + var(--s2));
 }
 
 /* Toolbar (design canvas): a 60 px white band, 24 px sides, 8 px gaps, one row on desktop.
@@ -428,6 +493,11 @@ kbd {
   padding: var(--s3);
   min-width: 0;
 }
+/* Underline tabs on the page background (Patterns). */
+.controls:has(> .tabs) {
+  gap: 0;
+  padding: 0;
+}
 .tabs {
   position: sticky;
   top: calc(var(--bar-h, 0px) + var(--stage-h));
@@ -435,32 +505,43 @@ kbd {
   display: flex;
   flex-wrap: nowrap;
   overflow-x: auto;
-  gap: var(--s1);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: var(--s1);
+  gap: 2px;
+  background: var(--page);
+  border-bottom: 1px solid var(--hairline);
+  padding: 0 var(--s3);
+  font-size: 0.9375rem;
 }
 .tab {
   flex: none;
-  min-height: 2.75rem;
-  padding: 0 var(--s3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 0 14px;
   font: inherit;
-  color: var(--ink);
+  color: var(--muted);
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius);
+  border: 0;
+  border-bottom: 2px solid transparent;
   cursor: pointer;
 }
 .tab[aria-selected='true'] {
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-weight: 600;
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+  font-weight: 650;
+}
+.tab:focus-visible {
+  outline-offset: -0.1875rem;
 }
 .tabpanel {
   display: grid;
-  gap: var(--s3);
+  gap: 20px;
   min-width: 0;
+  padding: var(--s4) var(--s3);
+}
+/* One card style for every tab's panels. */
+.tabpanel .panel {
+  border-color: var(--hairline);
 }
 .shortcut {
   display: grid;
@@ -491,26 +572,55 @@ kbd {
     border-bottom: 0;
     border-right: 1px solid var(--line);
   }
+  .stage:has(> .hero) {
+    border-right-color: var(--hairline);
+  }
+  /* The stage is one viewport tall under the toolbar, so the header pushes its bottom out of view until it scrolls away. */
+  .hero-caption,
+  .hero-actions {
+    bottom: calc(var(--s3) + var(--head-h, 0px));
+  }
+  .stage:has(> .hero) > .shortcut-hint {
+    bottom: calc(var(--s3) + 36px + var(--s2) + var(--head-h, 0px));
+  }
+  .stage:fullscreen > .hero-caption,
+  .stage:fullscreen > .hero-actions {
+    bottom: var(--s3);
+  }
+  .stage:has(> .hero):fullscreen > .shortcut-hint {
+    bottom: calc(var(--s3) + 36px + var(--s2));
+  }
   .hero {
     padding: var(--s5);
   }
+  /* The board's plate: full width, 28 by 32 px inside, a 36 px headline and a 16 px paragraph. */
+  .hero-text.hero-plate {
+    inline-size: 100%;
+  }
   .hero h1 {
-    margin-bottom: var(--s3);
+    margin-bottom: 10px;
+    font-size: 2.25rem;
   }
   .hero p {
-    font-size: 1.125rem;
+    font-size: 1rem;
   }
   .controls {
     padding: var(--s4);
     gap: var(--s4);
   }
+  .controls:has(> .tabs) {
+    gap: 0;
+    padding: 0;
+  }
   .tabs {
     top: var(--bar-h, 0px);
     flex-wrap: wrap;
     overflow-x: visible;
+    padding: 0 28px;
   }
   .tabpanel {
-    gap: var(--s4);
+    gap: 20px;
+    padding: var(--s4) 28px;
   }
 }
 

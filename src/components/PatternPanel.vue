@@ -81,10 +81,11 @@ const galleryVars = computed(() => ({ '--lib-bg': roles.background, '--lib-fg': 
 </script>
 
 <template>
-  <section class="panel" aria-labelledby="pattern-h">
-    <h2 id="pattern-h">Pattern</h2>
+  <section class="pattern-panel" aria-labelledby="pattern-h">
+    <!-- The tab names the panel on screen; the heading and the legend stay for screen readers. -->
+    <h2 id="pattern-h" class="visually-hidden">Pattern</h2>
     <fieldset class="gallery" :style="galleryVars">
-      <legend>Library</legend>
+      <legend class="visually-hidden">Library</legend>
       <p v-if="usingPatchwork" class="note image-source-note">The tile is a patchwork. Pick a pattern here to go back to a single pattern.</p>
       <p v-if="usingImage" class="note image-source-note">The tile now comes from your image (see From image). Pick a pattern here to go back to math patterns.</p>
       <div class="lib-tabs" role="tablist" aria-label="Pattern families" @keydown="onLibKey">
@@ -99,25 +100,22 @@ const galleryVars = computed(() => ({ '--lib-bg': roles.background, '--lib-fg': 
               <input v-model="params.kind" type="radio" name="kind" :value="p.kind" class="visually-hidden" @click="pick">
               <span class="kind-tile lib-tile" aria-hidden="true"><span class="lib-ink" :style="{ maskImage: p.mask, '-webkit-mask-image': p.mask }"></span></span>
               <span class="kind-name">{{ KIND_LABELS[p.kind] }}</span>
+              <span class="kind-check" aria-hidden="true">✓</span>
             </label>
           </div>
         </div>
       </div>
     </fieldset>
 
-    <div class="fields">
+    <div class="fields pattern-card">
+      <fieldset class="size-presets" role="radiogroup" aria-label="Tile size, px">
+        <legend>Tile size<span class="visually-hidden"> presets</span></legend>
+        <label v-for="p in SIZE_PRESETS" :key="p"><input type="radio" name="size-preset" :value="p" :checked="markedPreset(params.size) === p" @change="params.size = p"><span>{{ p }}<span class="visually-hidden"> px</span></span></label>
+      </fieldset>
       <div class="field">
-        <fieldset class="size-presets" role="radiogroup" aria-label="Tile size, px">
-          <legend>Tile size presets</legend>
-          <label v-for="p in SIZE_PRESETS" :key="p"><input type="radio" name="size-preset" :value="p" :checked="markedPreset(params.size) === p" @change="params.size = p"><span>{{ p }}<span class="visually-hidden"> px</span></span></label>
-        </fieldset>
-        <label for="size">Tile size <output for="size">{{ params.size }} px</output></label>
-        <input id="size" v-model.number="params.size" type="range" :min="SIZE_MIN" :max="SIZE_MAX" step="4">
-        <p v-if="tileSize !== params.size" id="size-real">Exported tile: {{ tileSize }} by {{ tileHeight(tileSize, aspect) }} px</p>
+        <label for="depth">Depth <output for="depth">{{ Math.min(params.depth, depthMax) }} of {{ depthMax }}</output></label>
+        <input id="depth" :disabled="usingImage" v-model.number="params.depth" type="range" min="1" :max="depthMax" step="1">
       </div>
-    </div>
-
-    <div class="fields">
       <div class="field">
         <label for="seed">Seed</label>
         <div class="seed-row">
@@ -129,8 +127,9 @@ const galleryVars = computed(() => ({ '--lib-bg': roles.background, '--lib-fg': 
         </div>
       </div>
       <div class="field">
-        <label for="depth">Depth <output for="depth">{{ Math.min(params.depth, depthMax) }} of {{ depthMax }}</output></label>
-        <input id="depth" :disabled="usingImage" v-model.number="params.depth" type="range" min="1" :max="depthMax" step="1">
+        <label for="size">Tile size <output for="size">{{ params.size }} px</output></label>
+        <input id="size" v-model.number="params.size" type="range" :min="SIZE_MIN" :max="SIZE_MAX" step="4">
+        <p v-if="tileSize !== params.size" id="size-real">Exported tile: {{ tileSize }} by {{ tileHeight(tileSize, aspect) }} px</p>
       </div>
       <div class="field">
         <label for="stroke">Stroke width <output for="stroke">{{ params.strokeWidth }} px</output></label>
@@ -138,7 +137,7 @@ const galleryVars = computed(() => ({ '--lib-bg': roles.background, '--lib-fg': 
       </div>
     </div>
 
-    <details class="lib-patchwork" :open="patchOpen" @toggle="patchOpen = ($event.target as HTMLDetailsElement).open">
+    <details class="lib-patchwork pattern-card" :open="patchOpen" @toggle="patchOpen = ($event.target as HTMLDetailsElement).open">
       <summary>Patchwork</summary>
       <fieldset class="radios">
         <legend>Layout</legend>

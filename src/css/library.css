@@ -1,26 +1,34 @@
 /* Pattern library: family tabs and color-free preview tiles. */
+/* Family filters as pills; the open one filled with ink. */
 .lib-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s1);
-  margin-bottom: var(--s2);
+  gap: 6px;
+  margin-bottom: 20px;
 }
 .lib-tab {
   font: inherit;
+  font-size: 0.875rem;
   color: var(--ink);
-  background: none;
+  background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 0 var(--s2);
-  min-height: 2.75rem;
+  border-radius: var(--radius-chip);
+  padding: 0 12px;
+  min-height: 2rem;
   cursor: pointer;
 }
 .lib-tab[aria-selected='true'] {
-  border: 2px solid var(--ink);
-  font-weight: 700;
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+  font-weight: 650;
 }
 .lib-tab .muted {
   font-weight: 400;
+}
+.lib-tab[aria-selected='true'] .muted {
+  color: inherit;
+  opacity: 0.8;
 }
 .lib-tab:focus-visible {
   outline: 0.1875rem solid var(--accent);
@@ -39,15 +47,111 @@
   mask-repeat: repeat;
   -webkit-mask-repeat: repeat;
 }
+/* The Pattern tab: no outer card; the grid of pattern cards, then one card of settings, then the Patchwork fold. */
+.pattern-panel {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.pattern-panel .gallery {
+  margin: 0;
+}
+.pattern-panel .kinds {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr));
+  gap: 12px;
+}
+.pattern-panel .kind {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+}
+.pattern-panel .kind-tile {
+  block-size: 96px;
+  border-radius: 0;
+  outline: 0;
+}
+.pattern-panel .kind-name {
+  padding: 8px 10px;
+  font-size: 0.875rem;
+  text-align: start;
+}
+/* The selected card: a 2 px ink border, the 1 px difference taken from the name's padding. */
+.pattern-panel .kind:has(input:checked) {
+  border: 2px solid var(--ink);
+  padding: 0;
+}
+.pattern-panel .kind:has(input:checked) .kind-tile {
+  margin: -1px -1px 0;
+}
+.pattern-panel .kind:has(input:checked) .kind-name {
+  padding: 7px 9px 7px;
+  font-weight: 650;
+}
+.pattern-panel .kind:has(input:checked) .kind-name::before {
+  content: none;
+}
+.kind-check {
+  display: none;
+}
+.pattern-panel .kind:has(input:checked) .kind-check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 0.8125rem;
+  line-height: 1;
+}
+.pattern-card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  padding: 20px;
+  min-width: 0;
+}
+.pattern-panel .fields.pattern-card {
+  gap: 20px 32px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+}
+.pattern-card .field {
+  margin: 0;
+  gap: 6px;
+  align-content: start;
+}
+.pattern-card .field label {
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+.pattern-card .field output {
+  font-family: var(--mono);
+}
+.pattern-card input[type='range'] {
+  accent-color: var(--ink);
+}
 .lib-patchwork {
-  margin-top: var(--s3);
+  margin-top: 0;
+}
+.lib-patchwork.pattern-card {
+  padding-block: var(--s1);
 }
 .lib-patchwork summary {
   cursor: pointer;
   min-height: 2.75rem;
   display: flex;
   align-items: center;
-  font-weight: 700;
+  font-size: 0.875rem;
+  font-weight: 650;
 }
 /* Off-screen families in the All tab skip layout and paint. */
 .family {

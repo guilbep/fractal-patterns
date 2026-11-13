@@ -6,9 +6,9 @@ import { traceName } from '@/detectors.ts';
 import ShortcutHint from '@/components/ShortcutHint.vue';
 import SiteHeader from '@/components/SiteHeader.vue';
 import { isTyping, readShortcut, shortcutFor, toggleFullscreen, writeShortcut } from '@/shortcuts.ts';
-import { KIND_LABELS } from '@/fractal.ts';
+import { KIND_LABELS, tileHeight } from '@/fractal.ts';
 import { SAMPLE_LABELS } from '@/samples.ts';
-import { activeSample, contrast, palette, layer2, variantsOn, fileName, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, randomPattern, ratioText, reseed, reset, svgHref, trace, traced, usingImage, imageShuffles } from '@/state.ts';
+import { activeSample, contrast, palette, layer2, variantsOn, fileName, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, randomPattern, ratioText, reseed, reset, svgHref, trace, traced, usingImage, imageShuffles, tileSize, aspect, variantOptions } from '@/state.ts';
 import { exportGzipBytes, exportText, gzipped, sizeBreakdown } from '@/state-export.ts';
 import SizeBadge from '@/components/SizeBadge.vue';
 import ToolIcon from '@/components/ToolIcon.vue';
@@ -39,6 +39,18 @@ const shortcutOn = ref(readShortcut());
 watch(shortcutOn, writeShortcut);
 const stage = ref<HTMLElement | null>(null);
 const fullscreen = () => toggleFullscreen(stage.value);
+// The T button: the pattern alone, for viewing only (not stored, not in the link).
+const textOn = ref(true);
+// The preview caption: kind, tile size and seed; the full sentence stays for screen readers.
+const captionShort = computed(() => {
+  const what = usingImage.value ? 'Traced image' : usingPatchwork.value ? `Patchwork ${patch.cells}×${patch.cells}` : KIND_LABELS[params.kind];
+  return usingImage.value ? `${what} · ${params.size} px` : `${what} · ${params.size} px · seed ${params.seed}`;
+});
+// The one-tile marker: one tile of the pattern layer; with variants, one cell of the super tile.
+const tileVars = computed(() => {
+  const w = variantsOn.value ? tileSize.value / variantOptions.cells : tileSize.value;
+  return { '--tile-w': `${w}px`, '--tile-h': `${tileHeight(w, aspect.value)}px` };
+});
 
 // One polite live region for the toolbar copies.
 const copyStatus = ref('');
@@ -105,6 +117,10 @@ const bar = ref<HTMLElement | null>(null);
 const tabBar = ref<HTMLElement | null>(null);
 useBarHeight(bar);
 useBarHeight(tabBar, '--tabs-h');
+// The header scrolls away; until it does, the preview's bottom corners sit lower by its height.
+const head = ref<HTMLElement | null>(null);
+onMounted(() => (head.value = document.querySelector<HTMLElement>('.site-header')));
+useBarHeight(head, '--head-h');
 
 function onKey(e: KeyboardEvent): void {
   // Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z: design undo and redo, except in form fields, where native text undo wins.
@@ -163,14 +179,22 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     <div ref="stage" class="stage">
     <ShortcutHint :on="shortcutOn" />
     <!-- A fast second click must shuffle again, not select the sample text. A drag still selects it. -->
-    <div class="hero fp-pattern" :class="{ 'fp-paused': motionPaused }" @click="reseed" @mousedown="$event.detail > 1 && $event.preventDefault()">
+    <div class="hero fp-pattern" :class="{ 'fp-paused': motionPaused }" :style="tileVars" @click="reseed" @mousedown="$event.detail > 1 && $event.preventDefault()">
+      <!-- One tile at the preview scale, on the seams of the pattern layer (it starts at 0,0 of the hero). -->
+      <span class="one-tile" aria-hidden="true"></span>
       <!-- The plate sits on the wrapper in 'plate' mode, on the paragraph in 'split', nowhere in 'direct'. -->
-      <div class="hero-text" :class="{ 'hero-plate': plateMode === 'plate' }" :style="plateMode === 'plate' ? plateStyle : undefined">
+      <div class="hero-text" :class="{ 'hero-plate': plateMode === 'plate', 'text-off': !textOn }" :style="plateMode === 'plate' ? plateStyle : undefined">
         <h1>{{ APP_NAME }}</h1>
-        <p :class="{ 'hero-plate': plateMode === 'split' }" :style="plateMode === 'split' ? plateStyle : undefined">
-          <template v-if="usingImage">Pattern: traced from {{ activeSample ? `the example ${SAMPLE_LABELS[activeSample]}` : 'your image' }}, {{ traceName(trace.detector) }}, {{ traced?.length ?? 0 }} lines.</template><template v-else-if="usingPatchwork">Pattern: patchwork {{ patch.cells }} by {{ patch.cells }}, seed {{ params.seed }}.</template><template v-else>Pattern: {{ KIND_LABELS[params.kind] }}, seed {{ params.seed }}.</template> This text uses your text color and text plate settings, so what you read here is what your visitors will read.
-        </p>
+        <p :class="{ 'hero-plate': plateMode === 'split' }" :style="plateMode === 'split' ? plateStyle : undefined">This text uses your text color and text plate settings, so what you read here is what your visitors will read.</p>
       </div>
+    </div>
+    <p class="hero-caption">
+      <span aria-hidden="true">{{ captionShort }}</span>
+      <span class="visually-hidden"><template v-if="usingImage">Pattern: traced from {{ activeSample ? `the example ${SAMPLE_LABELS[activeSample]}` : 'your image' }}, {{ traceName(trace.detector) }}, {{ traced?.length ?? 0 }} lines.</template><template v-else-if="usingPatchwork">Pattern: patchwork {{ patch.cells }} by {{ patch.cells }}, seed {{ params.seed }}.</template><template v-else>Pattern: {{ KIND_LABELS[params.kind] }}, seed {{ params.seed }}.</template></span>
+    </p>
+    <div class="hero-actions">
+      <button type="button" class="hero-btn" aria-label="Show the text" title="Show the text" :aria-pressed="textOn" @click="textOn = !textOn"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 4h10M8 4v9" /></svg></button>
+      <button type="button" class="hero-btn" aria-label="Full screen" title="Full screen (F)" :aria-keyshortcuts="shortcutOn ? 'F' : undefined" @click="fullscreen"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" /></svg></button>
     </div>
     </div>
 

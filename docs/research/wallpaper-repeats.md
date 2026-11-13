@@ -66,3 +66,26 @@ Already built: a "Large tile" option. One tile is twice as wide and high and hol
 - The V&A page and the Artlandia page reserve their rights. Do not copy their text or images.
 - The Wikipedia text has the CC BY-SA 4.0 license.
 - Voysey was not researched. Make sure of his dates before you cite him.
+
+## Spot placement for the filler: tried, not merged
+
+Date: 2026-11-13. Branch: `ticket-spot` (four commits, not merged).
+
+The idea was a spot layout for the small filler motifs: one motif in each row and each column of a grid. Three tickets built and measured it. Values are means over seeds 1 to 12, straight repeat, density 0.5.
+
+| Theme | Filler per tile, old | Spots only | Spots plus the old pass | Balance score, old | Balance score, new |
+|---|---|---|---|---|---|
+| Floral | 5.50 | 2.00 | 3.75 | 3.35 | 3.83 |
+| Sea | 7.25 | 2.50 | 5.00 | 3.92 | 4.47 |
+| Orchard | 6.33 | 2.33 | 4.08 | 3.63 | 4.34 |
+
+A lower balance score is better. The new placement is worse for each theme.
+
+Findings:
+
+- A fixed spot falls on a plant or a stem most of the time. With the strict placement test, 77 to 87 percent of the spots were refused.
+- The old filler goes to the largest gaps. That fills holes, which the balance score rewards, but the motifs can sit in a row.
+- The spot layout removes the rows, but it leaves the holes open. The score counts holes more than rows.
+- A grid of 6 has no usable step: the only steps without a common factor are 1 and 5, and both put the spots on a diagonal. The last version uses a grid of 7 with step 3.
+
+Conclusion: a spot layout fits a design that starts from the spots. Our composer starts from the stems, so the free places are what the stems leave. A better next try: keep the old gap filler, and add only a rule that refuses a motif on the same grid row as its two nearest neighbors.

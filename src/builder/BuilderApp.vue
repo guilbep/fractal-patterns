@@ -4,12 +4,22 @@ import { onBeforeUnmount, onMounted } from 'vue';
 import SiteHeader from '@/components/SiteHeader.vue';
 import SponsorBanner from '@/components/SponsorBanner.vue';
 import { isTyping } from '@/shortcuts.ts';
-import { canRedo, canUndo, redo, resetDesign, undo } from './store.ts';
+import { canRedo, canUndo, commit, redo, resetDesign, selectedId, undo } from './store.ts';
+import { EXAMPLES } from './examples.ts';
 import BuilderStage from './BuilderStage.vue';
 import StampPanel from './StampPanel.vue';
 import ItemPanel from './ItemPanel.vue';
 import TilePanel from './TilePanel.vue';
 import ExportPanel from './ExportPanel.vue';
+
+function openExample(e: Event): void {
+  const select = e.target as HTMLSelectElement;
+  const example = EXAMPLES.find((x) => x.id === select.value);
+  select.selectedIndex = 0;
+  if (!example) return;
+  selectedId.value = null;
+  commit(example.make());
+}
 
 function onKey(e: KeyboardEvent): void {
   if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z' || isTyping(e)) return;
@@ -30,6 +40,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <button type="button" class="btn" :disabled="!canRedo" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" @click="redo">Redo</button>
       <span class="bar-sep" aria-hidden="true"></span>
       <button type="button" class="btn" @click="resetDesign">Start again</button>
+      <label for="examples" class="visually-hidden">Examples</label>
+      <select id="examples" class="examples" @change="openExample">
+        <option value="" disabled selected>Open an example</option>
+        <option v-for="x in EXAMPLES" :key="x.id" :value="x.id">{{ x.label }}</option>
+      </select>
     </div>
   </div>
 
@@ -49,3 +64,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     <SponsorBanner />
   </footer>
 </template>
+
+<style scoped>
+.examples {
+  max-width: 100%;
+}
+</style>

@@ -27,15 +27,18 @@ The header shows the logo and the app name. The toolbar under it has these butto
 - Download SVG.
 - Copy link.
 
-Two badges sit at the end of the toolbar. The first shows the worst text contrast and an AA pass or fail. The second shows the CO2 footprint of the export.
+The toolbar ends with a palette strip and two badges. The strip shows the colors of the current palette, with buttons for the previous palette, the next palette, and a random palette. The first badge shows the worst text contrast and an AA pass or fail. The second badge shows the CO2 footprint of the export.
 
-The hero is the large preview under the toolbar. It uses the exported `.fp-pattern` class, so it shows what you copy. Five tabs below it hold the controls:
+The hero is the large preview under the toolbar. It uses the exported `.fp-pattern` class, so it shows what you copy. Six tabs hold the controls:
 
-- Pattern: the R key option, the pattern controls, the Repetition panel and the spacing.
-- Colors: the colors and contrast, and the Second opinion panel.
-- Image: the trace from your image, and the Repetition panel.
-- Motion: the transform and motion controls.
+- Pattern: the library, the seed, the depth, the tile size, the stroke width, the patchwork layout, and the R key option.
+- Repetition: the "Reduce repetition" switch with a picture for each option, the second layer, the soft fade, and the angle per section. The tab shows a mark while one of them is on.
+- Layout: the spacing, and the transform and motion controls.
+- Colors: the colors and contrast, the APCA value, the palettes, and the Second opinion panel.
+- Image: the trace from your image.
 - Export: the performance settings and the "Use it" panel.
+
+The library is a row of family tabs plus "All". The page draws only the previews of the open tab. The open tab follows the pattern when it changes through Random pattern, undo, or a link.
 
 The header also has a link to the Wallpaper Studio, a second page. See [Wallpaper Studio](#wallpaper-studio).
 

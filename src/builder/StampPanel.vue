@@ -14,6 +14,30 @@ const seed = ref(1);
 const studio = computed(() => studioStamps(seed.value));
 const status = ref('');
 
+// The math patterns: their generators load only when the group opens the first time.
+type PatternMod = typeof import('./pattern-stamps.ts');
+const mathMod = ref<PatternMod | null>(null);
+const mathState = ref<'' | 'loading' | 'failed'>('');
+const mathFamily = ref('');
+const mathSeed = ref(1);
+const mathStamps = computed(() => {
+  const m = mathMod.value;
+  const g = m?.patternStampList().find((f) => f.family === mathFamily.value);
+  return g ? g.kinds.map((k) => m!.patternStamp(k.kind, mathSeed.value)).filter((s): s is Stamp => s !== null) : [];
+});
+async function onMathToggle(e: Event): Promise<void> {
+  if (!(e.target as HTMLDetailsElement).open || mathMod.value || mathState.value === 'loading') return;
+  mathState.value = 'loading';
+  try {
+    const m = await import('./pattern-stamps.ts');
+    mathFamily.value = m.patternStampList()[0]!.family;
+    mathMod.value = m;
+    mathState.value = '';
+  } catch {
+    mathState.value = 'failed';
+  }
+}
+
 /** Place items of these stamps (indexes into design.stamps) in a row through the tile center, and select the last. */
 function place(stamps: readonly number[]): void {
   const { width, height } = design.value;
@@ -92,6 +116,28 @@ async function onFiles(e: Event): Promise<void> {
         </button>
       </div>
       <button type="button" class="btn group-end" @click="seed++">Other drawings</button>
+    </details>
+
+    <details class="group" @toggle="onMathToggle">
+      <summary>Math patterns</summary>
+      <p v-if="mathState === 'loading'" class="hint-text" role="status">Loading…</p>
+      <p v-else-if="mathState === 'failed'" class="hint-text" role="status">The math patterns could not be loaded. Reload the page to try again.</p>
+      <template v-if="mathMod">
+        <div class="field">
+          <label for="math-family">Family</label>
+          <select id="math-family" v-model="mathFamily">
+            <option v-for="f in mathMod.patternStampList()" :key="f.family" :value="f.family">{{ f.label }}</option>
+          </select>
+        </div>
+        <div class="stamp-grid">
+          <button v-for="(s, i) in mathStamps" :key="i" type="button" class="stamp-btn" :aria-label="s.name" :title="s.name" @click="place([useStamp(s)])">
+            <svg :viewBox="`0 0 ${s.box} ${s.box}`" aria-hidden="true">
+              <path v-for="(p, j) in s.parts" :key="j" :d="p.d" fill="none" :stroke="p.color" :stroke-width="s.box / 50" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+        </div>
+        <button type="button" class="btn group-end" @click="mathSeed++">Other variant</button>
+      </template>
     </details>
 
     <details class="group" open>

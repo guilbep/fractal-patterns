@@ -8,7 +8,7 @@ import { KIND_LABELS } from '@/fractal.ts';
 import { DETECTOR_LABELS } from '@/detectors.ts';
 import { SAMPLE_LABELS } from '@/samples.ts';
 import { activeSample, contrast, palette, layer2, variantsOn, fileName, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, randomPattern, ratioText, reseed, reset, svgHref, trace, traced, usingImage } from '@/state.ts';
-import { exportGzipBytes, exportText, footprint, gzipped } from '@/state-export.ts';
+import { exportGzipBytes, exportText, footprint, gzipped, sizeBreakdown } from '@/state-export.ts';
 import { formatKb } from '@/co2.ts';
 import ColorPanel from '@/components/ColorPanel.vue';
 import VisionPanel from '@/components/VisionPanel.vue';
@@ -16,6 +16,7 @@ import PatternPanel from '@/components/PatternPanel.vue';
 import OutputPanel from '@/components/OutputPanel.vue';
 import SpacingPanel from '@/components/SpacingPanel.vue';
 import MotionPanel from '@/components/MotionPanel.vue';
+import LayoutPresets from '@/components/LayoutPresets.vue';
 import RepetitionPanel from '@/components/RepetitionPanel.vue';
 import { canRedo, canUndo, redo, shareUrl, undo } from '@/state-share.ts';
 import PaletteStrip from '@/components/PatternPaletteStrip.vue';
@@ -155,7 +156,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <span class="stat-short" aria-hidden="true">{{ ratioText(contrast.worst) }}:1 AA</span>
     </span>
     <span class="stat" :title="footprintFull()"><span aria-hidden="true">{{ footprintText() }}</span><span class="visually-hidden">{{ footprintFull() }}</span></span>
-    <span v-if="exportGzipBytes !== null" class="stat" title="Size of the exported CSS and script, compressed">{{ formatKb(exportGzipBytes) }} KB</span>
+    <span v-if="exportGzipBytes !== null" class="stat size-badge" tabindex="0" aria-describedby="size-tip"><span aria-hidden="true">{{ formatKb(exportGzipBytes) }} <span class="size-unit">KB gz</span></span><span class="visually-hidden">{{ formatKb(exportGzipBytes) }} kilobytes compressed</span><span id="size-tip" class="size-tip" role="tooltip"><span v-for="line in sizeBreakdown" :key="line" class="size-line">{{ line }}</span></span></span>
     </div>
     <span class="visually-hidden" role="status" aria-live="polite">{{ copyStatus }}</span>
   </div>
@@ -192,6 +193,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <RepetitionPanel v-if="tab === 'repetition'" />
       </div>
       <div v-show="tab === 'layout'" id="panel-layout" class="tabpanel" role="tabpanel" aria-labelledby="tab-layout">
+        <LayoutPresets />
         <SpacingPanel />
         <MotionPanel />
       </div>

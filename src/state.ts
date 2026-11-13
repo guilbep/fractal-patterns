@@ -29,6 +29,7 @@ import { VARIANT_DEFAULTS, variantTile, variantsActive, type VariantOptions } fr
 import { LAYER2_DEFAULTS, layerSpots, type Layer2Settings } from '@/layers.ts';
 import { fillScene, splitClosed, type FillStyle } from '@/fills.ts';
 import { sceneToSvg } from '@/scene.ts';
+import { LAYOUT_EXAMPLES, randomLayout, randomRepetition } from '@/random-design.ts';
 
 export const MAX_SEED = 0xffffffff;
 
@@ -458,7 +459,9 @@ export function reseed(): void {
   params.seed = randomSeed();
 }
 
-// A different kind, a new seed, a single layout; colors, plate, spacing, and motion stay.
+// A different kind, a new seed, a single layout, and a sensible Repetition tab (random-design.ts).
+// Colors, plate, spacing, motion, soft fade, sections, and parallax stay. All changes land in one tick,
+// so the debounced undo history (state-share.ts) records the click as one entry.
 export function randomPattern(): void {
   source.value = 'math';
   layout.value = 'single';
@@ -467,6 +470,23 @@ export function randomPattern(): void {
   params.kind = kind;
   params.seed = randomSeed();
   params.depth = Math.max(Math.min(params.depth, MAX_DEPTH[kind]), Math.min(2, MAX_DEPTH[kind]));
+  const r = randomRepetition(kind, Math.random);
+  variants.value = r.variants;
+  Object.assign(variantOptions, r.variantOptions);
+  layer2.value = r.layer2;
+  if (r.layer2Settings) Object.assign(layer2Settings, r.layer2Settings);
+}
+
+// The Layout examples: spacing back to its defaults, the example's transform and motion. One tick, one undo entry.
+export function applyLayoutExample(i: number): void {
+  const e = LAYOUT_EXAMPLES[i];
+  if (!e) return;
+  resetSpacing();
+  Object.assign(motion, e.motion);
+}
+// A random transform; drift, speed, and spacing stay.
+export function randomLayoutApply(): void {
+  Object.assign(motion, randomLayout(Math.random));
 }
 
 export function setSeed(value: string): void {

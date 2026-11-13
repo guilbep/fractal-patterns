@@ -101,3 +101,15 @@ test('formatKb: three significant digits', () => {
   assert.equal(formatKb(106496), '104');
   assert.equal(formatKb(2048000), '2000');
 });
+
+test('sizeLines: with a script, without, and computing', async () => {
+  const { sizeLines } = await import('./co2.ts');
+  const base = { css: 2365, svg: 1884, script: 0, gz: { css: 722, script: 0 } };
+  assert.deepEqual(sizeLines(base), ['CSS: 2.31 KB, 0.705 KB compressed', 'SVG tile, as a file: 1.84 KB']);
+  assert.deepEqual(sizeLines({ ...base, script: 422, gz: { css: 722, script: 215 } })[2], 'Script: 0.412 KB, 0.210 KB compressed');
+  assert.deepEqual(sizeLines({ ...base, script: 422, gz: null }), [
+    'CSS: 2.31 KB, computing',
+    'SVG tile, as a file: 1.84 KB',
+    'Script: 0.412 KB, computing',
+  ]);
+});

@@ -57,3 +57,18 @@ export function formatFootprint(gzipBytes: number): string {
   const kb = (gzipBytes / 1024).toFixed(2);
   return `≈ ${mg} mg CO₂ / visit · ${kb} KB compressed`;
 }
+
+// The size breakdown under the size badge and in the Export tab. gz: null while computing, 'unknown' when gzip failed.
+export interface SizeInput {
+  readonly css: number;
+  readonly svg: number;
+  readonly script: number; // 0 when the export has no script
+  readonly gz: { readonly css: number; readonly script: number } | null | 'unknown';
+}
+export function sizeLines(s: SizeInput): string[] {
+  const gz = (pick: (g: { css: number; script: number }) => number) =>
+    s.gz === null ? 'computing' : s.gz === 'unknown' ? 'size unknown' : `${formatKb(pick(s.gz))} KB compressed`;
+  const lines = [`CSS: ${formatKb(s.css)} KB, ${gz((g) => g.css)}`, `SVG tile, as a file: ${formatKb(s.svg)} KB`];
+  if (s.script > 0) lines.push(`Script: ${formatKb(s.script)} KB, ${gz((g) => g.script)}`);
+  return lines;
+}

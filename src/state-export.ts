@@ -1,7 +1,7 @@
 // What the page copies: the complete CSS, and an optional script that switches the tile. Reads state.ts only.
 import { computed, ref, shallowRef, watch } from 'vue';
 import { APP_NAME } from '@/app-name.ts';
-import { formatFootprint, gzipSize } from '@/co2.ts';
+import { formatFootprint, gzipSize, sizeLines } from '@/co2.ts';
 import { exportCss, exportJs, exportParallax, type ExportInput } from '@/export.ts';
 import { KIND_LABELS, extraPath, geometry, tileHeight } from '@/fractal.ts';
 import { altUnavailable } from '@/alt-export.ts';
@@ -30,6 +30,7 @@ import {
   plateMode,
   plateOpacity,
   plateRadius,
+  rawBytes,
   roles,
   sections,
   svg,
@@ -117,6 +118,10 @@ watch(
 );
 export const exportGzipBytes = computed(() =>
   gzipped.value && gzipped.value !== 'unknown' ? gzipped.value.css + gzipped.value.script : null,
+);
+// The size breakdown: the size badge tooltip and the Export tab.
+export const sizeBreakdown = computed(() =>
+  sizeLines({ css: cssBytes.value, svg: rawBytes.value, script: scriptBytes.value, gz: gzipped.value }),
 );
 export const footprint = computed(() => (exportGzipBytes.value === null ? null : formatFootprint(exportGzipBytes.value)));
 

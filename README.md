@@ -20,7 +20,7 @@ The site is at <https://patterns.pierreguilbert.com/>. It has two pages:
 The header is shared by both tools: the Fractal Patterns logo and name, a switch between the two tools (Patterns and Wallpaper Studio, each with its own icon), the current tool's tagline, and a GitHub link. The toolbar under it has these buttons, in order:
 
 - Shuffle: draws a new seed for the current kind.
-- Random pattern: picks a different kind and a new seed, and goes back to a single pattern. The colors, plate, spacing and motion stay.
+- Random pattern: picks a different kind and a new seed, and goes back to a single pattern. It also sets the Repetition tab at random: when the kind can vary, "Reduce repetition" is on half of the time, with a light to wide strength and only the options that apply to that kind (empty cells stay at 0). The second layer is on one time in three, with a size factor away from 1, a turn of 0, 30, 45 or 90 degrees, and a strength from 0.4 to 0.8. The colors, plate, spacing, motion, soft fade, sections and parallax stay. One Undo brings back the state before the click.
 - Undo and Redo.
 - Reset.
 - Copy CSS.
@@ -247,6 +247,8 @@ The Colors panel shows the APCA™ Lc value next to the WCAG 2 ratio, for inform
 
 ### Transform and motion
 
+The Layout tab starts with a row of examples: "Plain" (no transform, no motion), "Diagonal" (rotate 45, scale 1.2), "Tilted floor" (tilt 55, scale 1.4) and "Slow drift" (diagonal drift, 24 s per tile, rotate -12). An example also sets the spacing back to its defaults. "Random layout" draws a rotation, a scale, and sometimes a skew or a tilt. It never turns drift on: motion costs energy on the visitor's device, so it stays a deliberate choice. Each click is one Undo step.
+
 The pattern sits on a `::before` layer, so it moves while the text stays still. The controls are these:
 
 - Rotate: from -180 to 180 degrees.
@@ -306,7 +308,7 @@ The page reads the hash as untrusted input. A missing or broken value takes its 
 
 The "Performance settings" panel controls the coordinate precision, from 0 to 3 decimals. Fewer decimals and less depth give a smaller tile.
 
-The panel shows these sizes: "Tile SVG", "Exported CSS, compressed" and "Footprint". With the script on, it also shows "Script, compressed". Gzip is a standard compression format that web servers use. The footprint counts the exported CSS plus the script, each compressed with gzip. The browser computes the gzip size with its `CompressionStream` API.
+The panel shows these sizes: "CSS" (raw and compressed), "SVG tile, as a file" and "Footprint". With the script on, it also shows "Script" (raw and compressed). The SVG tile is the raw SVG text; inside the CSS the tile is a data URI, which is larger. The toolbar badge shows the compressed total, for example "0.705 KB gz". On hover or keyboard focus it shows the same lines in a tooltip. Gzip is a standard compression format that web servers use. The footprint counts the exported CSS plus the script, each compressed with gzip. The browser computes the gzip size with its `CompressionStream` API.
 
 The CO2 estimate is rough. It is a straight line from the gzipped size. The constant comes from the `inject-co2.mjs` script of pierreguilbert.com. That script uses one websitecarbon.com measurement of pierreguilbert.com: 5.76 KB gives 0.001144 g of CO2. The panel shows the value in milligrams with 1 decimal from 1 mg up, and with 1 significant digit below 1 mg.
 

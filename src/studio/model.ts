@@ -3,10 +3,16 @@
 // in <defs> and drawn many times with <use>.
 import { safePathData } from '../motifgrid.ts';
 
+/** The path data cap of an even-odd (ink) motif: a detailed line drawing is long. Other motifs keep 20,000. */
+export const INK_MAX_LENGTH = 60000;
+const motifPath = (m: StudioMotif): string | null => safePathData(m.d, m.evenodd ? INK_MAX_LENGTH : undefined);
+
 export interface StudioMotif {
   readonly d: string;
   readonly box: number;
   readonly paint: 'fill' | 'stroke';
+  /** A fill motif with holes (an ink trace): written with fill-rule="evenodd", path data up to INK_MAX_LENGTH. */
+  readonly evenodd?: boolean;
 }
 
 export interface Placement {
@@ -96,7 +102,7 @@ export function studioInstances(s: Studio): Instance[] {
   s.layers.forEach((layer, li) => {
     for (const p of layer.placements) {
       const m = s.motifs[p.motif];
-      if (m === undefined || safePathData(m.d) === null) continue;
+      if (m === undefined || motifPath(m) === null) continue;
       if (![p.x, p.y, p.scale, p.rotate, m.box].every(Number.isFinite)) continue;
       const x = mod(p.x, s.width);
       const y = mod(p.y, s.height);
@@ -161,13 +167,14 @@ function transform(i: Instance, box: number, precision: number): string {
 }
 
 const VE = ' vector-effect="non-scaling-stroke"';
+const EO = ' fill-rule="evenodd"';
 
 function build(s: Studio, precision: number, expanded: boolean): { svg: string; instances: number } {
   const cell = repeatCell(s);
   const f = (n: number): string => num(n, precision);
   const w = f(cell.width);
   const h = f(cell.height);
-  const safe = s.motifs.map((m) => safePathData(m.d));
+  const safe = s.motifs.map(motifPath);
   const all = studioInstances(s);
   const ids = new Map([...new Set(all.map((i) => i.motif))].sort((a, b) => a - b).map((m, k) => [m, motifId(k)]));
   let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`;
@@ -175,7 +182,8 @@ function build(s: Studio, precision: number, expanded: boolean): { svg: string; 
   if (!expanded && ids.size > 0) {
     out += '<defs>';
     // ponytail: vector-effect is not inherited, so stroke motifs carry it on their own path too.
-    for (const [m, id] of ids) out += `<path id="${id}" d="${safe[m]}"${s.motifs[m]?.paint === 'stroke' ? VE : ''}/>`;
+    for (const [m, id] of ids)
+      out += `<path id="${id}" d="${safe[m]}"${s.motifs[m]?.paint === 'stroke' ? VE : ''}${s.motifs[m]?.evenodd ? EO : ''}/>`;
     out += '</defs>';
   }
   s.layers.forEach((layer, li) => {
@@ -193,7 +201,8 @@ function build(s: Studio, precision: number, expanded: boolean): { svg: string; 
       for (const i of mine) {
         const t = transform(i, s.motifs[i.motif]?.box ?? 0, precision);
         const ve = paint === 'stroke' ? VE : '';
-        out += expanded ? `<path d="${safe[i.motif]}"${ve} transform="${t}"/>` : `<use href="#${ids.get(i.motif)}" transform="${t}"/>`;
+        const eo = s.motifs[i.motif]?.evenodd ? EO : '';
+        out += expanded ? `<path d="${safe[i.motif]}"${ve}${eo} transform="${t}"/>` : `<use href="#${ids.get(i.motif)}" transform="${t}"/>`;
       }
       out += '</g>';
     }

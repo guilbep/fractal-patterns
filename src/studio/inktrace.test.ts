@@ -137,3 +137,10 @@ test('deterministic, svg and hygiene', () => {
   const src = readFileSync(new URL('./inktrace.ts', import.meta.url), 'utf8');
   assert.ok(!src.includes('node:') && !src.includes('Math.random'));
 });
+
+test('maxLength caps the path data, default 20,000', () => {
+  const m = traceInk(white, { ...opts, maxLength: 300 });
+  assert.ok(m.d.length <= 300);
+  assert.ok(m.detailUsed > opts.detail);
+  assert.equal(traceInk(white, { ...opts, maxLength: 20000 }).d, traceInk(white, opts).d);
+});

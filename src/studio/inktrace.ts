@@ -121,6 +121,8 @@ export function traceInk(
     minArea: number;
     curves: boolean;
     maxPoints?: number;
+    /** Path data cap, default safePathData's 20,000. */
+    maxLength?: number;
   },
 ): InkResult {
   const { width: w, height: h } = img;
@@ -170,7 +172,7 @@ export function traceInk(
       points = polys.reduce((n, p) => n + p.length, 0);
       d = polys.map((p) => 'M' + p.map(([x, y]) => num(x) + ' ' + num(y)).join('L') + 'Z').join('');
     }
-    if (points <= maxPoints && d.length <= SAFE_LENGTH) break;
+    if (points <= maxPoints && d.length <= (o.maxLength ?? SAFE_LENGTH)) break;
   }
   return { d, box: o.size, loops: loops.length, holes, points, coverage, contrast, detailUsed: tol, area };
 }

@@ -22,9 +22,9 @@ export interface MotifGridOptions {
 const PATH_CHARS = /^[MmLlHhVvCcSsQqTtAaZz0-9.\-+eE,\s]+$/;
 
 /** Path data from an outside source is untrusted: only commands and numbers pass. */
-export function safePathData(d: string): string | null {
+export function safePathData(d: string, max = 20000): string | null {
   const t = d.trim();
-  if (t.length === 0 || t.length > 20000 || !PATH_CHARS.test(t) || (t[0] !== 'M' && t[0] !== 'm')) return null;
+  if (t.length === 0 || t.length > max || !PATH_CHARS.test(t) || (t[0] !== 'M' && t[0] !== 'm')) return null;
   return t;
 }
 

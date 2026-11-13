@@ -141,3 +141,10 @@ test('reproduces the hand-optimized reference file', { skip: REF === '' || !exis
   assert.ok(Math.abs(size - 5227) <= 5227 * 0.05, `${size} bytes`);
   for (let seed = 1; seed <= 3; seed++) assert.ok(torusOk(arrange(7, 7, seed), 7));
 });
+
+test('safePathData takes an optional length cap', () => {
+  const d = 'M0 0' + 'h1'.repeat(12000);
+  assert.equal(safePathData(d), null);
+  assert.equal(safePathData(d, 60000), d);
+  assert.equal(safePathData('M0 0h4', 3), null);
+});

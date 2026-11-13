@@ -4,9 +4,15 @@ import { LOGO_DEFAULT, logoSvg } from '@/logo.ts';
 import { svgToDataUri } from '@/css.ts';
 import { formatFootprint, gzipSize, rawSize } from '@/co2.ts';
 import { PALETTES } from '@/palettes.ts';
-import { cropToSubject, sampleFlower, traceColors, traceSvg, type Rgba } from './colortrace.ts';
+import { safePathData } from '@/motifgrid.ts';
+import { DETECTOR_LABELS, DETECTORS, type Detector } from '@/trace.ts';
+import { cropToSubject, sampleFlower, traceColors, type Rgba } from './colortrace.ts';
+import { inkMask, traceInk } from './inktrace.ts';
+import { cropLines, traceLines } from './linetrace.ts';
+import { defaultsFor, inkColor, isSvgFile, ownShapes, pickMethod, type OwnMethod, type OwnShape } from './own-motif.ts';
+import { importSvg, type SvgImport } from './svg-import.ts';
 import { compose, composeSummary } from './compose.ts';
-import { repeatCell, studioSvg, type Repeat } from './model.ts';
+import { INK_MAX_LENGTH, repeatCell, studioSvg, type Repeat } from './model.ts';
 import { MOTIF_FAMILIES, MOTIF_LABELS } from './motifs.ts';
 import { decodeStudio, designOptions, encodeStudio, MAX_SEED, SIZE_MAX, SIZE_MIN, SIZE_STEP } from './studio-share.ts';
 
@@ -21,32 +27,126 @@ const REPEAT_INFO: readonly (readonly [Repeat, string, string])[] = [
 const design = reactive(decodeStudio(location.hash));
 const zoom = ref(100);
 
-// The person's own motif: traced in the browser, never put in the link.
-const ownImage = shallowRef<Rgba | null>(null);
-const own = reactive({ colors: 4, role: 'hero' as 'hero' | 'support' | 'both', keepColors: true });
+// The person's own motif: traced in the browser, never put in the link. Two readings of the image: the longer side at
+// 256 px for Color shapes, at 600 px for Ink and Line drawing (line art loses its fine lines at 256).
+const ownSmall = shallowRef<Rgba | null>(null);
+const ownLarge = shallowRef<Rgba | null>(null);
+// An SVG file read as vector shapes (null: traced as an image), and the file itself for "Trace it as an image instead".
+const ownVector = shallowRef<SvgImport | null>(null);
+const ownSvgFile = shallowRef<File | null>(null);
+const own = reactive({
+  method: 'color' as OwnMethod,
+  colors: 4,
+  role: 'hero' as 'hero' | 'support' | 'both',
+  keepColors: true,
+  detail: 0.6,
+  curves: false,
+  scale: 1,
+  anchor: 'base' as 'base' | 'center',
+  inkColor: '#000000',
+  detector: 'xdog' as Detector,
+  threshold: 0.3,
+  minLength: 8,
+});
 const ownError = ref('');
-const ownTrace = computed(() =>
-  ownImage.value
-    ? cropToSubject(traceColors(ownImage.value, { colors: own.colors, size: 100, smooth: 1, tolerance: 0.6, minArea: 4, curves: false }), 0.04, 'bottom')
-    : null,
+const METHODS: readonly (readonly [OwnMethod, string])[] = [
+  ['color', 'Color shapes (photos and flat art)'],
+  ['ink', 'Ink (line art in one color)'],
+  ['lines', 'Line drawing (edges)'],
+];
+watch(
+  () => own.method,
+  (m) => Object.assign(own, defaultsFor(m)),
 );
-const ownPreview = computed(() => (ownTrace.value ? svgToDataUri(traceSvg(ownTrace.value, true)) : ''));
-const ownBytes = computed(() => (ownTrace.value ? rawSize(traceSvg(ownTrace.value, false)) : 0));
 
-// As the pattern tool: the image is drawn into a canvas, its longer side at most 256 px.
-async function readImage(file: File): Promise<Rgba> {
+function setOwnImage(small: Rgba, large: Rgba): void {
+  ownVector.value = null;
+  ownSmall.value = small;
+  ownLarge.value = large;
+  const ink = inkMask(large, {});
+  own.inkColor = inkColor(large.data, ink.mask);
+  own.method = pickMethod(ink);
+  Object.assign(own, defaultsFor(own.method));
+}
+function removeOwn(): void {
+  ownSmall.value = ownLarge.value = ownVector.value = ownSvgFile.value = null;
+}
+
+const ownResult = computed((): { shapes: OwnShape[]; box: number; count: string; notes: string[] } | null => {
+  const v = ownVector.value;
+  if (v) return { ...ownShapes({ method: 'svg', result: v }), count: `${v.shapes.length} shapes`, notes: [] };
+  const small = ownSmall.value;
+  const large = ownLarge.value;
+  if (!small || !large) return null;
+  const crop = own.anchor === 'base' ? 'bottom' : 'center';
+  if (own.method === 'ink') {
+    const r = traceInk(large, { size: 100, detail: own.detail, smooth: 0.8, minArea: 0.05, curves: own.curves, maxLength: INK_MAX_LENGTH });
+    const c = r.d ? cropToSubject({ shapes: [{ color: own.inkColor, d: r.d, area: 0 }], background: '#ffffff', box: r.box }, 0.04, crop) : null;
+    const d = c ? (safePathData(c.shapes[0]!.d, INK_MAX_LENGTH) ?? '') : '';
+    const notes: string[] = [];
+    if (r.detailUsed > own.detail + 1e-9)
+      notes.push(`The drawing is very detailed. Detail was coarsened to ${r.detailUsed.toFixed(2)} to keep the motif at a workable size.`);
+    if (r.contrast < 0.2) notes.push('This image does not look like one-color line art. Try Color shapes.');
+    return { ...ownShapes({ method: 'ink', result: { d, box: r.box }, color: own.inkColor }), count: `${r.loops} loops (${r.holes} holes)`, notes };
+  }
+  if (own.method === 'lines') {
+    const r = cropLines(
+      traceLines(large, { detector: own.detector, threshold: own.threshold, detail: own.detail, minLength: own.minLength, curves: own.curves, size: 100 }),
+      0.04,
+      crop,
+    );
+    return { ...ownShapes({ method: 'lines', result: r, color: own.inkColor }), count: `${r.lines} lines`, notes: [] };
+  }
+  const t = cropToSubject(traceColors(small, { colors: own.colors, size: 100, smooth: 1, tolerance: own.detail, minArea: 4, curves: own.curves }), 0.04, crop);
+  return { ...ownShapes({ method: 'color', shapes: t.shapes, box: t.box }), count: `${t.shapes.length} shapes`, notes: [] };
+});
+// The motif alone, for the preview and its size: built from numbers and safe path data only.
+const ownSvgText = computed(() => {
+  const r = ownResult.value;
+  if (!r) return '';
+  const paths = r.shapes.map((c) => {
+    const d = safePathData(c.d, INK_MAX_LENGTH) ?? '';
+    return c.paint === 'stroke'
+      ? `<path fill="none" stroke="${c.color}" stroke-width="${c.width ?? 1.5}" stroke-linecap="round" stroke-linejoin="round" d="${d}"/>`
+      : `<path fill="${c.color}"${c.evenodd ? ' fill-rule="evenodd"' : ''} d="${d}"/>`;
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${r.box} ${r.box}">${paths.join('')}</svg>`;
+});
+const ownPreview = computed(() => (ownSvgText.value ? svgToDataUri(ownSvgText.value) : ''));
+const ownBytes = computed(() => rawSize(ownSvgText.value));
+
+// As the pattern tool: the image is drawn into a canvas, its longer side at most `max` px.
+function toRgba(src: CanvasImageSource, w: number, h: number, max: number): Rgba {
+  const s = Math.min(1, max / Math.max(w, h));
+  const width = Math.max(1, Math.round(w * s));
+  const height = Math.max(1, Math.round(h * s));
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) throw new Error('no 2d context');
+  ctx.drawImage(src, 0, 0, width, height);
+  return { data: ctx.getImageData(0, 0, width, height).data, width, height };
+}
+async function readImage(file: File): Promise<void> {
+  if (isSvgFile(file.name, file.type)) {
+    // An SVG file is drawn as an image through an <img> and an object URL; its text never enters the page.
+    const url = URL.createObjectURL(file);
+    try {
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      const w = img.naturalWidth || 600;
+      const h = img.naturalHeight || 600;
+      setOwnImage(toRgba(img, w, h, 256), toRgba(img, w, h, 600));
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+    return;
+  }
   const bitmap = await createImageBitmap(file);
   try {
-    const s = Math.min(1, 256 / Math.max(bitmap.width, bitmap.height));
-    const width = Math.max(1, Math.round(bitmap.width * s));
-    const height = Math.max(1, Math.round(bitmap.height * s));
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) throw new Error('no 2d context');
-    ctx.drawImage(bitmap, 0, 0, width, height);
-    return { data: ctx.getImageData(0, 0, width, height).data, width, height };
+    setOwnImage(toRgba(bitmap, bitmap.width, bitmap.height, 256), toRgba(bitmap, bitmap.width, bitmap.height, 600));
   } finally {
     bitmap.close();
   }
@@ -57,21 +157,56 @@ async function onOwnFile(e: Event): Promise<void> {
   input.value = ''; // the same file can be picked again
   if (!file) return;
   ownError.value = '';
-  if (!file.type.startsWith('image/')) {
-    ownError.value = `"${file.name}" is not an image. Choose a JPEG, PNG, WebP, or GIF file.`;
+  const svgFile = isSvgFile(file.name, file.type);
+  if (!svgFile && !file.type.startsWith('image/')) {
+    ownError.value = `"${file.name}" is not an image. Choose a JPEG, PNG, WebP, GIF, or SVG file.`;
     return;
   }
+  ownSvgFile.value = svgFile ? file : null;
+  if (svgFile) {
+    const shapes = importSvg(await file.text());
+    if (shapes) {
+      removeOwn();
+      ownSvgFile.value = file;
+      ownVector.value = shapes;
+      own.method = 'color';
+      return;
+    }
+  }
   try {
-    ownImage.value = await readImage(file);
+    await readImage(file);
   } catch {
     ownError.value = `The browser could not read "${file.name}" as an image. Try another file or format.`;
   }
 }
+async function traceSvgFile(): Promise<void> {
+  const file = ownSvgFile.value;
+  if (!file) return;
+  ownError.value = '';
+  try {
+    await readImage(file);
+  } catch {
+    ownError.value = `The browser could not draw "${file.name}" as an image.`;
+  }
+}
+function useSample(): void {
+  ownError.value = '';
+  ownSvgFile.value = null;
+  setOwnImage(sampleFlower(128), sampleFlower(400));
+}
 
 const studio = computed(() => {
-  const t = ownTrace.value;
+  const r = ownResult.value;
   const o = designOptions(design);
-  return compose(t && t.shapes.length > 0 ? { ...o, custom: { shapes: t.shapes, box: t.box, role: own.role, keepColors: own.keepColors } } : o);
+  // TODO(W9d): an ink shape carries `evenodd: true`; compose must forward it to the model motif
+  // (motifs.push({ d: c.d, box: custom.box, paint: c.paint, evenodd: c.evenodd })) and accept its path data up to
+  // INK_MAX_LENGTH (safePathData(c.d, c.evenodd ? INK_MAX_LENGTH : undefined)). Until then holes fill in and an ink
+  // path above 20,000 characters is dropped by the composer.
+  return compose(
+    r && r.shapes.length > 0
+      ? { ...o, custom: { shapes: r.shapes, box: r.box, role: own.role, keepColors: own.keepColors, scale: own.scale, anchor: own.anchor } }
+      : o,
+  );
 });
 const svg = computed(() => studioSvg(studio.value));
 const cell = computed(() => repeatCell(studio.value));
@@ -233,7 +368,7 @@ onBeforeUnmount(() => sizes.disconnect());
             </label>
           </div>
         </fieldset>
-        <p id="summary" class="summary muted">{{ summary.instances }} placements, {{ summary.motifs }} motif definitions, {{ summary.plates }} colors (plates).<template v-if="ownTrace"> Your motif: {{ ownTrace.shapes.length }} shapes.</template></p>
+        <p id="summary" class="summary muted">{{ summary.instances }} placements, {{ summary.motifs }} motif definitions, {{ summary.plates }} colors (plates).<template v-if="ownResult"> Your motif: {{ ownResult.count }}.</template></p>
       </section>
 
       <section class="panel" aria-labelledby="own-h">
@@ -245,17 +380,65 @@ onBeforeUnmount(() => sizes.disconnect());
         <div class="fields">
           <div class="field">
             <label for="own-file">Image</label>
-            <input id="own-file" type="file" accept="image/*" @change="onOwnFile">
+            <input id="own-file" type="file" accept="image/*,.svg" @change="onOwnFile">
           </div>
-          <button id="own-sample" type="button" class="btn" @click="ownError = ''; ownImage = sampleFlower(128)">Try a sample flower</button>
+          <button id="own-sample" type="button" class="btn" @click="useSample">Try a sample flower</button>
         </div>
         <p class="error" role="alert">{{ ownError }}</p>
-        <template v-if="ownImage">
+        <template v-if="ownResult">
+          <div v-if="ownVector" class="own-vector">
+            <p id="own-vector-note">Read as vector shapes: {{ ownVector.shapes.length }} shapes.</p>
+            <ul v-if="ownVector.skipped.length > 0" class="image-notes" aria-label="Not read from the file">
+              <li v-for="item in ownVector.skipped" :key="item">Not read: {{ item }}</li>
+            </ul>
+            <button id="own-trace-image" type="button" class="btn" @click="traceSvgFile">Trace it as an image instead</button>
+          </div>
           <div class="fields">
-            <div class="field">
+            <div v-if="!ownVector" class="field">
+              <label for="own-method">Method</label>
+              <select id="own-method" v-model="own.method">
+                <option v-for="[m, label] in METHODS" :key="m" :value="m">{{ label }}</option>
+              </select>
+            </div>
+            <div v-if="!ownVector && own.method === 'color'" class="field">
               <label for="own-colors">Colors <output for="own-colors">{{ own.colors }}</output></label>
               <input id="own-colors" v-model.number="own.colors" type="range" min="2" max="6" step="1" aria-describedby="own-colors-hint">
               <p id="own-colors-hint" class="hint-text">3 or 4 colors give the cleanest motif. Shaded photos split into bands.</p>
+            </div>
+            <div v-if="!ownVector && own.method === 'lines'" class="field">
+              <label for="own-detector">Edge detector</label>
+              <select id="own-detector" v-model="own.detector">
+                <option v-for="d in DETECTORS" :key="d" :value="d">{{ DETECTOR_LABELS[d] }}</option>
+              </select>
+            </div>
+            <div v-if="!ownVector && own.method === 'lines'" class="field">
+              <label for="own-threshold">Threshold <output for="own-threshold">{{ own.threshold.toFixed(2) }}</output></label>
+              <input id="own-threshold" v-model.number="own.threshold" type="range" min="0.05" max="0.9" step="0.05">
+            </div>
+            <div v-if="!ownVector && own.method === 'lines'" class="field">
+              <label for="own-min-length">Shortest line <output for="own-min-length">{{ own.minLength }} px</output></label>
+              <input id="own-min-length" v-model.number="own.minLength" type="range" min="2" max="40" step="1">
+            </div>
+            <div v-if="!ownVector" class="field">
+              <label for="own-detail">Detail <output for="own-detail">{{ own.detail.toFixed(2) }}</output></label>
+              <input id="own-detail" v-model.number="own.detail" type="range" min="0.15" max="1.2" step="0.05" aria-describedby="own-detail-hint">
+              <p id="own-detail-hint" class="hint-text">Lower keeps finer detail; higher gives a smaller motif.</p>
+            </div>
+            <div v-if="!ownVector && own.method !== 'color'" class="field">
+              <label for="own-ink-color">{{ own.method === 'ink' ? 'Ink color' : 'Line color' }}</label>
+              <input id="own-ink-color" v-model="own.inkColor" type="color">
+            </div>
+            <div class="field">
+              <label for="own-scale">Size <output for="own-scale">{{ own.scale.toFixed(2) }}</output></label>
+              <input id="own-scale" v-model.number="own.scale" type="range" min="0.4" max="3" step="0.05" aria-describedby="own-scale-hint">
+              <p id="own-scale-hint" class="hint-text">A larger motif takes more room, so fewer plants fit.</p>
+            </div>
+            <div class="field">
+              <label for="own-anchor">Sits on the stem by</label>
+              <select id="own-anchor" v-model="own.anchor">
+                <option value="base">Its base</option>
+                <option value="center">Its center</option>
+              </select>
             </div>
             <div class="field">
               <label for="own-role">Use it as</label>
@@ -266,12 +449,16 @@ onBeforeUnmount(() => sizes.disconnect());
               </select>
             </div>
           </div>
+          <label v-if="!ownVector" class="radio"><input id="own-curves" v-model="own.curves" type="checkbox"> Smooth curves</label>
           <label class="radio"><input id="own-keep" v-model="own.keepColors" type="checkbox"> Keep the image's colors</label>
           <div class="own-preview">
             <img id="own-preview" :src="ownPreview" alt="Your traced motif" width="96" height="96">
-            <p class="muted">{{ ownTrace?.shapes.length ?? 0 }} shapes, {{ ownBytes }} bytes.</p>
+            <div>
+              <p id="own-stats" class="muted">{{ ownResult.count }}, {{ ownBytes }} bytes.</p>
+              <p v-for="n in ownResult.notes" :key="n" class="hint-text own-note">{{ n }}</p>
+            </div>
           </div>
-          <button id="own-remove" type="button" class="btn" @click="ownImage = null">Remove my motif</button>
+          <button id="own-remove" type="button" class="btn" @click="removeOwn">Remove my motif</button>
         </template>
         <p class="muted">Your motif is not part of the link.</p>
       </section>

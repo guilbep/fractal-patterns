@@ -190,3 +190,16 @@ test('layerColors lists distinct colors in order', () => {
     '#0000cc',
   ]);
 });
+
+test('an evenodd motif is written with fill-rule="evenodd" and may be longer; others are unchanged', () => {
+  const ring = { d: 'M0 0h10v10H0zM3 3h4v4H3z', box: 10, paint: 'fill' as const };
+  const layers = [{ color: '#123456', opacity: 1, strokeWidth: 1, placements: [place(0, 50, 40)] }];
+  const plain = studioSvg({ ...base, motifs: [ring], layers });
+  assert.doesNotMatch(plain, /fill-rule/);
+  const eo = studioSvg({ ...base, motifs: [{ ...ring, evenodd: true }], layers });
+  assert.equal(eo, plain.replace(`d="${ring.d}"/>`, `d="${ring.d}" fill-rule="evenodd"/>`));
+  const long = { d: 'M0 0' + 'h1v1'.repeat(6000) + 'z', box: 10, paint: 'fill' as const };
+  assert.doesNotMatch(studioSvg({ ...base, motifs: [long], layers }), /<use/);
+  assert.match(studioSvg({ ...base, motifs: [{ ...long, evenodd: true }], layers }), /<use/);
+  assert.equal(studioInstances({ ...base, motifs: [{ ...long, evenodd: true }], layers }).length > 0, true);
+});

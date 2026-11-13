@@ -153,3 +153,50 @@
     display: none;
   }
 }
+
+/* The palette strip reuses class names of the Colors tab: undo what does not fit a one-line strip. */
+.palette-strip .swatches {
+  block-size: 1.5rem;
+  outline: none;
+}
+.palette-strip .palette-name {
+  display: inline;
+  padding: 0;
+}
+.palette-strip .icon-btn {
+  min-width: 1.75rem;
+}
+/* A click on a control must not select its label. */
+.btn,
+.icon-btn,
+.tab,
+.palette,
+.lib-tab {
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* Feedback on a palette change: the swatches pop, the dice turns. Off for visitors who ask for reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .palette-strip .swatches {
+    animation: pal-pop 0.28s ease-out;
+  }
+  .palette-strip .dice {
+    display: inline-block;
+    animation: dice-roll 0.35s ease-out;
+  }
+  .icon-btn:active,
+  .btn:active {
+    transform: scale(0.96);
+  }
+}
+@keyframes pal-pop {
+  from {
+    transform: scale(0.8);
+    opacity: 0.4;
+  }
+}
+@keyframes dice-roll {
+  from {
+    transform: rotate(-180deg) scale(0.7);
+  }
+}

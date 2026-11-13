@@ -32,6 +32,10 @@ function set(next: Design, save: boolean): void {
   else preview(next);
 }
 const val = (e: Event): string => (e.target as HTMLInputElement).value;
+function withOverlap(v: string): Design {
+  const { overlap: _, ...rest } = design.value;
+  return v === 'down' ? { ...rest, overlap: 'down' } : rest;
+}
 
 // Tile.
 let lastBg = design.value.background ?? '#ffffff';
@@ -132,6 +136,14 @@ function another(): void {
           <option v-for="[r, label] in REPEATS" :key="r" :value="r">{{ label }}</option>
         </select>
         <p id="tile-repeat-hint" class="hint-text">{{ repeatHint }}</p>
+      </div>
+      <div class="field">
+        <label for="tile-overlap">Overlap</label>
+        <select id="tile-overlap" :value="design.overlap ?? 'none'" aria-describedby="tile-overlap-hint" @change="set(withOverlap(val($event)), true)">
+          <option value="none">None</option>
+          <option value="down">Each row covers the row above</option>
+        </select>
+        <p id="tile-overlap-hint" class="hint-text">For shapes that overlap in rows, like scales: the order also holds across the tile edge.</p>
       </div>
       <div class="field">
         <label for="tile-bg">Background</label>

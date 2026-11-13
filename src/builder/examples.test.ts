@@ -74,13 +74,11 @@ test('scales has a Scale stamp: the Petal arch filled, then stroked', () => {
   assert.ok(scale.parts.slice(1).some((p) => p.paint === 'stroke'));
 });
 
-test('scales: the flipped items come last, each over an unflipped item at the same place', () => {
-  const items = get('scales').items;
-  const first = items.findIndex((it) => it.flip);
-  assert.ok(first > 0);
-  assert.ok(items.slice(first).every((it) => it.flip));
-  for (const it of items.slice(first))
-    assert.ok(items.slice(0, first).some((o) => !o.flip && o.x === it.x && o.y === it.y && o.scale === it.scale && o.rotate === it.rotate));
+test("scales: each row covers the row above with overlap 'down', no flipped cap row", () => {
+  const d = get('scales');
+  assert.equal(d.overlap, 'down');
+  assert.ok(d.items.every((it) => !it.flip));
+  assert.deepEqual([...stampNames(d)], ['Scale']);
 });
 
 test('examples.ts uses no randomness, clock or DOM', () => {

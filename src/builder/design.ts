@@ -82,6 +82,7 @@ export function toStudio(d: Design, merge = true): Studio {
     height: d.height,
     background: d.background,
     repeat: d.repeat,
+    ...(d.overlap === 'down' ? { overlap: 'down' as const } : {}),
     motifs,
     layers: layers.map((l): StudioLayer => ({
       color: l.color,
@@ -244,6 +245,8 @@ export function parseDesign(value: unknown): Design | null {
     strokeWidth,
     stamps: stamps as Stamp[],
     items: [],
+    // A missing or unknown value is plain list order: the key stays missing.
+    ...(value.overlap === 'down' ? { overlap: 'down' as const } : {}),
   };
   let items = (parsed as Item[])
     .filter((it) => Number.isInteger(it.stamp) && it.stamp >= 0 && it.stamp < stamps.length)

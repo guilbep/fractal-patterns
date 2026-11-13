@@ -50,4 +50,6 @@ export interface Design {
   readonly strokeWidth: number;
   readonly stamps: readonly Stamp[];
   readonly items: readonly Item[];
+  /** 'down': each row covers the row above, cyclically across the tile seam. Missing or 'none': plain list order. */
+  readonly overlap?: 'none' | 'down';
 }

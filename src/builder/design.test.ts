@@ -202,3 +202,19 @@ test('source hygiene', () => {
   const src = readFileSync(new URL('./design.ts', import.meta.url), 'utf8');
   for (const w of ['Math.random', 'Date', 'document', 'window']) assert.ok(!src.includes(w), w);
 });
+
+test("parseDesign keeps overlap 'down'; a missing or unknown value leaves the key missing and the svg unchanged", () => {
+  // Item at y 190, side 20: it crosses the bottom edge, so the order changes the instances.
+  const d: Design = { ...fixture, items: [...fixture.items, item(5, 0, 100, 190)] };
+  const round = (v: unknown): Design | null => parseDesign(JSON.parse(JSON.stringify(v)));
+  const down = round({ ...d, overlap: 'down' })!;
+  assert.equal(down.overlap, 'down');
+  assert.equal(toStudio(down).overlap, 'down');
+  assert.notDeepEqual(studioInstances(toStudio(down)), studioInstances(toStudio(d)));
+  for (const v of [{ ...d, overlap: 'sideways' }, { ...d, overlap: 'none' }, d]) {
+    const p = round(v)!;
+    assert.ok(!('overlap' in p));
+    assert.equal(designSvg(p), designSvg(d));
+  }
+  assert.equal(designSvg({ ...d, overlap: 'none' }), designSvg(d));
+});

@@ -40,6 +40,12 @@ export interface Studio {
   readonly repeat: Repeat;
   readonly motifs: readonly StudioMotif[];
   readonly layers: readonly StudioLayer[];
+  /**
+   * The drawing order across the vertical seam. 'down': each row covers the row above, cyclically:
+   * a wrap copy moved up one cell is drawn before every other instance, one moved down after them.
+   * Missing or 'none': each placement is drawn with all its copies, in list order.
+   */
+  readonly overlap?: 'none' | 'down';
 }
 
 export interface Copy {
@@ -95,10 +101,11 @@ export function wrapOffsets(
 
 const mod = (a: number, m: number): number => ((a % m) + m) % m;
 
-/** Every drawn instance, in layer order: placements x repeat copies x wrap offsets. */
-export function studioInstances(s: Studio): Instance[] {
+/** Each instance with its pass: -1, 0 or 1 is the sign of its vertical wrap offset under overlap 'down', else 0. */
+function passInstances(s: Studio): { i: Instance; pass: number }[] {
   const cell = repeatCell(s);
-  const out: Instance[] = [];
+  const down = s.overlap === 'down';
+  const out: { i: Instance; pass: number }[] = [];
   s.layers.forEach((layer, li) => {
     for (const p of layer.placements) {
       const m = s.motifs[p.motif];
@@ -112,19 +119,28 @@ export function studioInstances(s: Studio): Instance[] {
         const cy = mod(c.dy + (c.flipY ? s.height - y : y), cell.height);
         for (const [ox, oy] of wrapOffsets({ x: cx, y: cy }, radius, cell.width, cell.height))
           out.push({
-            layer: li,
-            motif: p.motif,
-            x: cx + ox,
-            y: cy + oy,
-            // A reflection before a rotation equals the opposite rotation before the reflection.
-            rotate: c.flipX !== c.flipY ? -p.rotate : p.rotate,
-            sx: p.scale * (p.flip !== c.flipX ? -1 : 1),
-            sy: p.scale * (c.flipY ? -1 : 1),
+            pass: down ? Math.sign(oy) : 0,
+            i: {
+              layer: li,
+              motif: p.motif,
+              x: cx + ox,
+              y: cy + oy,
+              // A reflection before a rotation equals the opposite rotation before the reflection.
+              rotate: c.flipX !== c.flipY ? -p.rotate : p.rotate,
+              sx: p.scale * (p.flip !== c.flipX ? -1 : 1),
+              sy: p.scale * (c.flipY ? -1 : 1),
+            },
           });
       }
     }
   });
-  return out;
+  // A stable sort: list order is kept inside each pass.
+  return down ? out.sort((a, b) => a.pass - b.pass) : out;
+}
+
+/** Every drawn instance, in drawing order: placements x repeat copies x wrap offsets, by pass under overlap 'down'. */
+export function studioInstances(s: Studio): Instance[] {
+  return passInstances(s).map((p) => p.i);
 }
 
 /** The 2 x 3 matrix [a, b, c, d, e, f] of an instance's transform, for a motif box `box`. */
@@ -175,7 +191,8 @@ function build(s: Studio, precision: number, expanded: boolean): { svg: string; 
   const w = f(cell.width);
   const h = f(cell.height);
   const safe = s.motifs.map(motifPath);
-  const all = studioInstances(s);
+  const tagged = passInstances(s);
+  const all = tagged.map((p) => p.i);
   const ids = new Map([...new Set(all.map((i) => i.motif))].sort((a, b) => a - b).map((m, k) => [m, motifId(k)]));
   let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`;
   if (s.background !== null) out += `<path fill="${safeColor(s.background)}" d="M0 0h${w}v${h}H0z"/>`;
@@ -186,27 +203,31 @@ function build(s: Studio, precision: number, expanded: boolean): { svg: string; 
       out += `<path id="${id}" d="${safe[m]}"${s.motifs[m]?.paint === 'stroke' ? VE : ''}${s.motifs[m]?.evenodd ? EO : ''}/>`;
     out += '</defs>';
   }
-  s.layers.forEach((layer, li) => {
-    const color = safeColor(layer.color);
-    const o = Math.min(1, Math.max(0, Number.isFinite(layer.opacity) ? layer.opacity : 1));
-    for (const paint of ['fill', 'stroke'] as const) {
-      const mine = all.filter((i) => i.layer === li && s.motifs[i.motif]?.paint === paint);
-      if (mine.length === 0) continue;
-      const op = o === 1 ? '' : ` ${paint}-opacity="${f(o)}"`;
-      const sw = Number.isFinite(layer.strokeWidth) ? Math.max(0, layer.strokeWidth) : 1;
-      out +=
-        paint === 'fill'
-          ? `<g fill="${color}"${op}>`
-          : `<g fill="none" stroke="${color}" stroke-width="${f(sw)}"${op} stroke-linecap="round" stroke-linejoin="round"${VE}>`;
-      for (const i of mine) {
-        const t = transform(i, s.motifs[i.motif]?.box ?? 0, precision);
-        const ve = paint === 'stroke' ? VE : '';
-        const eo = s.motifs[i.motif]?.evenodd ? EO : '';
-        out += expanded ? `<path d="${safe[i.motif]}"${ve}${eo} transform="${t}"/>` : `<use href="#${ids.get(i.motif)}" transform="${t}"/>`;
+  // Layers group their instances, so each pass writes its own layer groups: a pass is above the one before in every layer.
+  for (const pass of s.overlap === 'down' ? [-1, 0, 1] : [0])
+    s.layers.forEach((layer, li) => {
+      const color = safeColor(layer.color);
+      const o = Math.min(1, Math.max(0, Number.isFinite(layer.opacity) ? layer.opacity : 1));
+      for (const paint of ['fill', 'stroke'] as const) {
+        const mine = tagged.filter((p) => p.pass === pass && p.i.layer === li && s.motifs[p.i.motif]?.paint === paint).map((p) => p.i);
+        if (mine.length === 0) continue;
+        const op = o === 1 ? '' : ` ${paint}-opacity="${f(o)}"`;
+        const sw = Number.isFinite(layer.strokeWidth) ? Math.max(0, layer.strokeWidth) : 1;
+        out +=
+          paint === 'fill'
+            ? `<g fill="${color}"${op}>`
+            : `<g fill="none" stroke="${color}" stroke-width="${f(sw)}"${op} stroke-linecap="round" stroke-linejoin="round"${VE}>`;
+        for (const i of mine) {
+          const t = transform(i, s.motifs[i.motif]?.box ?? 0, precision);
+          const ve = paint === 'stroke' ? VE : '';
+          const eo = s.motifs[i.motif]?.evenodd ? EO : '';
+          out += expanded
+            ? `<path d="${safe[i.motif]}"${ve}${eo} transform="${t}"/>`
+            : `<use href="#${ids.get(i.motif)}" transform="${t}"/>`;
+        }
+        out += '</g>';
       }
-      out += '</g>';
-    }
-  });
+    });
   return { svg: `${out}</svg>`, instances: all.length };
 }
 

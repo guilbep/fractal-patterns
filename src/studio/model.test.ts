@@ -203,3 +203,44 @@ test('an evenodd motif is written with fill-rule="evenodd" and may be longer; ot
   assert.match(studioSvg({ ...base, motifs: [{ ...long, evenodd: true }], layers }), /<use/);
   assert.equal(studioInstances({ ...base, motifs: [{ ...long, evenodd: true }], layers }).length > 0, true);
 });
+
+test("overlap 'down': copies moved up are drawn first, copies moved down last; the default keeps list order", () => {
+  // Box 20 at scale 1: radius 14.14. A crosses the top edge, C the bottom edge, B neither.
+  const s: Studio = {
+    ...base,
+    height: 100,
+    motifs: [{ d: 'M0 0h20v20H0z', box: 20, paint: 'fill' }],
+    layers: [{ color: '#000000', opacity: 1, strokeWidth: 1, placements: [place(0, 50, 5), place(0, 50, 50), place(0, 50, 95)] }],
+  };
+  const ys = (t: Studio): number[] => studioInstances(t).map((i) => i.y);
+  assert.deepEqual(ys(s), [5, 105, 50, 95, -5]);
+  assert.deepEqual(ys({ ...s, overlap: 'down' }), [-5, 5, 50, 95, 105]);
+  assert.equal(studioSvg(s), studioSvg({ ...s, overlap: 'none' }));
+});
+
+test("overlap 'down' keeps the pass order across layers in studioSvg", () => {
+  // Two layers: the top item in red, the bottom item in blue. The red copy at the bottom edge must come after every blue use.
+  const s: Studio = {
+    ...base,
+    height: 100,
+    overlap: 'down',
+    motifs: [{ d: 'M0 0h20v20H0z', box: 20, paint: 'fill' }],
+    layers: [
+      { color: '#ff0000', opacity: 1, strokeWidth: 1, placements: [place(0, 50, 5)] },
+      { color: '#0000ff', opacity: 1, strokeWidth: 1, placements: [place(0, 50, 95)] },
+    ],
+  };
+  const svg = studioSvg(s);
+  assert.deepEqual(
+    [...svg.matchAll(/<g fill="(#[0-9a-f]{6})">((?:<use [^>]*>)*)<\/g>/g)].map((m) => [
+      m[1],
+      m[2]!.match(/translate\(40 (-?\d+)\)/g)!.join(),
+    ]),
+    [
+      ['#0000ff', 'translate(40 -15)'],
+      ['#ff0000', 'translate(40 -5)'],
+      ['#0000ff', 'translate(40 85)'],
+      ['#ff0000', 'translate(40 95)'],
+    ],
+  );
+});

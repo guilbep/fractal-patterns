@@ -136,7 +136,6 @@
   cursor: default;
   color: var(--muted);
   background: var(--sunk);
-  text-decoration: line-through;
 }
 
 @media (pointer: coarse) {

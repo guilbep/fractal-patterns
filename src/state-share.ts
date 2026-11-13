@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { FAMILIES } from '@/fractal.ts';
 import { createHistory } from '@/history.ts';
 import { linkedPalette } from '@/palettes.ts'; // STUDIO-PAL
-import { DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design } from '@/share.ts';
+import { DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design, WELCOME } from '@/share.ts';
 import {
   applyPalette,
   change,
@@ -156,6 +156,8 @@ export function initShare(): void {
   // STUDIO-PAL: a hash with only pn or pc is a palette, not a design.
   if (hasWindow && isDesign(window.location.hash) && !/^#?p[nc]=[^&]*$/.test(window.location.hash))
     applyDesign(decodeDesign(window.location.hash));
+  // No design in the address (a first visit, or only a palette from the studio): show the welcome design.
+  else if (hasWindow) applyDesign(decodeDesign(`#${WELCOME}`));
   // --- STUDIO-PAL: a palette from the Wallpaper Studio link (pn name, pc random colors) wins over the hash colors.
   const linked = hasWindow ? linkedPalette(new URLSearchParams(window.location.hash.slice(1))) : null;
   if (linked) applyPalette(linked);

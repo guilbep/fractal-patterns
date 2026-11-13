@@ -328,3 +328,7 @@ export function sameDesign(a: Design, b: Design): boolean {
             : a[f] === b[f],
   );
 }
+
+// The design a first visit shows: the address has no design yet. Chosen by the owner. It is an ordinary link string,
+// so it goes through the same decoding as a shared link, and Reset still returns to the plain defaults.
+export const WELCOME = 's=2692185587&z=64&w=1&bg=eefaf9&fg=5da09e&tx=062424&v=1&fd=1&vo=6_6_0_b_1_0_0_0';

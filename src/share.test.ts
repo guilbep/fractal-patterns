@@ -4,7 +4,7 @@ import { KINDS, MAX_DEPTH } from './fractal.ts';
 import { createHistory } from './history.ts';
 import { LAYER2_DEFAULTS } from './layers.ts';
 import { VARIANT_DEFAULTS, type VariantOptions } from './variants.ts';
-import { DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design } from './share.ts';
+import { DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design, WELCOME } from './share.ts';
 
 // Small seeded generator (mulberry32), so failures reproduce.
 function rng(seed: number): () => number {
@@ -488,4 +488,13 @@ test('the second layer color: l2c only when on, last, round trip; an old hash de
   assert.ok(!encodeDesign({ ...on, layer2Color: null, change: DESIGN_DEFAULTS.change }).includes('l2c'));
   assert.equal(decodeDesign('k=koch&l2=1&fi=c_c3eaec_1').layer2Color, null);
   assert.equal(decodeDesign('l2=1&l2c=zzz').layer2Color, null);
+});
+
+test('the welcome design is a valid link that survives a round trip', () => {
+  const d = decodeDesign(`#${WELCOME}`);
+  assert.equal(d.seed, 2692185587);
+  assert.equal(d.size, 64);
+  assert.equal(d.variants, true);
+  assert.equal(d.fade, true);
+  assert.equal(encodeDesign(d), WELCOME);
 });

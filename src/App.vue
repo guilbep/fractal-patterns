@@ -167,7 +167,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     <component :is="'style'">{{ exportText }}</component>
     <div ref="stage" class="stage">
     <ShortcutHint :on="shortcutOn" />
-    <div class="hero fp-pattern" :class="{ 'fp-paused': motionPaused }" @click="reseed">
+    <!-- A fast second click must shuffle again, not select the sample text. A drag still selects it. -->
+    <div class="hero fp-pattern" :class="{ 'fp-paused': motionPaused }" @click="reseed" @mousedown="$event.detail > 1 && $event.preventDefault()">
       <!-- The plate sits on the wrapper in 'plate' mode, on the paragraph in 'split', nowhere in 'direct'. -->
       <div class="hero-text" :class="{ 'hero-plate': plateMode === 'plate' }" :style="plateMode === 'plate' ? plateStyle : undefined">
         <h1>{{ APP_NAME }}</h1>

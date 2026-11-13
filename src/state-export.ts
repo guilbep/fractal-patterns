@@ -8,7 +8,7 @@ import { altUnavailable } from '@/alt-export.ts';
 import { patchworkGeometry } from '@/patchwork.ts';
 import { squareScene } from '@/scene.ts';
 import { mirrorTile, withGap, zoomWrap } from '@/spacing.ts';
-import { DETECTOR_LABELS } from '@/detectors.ts';
+import { traceName } from '@/detectors.ts';
 import { scaledSecondSize } from '@/layers.ts';
 import {
   aspect,
@@ -45,7 +45,7 @@ import type { Pt } from '@/patterns/util.ts';
 // Enough to make the tile again.
 export const exportLabel = computed(() =>
   usingImage.value
-    ? `Traced image, ${DETECTOR_LABELS[trace.detector]} edges`
+    ? `Traced image, ${traceName(trace.detector)}`
     : usingPatchwork.value
       ? `Patchwork ${patch.cells} by ${patch.cells}, seed ${params.seed}`
       : `${KIND_LABELS[params.kind]}, seed ${params.seed}, depth ${params.depth}`,

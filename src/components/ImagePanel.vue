@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { DETECTORS, DETECTOR_LABELS } from '@/detectors.ts';
+import { computed, ref } from 'vue';
+import { DETECTOR_LABELS, TRACE_GROUPS } from '@/detectors.ts';
 import { RESOLUTIONS, activeSample, curveBytes, image, loadImage, loadSample, rawBytes, removeImage, source, spacing, trace, traced, usingImage } from '@/state.ts';
 import { SAMPLES, SAMPLE_LABELS, sampleImage, type Sample } from '@/samples.ts';
 
@@ -13,6 +13,7 @@ function paint(el: unknown, id: Sample): void {
   el.getContext('2d')?.putImageData(new ImageData(new Uint8ClampedArray(data), width, height), 0, 0);
 }
 
+const contours = computed(() => trace.detector === 'isolines');
 const error = ref('');
 const dragging = ref(false);
 
@@ -65,11 +66,12 @@ function onDrop(e: DragEvent): void {
     </label>
     <p class="error" role="alert">{{ error }}</p>
 
-    <label class="radio"><input id="trace-curves" v-model="trace.curves" type="checkbox" :disabled="!usingImage" aria-describedby="trace-curves-hint"> Smooth curves</label>
+    <label class="radio"><input id="trace-curves" v-model="trace.curves" type="checkbox" :disabled="!usingImage || contours" aria-describedby="trace-curves-hint"> Smooth curves</label>
     <p id="trace-curves-hint" class="hint-text">
       <template v-if="!usingImage">Load an image or pick a sample first.</template>
+      <template v-else-if="contours">Not available with Contour lines: the curve tracer follows edges only.</template>
       <template v-else>Draws round Bézier curves in place of straight segments. Smoother, and usually 1.3 to 3 times larger.</template>
-      <template v-if="curveBytes">{{ ' ' }}{{ curveBytes.svg.toLocaleString('en') }} bytes against {{ curveBytes.plain.toLocaleString('en') }} with straight segments.</template>
+      <template v-if="curveBytes && !contours">{{ ' ' }}{{ curveBytes.svg.toLocaleString('en') }} bytes against {{ curveBytes.plain.toLocaleString('en') }} with straight segments.</template>
     </p>
 
     <template v-if="image">
@@ -83,10 +85,16 @@ function onDrop(e: DragEvent): void {
         <div class="field">
           <label for="detector">Edge detector <output for="detector">{{ DETECTOR_LABELS[trace.detector] }}</output></label>
           <select id="detector" v-model="trace.detector">
-            <option v-for="d in DETECTORS" :key="d" :value="d">{{ DETECTOR_LABELS[d] }}</option>
+            <optgroup v-for="g in TRACE_GROUPS" :key="g.label" :label="g.label">
+              <option v-for="d in g.ids" :key="d" :value="d">{{ DETECTOR_LABELS[d] }}</option>
+            </optgroup>
           </select>
         </div>
-        <div class="field">
+        <div v-if="contours" class="field">
+          <label for="levels">Levels <output for="levels">{{ trace.levels }}</output></label>
+          <input id="levels" v-model.number="trace.levels" type="range" min="2" max="8" step="1">
+        </div>
+        <div v-else class="field">
           <label for="threshold">Threshold <output for="threshold">{{ trace.threshold.toFixed(2) }}</output></label>
           <input id="threshold" v-model.number="trace.threshold" type="range" min="0.05" max="0.9" step="0.05">
         </div>
@@ -100,7 +108,7 @@ function onDrop(e: DragEvent): void {
         </div>
         <div class="field">
           <label for="fit">Fit</label>
-          <select id="fit" v-model="trace.fit">
+          <select id="fit" v-model="trace.fit" :disabled="contours" :title="contours ? 'Contour lines always show the whole image.' : undefined">
             <option value="cover">Fill the tile (crop)</option>
             <option value="contain">Show the whole image</option>
           </select>
@@ -113,17 +121,17 @@ function onDrop(e: DragEvent): void {
         </div>
       </div>
 
-      <label class="radio"><input id="img-seamless" v-model="spacing.mirror" type="checkbox" :disabled="!usingImage || trace.curves" aria-describedby="img-seamless-hint"> Seamless edges (mirror)</label>
+      <label class="radio"><input id="img-seamless" v-model="spacing.mirror" type="checkbox" :disabled="!usingImage || (trace.curves && !contours)" aria-describedby="img-seamless-hint"> Seamless edges (mirror)</label>
       <p id="img-seamless-hint" class="hint-text">
         Mirrors the picture left to right and top to bottom, so the edges meet. Each quarter of the tile holds the picture at half size, so the tile size stays the same and the path is about 4 times longer. Same switch as Mirror in Spacing.
-        <template v-if="trace.curves">{{ ' ' }}Not available with Smooth curves yet.</template>
+        <template v-if="trace.curves && !contours">{{ ' ' }}Not available with Smooth curves yet.</template>
       </p>
 
       <dl class="stats">
         <div><dt>Lines kept</dt><dd>{{ traced?.length ?? 0 }}</dd></div>
         <div><dt>SVG size</dt><dd>{{ usingImage ? `${rawBytes.toLocaleString('en')} bytes` : 'not in use' }}</dd></div>
       </dl>
-      <p v-if="traced && traced.length === 0" class="pattern-warn">The trace kept no line. Lower the threshold or the minimum line length.</p>
+      <p v-if="traced && traced.length === 0" class="pattern-warn">The trace kept no line. {{ contours ? 'Add levels or lower the minimum line length.' : 'Lower the threshold or the minimum line length.' }}</p>
     </template>
 
     <ul class="image-notes muted">

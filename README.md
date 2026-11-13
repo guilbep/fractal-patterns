@@ -152,6 +152,8 @@ The page can trace the edges of your image and turn them into tile lines. An edg
 
 The controls are the edge detector, the threshold, the detail, the minimum line length, the fit and the resolution. The resolution is 128, 192 or 256 px on the longer edge. The vectorizer then follows the edge pixels and turns them into simplified polylines in tile coordinates.
 
+The same select has a Contours group with Contour lines (brightness levels): it draws lines of equal brightness, like the lines of a relief map, and keeps them where the brightness changes quickly. Its own control is Levels, from 2 to 8 (default 4), the number of brightness levels; the threshold is hidden, and Fit always shows the whole image. Smooth curves is not available with contour lines, because the curve tracer follows edges only.
+
 Smooth curves replaces the straight segments with cubic Bézier curves. A Bézier curve is a smooth curve set by a few control points. The page smooths the pixel chains, fits the curves by least squares, and then moves them onto the strongest edges. The tile is smoother and usually 1.3 to 3 times larger. The panel shows the bytes with curves against the bytes with straight segments.
 
 The Image tab has four built-in examples: brick wall, rounded stones, roof tiles and grass tufts. The app draws them in memory. They are not photos, and nothing is downloaded.

@@ -15,7 +15,7 @@ import {
 import { patchworkCells, patchworkGeometry, type PatchworkParams } from '@/patchwork.ts';
 import { mirrorTile, withGap, zoomWrap } from '@/spacing.ts';
 import type { Pt } from '@/patterns/util.ts';
-import type { Detector } from '@/detectors.ts';
+import { traceCall, type TraceChoice } from '@/detectors.ts';
 import { sampleImage, type Sample } from '@/samples.ts';
 import { PALETTES, paletteRoles, rollPalette, type Palette } from '@/palettes.ts';
 import { APCA_SCORE, apcaWorst } from '@/apca.ts';
@@ -126,8 +126,9 @@ watch(
 // Traced-image source. The pixels live in memory only; nothing is uploaded.
 export const RESOLUTIONS = [128, 192, 256] as const;
 const TRACE_DEFAULTS = {
-  detector: 'canny' as Detector,
+  detector: 'canny' as TraceChoice,
   threshold: 0.3,
+  levels: 4, // contour lines only: brightness levels for traceIsolines
   tolerance: 1.5,
   minLength: 8,
   resolution: 192,
@@ -202,7 +203,14 @@ export function removeImage(): void {
 
 // The tracing code loads with the first image: a share link never holds one, so the page starts without it.
 const loadTracing = () =>
-  Promise.all([import('@/trace.ts'), import('@/vectorize.ts'), import('@/smoothtrace.ts')]).then(([t, v, s]) => ({ ...t, ...v, ...s }));
+  Promise.all([import('@/trace.ts'), import('@/vectorize.ts'), import('@/smoothtrace.ts'), import('@/isolines.ts')]).then(
+    ([t, v, s, i]) => ({
+      ...t,
+      ...v,
+      ...s,
+      ...i,
+    }),
+  );
 const tracing = shallowRef<Awaited<ReturnType<typeof loadTracing>> | null>(null);
 watch(image, (img) => {
   if (img && !tracing.value) void loadTracing().then((m) => (tracing.value = m));
@@ -211,12 +219,21 @@ const gray = computed(() => {
   const img = image.value;
   return img && tracing.value ? tracing.value.toGray(img.data, img.width, img.height) : null;
 });
-const edgeMap = computed(() => (gray.value && tracing.value ? tracing.value.edges(gray.value, trace.detector, trace.threshold) : null));
+const call = computed(() => traceCall(trace, params.size));
+// Kept apart from `traced` so a Detail or length change reuses the edge map.
+const edgeMap = computed(() => {
+  const c = call.value;
+  return gray.value && tracing.value && c.method === 'edges' ? tracing.value.edges(gray.value, c.detector, c.threshold) : null;
+});
 export const traced = computed(() => {
-  const img = image.value;
+  const g = gray.value;
+  const c = call.value;
+  if (!g || !tracing.value) return null;
+  // ponytail: contours always fit the whole image (contain); cover needs clipping in isolines.ts, the Fit select is disabled.
+  if (c.method === 'isolines') return tracing.value.traceIsolines(g, c.options);
   const map = edgeMap.value;
-  return img && map && tracing.value
-    ? tracing.value.vectorize(map, img.width, img.height, {
+  return map
+    ? tracing.value.vectorize(map, g.width, g.height, {
         size: params.size,
         tolerance: trace.tolerance,
         minLength: trace.minLength,
@@ -265,11 +282,12 @@ export const closedShapes = computed(() => splitClosed(tile.value.polys).closed.
 
 // Smooth curves: the traced tile from traceCurves.
 // ponytail: spacing (mirror, zoom, gap) is skipped in this mode, it works on polylines; combine it when a ticket asks.
-export const curvesOn = computed(() => usingImage.value && trace.curves);
+// The curve tracer runs its own edge detector, so contour lines keep straight segments.
+export const curvesOn = computed(() => usingImage.value && trace.curves && call.value.method === 'edges');
 const curveSvg = computed(() =>
-  curvesOn.value && gray.value && tracing.value
+  curvesOn.value && gray.value && tracing.value && call.value.method === 'edges'
     ? tracing.value.curveTileSvg(gray.value, {
-        detector: trace.detector,
+        detector: call.value.detector,
         threshold: trace.threshold,
         size: params.size,
         minLength: trace.minLength,

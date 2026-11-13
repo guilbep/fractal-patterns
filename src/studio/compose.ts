@@ -403,57 +403,66 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   let s0 = 1;
   // A host stem may not be cut before its last branch's junction (as u in [0, 1]).
   const minU: number[] = [];
-  for (let tries = 0; stems.length < want && tries < 240; tries++) {
-    if (tries > 0 && tries % 60 === 0) stemDistance *= 0.8;
-    const s = Math.floor(rnd() * 2 ** 32);
-    const idx = stems.length;
-    let st: Stem;
-    let host: number | null = null;
-    let ju = 0;
-    if (repeat === 'mirror' && idx === 0) {
-      const r0 = mulberry32(s);
-      const first = stemOf(rootKnots([rnd() * w, rnd() * h], r0), false, null, s, idx).stem;
-      // Mirror: center the stem's bounds in the tile, then grow it again from there.
-      const xs = first.map((q) => q[0]);
-      const ys = first.map((q) => q[1]);
-      const [sx, sy] = [w / 2 - (Math.min(...xs) + Math.max(...xs)) / 2, h / 2 - (Math.min(...ys) + Math.max(...ys)) / 2];
-      const start: Pt = [first[0]![0] + sx + (rnd() - 0.5) * 0.3 * w, first[0]![1] + sy + (rnd() - 0.5) * 0.3 * h];
-      st = stemOf(rootKnots(start, mulberry32(s)), false, null, s, idx);
-    } else if (idx < vines && tries < 120) {
-      st = stemOf(vineKnots([rnd() * w, rnd() * h]), true, null, s, idx);
-    } else {
-      if (stems.length === 0) continue;
-      const vineIdx = stems.flatMap((q, i) => (q.vine ? [i] : []));
-      host = vineIdx.length > 0 && rnd() < 0.6 ? vineIdx[Math.floor(rnd() * vineIdx.length)]! : Math.floor(rnd() * stems.length);
-      const hs = stems[host]!.stem;
-      if (idx === 1 || (idx === vines && vines > 0)) s0 = rnd() < 0.5 ? -1 : 1;
-      const sg = idx % 2 === 0 ? s0 : -s0;
-      const dev = ((30 + 30 * rnd()) * Math.PI) / 180;
-      // A junction between 20 and 80 percent of the host.
-      const k = 26 + Math.floor(rnd() * 77);
-      ju = k / 128;
-      const hostA = Math.atan2(hs[k + 1]![1] - hs[k - 1]![1], hs[k + 1]![0] - hs[k - 1]![0]);
-      const len = side * (repeat === 'mirror' ? 0.35 + 0.15 * rnd() : 0.5 + 0.3 * rnd());
-      st = stemOf(branchKnots(hs[k]!, hostA, sg, dev, len), false, host, s, idx);
+  // Too few stems: retry the missing branches shorter (0.7, then 0.5 of the range) with a smaller junction zone.
+  for (const [lk, budget] of [
+    [1, 240],
+    [0.7, 120],
+    [0.5, 120],
+  ] as const)
+    for (let tries = 0; stems.length < (lk === 1 ? want : Math.max(3, want)) && tries < budget; tries++) {
+      if (lk === 1 && tries > 0 && tries % 60 === 0) stemDistance *= 0.8;
+      const s = Math.floor(rnd() * 2 ** 32);
+      const idx = stems.length;
+      let st: Stem;
+      let host: number | null = null;
+      let ju = 0;
+      if (repeat === 'mirror' && idx === 0) {
+        const r0 = mulberry32(s);
+        const first = stemOf(rootKnots([rnd() * w, rnd() * h], r0), false, null, s, idx).stem;
+        // Mirror: center the stem's bounds in the tile, then grow it again from there.
+        const xs = first.map((q) => q[0]);
+        const ys = first.map((q) => q[1]);
+        const [sx, sy] = [w / 2 - (Math.min(...xs) + Math.max(...xs)) / 2, h / 2 - (Math.min(...ys) + Math.max(...ys)) / 2];
+        const start: Pt = [first[0]![0] + sx + (rnd() - 0.5) * 0.3 * w, first[0]![1] + sy + (rnd() - 0.5) * 0.3 * h];
+        st = stemOf(rootKnots(start, mulberry32(s)), false, null, s, idx);
+      } else if (idx < vines && (lk === 1 ? tries < 120 : idx === 0)) {
+        st = stemOf(vineKnots([rnd() * w, rnd() * h]), true, null, s, idx);
+      } else {
+        if (stems.length === 0) continue;
+        const vineIdx = stems.flatMap((q, i) => (q.vine ? [i] : []));
+        host = vineIdx.length > 0 && rnd() < 0.6 ? vineIdx[Math.floor(rnd() * vineIdx.length)]! : Math.floor(rnd() * stems.length);
+        const hs = stems[host]!.stem;
+        if (idx === 1 || (idx === vines && vines > 0)) s0 = rnd() < 0.5 ? -1 : 1;
+        const sg = idx % 2 === 0 ? s0 : -s0;
+        const dev = ((30 + 30 * rnd()) * Math.PI) / 180;
+        // A junction between 20 and 80 percent of the host.
+        const k = 26 + Math.floor(rnd() * 77);
+        ju = k / 128;
+        const hostA = Math.atan2(hs[k + 1]![1] - hs[k - 1]![1], hs[k + 1]![0] - hs[k - 1]![0]);
+        const len = lk * side * (repeat === 'mirror' ? 0.35 + 0.15 * rnd() : 0.5 + 0.3 * rnd());
+        st = stemOf(branchKnots(hs[k]!, hostA, sg, dev, len), false, host, s, idx);
+      }
+      if (!st.stem.every((q) => inside(q, 0))) continue;
+      // Stems keep their distance, except a branch near its junction with its host.
+      const st0 = st.stem[0]!;
+      const sparse = st.stem.filter((_, i) => i % 8 === 0);
+      const near = (j: number, b: Pt) => j === host && Math.hypot(b[0] - st0[0], b[1] - st0[1]) < junction * lk;
+      if (stems.some((q, j) => q.stem.some((a, i) => i % 8 === 0 && sparse.some((b) => !near(j, b) && dist(a, b) < stemDistance))))
+        continue;
+      // Each hero's area stays free of the other stems (and of the other heroes' areas).
+      const free = (z: readonly Circle[], line: readonly Pt[]) => z.every((c) => line.every((q) => dist(c.c, q) >= c.r + half + gap));
+      if (!stems.every((q) => free(q.zone, st.stem) && free(st.zone, q.stem))) continue;
+      if (stems.some((q) => q.zone.some((a) => st.zone.some((b) => dist(a.c, b.c) < a.r + b.r + gap)))) continue;
+      stems.push(st);
+      minU.push(0);
+      if (host !== null) minU[host] = Math.max(minU[host]!, ju);
     }
-    if (!st.stem.every((q) => inside(q, 0))) continue;
-    // Stems keep their distance, except a branch near its junction with its host.
-    const st0 = st.stem[0]!;
-    const sparse = st.stem.filter((_, i) => i % 8 === 0);
-    const near = (j: number, b: Pt) => j === host && Math.hypot(b[0] - st0[0], b[1] - st0[1]) < junction;
-    if (stems.some((q, j) => q.stem.some((a, i) => i % 8 === 0 && sparse.some((b) => !near(j, b) && dist(a, b) < stemDistance)))) continue;
-    // Each hero's area stays free of the other stems (and of the other heroes' areas).
-    const free = (z: readonly Circle[], line: readonly Pt[]) => z.every((c) => line.every((q) => dist(c.c, q) >= c.r + half + gap));
-    if (!stems.every((q) => free(q.zone, st.stem) && free(st.zone, q.stem))) continue;
-    if (stems.some((q) => q.zone.some((a) => st.zone.some((b) => dist(a.c, b.c) < a.r + b.r + gap)))) continue;
-    stems.push(st);
-    minU.push(0);
-    if (host !== null) minU[host] = Math.max(minU[host]!, ju);
-  }
 
   // Phase 2, motifs: every plant's hero first, then plant by plant the supports and a side branch. A motif that would come
   // closer than the gap to another plant's stem or placed motif shrinks, then moves along its stem, then drops.
-  type Built = Plant & { circles: Circle[]; path: string };
+  type Built = Omit<Plant, 'attached'> & { attached: Plant['attached'][number][]; circles: Circle[]; segs: Cubic[]; stalks: [Pt, Pt][] };
+  // Supports every `spacing` along a stem: 12% of the side at density 0.2, 9% at 0.5, 7% at 0.9.
+  const spacing = side * (density <= 0.5 ? 0.12 - 0.1 * (density - 0.2) : 0.09 - 0.05 * (density - 0.5));
   const plants: Built[] = [];
   const placed: Circle[][] = stems.map(() => []);
   const clearOf = (self: number, c: Pt, r: number) =>
@@ -521,34 +530,45 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     let end = ends[index]!;
     let lastU = minU[index]!;
     const stalks: [Pt, Pt][] = tipStalk ? [tipStalk] : [];
-    // Support motifs at alternating sides, on the stem, pointing away from it, smaller toward the tip.
-    const n = 3 + Math.floor(r() * (1 + 3 * density));
+    // Support motifs at alternating sides, on the stem, pointing away from it, smaller toward the tip: one per `spacing`
+    // of stem length, each moved by a seeded jitter of up to a quarter spacing.
+    const cum = [0];
+    for (let i = 1; i <= Math.round(end * 128); i++)
+      cum.push(cum[i - 1]! + Math.hypot(full[i]![0] - full[i - 1]![0], full[i]![1] - full[i - 1]![1]));
+    const L = cum.at(-1)!;
+    const uAt = (s: number) => {
+      const i = cum.findIndex((c) => c >= s);
+      return (i < 0 ? cum.length - 1 : i) / 128;
+    };
+    const n = Math.max(1, Math.floor(L / spacing));
+    const sStart = (L - n * spacing) / 2;
     const attached: Built['attached'][number][] = [];
     // Supports and the side branch's end also keep the gap from the plant's own hero and from each other.
     const ownClear = (c: { c: Pt; r: number }) => clearOf(index, c.c, c.r) && circles.every((k) => dist(c.c, k.c) >= c.r + k.r + gap);
     for (let i = 0; i < n; i++) {
-      const u = (0.15 + (0.7 * (i + 0.3 + 0.4 * r())) / n) * end;
+      const s = sStart + (i + 0.5) * spacing + ((r() * 2 - 1) * spacing) / 4;
       const sideSign = i % 2 === 0 ? sA : -sA;
       const turn = (sideSign * (40 + 25 * r()) * Math.PI) / 180;
       const v = variants[1]![i % VARIANTS]!;
-      const rr = 0.075 * side * (1 - (0.4 * i) / n);
+      const rr = 0.075 * side * (vine ? 0.85 + 0.15 * r() : 1 - (0.4 * i) / n);
       const fl = r() < 0.5;
-      // ponytail: full size, 0.8, then 0.8 at 3 next positions along the stem (5% apart) on the same side.
-      for (const [du, k] of [
+      // ponytail: full size, 0.8, then 0.8 at 3 next positions along the stem (0.3 spacing apart) on the same side.
+      for (const [ds, k] of [
         [0, 1],
         [0, 0.8],
-        [0.05, 0.8],
-        [0.1, 0.8],
-        [0.15, 0.8],
+        [0.3, 0.8],
+        [0.6, 0.8],
+        [0.9, 0.8],
       ] as const) {
-        if (u + du > end - 0.03) break;
-        const q = at(u + du);
+        const u = uAt(Math.max(0, s + ds * spacing));
+        if (u > end - 0.03) break;
+        const q = at(u);
         const pl = put(v, q.p, q.a + turn, rr * k, fl);
         const c = realCircle(v, pl);
         if (!ownClear(c)) continue;
         attached.push({ placement: pl, side: sideSign, stalk: null });
         circles.push({ ...c, v, p: pl });
-        lastU = Math.max(lastU, u + du);
+        lastU = Math.max(lastU, u);
         break;
       }
     }
@@ -573,15 +593,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     if (!tip && !vine) end = Math.min(1, lastU + 0.02);
     const stem = end < 1 ? full.slice(0, Math.ceil(end * 128 - 1e-9) + 1) : full;
     const segs = end < 1 ? cutSegs(fullSegs, end) : fullSegs;
-    const f = (q: Pt) => `${num(q[0] + shift[0])} ${num(q[1] + shift[1])}`;
-    const path =
-      `M${f(segs[0]![0])}` +
-      segs.map((c) => `C${f(c[1])} ${f(c[2])} ${f(c[3])}`).join('') +
-      stalks
-        .filter(([a, b]) => Math.hypot(b[0] - a[0], b[1] - a[1]) >= minStalk)
-        .map(([a, b]) => `M${f(a)}L${f(b)}`)
-        .join('');
-    plants.push({ stem, tip, tipStalk, attached, circles, path, vine, host });
+    plants.push({ stem, tip, tipStalk, attached, circles, segs, stalks, vine, host });
   });
 
   // A plant with no motif that no other plant starts on goes (its host may then become one); hosts are renumbered.
@@ -592,13 +604,126 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     for (const [j, pl] of plants.entries()) if (pl.host !== null && pl.host > i) plants[j] = { ...pl, host: pl.host - 1 };
   }
 
-  // Filler: small motifs only in the larger gaps, clear of every motif circle and, by a margin, of every stem.
+  // Filler: small motifs, their real circle at c, clear of every motif circle and, by a margin, of every stem and stalk.
   const fillerMargin = 0.03 * side;
   const filler: { v: Variant; p: Placement }[] = [];
-  const occupied = plants.flatMap((pl) => pl.circles.map((c) => ({ c: c.c, r: c.r })));
-  const stemPts = plants.flatMap((pl) => pl.stem.filter((_, i) => i % 2 === 0));
   const fr = 0.04 * side;
-  for (let n = 0, want2 = Math.round(8 * density); n < want2 * 4 && filler.length < want2; n++) {
+  const fillerAt = (c: Pt, v: Variant): Placement => {
+    const rotate = Math.round(rnd() * 360);
+    const scale = round(fr / v.radius.radius, 100);
+    const fl = rnd() < 0.5;
+    // Move the anchor so the real circle sits at the chosen point.
+    const t = (rotate * Math.PI) / 180;
+    const ox = v.radius.cx * scale * (fl ? -1 : 1);
+    const oy = v.radius.cy * scale;
+    return {
+      motif: v.sil,
+      x: round(c[0] - (ox * Math.cos(t) - oy * Math.sin(t)), 10),
+      y: round(c[1] - (ox * Math.sin(t) + oy * Math.cos(t)), 10),
+      scale,
+      rotate,
+      flip: fl,
+    };
+  };
+  const stalkPts = ([a, b]: readonly [Pt, Pt]): Pt[] =>
+    Array.from({ length: 9 }, (_, i) => [a[0] + ((b[0] - a[0]) * (i + 1)) / 9, a[1] + ((b[1] - a[1]) * (i + 1)) / 9]);
+  const lines = () => plants.map((pl) => [...pl.stem, ...pl.stalks.flatMap(stalkPts)]);
+
+  // Gap filling by measurement: the largest empty discs (24 x 24 samples, distances on the repeat's lattice) above 9% of
+  // the side get a twig (1 or 2 supports on a stalk) from the nearest stem, else a filler motif; at most 2 + 6 x density.
+  const grid = Array.from({ length: 576 }, (_, k): Pt => [(((k % 24) + 0.5) * w) / 24, ((Math.floor(k / 24) + 0.5) * h) / 24]);
+  const empty = grid.map(() => Infinity);
+  const mark = (q: Pt, r: number) => grid.forEach((g, k) => (empty[k] = Math.min(empty[k]!, dist(g, q) - r)));
+  for (const pl of plants) {
+    for (const c of pl.circles) mark(c.c, c.r);
+    pl.stem.forEach((q, i) => i % 4 === 0 && mark(q, 0));
+    pl.stalks.flatMap(stalkPts).forEach((q) => mark(q, 0));
+  }
+  // ponytail: O(grid x stem samples) per tile, about 5 ms; a spatial hash if tiles grow much larger.
+  const allClear = (self: number, c: Pt, r: number) =>
+    inside(c, r) &&
+    lines().every((line, j) => j === self || line.every((q) => dist(c, q) >= r + half + gap)) &&
+    [...plants.flatMap((pl) => pl.circles), ...filler.map((f) => realCircle(f.v, f.p))].every((k) => dist(c, k.c) >= r + k.r + gap);
+  const [lu, lv] = lattice(repeat, w, h);
+  const copyNear = (c: Pt, q: Pt): Pt => {
+    let best: Pt = c;
+    for (let i = -2; i <= 2; i++)
+      for (let j = -2; j <= 2; j++) {
+        const e: Pt = [c[0] + i * lu[0] + j * lv[0], c[1] + i * lu[1] + j * lv[1]];
+        if (Math.hypot(e[0] - q[0], e[1] - q[1]) < Math.hypot(best[0] - q[0], best[1] - q[1])) best = e;
+      }
+    return best;
+  };
+  const twig = (c: Pt, R: number, n: number): boolean => {
+    let best = { i: -1, j: 0, d: Infinity };
+    plants.forEach((pl, i) =>
+      pl.stem.forEach((q, j) => j > 0 && j < pl.stem.length - 1 && dist(c, q) < best.d && (best = { i, j, d: dist(c, q) })),
+    );
+    if (best.i < 0) return false;
+    const pl = plants[best.i]!;
+    const q = pl.stem[best.j]!;
+    const cc = copyNear(c, q);
+    const a = Math.atan2(cc[1] - q[1], cc[0] - q[0]);
+    const [p0, p1] = [pl.stem[best.j - 1]!, pl.stem[best.j + 1]!];
+    const sideSign = Math.sign((p1[0] - p0[0]) * (cc[1] - q[1]) - (p1[1] - p0[1]) * (cc[0] - q[0])) || 1;
+    // The stalk itself keeps the gap from every motif and from other plants' stems.
+    const stalkClear = (st: [Pt, Pt]) =>
+      stalkPts(st).every(
+        (s) =>
+          [...plants.flatMap((x) => x.circles), ...filler.map((f) => realCircle(f.v, f.p))].every((k) => dist(s, k.c) >= k.r + gap) &&
+          lines().every((line, j) => j === best.i || line.every((t) => dist(s, t) >= 2 * gap)),
+      );
+    for (const k of [1, 0.8, 0.6]) {
+      const rr = Math.min(0.06 * side, 0.7 * R) * k;
+      const len = Math.max(1.1 * minStalk, best.d - rr);
+      if (len > 0.15 * side) return false;
+      const b = step(q, a, len);
+      const v = variants[1]![n % VARIANTS]!;
+      const p = put(v, b, a, rr, rnd() < 0.5);
+      const circ = realCircle(v, p);
+      if (!allClear(best.i, circ.c, circ.r) || !stalkClear([q, b])) continue;
+      pl.circles.push({ ...circ, v, p });
+      pl.attached.push({ placement: p, side: sideSign, stalk: [q, b] });
+      pl.stalks.push([q, b]);
+      // A second, smaller leaf from the stalk's middle, to one side.
+      const m = step(q, a, 0.55 * len);
+      const a2 = a + (((rnd() < 0.5 ? -1 : 1) * 50) / 180) * Math.PI;
+      const v2 = variants[1]![(n + 1) % VARIANTS]!;
+      const p2 = put(v2, m, a2, 0.7 * rr, rnd() < 0.5);
+      const c2 = realCircle(v2, p2);
+      if (allClear(best.i, c2.c, c2.r)) {
+        pl.circles.push({ ...c2, v: v2, p: p2 });
+        pl.attached.push({ placement: p2, side: sideSign, stalk: [q, b] });
+      }
+      return true;
+    }
+    return false;
+  };
+  const fillAt = (c: Pt): boolean => {
+    const v = variants[2]![filler.length % VARIANTS]!;
+    if (!allClear(-1, c, fr) || !lines().every((line) => line.every((q) => dist(c, q) >= fr + fillerMargin))) return false;
+    filler.push({ v, p: fillerAt(c, v) });
+    return true;
+  };
+  const cap = Math.round(2 + 6 * density);
+  for (let t = 0, added = 0; t < 4 * cap && added < cap; t++) {
+    const k = empty.indexOf(Math.max(...empty));
+    const R = empty[k]!;
+    if (R < 0.09 * side) break;
+    const c = grid[k]!;
+    const before = plants.map((pl) => pl.circles.length);
+    if (twig(c, R, added) || fillAt(c)) {
+      added++;
+      plants.forEach((pl, i) => pl.circles.slice(before[i]).forEach((x) => mark(x.c, x.r)));
+      plants.forEach((pl) => pl.stalks.flatMap(stalkPts).forEach((q) => mark(q, 0)));
+      filler.forEach((f) => ((x) => mark(x.c, x.r))(realCircle(f.v, f.p)));
+    } else grid.forEach((g, i) => dist(g, c) < R && (empty[i] = -Infinity));
+  }
+
+  // Then sparse filler in the larger gaps that are left.
+  const occupied = [...plants.flatMap((pl) => pl.circles.map((c) => ({ c: c.c, r: c.r }))), ...filler.map((f) => realCircle(f.v, f.p))];
+  const stemPts = lines().flatMap((line) => line.filter((_, i) => i % 2 === 0));
+  for (let n = 0, want2 = filler.length + Math.round(8 * density); n < want2 * 4 && filler.length < want2; n++) {
     let best: { p: Pt; clear: number } | null = null;
     for (let k = 0; k < 16; k++) {
       const c: Pt = [rnd() * w, rnd() * h];
@@ -608,24 +733,18 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     }
     if (!best) continue;
     const v = variants[2]![filler.length % VARIANTS]!;
-    const rotate = Math.round(rnd() * 360);
-    const scale = round(fr / v.radius.radius, 100);
-    const fl = rnd() < 0.5;
-    // Move the anchor so the real circle sits at the chosen point.
-    const t = (rotate * Math.PI) / 180;
-    const ox = v.radius.cx * scale * (fl ? -1 : 1);
-    const oy = v.radius.cy * scale;
-    const p: Placement = {
-      motif: v.sil,
-      x: round(best.p[0] - (ox * Math.cos(t) - oy * Math.sin(t)), 10),
-      y: round(best.p[1] - (ox * Math.sin(t) + oy * Math.cos(t)), 10),
-      scale,
-      rotate,
-      flip: fl,
-    };
+    const p = fillerAt(best.p, v);
     filler.push({ v, p });
     occupied.push(realCircle(v, p));
   }
+  const f = (q: Pt) => `${num(q[0] + shift[0])} ${num(q[1] + shift[1])}`;
+  const pathOf = (pl: Built) =>
+    `M${f(pl.segs[0]![0])}` +
+    pl.segs.map((c) => `C${f(c[1])} ${f(c[2])} ${f(c[3])}`).join('') +
+    pl.stalks
+      .filter(([a, b]) => Math.hypot(b[0] - a[0], b[1] - a[1]) >= minStalk)
+      .map(([a, b]) => `M${f(a)}L${f(b)}`)
+      .join('');
 
   const leaf: Placement[] = [];
   const bloom: Placement[] = [];
@@ -651,7 +770,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   };
   if (o.stems && plants.length > 0) {
     // All stems in one stroke motif in tile units, shifted into a box large enough for stems that cross the edges.
-    motifs.push({ d: plants.map((pl) => pl.path).join(''), box, paint: 'stroke' });
+    motifs.push({ d: plants.map(pathOf).join(''), box, paint: 'stroke' });
     // Non-scaling stroke: the width is in pixels at tile scale 1; 0.5% of the side reads lighter than the motifs.
     add(o.colors.stem, round(2 * half, 100), [{ motif: motifs.length - 1, x: w / 2, y: h / 2, scale: 1, rotate: 0, flip: false }]);
   }

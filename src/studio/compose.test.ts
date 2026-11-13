@@ -70,6 +70,31 @@ test('compose: deterministic, seeds differ, safe compact studio, heroes do not o
 test('density raises the number of placements', () => {
   for (const seed of SEEDS)
     assert.ok(fills(compose(opt(seed, { density: 0.9 }))).length > fills(compose(opt(seed, { density: 0.2 }))).length);
+  // Mean over seeds 1..8: measured 38.5 at 0.9, 24.875 at 0.2 (ratio 1.548).
+  const mean = (density: number) => SEEDS.reduce((a, seed) => a + fills(compose(opt(seed, { density }))).length, 0) / SEEDS.length;
+  assert.ok(mean(0.9) >= 1.3 * mean(0.2), `${mean(0.9) / mean(0.2)}`);
+});
+
+test('no large empty disc: 24 x 24 samples on the lattice, at density 0.5, 4 repeats x 8 seeds', () => {
+  let worst = 0;
+  for (const repeat of REPEATS)
+    for (const seed of SEEDS) {
+      const p = composeParts(opt(seed, { repeat }));
+      const own = p.plants.flatMap((pl) => [...(pl.tip ? [pl.tip] : []), ...pl.attached.map((a) => a.placement)]);
+      const cs = [...own, ...p.filler].map((q) => circle(p.studio, q));
+      const lines = p.plants.flatMap((pl) => pl.stem);
+      for (let i = 0; i < 24; i++)
+        for (let j = 0; j < 24; j++) {
+          const q: Pt = [((i + 0.5) * 300) / 24, ((j + 0.5) * 300) / 24];
+          const d = Math.min(
+            ...cs.map((c) => latticeDistance(q, [c.x, c.y], repeat, 300, 300) - c.r),
+            ...lines.map((s) => latticeDistance(q, s, repeat, 300, 300)),
+          );
+          worst = Math.max(worst, d / 300);
+        }
+    }
+  // Measured worst 0.208 (mirror, seed 8; the other repeats at most 0.088), was 0.2365; bound: rounded up to 0.01.
+  assert.ok(worst <= 0.21, `${worst}`);
 });
 
 test('families: only leaf motifs when only leaf is allowed, still at least 6 placements', () => {
@@ -97,11 +122,11 @@ test('stems: none when off; one stroke layer in the stem color, all stems in one
 
 test('bytes, straight repeat: worst over seeds 1..8', () => {
   const worst = (density: number) => Math.max(...SEEDS.map((seed) => composeSummary(compose(opt(seed, { density }))).bytes));
-  // Measured worst (bare plants removed, supports clear of their own hero): 9304 at 0.2, 11163 at 0.5, 12671 at 0.9;
-  // bounds: the measured worst rounded up to the next 500.
-  assert.ok(worst(0.2) <= 9500);
-  assert.ok(worst(0.5) <= 11500);
-  assert.ok(worst(0.9) <= 13000);
+  // Measured worst (ticket X5: supports by stem length, twigs and filler in the gaps): 12284 at 0.2, 15821 at 0.5, 16056
+  // at 0.9 (was 9304, 11163, 12671); bounds: the measured worst rounded up to the next 500 (were 9500, 11500, 13000).
+  assert.ok(worst(0.2) <= 12500);
+  assert.ok(worst(0.5) <= 16000);
+  assert.ok(worst(0.9) <= 16500);
 });
 
 test('composeColors maps the five roles', () => {
@@ -144,7 +169,7 @@ test('plants: tip and alternating supports registered on their stems, stems apar
     for (const seed of SEEDS) {
       const at = `${repeat} ${seed}`;
       const p = composeParts(opt(seed, { repeat }));
-      assert.ok(p.plants.length >= 2, at);
+      assert.ok(p.plants.length >= 3, at);
       for (const pl of p.plants) {
         const onStem = (q: Pt) => Math.min(...pl.stem.slice(1).map((b, i) => segDistance(q, pl.stem[i]!, b)));
         // A vine's hero ends a side stalk that starts on the stem; other heroes sit on the stem's tip.
@@ -195,12 +220,12 @@ test('plants: tip and alternating supports registered on their stems, stems apar
       }
     }
   }
-  // Measured over 4 repeats x 8 seeds (115 plants, 2 bare plants removed): 0.896 with 2 supports (was 0.923), 0.826 on
-  // both sides (was 0.889): supports now keep the gap from their own hero and each other, so more of them drop. Floors:
-  // the measured shares rounded down to 0.05 (were 0.9 and 0.85).
-  assert.ok(twoSupports / total >= 0.85, `supports ${twoSupports / total}`);
+  // Measured over 4 repeats x 8 seeds (ticket X5, 122 plants, was 115): 0.951 with a hero (was 0.948), 0.902 with 2
+  // supports (was 0.896), 0.811 on both sides (was 0.826). Floors: the measured shares rounded down to 0.05 (were 0.9,
+  // 0.85, 0.8).
+  assert.ok(twoSupports / total >= 0.9, `supports ${twoSupports / total}`);
   assert.ok(bothSides / total >= 0.8, `sides ${bothSides / total}`);
-  assert.ok(heroes / total >= 0.9, `heroes ${heroes / total}`);
+  assert.ok(heroes / total >= 0.95, `heroes ${heroes / total}`);
   assert.ok(endsInMotif / total >= 0.95, `ends ${endsInMotif / total}`);
 });
 
@@ -272,7 +297,7 @@ test('branches start on their host stem; mirror has one root', () => {
     for (const seed of SEEDS) {
       const at = `${repeat} ${seed}`;
       const ps = composeParts(opt(seed, { repeat })).plants;
-      assert.ok(ps.length >= 2, at);
+      assert.ok(ps.length >= 3, at);
       if (repeat === 'mirror') assert.equal(ps.filter((pl) => pl.host === null).length, 1, at);
       for (const pl of ps) {
         if (pl.vine || pl.host === null) continue;
@@ -340,10 +365,10 @@ test('a hero moved back from the tip sits on its cut stem, with no bare stem bey
   assert.ok(moved > 0);
 });
 
-// Re-taken in ticket X4, which changes the default output on purpose (bare plants removed, supports clear of their own
-// hero); before: 1 7590d6259efb59b3, 2 f559d32054f2970c, 3 928794dc891c594e.
+// Re-taken in ticket X5, which changes the default output on purpose (supports by stem length, twigs and filler in the
+// gaps); before: 1 50c3cf6b0a7cfbdd, 2 72807e354740a5b9, 3 4ad9cae4b492718d.
 test('compose without a custom motif: a stable SVG (sha-256 prefixes)', () => {
-  const want: Record<number, string> = { 1: '50c3cf6b0a7cfbdd', 2: '72807e354740a5b9', 3: '4ad9cae4b492718d' };
+  const want: Record<number, string> = { 1: '9a32925dfbd09bd4', 2: '318012a4be4b4f84', 3: 'ebe59920fda6e956' };
   for (const seed of [1, 2, 3]) {
     const svg = studioSvg(compose({ ...designOptions(decodeStudio('')), seed }));
     assert.equal(createHash('sha256').update(svg).digest('hex').slice(0, 16), want[seed], `seed ${seed}`);
@@ -489,14 +514,16 @@ test('custom motif sized by its body: a compact disc keeps the bounding-circle s
   }
 });
 
+// Re-taken in ticket X5 (the layout changed on purpose); before: 1 hero 7d6c74440a8841b5, 1 both 013372de367c1b6e,
+// 2 hero 90a2043d54d9f27f, 2 both 84f9e0153df6aef8, 3 hero 8d8a3ec08459ac1b, 3 both 631e19b6aaa552d7.
 test('custom scale absent or 1: the same SVG as before (sha-256 prefixes)', () => {
   const want: Record<string, string> = {
-    '1 hero': '7d6c74440a8841b5',
-    '1 both': '013372de367c1b6e',
-    '2 hero': '90a2043d54d9f27f',
-    '2 both': '84f9e0153df6aef8',
-    '3 hero': '8d8a3ec08459ac1b',
-    '3 both': '631e19b6aaa552d7',
+    '1 hero': '271d78e677a5cbc7',
+    '1 both': 'bcbf14f9c0c63208',
+    '2 hero': '717fbc0d6bb1e0c5',
+    '2 both': 'd1899a4af47928b4',
+    '3 hero': '3bbbae66a8ce14a6',
+    '3 both': 'bdd2201a94488d99',
   };
   for (const seed of [1, 2, 3])
     for (const role of ['hero', 'both'] as const)

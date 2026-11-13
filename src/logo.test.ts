@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LOGO_DEFAULT, logoSvg, studioLogoSvg } from './logo.ts';
+import { readFileSync } from 'node:fs';
+import { LOGO_DEFAULT, builderLogoSvg, logoSvg, studioLogoSvg } from './logo.ts';
 
 test('logoSvg draws the default mark as one compact, deterministic line', () => {
   const s = logoSvg(LOGO_DEFAULT);
@@ -31,4 +32,14 @@ test('studioLogoSvg draws a small, deterministic botanical mark in the logo styl
   assert.equal(s, studioLogoSvg());
   assert.notEqual(s, logoSvg(LOGO_DEFAULT));
   assert.ok(s.length < 700, `${s.length} chars`);
+});
+
+// The header shows these files, so they must not drift from the functions: run `npm run logo` after a change to the marks.
+test('each committed public/favicon*.svg equals the output of its function plus a newline', () => {
+  const files: [string, string][] = [
+    ['favicon.svg', logoSvg(LOGO_DEFAULT)],
+    ['favicon-studio.svg', studioLogoSvg()],
+    ['favicon-builder.svg', builderLogoSvg()],
+  ];
+  for (const [name, svg] of files) assert.equal(readFileSync(new URL(`../public/${name}`, import.meta.url), 'utf8'), svg + '\n', name);
 });

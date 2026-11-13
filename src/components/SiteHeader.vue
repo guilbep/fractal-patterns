@@ -1,17 +1,17 @@
 <script setup lang="ts">
 // One header for both tools: product brand, the tool switch, the current tool's tagline, a GitHub link.
 import { APP_NAME } from '@/app-name.ts';
-import { LOGO_DEFAULT, builderLogoSvg, logoSvg, studioLogoSvg } from '@/logo.ts';
-import { svgToDataUri } from '@/css.ts';
 import '@/css/site-header.css';
 
 withDefaults(defineProps<{ current: 'patterns' | 'studio' | 'builder'; patternsHref: string; studioHref: string; builderHref?: string; tagline: string }>(), {
   builderHref: './builder.html',
 });
 
-const LOGO_URI = svgToDataUri(logoSvg(LOGO_DEFAULT));
-const STUDIO_URI = svgToDataUri(studioLogoSvg());
-const BUILDER_URI = svgToDataUri(builderLogoSvg());
+// The marks are the static files that scripts/make-logo.ts writes from src/logo.ts (logo.test.ts pins them).
+// Importing logo.ts here would pull every pattern generator into the Studio and the Builder.
+const LOGO_URI = './favicon.svg';
+const STUDIO_URI = './favicon-studio.svg';
+const BUILDER_URI = './favicon-builder.svg';
 </script>
 
 <template>

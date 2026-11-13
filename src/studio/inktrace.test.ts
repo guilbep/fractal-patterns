@@ -194,3 +194,36 @@ test('plain white ground and mid-gray ink still trace', () => {
   close(inkMask(gray, {}).coverage, gt, 0.25, 'gray ink');
   assert.equal(inkThreshold(gray).inkIsDark, true);
 });
+
+// The mirror case: sparse white ink on a baked DARK checkerboard (16 px squares, 0 and 40). Otsu must not split the
+// two dark tones and return the lighter squares as ink.
+test('sparse light ink on a dark checkerboard: the lighter squares are not ink', () => {
+  const dark = (x: number, y: number): RGB => ((Math.floor(x / 16) + Math.floor(y / 16)) % 2 ? [40, 40, 40] : [0, 0, 0]);
+  const cases = [
+    [[[50, 2]], dark, 0.015],
+    [
+      [
+        [40, 4],
+        [70, 4],
+        [100, 4],
+      ],
+      dark,
+      0.09,
+    ],
+    [[[50, 2]], (): RGB => [0, 0, 0], 0.015],
+  ] as const;
+  for (const [rings, ground, maxInk] of cases) {
+    const cov = drawing([], rings);
+    const truth = cov.reduce((s, v) => s + (v >= 0.5 ? 1 : 0), 0) / (N * N);
+    const m = inkMask(render(cov, ground, WHITE), {});
+    assert.ok(m.coverage < maxInk, String(m.coverage));
+    close(m.coverage, truth, 0.25, 'coverage');
+    for (let sy = 0; sy < N; sy += 16) {
+      for (let sx = 0; sx < N; sx += 16) {
+        let touched = false;
+        for (let y = sy; y < sy + 16; y++) for (let x = sx; x < sx + 16; x++) touched ||= cov[y * N + x]! > 0;
+        if (!touched) assert.equal(m.mask[(sy + 8) * N + sx + 8], 0, `square ${sx},${sy}`);
+      }
+    }
+  }
+});

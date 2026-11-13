@@ -46,13 +46,17 @@ function darkness(img: Rgba): Float32Array {
   return raw;
 }
 
-// Otsu on the histogram bins from..255.
-function split(hist: Float64Array, from: number): { threshold: number; inkIsDark: boolean; contrast: number; darkMean: number } {
+// Otsu on the histogram bins from..to-1.
+function split(
+  hist: Float64Array,
+  from: number,
+  to = 256,
+): { threshold: number; inkIsDark: boolean; contrast: number; darkMean: number; lightMean: number } {
   let [n, total] = [0, 0];
-  for (let b = from; b < 256; b++) [n, total] = [n + hist[b]!, total + b * hist[b]!];
+  for (let b = from; b < to; b++) [n, total] = [n + hist[b]!, total + b * hist[b]!];
   let [best, w0, s0] = [-1, 0, 0];
-  let res = { threshold: 1, inkIsDark: true, contrast: 0, darkMean: 0 };
-  for (let t = from; t < 255; t++) {
+  let res = { threshold: 1, inkIsDark: true, contrast: 0, darkMean: 0, lightMean: 0 };
+  for (let t = from; t < to - 1; t++) {
     w0 += hist[t]!;
     s0 += t * hist[t]!;
     const w1 = n - w0;
@@ -61,7 +65,7 @@ function split(hist: Float64Array, from: number): { threshold: number; inkIsDark
     const between = w0 * w1 * (m1 - m0) ** 2;
     if (between > best) {
       best = between;
-      res = { threshold: (t + 0.5) / 255, inkIsDark: w1 <= w0, contrast: (m1 - m0) / 255, darkMean: m1 / 255 };
+      res = { threshold: (t + 0.5) / 255, inkIsDark: w1 <= w0, contrast: (m1 - m0) / 255, darkMean: m1 / 255, lightMean: m0 / 255 };
     }
   }
   return res;
@@ -71,12 +75,15 @@ function otsu(dark: Float32Array): { threshold: number; inkIsDark: boolean; cont
   const hist = new Float64Array(256);
   for (const v of dark) hist[Math.min(255, Math.max(0, Math.round(v * 255)))]! += 1;
   const first = split(hist, 0);
-  // Both classes light (the darker one still above 0.55 luma): Otsu split paper against paper, e.g. the white and gray
-  // squares of a baked transparency checkerboard under sparse ink. Split again inside the darker class; keep that split
-  // only if it separates more than the first did, so a pale drawing on plain paper keeps its first split.
-  if (first.darkMean < 0.45) {
-    const again = split(hist, Math.round(first.threshold * 255 - 0.5) + 1);
-    if (again.contrast > first.contrast) return { threshold: again.threshold, inkIsDark: true, contrast: again.contrast };
+  // Both classes on one side: Otsu split ground against ground, e.g. the two squares of a baked checkerboard under
+  // sparse ink. Both light (darker class above 0.55 luma): dark ink, split again inside the darker class. Both dark
+  // (lighter class below 0.45 luma): light ink, split again inside the lighter class. Keep that split only if it
+  // separates more than the first did, so a pale drawing on plain paper keeps its first split.
+  const light = first.darkMean < 0.45;
+  if (light || first.lightMean > 0.55) {
+    const t = Math.round(first.threshold * 255 - 0.5) + 1;
+    const again = light ? split(hist, t) : split(hist, 0, t);
+    if (again.contrast > first.contrast) return { threshold: again.threshold, inkIsDark: light, contrast: again.contrast };
   }
   return { threshold: first.threshold, inkIsDark: first.inkIsDark, contrast: first.contrast };
 }

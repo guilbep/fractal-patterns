@@ -25,5 +25,8 @@
   },
   "engines": {
     "node": ">=24"
+  },
+  "dependencies": {
+    "apca-w3": "^0.1.9"
   }
 }

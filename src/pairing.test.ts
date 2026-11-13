@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PALETTES } from './palettes.ts';
-import { contrastRatio, relativeLuminance } from './contrast.ts';
+import { blend, contrastRatio, relativeLuminance } from './contrast.ts';
 import {
   PATTERN_VISIBLE_MIN,
   PICK_OPACITY,
@@ -11,12 +11,17 @@ import {
   largeTarget,
   patternContrast,
   patternInvisible,
+  fixWithFill,
   pickRoles,
   plateContrast,
+  textWorst,
+  worstAt,
   swapRoles,
   worstTextContrast,
   type Roles,
 } from './pairing.ts';
+import { mulberry32 } from './patterns/util.ts';
+import { layerSpots } from './layers.ts';
 
 const OPACITIES = [0.1, 0.4, 1];
 
@@ -277,4 +282,55 @@ test('fixSplit fixes a heading that fails on the bare pattern', () => {
   assert.equal(f.reached, true);
   assert.ok(f.heading >= 3, `heading ${f.heading}`);
   assert.ok(f.opacity < 1 || f.text !== r.text, `opacity ${f.opacity}, text ${f.text}`);
+});
+
+const hex = (rnd: () => number) =>
+  `#${Math.floor(rnd() * 0x1000000)
+    .toString(16)
+    .padStart(6, '0')}`;
+
+test('textWorst: without a fill it equals the old per-spot value, with and without a plate and a second layer', () => {
+  const rnd = mulberry32(11);
+  for (let n = 0; n < 20; n++) {
+    const r = { background: hex(rnd), pattern: hex(rnd), text: hex(rnd) };
+    const o = rnd();
+    const plate = rnd();
+    for (const spots of [(x: number) => [x], (x: number) => layerSpots(x, 2, 0.5)]) {
+      const old = (p: number) => Math.min(...spots(o).map((x) => worstTextContrast(r, x * (1 - p))));
+      assert.equal(textWorst(r, o, 0, spots), old(0));
+      assert.equal(textWorst(r, o, plate, spots), old(plate));
+      assert.equal(worstAt(r, o, spots), old(0));
+      assert.equal(plateContrast(r, o, plate, spots), old(plate));
+      // A fill never raises the worst case.
+      const f = { ...r, fill: hex(rnd), fillOpacity: rnd() };
+      assert.ok(textWorst(f, o, 0, spots) <= old(0) + 1e-12);
+      assert.ok(textWorst(f, o, plate, spots) <= old(plate) + 1e-12);
+    }
+  }
+});
+
+test('textWorst: a black fill at opacity 1 under black text on white gives 1', () => {
+  const r = { background: '#ffffff', pattern: '#336699', text: '#000000', fill: '#000000', fillOpacity: 1 };
+  assert.equal(textWorst(r, 0.6, 0), 1);
+});
+
+test('fixWithFill: lowers the fill opacity first, and a reported fix reaches the target', () => {
+  const rnd = mulberry32(5);
+  let lowered = 0;
+  for (let n = 0; n < 20; n++) {
+    const dark = () => blend('#000000', hex(rnd), 0.8);
+    const r = { background: blend('#ffffff', hex(rnd), 0.85), pattern: hex(rnd), text: dark(), fill: dark(), fillOpacity: 1 };
+    const o = Math.round(rnd() * 100) / 100;
+    for (const mode of ['plate', 'split', 'direct'] as const) {
+      for (const spots of [(x: number) => [x], (x: number) => layerSpots(x, 2, 1)]) {
+        const f = fixWithFill(mode, r, o, 0.5, 4.5, spots);
+        const after = { ...r, text: f.text, fillOpacity: f.fillOpacity ?? 1 };
+        const worst = mode === 'direct' ? worstAt(after, f.opacity, spots) : textWorst(after, f.opacity, f.plate, spots);
+        if (f.reached) assert.ok(worst >= 4.5, `${mode} ${worst}`);
+        assert.ok(f.fillOpacity === undefined || f.fillOpacity >= 0.15);
+        if (f.fillOpacity !== 1) lowered++;
+      }
+    }
+  }
+  assert.ok(lowered > 0);
 });

@@ -62,6 +62,7 @@ function randomDesign(r: () => number): Design {
     parallax: r() < 0.5,
     variantOptions: r() < 0.5 ? VARIANT_DEFAULTS : randomVO(r),
     sections: r() < 0.5,
+    fill: r() < 0.5 ? DESIGN_DEFAULTS.fill : { mode: pick(['closed', 'alternate'] as const), color: color(), opacity: real(0, 1) },
   };
 }
 
@@ -124,6 +125,7 @@ const FULL: Design = {
   parallax: true,
   variantOptions: { cells: 6, count: 6, orient: true, drop: 'half-drop', depths: true, jitter: 0.55, weights: 0.55, skip: 0.45 }, // the longest the sliders give
   sections: true,
+  fill: { mode: 'alternate', color: '#c3eaec', opacity: 0.55 }, // the longest the slider gives
 };
 
 function assertValid(d: Design, label: string): void {
@@ -195,8 +197,8 @@ test('a design with every field non-default stays short', () => {
   for (const f of Object.keys(DESIGN_DEFAULTS) as (keyof Design)[]) assert.notEqual(FULL[f], DESIGN_DEFAULTS[f], f);
   const s = encodeDesign(FULL);
   // 177 before the variants key, + '&v=1', + '&l2=1&fd=1', + '&l2s=100_100_-180_2.95_0.55_3.85' (32), + '&px=1' (5),
-  // + '&vo=6_6_1_h_1_0.55_0.55_0.45' (28), + '&sx=1' (5)
-  assert.ok(s.length <= 264, `${s.length}`);
+  // + '&vo=6_6_1_h_1_0.55_0.55_0.45' (28), + '&sx=1' (5), + '&fi=a_c3eaec_0.55' (17)
+  assert.ok(s.length <= 281, `${s.length}`);
   assert.deepEqual(decodeDesign(s), FULL);
 });
 
@@ -295,6 +297,7 @@ test('variants: round trip, absent means false, old links decode as before', () 
     parallax: false,
     variantOptions: VARIANT_DEFAULTS,
     sections: false,
+    fill: DESIGN_DEFAULTS.fill,
   };
   assert.deepEqual(decodeDesign(old), oldDesign);
   assert.equal(encodeDesign(oldDesign), old);
@@ -372,7 +375,7 @@ test('variant options: one vo key, round trip of 30 random sets, absent means de
   );
   assert.deepEqual(decodeDesign('v=1').variantOptions, VARIANT_DEFAULTS);
   // Appended last: older keys come first.
-  assert.ok(encodeDesign({ ...FULL }).endsWith('&px=1&vo=6_6_1_h_1_0.55_0.55_0.45&sx=1'));
+  assert.ok(encodeDesign({ ...FULL }).endsWith('&px=1&vo=6_6_1_h_1_0.55_0.55_0.45&sx=1&fi=a_c3eaec_0.55'));
 });
 
 test('variant options: numbers are clamped, malformed values and unsupported pairs give the defaults', () => {
@@ -409,7 +412,21 @@ test('sections: key sx last, round-trips, absent means false, old links unchange
   assert.equal(decodeDesign('sx=0').sections, false);
   assert.equal(decodeDesign('').sections, false);
   assert.equal(decodeDesign('k=fern&px=1&vo=6_6_1_h_1_0.55_0.55_0.45').sections, false);
-  assert.ok(encodeDesign({ ...FULL, sections: true }).endsWith('&sx=1'));
+  assert.ok(encodeDesign({ ...FULL, fill: DESIGN_DEFAULTS.fill, sections: true }).endsWith('&sx=1'));
   assert.deepEqual(decodeDesign(encodeDesign({ ...FULL, sections: false })), { ...FULL, sections: false });
-  assert.equal(encodeDesign({ ...FULL, sections: false }) + '&sx=1', encodeDesign({ ...FULL, sections: true }));
+  const noFill = { ...FULL, fill: DESIGN_DEFAULTS.fill };
+  assert.equal(encodeDesign({ ...noFill, sections: false }) + '&sx=1', encodeDesign({ ...noFill, sections: true }));
+});
+
+test('fill: key fi last, compact, round-trips, omitted when off, malformed gives the default, old links unchanged', () => {
+  assert.equal(encodeDesign({ ...DESIGN_DEFAULTS, fill: { mode: 'closed', color: '#c3eaec', opacity: 1 } }), 'fi=c_c3eaec_1');
+  assert.equal(encodeDesign({ ...DESIGN_DEFAULTS, fill: { mode: 'none', color: '#000000', opacity: 0.2 } }), '');
+  assert.deepEqual(decodeDesign('fi=a_ABCDEF_0.4').fill, { mode: 'alternate', color: '#abcdef', opacity: 0.4 });
+  assert.deepEqual(decodeDesign('fi=c_abcdef_7').fill, { mode: 'closed', color: '#abcdef', opacity: 1 });
+  assert.deepEqual(decodeDesign('fi=c_abcdef_-2').fill.opacity, 0);
+  for (const bad of ['x_abcdef_1', 'c_abcde_1', 'c_abcdef_', 'c_abcdef_NaN', 'c_abcdef', 'c_abcdef_1_2', ''])
+    assert.deepEqual(decodeDesign(`fi=${bad}`).fill, DESIGN_DEFAULTS.fill, bad);
+  assert.deepEqual(decodeDesign('k=fern&sx=1').fill, DESIGN_DEFAULTS.fill);
+  assert.ok(encodeDesign(FULL).endsWith('&sx=1&fi=a_c3eaec_0.55'));
+  assert.deepEqual(decodeDesign(encodeDesign(FULL)).fill, FULL.fill);
 });

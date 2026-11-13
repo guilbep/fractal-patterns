@@ -5,6 +5,7 @@ import { createHistory } from '@/history.ts';
 import { DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design } from '@/share.ts';
 import {
   fade,
+  fill,
   lastFix,
   layer2,
   layer2Settings,
@@ -51,6 +52,7 @@ export function snapshot(): Design {
     parallax: parallax.value,
     variantOptions: { ...variantOptions },
     sections: sections.value,
+    fill: { ...fill },
   };
 }
 
@@ -75,6 +77,7 @@ export function applyDesign(d: Design): void {
   parallax.value = d.parallax;
   Object.assign(variantOptions, d.variantOptions);
   sections.value = d.sections;
+  Object.assign(fill, d.fill);
   source.value = 'math';
   lastFix.value = null; // the Fix result no longer describes these colors
 }

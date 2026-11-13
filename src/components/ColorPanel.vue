@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { PALETTES } from '@/palettes.ts';
 import { largeTarget } from '@/pairing.ts';
-import { applyFix, applyPalette, contrast, lastFix, offPalette, opacity, paletteName, plateBlur, plateMode, plateOpacity, plateRadius, ratioText, swap, type PlateMode } from '@/state.ts';
+import { applyFix, applyPalette, closedShapes, contrast, fill, fillAvailable, lastFix, offPalette, opacity, paletteName, plateBlur, plateMode, plateOpacity, plateRadius, ratioText, swap, type PlateMode } from '@/state.ts';
 import RoleInput from './RoleInput.vue';
 
 const offPaletteText = computed(() => new Intl.ListFormat('en', { type: 'conjunction' }).format(offPalette.value));
@@ -40,6 +40,29 @@ const fixes = computed(() => [
           <label for="opacity">Pattern opacity <output for="opacity">{{ Math.round(opacity * 100) }}%</output></label>
           <input id="opacity" v-model.number="opacity" type="range" min="0" max="1" step="0.01">
         </div>
+        <fieldset class="plate-group">
+          <legend>Fill</legend>
+          <div class="field">
+            <label for="fill-mode">Fill closed shapes</label>
+            <select id="fill-mode" v-model="fill.mode" :disabled="!fillAvailable" aria-describedby="fill-hint">
+              <option value="none">Off</option>
+              <option value="closed">All closed shapes</option>
+              <option value="alternate">Every second shape</option>
+            </select>
+          </div>
+          <template v-if="fill.mode !== 'none' && fillAvailable">
+            <RoleInput role="fill" label="Fill" hint="inside closed shapes" />
+            <div class="field">
+              <label for="fill-opacity">Fill opacity <output for="fill-opacity">{{ Math.round(fill.opacity * 100) }}%</output></label>
+              <input id="fill-opacity" v-model.number="fill.opacity" type="range" min="0" max="1" step="0.01">
+            </div>
+          </template>
+          <p id="fill-hint" class="hint-text">
+            <template v-if="!fillAvailable">Not available in this mode yet.</template>
+            <template v-else>Fills the closed shapes of the pattern with a second color. Text contrast is checked on the fill too.</template>
+            <template v-if="fillAvailable && fill.mode !== 'none' && closedShapes === 0"> This pattern has no closed shape to fill.</template>
+          </p>
+        </fieldset>
         <RoleInput role="text" label="Text" hint="sits on top of both" />
         <p class="adjusted" role="status">
           <template v-if="offPalette.length">Adjusted: the {{ offPaletteText }} {{ offPalette.length > 1 ? 'colors are' : 'color is' }} not from this palette.</template>
@@ -83,6 +106,7 @@ const fixes = computed(() => [
         <dl class="surfaces">
           <div><dt>On the plate</dt><dd>{{ ratioText(contrast.onPlate) }}:1</dd></div>
           <div><dt>Directly on the pattern</dt><dd>{{ ratioText(contrast.direct) }}:1</dd></div>
+          <div v-if="contrast.onFill !== null"><dt>On the fill</dt><dd>{{ ratioText(contrast.onFill) }}:1</dd></div>
           <div class="info"><dt>Pattern visibility <span class="tag">informational</span></dt><dd>{{ ratioText(contrast.pattern) }}:1</dd></div>
         </dl>
         <p v-if="plateMode === 'split'" class="badge heading-line" :class="contrast.heading === 'fail' ? 'fail' : 'pass'">

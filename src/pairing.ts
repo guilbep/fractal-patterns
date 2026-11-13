@@ -1,10 +1,14 @@
 import { blend, contrastRatio, relativeLuminance } from './contrast.ts';
+import { plateSurfaces, worstTextContrastSurfaces } from './fills.ts';
 
 export interface Roles {
   readonly background: string;
   readonly pattern: string;
   readonly text: string;
 }
+// The roles with the fill of closed shapes, when on: one more surface under the text (fills.ts).
+// The functions below take Roles and spread them, so a fill passed in rides along to textWorst.
+export type FilledRoles = Roles & { readonly fill?: string | null; readonly fillOpacity?: number };
 
 export interface Fix {
   readonly text: string;
@@ -16,7 +20,22 @@ export interface Fix {
 // The stroke opacities a surface shows for a pattern opacity (layerSpots in layers.ts); one layer by default.
 export type Spots = (opacity: number) => readonly number[];
 const ONE: Spots = (o) => [o];
-export const worstAt = (r: Roles, o: number, spots: Spots) => Math.min(...spots(o).map((x) => worstTextContrast(r, x)));
+
+// THE list of surfaces the text is checked against: background, fill, strokes on both, at every spot of the
+// strokes and of the fill (a second layer carries the fill too), under a plate of opacity `plate`.
+// Without a fill it equals worstTextContrast at each spot, as before.
+export function textWorst(r: FilledRoles, opacity: number, plate: number, spots: Spots = ONE): number {
+  const fill = r.fill ?? null;
+  const fillSpots = fill === null ? [0] : spots(r.fillOpacity ?? 1);
+  let worst = Infinity;
+  for (const x of spots(opacity))
+    for (const y of fillSpots) {
+      const s = plateSurfaces({ background: r.background, pattern: r.pattern, patternOpacity: x, fill, fillOpacity: y }, plate);
+      worst = Math.min(worst, worstTextContrastSurfaces(r.text, s));
+    }
+  return worst;
+}
+export const worstAt = (r: FilledRoles, o: number, spots: Spots) => textWorst(r, o, 0, spots);
 
 const TEXT_STEPS = 100;
 const OPACITY_STEP = 0.05;
@@ -93,9 +112,8 @@ export function fixContrast(r: Roles, opacity: number, target = 4.5, spots: Spot
 }
 
 // A plate of opacity p over a stroke at `opacity` shows the stroke at opacity * (1 - p).
-export function plateContrast(r: Roles, opacity: number, plate: number, spots: Spots = ONE): number {
-  const p = Math.min(1, Math.max(0, plate));
-  return Math.min(...spots(opacity).map((x) => worstTextContrast(r, x * (1 - p))));
+export function plateContrast(r: FilledRoles, opacity: number, plate: number, spots: Spots = ONE): number {
+  return textWorst(r, opacity, plate, spots);
 }
 
 export interface PlateFix {
@@ -183,4 +201,37 @@ export function fixForMode(
   const f = fixWithPlate(r, opacity, plate, target, spots);
   const ratio = plateContrast({ ...r, text: f.text }, opacity, f.plate, spots);
   return { text: f.text, opacity, plate: f.plate, ratio, heading: undefined, reached: ratio >= target };
+}
+
+export const FILL_FIX_MIN = 0.15;
+
+// The Fix with a fill: lower the fill opacity first, in steps of 0.05 down to FILL_FIX_MIN, while that alone
+// can reach the target; otherwise the existing fix runs with the fill as it was.
+export function fixWithFill(
+  mode: 'plate' | 'split' | 'direct',
+  r: FilledRoles,
+  opacity: number,
+  plate: number,
+  target: number,
+  spots: Spots = ONE,
+): ModeFix & { readonly fillOpacity: number | undefined } {
+  const ok = (rr: FilledRoles): boolean =>
+    mode === 'direct'
+      ? worstAt(rr, opacity, spots) >= target
+      : textWorst(rr, opacity, plate, spots) >= target && (mode !== 'split' || worstAt(rr, opacity, spots) >= largeTarget(target));
+  const fo = r.fillOpacity ?? 1;
+  if (r.fill && !ok(r)) {
+    for (let k = 1; ; k++) {
+      const f = Math.max(FILL_FIX_MIN, Math.round((fo - k * 0.05) * 100) / 100);
+      if (f >= fo) break;
+      const rr = { ...r, fillOpacity: f };
+      if (ok(rr)) {
+        const ratio = mode === 'direct' ? worstAt(rr, opacity, spots) : textWorst(rr, opacity, plate, spots);
+        const heading = mode === 'split' ? worstAt(rr, opacity, spots) : undefined;
+        return { text: r.text, opacity, plate, ratio, heading, reached: true, fillOpacity: f };
+      }
+      if (f === FILL_FIX_MIN) break;
+    }
+  }
+  return { ...fixForMode(mode, r, opacity, plate, target, spots), fillOpacity: r.fillOpacity };
 }

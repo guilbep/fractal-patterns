@@ -4,6 +4,7 @@ import { FAMILIES, KINDS, MAX_DEPTH, type Kind } from './fractal.ts';
 import { LAYER2_DEFAULTS, type Layer2Settings } from './layers.ts';
 import { MOTION_NONE, type Motion } from './motion.ts';
 import { VARIANT_DEFAULTS, type VariantOptions } from './variants.ts';
+import type { FillStyle } from './fills.ts';
 
 export interface Design extends Motion {
   readonly kind: Kind;
@@ -34,6 +35,7 @@ export interface Design extends Motion {
   readonly parallax: boolean; // the two layers move at different speeds on scroll
   readonly variantOptions: VariantOptions; // strength and per-cell options of Reduce repetition
   readonly sections: boolean; // export-only helper classes that turn the pattern per section
+  readonly fill: FillStyle; // closed shapes filled with a second color
 }
 // Not in the URL: pinned patchwork cells (a per-session tweak), the palette name (the roles carry the colors),
 // and the image source (the pixels never leave the browser).
@@ -70,6 +72,7 @@ export const DESIGN_DEFAULTS: Design = {
   parallax: false,
   variantOptions: VARIANT_DEFAULTS,
   sections: false,
+  fill: { mode: 'none', color: '#c3eaec', opacity: 1 },
 };
 
 // Field to short key. The insertion order is the order of the encoded string.
@@ -107,7 +110,8 @@ const KEYS: Readonly<Record<keyof Design, string>> = {
   layer2Settings: 'l2s',
   parallax: 'px',
   variantOptions: 'vo',
-  sections: 'sx', // keep new keys last: older links stay valid
+  sections: 'sx',
+  fill: 'fi', // keep new keys last: older links stay valid
 };
 const FIELDS = Object.keys(KEYS) as (keyof Design)[];
 
@@ -166,12 +170,31 @@ function decodeVO(s: string): VariantOptions {
   };
 }
 
+// The fill in one value, mode_color_opacity (mode as n, c, or a; color without '#'); empty when off.
+const FILL_MODES = { none: 'n', closed: 'c', alternate: 'a' } as const;
+const encodeFill = (f: FillStyle): string =>
+  f.mode === 'none' ? '' : [FILL_MODES[f.mode], f.color.replace(/^#/, ''), f.opacity].join('_');
+// Three parts, a known mode, 6 hex digits, a finite opacity clamped to 0..1; anything else gives the default.
+function decodeFill(s: string): FillStyle {
+  const [m, c = '', o = ''] = s.split('_');
+  const mode = (Object.keys(FILL_MODES) as (keyof typeof FILL_MODES)[]).find((k) => FILL_MODES[k] === m);
+  const n = Number(o);
+  if (s.split('_').length !== 3 || !mode || !/^[0-9a-f]{6}$/i.test(c) || o.trim() === '' || !Number.isFinite(n))
+    return DESIGN_DEFAULTS.fill;
+  return { mode, color: `#${c.toLowerCase()}`, opacity: Math.min(1, Math.max(0, n)) + 0 };
+}
+
 export function encodeDesign(d: Design): string {
   const pairs: [string, string][] = [];
   for (const f of FIELDS) {
     if (f === 'layer2Settings') {
       const l2 = encodeL2(d.layer2Settings);
       if (l2) pairs.push([KEYS[f], l2]);
+      continue;
+    }
+    if (f === 'fill') {
+      const fi = encodeFill(d.fill);
+      if (fi) pairs.push([KEYS[f], fi]);
       continue;
     }
     if (f === 'variantOptions') {
@@ -243,11 +266,18 @@ export function decodeDesign(query: string): Design {
     parallax: bool('parallax'),
     variantOptions: decodeVO(get('variantOptions')),
     sections: bool('sections'),
+    fill: decodeFill(get('fill')),
   };
 }
 
 export function sameDesign(a: Design, b: Design): boolean {
   return FIELDS.every((f) =>
-    f === 'layer2Settings' ? encodeL2(a[f]) === encodeL2(b[f]) : f === 'variantOptions' ? encodeVO(a[f]) === encodeVO(b[f]) : a[f] === b[f],
+    f === 'layer2Settings'
+      ? encodeL2(a[f]) === encodeL2(b[f])
+      : f === 'variantOptions'
+        ? encodeVO(a[f]) === encodeVO(b[f])
+        : f === 'fill'
+          ? encodeFill(a[f]) === encodeFill(b[f])
+          : a[f] === b[f],
   );
 }

@@ -21,13 +21,15 @@ import { curveTileSvg } from '@/smoothtrace.ts';
 import { sampleImage, type Sample } from '@/samples.ts';
 import { PALETTES, type Palette } from '@/palettes.ts';
 import { blend, contrastRatio, textLevel } from '@/contrast.ts';
-import { fixForMode, patternContrast, patternInvisible, pickRoles, plateContrast, swapRoles, worstAt, type Roles } from '@/pairing.ts';
+import { fixWithFill, patternContrast, patternInvisible, pickRoles, plateContrast, swapRoles, worstAt, type Roles } from '@/pairing.ts';
 import { cssBackground, cssPlate, svgToDataUri } from '@/css.ts';
 import { rawSize } from '@/co2.ts';
 import { MOTION_NONE, type Motion } from '@/motion.ts';
 import { superTileBytes } from '@/supertile.ts';
 import { VARIANT_DEFAULTS, variantTile, variantsActive, type VariantOptions } from '@/variants.ts';
 import { LAYER2_DEFAULTS, layerSpots, type Layer2Settings } from '@/layers.ts';
+import { fillScene, splitClosed, type FillStyle } from '@/fills.ts';
+import { sceneToSvg } from '@/scene.ts';
 
 export const MAX_SEED = 0xffffffff;
 
@@ -58,6 +60,13 @@ export const plateMode = ref<PlateMode>(PLATE_DEFAULTS.plateMode);
 export const plateOpacity = ref(PLATE_DEFAULTS.plateOpacity);
 export const plateRadius = ref(PLATE_DEFAULTS.plateRadius);
 export const plateBlur = ref(PLATE_DEFAULTS.plateBlur);
+// Closed shapes filled with a second color; the color follows the palette's soft color (the 5th).
+const softOf = (p: Palette | null): string => p?.colors[4] ?? '#c3eaec';
+export const fill = reactive<{ -readonly [K in keyof FillStyle]: FillStyle[K] }>({
+  mode: 'none',
+  color: softOf(DEFAULT_PALETTE),
+  opacity: 1,
+});
 export const palette = computed(() => PALETTES.find((p) => p.name === paletteName.value) ?? null);
 
 // Result of the last Fix click, shown until the colors change by another action.
@@ -214,7 +223,16 @@ function tileFor(seed: number): Tile {
 }
 const tile = computed(() => tileFor(params.seed));
 const tileSvg = (t: Tile) =>
-  svgFromPolylines(t.polys, { ...params, size: t.size, color: roles.pattern, opacity: opacity.value }, aspect.value, t.extra);
+  fillOn.value
+    ? sceneToSvg(
+        fillScene(t.polys, { size: t.size, strokeWidth: params.strokeWidth, color: roles.pattern, opacity: opacity.value }, fill),
+        params.precision,
+      )
+    : svgFromPolylines(t.polys, { ...params, size: t.size, color: roles.pattern, opacity: opacity.value }, aspect.value, t.extra);
+// Fills need plain polylines: not the variants super tile, not the curve tile, not a kind with a raw `extra` path.
+export const fillAvailable = computed(() => !variantsOn.value && !curvesOn.value && aspect.value === 1);
+const fillOn = computed(() => fill.mode !== 'none' && fillAvailable.value);
+export const closedShapes = computed(() => splitClosed(tile.value.polys).closed.length);
 
 // Smooth curves: the traced tile from traceCurves.
 // ponytail: spacing (mirror, zoom, gap) is skipped in this mode, it works on polylines; combine it when a ticket asks.
@@ -320,17 +338,31 @@ const spots = computed(() => {
   return (o: number) => layerSpots(o, layers, strength);
 });
 
+// The roles the text is checked against: with the fill when it shows on the tile.
+const checkedRoles = computed(() => ({
+  ...roles,
+  fill: fillOn.value && closedShapes.value > 0 ? fill.color : null,
+  fillOpacity: fill.opacity,
+}));
+
 export const contrast = computed(() => {
+  const r = checkedRoles.value;
   const textOnBackground = contrastRatio(roles.text, roles.background);
   const textOnPattern = contrastRatio(roles.text, blend(roles.pattern, roles.background, opacity.value));
   // With a second layer at strength p, crossings carry the strokes at 1 - (1 - o) * (1 - o * p): the badge takes the worst spot.
-  const direct = worstAt(roles, opacity.value, spots.value);
-  const onPlate = plateContrast(roles, opacity.value, plateOpacity.value, spots.value);
+  const direct = worstAt(r, opacity.value, spots.value);
+  const onPlate = plateContrast(r, opacity.value, plateOpacity.value, spots.value);
+  // Text on the fill alone and on a stroke over it, without a plate; null when no fill shows.
+  const onFill =
+    r.fill === null
+      ? null
+      : worstAt({ ...r, background: blend(r.fill, r.background, r.fillOpacity), fill: null }, opacity.value, spots.value);
   // The paragraph's surface: the plate in 'plate' and 'split', the bare pattern in 'direct'.
   const worst = plateMode.value === 'direct' ? direct : onPlate;
   return {
     textOnBackground,
     textOnPattern,
+    onFill,
     direct,
     onPlate,
     heading: textLevel(direct, true),
@@ -385,9 +417,16 @@ export function setRole(role: keyof Roles, hex: string): void {
   setRoles({ ...roles, [role]: hex.toLowerCase() });
 }
 
+export function setFillColor(hex: string): void {
+  lastFix.value = null;
+  fill.color = hex.toLowerCase();
+}
+
+// ponytail: choosing a palette always sets the fill color to its soft color, edited or not.
 export function applyPalette(p: Palette): void {
   lastFix.value = null;
   paletteName.value = p.name;
+  fill.color = softOf(p);
   setRoles(pickRoles(p.colors));
 }
 
@@ -401,13 +440,15 @@ function changedText(parts: string[]): string {
 }
 
 export function applyFix(target: number): void {
-  const before = { text: roles.text, opacity: opacity.value, plate: plateOpacity.value };
-  const fix = fixForMode(plateMode.value, roles, opacity.value, plateOpacity.value, target, spots.value);
+  const before = { text: roles.text, opacity: opacity.value, plate: plateOpacity.value, fill: fill.opacity };
+  const fix = fixWithFill(plateMode.value, checkedRoles.value, opacity.value, plateOpacity.value, target, spots.value);
+  if (fix.fillOpacity !== undefined) fill.opacity = fix.fillOpacity;
   opacity.value = fix.opacity;
   plateOpacity.value = fix.plate;
   setRoles({ ...roles, text: fix.text });
   const { ratio, heading, reached } = fix;
   const changed = changedText([
+    ...(fill.opacity !== before.fill ? ['fill opacity'] : []),
     ...(plateOpacity.value !== before.plate ? ['plate opacity'] : []),
     ...(opacity.value !== before.opacity ? ['pattern opacity'] : []),
     ...(roles.text !== before.text ? ['text color'] : []),
@@ -425,6 +466,7 @@ export function reset(): void {
   plateRadius.value = PLATE_DEFAULTS.plateRadius;
   plateBlur.value = PLATE_DEFAULTS.plateBlur;
   applyPalette(DEFAULT_PALETTE);
+  Object.assign(fill, { mode: 'none', opacity: 1 });
   Object.assign(trace, TRACE_DEFAULTS);
   removeImage();
   layout.value = 'single';

@@ -36,7 +36,16 @@ import { THEME_CRAFT_MAX_DEPTH, knot, roof } from './patterns/themes-craft.ts';
 import { THEME_EARTH_MAX_DEPTH, cracks, roots, stars } from './patterns/themes-earth.ts';
 import { CHLADNI_MAX_DEPTH, chladni } from './patterns/themes-chladni.ts';
 import { THEME_HOME_MAX_DEPTH, lanterns, quilt, railway } from './patterns/themes-home.ts';
-import { PATHS_MAX_DEPTH, PIPES_MAX_DEPTH, WEAVE_MAX_DEPTH, paths, pipes, weave } from './patterns/themes-pipes.ts';
+import {
+  ENDLESSMAZE_MAX_DEPTH,
+  PATHS_MAX_DEPTH,
+  PIPES_MAX_DEPTH,
+  WEAVE_MAX_DEPTH,
+  endlessmaze,
+  paths,
+  pipes,
+  weave,
+} from './patterns/themes-pipes.ts';
 import { THEME_SKY_MAX_DEPTH, clouds, moons, storm } from './patterns/themes-sky.ts';
 import { THEME_WATER_MAX_DEPTH, rain, ridges, seigaiha } from './patterns/themes-water.ts';
 import { THEME_WILD_MAX_DEPTH, leaves, nest, river, thorns } from './patterns/themes-wild.ts';
@@ -126,6 +135,7 @@ export const KINDS = [
   'lanterns',
   'weave',
   'paths',
+  'endlessmaze',
   'octa',
   'octastars',
   'dodeca',
@@ -228,6 +238,7 @@ const PATTERNS: Readonly<
   lanterns: { family: 'theme', label: 'Lanterns', maxDepth: THEME_HOME_MAX_DEPTH.lanterns, gen: lanterns },
   weave: { family: 'theme', label: 'Basketwork', maxDepth: WEAVE_MAX_DEPTH, gen: weave },
   paths: { family: 'theme', label: 'Garden paths', maxDepth: PATHS_MAX_DEPTH, gen: paths },
+  endlessmaze: { family: 'theme', label: 'Endless maze', maxDepth: ENDLESSMAZE_MAX_DEPTH, gen: endlessmaze },
   octa: { family: 'quasi', label: 'Eightfold rhombs', maxDepth: QUASI_MAX_DEPTH, gen: octaEdges },
   octastars: { family: 'quasi', label: 'Eightfold stars', maxDepth: QUASI_MAX_DEPTH, gen: octaStars },
   dodeca: { family: 'quasi', label: 'Twelvefold rhombs', maxDepth: QUASI_MAX_DEPTH, gen: dodecaEdges },

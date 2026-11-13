@@ -2,7 +2,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { geometry } from '../fractal.ts';
 import { TILES, tileGeometry, wangLayout } from '../wang.ts';
-import { PATHS_MAX_DEPTH, PIPES_MAX_DEPTH, WEAVE_MAX_DEPTH, paths, pipes, weave } from './themes-pipes.ts';
+import {
+  ENDLESSMAZE_MAX_DEPTH,
+  PATHS_MAX_DEPTH,
+  PIPES_MAX_DEPTH,
+  WEAVE_MAX_DEPTH,
+  endlessmaze,
+  paths,
+  pipes,
+  weave,
+} from './themes-pipes.ts';
 import { mulberry32 } from './util.ts';
 
 const S = 120;
@@ -11,6 +20,7 @@ const KINDS = [
   ['pipes', pipes, PIPES_MAX_DEPTH],
   ['weave', weave, WEAVE_MAX_DEPTH],
   ['paths', paths, PATHS_MAX_DEPTH],
+  ['endlessmaze', endlessmaze, ENDLESSMAZE_MAX_DEPTH],
 ] as const;
 type WangKind = (typeof KINDS)[number][0];
 const geoOf = (kind: WangKind, seed: number, depth: number) => geometry({ kind, seed, depth, size: S });

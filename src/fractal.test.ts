@@ -177,6 +177,7 @@ test('families', () => {
     'lanterns',
     'weave',
     'paths',
+    'endlessmaze',
   ] as const)
     assert.equal(KIND_FAMILY[kind], 'theme', kind);
   for (const family of FAMILIES) assert.ok(typeof FAMILY_LABELS[family] === 'string' && FAMILY_LABELS[family].length > 0, family);
@@ -204,7 +205,7 @@ test('families', () => {
 });
 
 test('all kinds are registered', () => {
-  assert.equal(KINDS.length, 76);
+  assert.equal(KINDS.length, 77);
   const ids = [
     'carpet',
     'quadtree',
@@ -273,6 +274,7 @@ test('all kinds are registered', () => {
     'lanterns',
     'weave',
     'paths',
+    'endlessmaze',
     'octa',
     'octastars',
     'dodeca',
@@ -723,6 +725,12 @@ const PINS: Readonly<Record<PatternParams['kind'], readonly (readonly [number, n
     [3208, 2310938328],
     [1101, 3177963488],
     [3581, 444927298],
+  ],
+  endlessmaze: [
+    [645, 479193834],
+    [1706, 1373600385],
+    [739, 3577803716],
+    [1895, 3180504203],
   ],
   octa: [
     [16032, 4137623251],

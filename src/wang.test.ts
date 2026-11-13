@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { TILES, WEAVE_HALF, tileGeometry, wangBytes, wangLayout, wangSvg, type WangOptions, type WangStyle } from './wang.ts';
 import type { Poly } from './patterns/util.ts';
 
-const STYLES: readonly WangStyle[] = ['pipes', 'weave', 'paths'];
+const STYLES: readonly WangStyle[] = ['pipes', 'weave', 'paths', 'maze'];
 const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 test('TILES: 16 distinct edge sets, index = top + 2 right + 4 bottom + 8 left', () => {

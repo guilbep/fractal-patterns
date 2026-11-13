@@ -24,7 +24,7 @@ export function wangLayout(cells: number, seed: number, density = 0.5): number[]
   return out;
 }
 
-export type WangStyle = 'pipes' | 'weave' | 'paths';
+export type WangStyle = 'pipes' | 'weave' | 'paths' | 'maze';
 
 /** Half the distance between the two strokes of a weave ribbon, as a fraction of the cell (18 % apart). */
 export const WEAVE_HALF = 0.09;
@@ -113,6 +113,16 @@ export function tileGeometry(style: WangStyle, edges: Edges, variant: number, si
   const s = size;
   const c = s / 2;
   const on = [0, 1, 2, 3].filter((e) => edges[e] === 1);
+  if (style === 'maze') {
+    // Straight walls from the centre to each coded middle: a wall end, a line, a corner, a T or a cross.
+    const mid: Pt[] = [
+      [c, 0],
+      [s, c],
+      [c, s],
+      [0, c],
+    ];
+    return on.map((e): Poly => [mid[e]!, [c, c]]);
+  }
   if (style === 'paths') {
     const rnd = mulberry32((tileIndex(edges) * 977 + variant * 131 + 7) >>> 0);
     const p: Pt = [c + (rnd() - 0.5) * 0.24 * s, c + (rnd() - 0.5) * 0.24 * s];

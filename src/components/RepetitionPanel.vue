@@ -73,7 +73,7 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
     </template>
     <div v-if="possible && variantsOn" class="variants-group" role="group" aria-labelledby="variants-h" :style="panelVars">
       <h3 id="variants-h">Variants</h3>
-      <fieldset class="fields">
+      <fieldset id="v-strength" class="fields">
         <legend>Strength</legend>
         <div class="rep-cards">
           <label v-for="c in group('strength')" :key="c.id" class="rep-card">
@@ -91,7 +91,7 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
           <span v-else id="v-depths-hint" class="hint-text">Half of the variants are drawn one depth lower.</span>
         </label>
       </div>
-      <fieldset v-if="applies.drop" class="fields" aria-describedby="v-drop-hint">
+      <fieldset v-if="applies.drop" id="v-drop" class="fields" aria-describedby="v-drop-hint">
         <legend>Offset</legend>
         <p id="v-drop-hint" class="hint-text">Shifts every second column or row by half a cell, which hides the square grid.</p>
         <div class="rep-cards">

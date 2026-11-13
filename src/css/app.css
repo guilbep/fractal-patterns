@@ -260,9 +260,17 @@ html {
   background: var(--fail);
 }
 /* The size badge (all pages): grade, compressed size, CO2; the details in a tooltip on hover and keyboard focus. */
+/* The width of the final text is reserved from the first paint, so "compressing" turning into the size does
+   not widen the badge and push the toolbar onto a new row (a layout shift of 0.22 on the Studio). */
 .size-badge {
   position: relative;
   cursor: default;
+  min-width: 18em;
+}
+@media (max-width: 479.98px) {
+  .size-badge {
+    min-width: 16.5em;
+  }
 }
 .size-text {
   display: inline-flex;

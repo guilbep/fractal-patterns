@@ -101,4 +101,8 @@
   .bar-stats {
     gap: 0.25rem;
   }
+  /* Without the unit the final text is about 13.7em: reserve that, not the 16.5em of the other pages. */
+  .toolbar .size-badge {
+    min-width: 14em;
+  }
 }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
-const BASE = 'https://guilbep.github.io/fractal-patterns/';
+const BASE = 'https://patterns.pierreguilbert.com/';
 
 for (const page of ['index.html', 'studio.html']) {
   test(`${page} has the search and social tags`, () => {
@@ -21,9 +21,10 @@ for (const page of ['index.html', 'studio.html']) {
 }
 
 test('robots, sitemap and funding', () => {
-  assert.match(read('public/robots.txt'), /^Sitemap: https:\/\/guilbep\.github\.io\/fractal-patterns\/sitemap\.xml$/m);
+  assert.match(read('public/robots.txt'), /^Sitemap: https:\/\/patterns\.pierreguilbert\.com\/sitemap\.xml$/m);
   const sitemap = read('public/sitemap.xml');
   assert.ok(sitemap.includes(`<loc>${BASE}</loc>`));
   assert.ok(sitemap.includes(`<loc>${BASE}studio.html</loc>`));
   assert.equal(read('.github/FUNDING.yml'), 'github: guilbep\n');
+  assert.equal(read('public/CNAME'), 'patterns.pierreguilbert.com\n');
 });

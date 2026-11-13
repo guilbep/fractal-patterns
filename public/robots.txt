@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://guilbep.github.io/fractal-patterns/sitemap.xml
+Sitemap: https://patterns.pierreguilbert.com/sitemap.xml

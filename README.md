@@ -1,6 +1,6 @@
 # Fractal Patterns
 
-Live: https://guilbep.github.io/fractal-patterns/ ([studio](https://guilbep.github.io/fractal-patterns/studio.html))
+Live: https://patterns.pierreguilbert.com/ ([studio](https://patterns.pierreguilbert.com/studio.html))
 
 Sponsor: [github.com/sponsors/guilbep](https://github.com/sponsors/guilbep)
 
@@ -8,10 +8,10 @@ Fractal Patterns is a one-page generator of repeating SVG background tiles, made
 
 ## Live site
 
-The site will be at <https://guilbep.github.io/fractal-patterns/> after the first deployment. It has two pages:
+The site is at <https://patterns.pierreguilbert.com/>. It has two pages:
 
-- The pattern page, at the site root: <https://guilbep.github.io/fractal-patterns/>.
-- The Wallpaper Studio, next to it: <https://guilbep.github.io/fractal-patterns/studio.html>.
+- The pattern page, at the site root: <https://patterns.pierreguilbert.com/>.
+- The Wallpaper Studio, next to it: <https://patterns.pierreguilbert.com/studio.html>.
 
 ## What it does
 

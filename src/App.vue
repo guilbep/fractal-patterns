@@ -216,7 +216,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   </main>
 
   <footer class="site-footer">
-    <p>The app generates the palettes by rule from a hue and a harmony scheme in the OKLCH color space. Contrast follows WCAG 2.2: <a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html">1.4.3</a>, <a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-enhanced.html">1.4.6</a>, <a href="https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html">1.4.11</a>.</p>
+    <p>The app builds the palettes by rule in the OKLCH color space, from studies of color preference. Contrast follows WCAG 2.2: <a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html">1.4.3</a>, <a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-enhanced.html">1.4.6</a>, <a href="https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html">1.4.11</a>.</p>
     <p><a href="https://github.com/guilbep/fractal-patterns">Source on GitHub</a></p>
     <SponsorBanner />
   </footer>

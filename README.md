@@ -4,9 +4,10 @@ Fractal Patterns is a one-page generator of repeating SVG background tiles, made
 
 ## Live site
 
-The site will be at <https://guilbep.github.io/fractal-patterns/> after the first deployment.
+The site will be at <https://guilbep.github.io/fractal-patterns/> after the first deployment. It has two pages:
 
-The live site still shows the first version: the features below that are new in phase 2 are on the `phase-2` branch until it is merged.
+- The pattern page, at the site root: <https://guilbep.github.io/fractal-patterns/>.
+- The Wallpaper Studio, next to it: <https://guilbep.github.io/fractal-patterns/studio.html>.
 
 ## What it does
 
@@ -166,6 +167,22 @@ The text plate is a box with a background color behind the text. It has three mo
 
 The plate has its own opacity, corner radius and blur.
 
+### Fill
+
+The Fill group in the Colors tab fills the closed shapes of the pattern with a second color. A closed shape is a line that ends where it starts. "Fill closed shapes" has three modes:
+
+- Off, the default.
+- All closed shapes.
+- Every second shape.
+
+With a fill on, the group shows a Fill color role and a Fill opacity from 0 to 100%. The default fill is `#c3eaec` at 100%. If the pattern has no closed shape, the group says so.
+
+Text can sit on the fill, so the page checks the contrast on the fill too. The contrast results get a line "On the fill". The Fix buttons lower the fill opacity first, in steps of 0.05 down to 0.15. If that is not enough, they go on with the fixes below.
+
+Fills are not available with Reduce repetition, with Smooth curves, or for a kind with a rectangular tile. The group then says "Not available in this mode yet."
+
+The Second opinion panel does not count the fill. Its lightness difference, in-between warning and color vision preview use the background, pattern and text colors only.
+
 ### Contrast
 
 A contrast ratio is a number from 1 to 21 that compares the luminance of two colors. The page uses the WCAG 2.2 formulas.
@@ -225,11 +242,25 @@ The "Use it" panel gives the design in three parts:
 
 Put the script after the markup. The script looks for the `.fp-pattern` elements only once, when it runs.
 
+The "Other formats (experimental)" part of the Export tab gives the design in two more formats:
+
+| Format | What it is | Limits |
+| --- | --- | --- |
+| Canvas script | A script that draws the tile with JavaScript on a canvas. | It is larger than the CSS export and needs JavaScript. Use it only as a base for a pattern that changes or never repeats. |
+| CSS Paint worklet | A worklet, a small script that the browser runs to paint a background, for the CSS Paint API. Save it as `fp-pattern.worklet.js` and register it with `CSS.paintWorklet.addModule`. | It works in Chrome and Edge only. Other browsers show the fallback background color. |
+
+Both formats draw one layer of straight lines. They are not available, and the panel gives the reason, in these cases:
+
+- Smooth curves are on.
+- The kind draws arcs, as Penrose arcs does.
+- Reduce repetition is on.
+- A second layer is on.
+
 ### Sharing
 
 The page keeps the design in the URL hash. The hash holds the kind, seed, controls, colors, plate, spacing, motion, patchwork and repetition settings. The hash does not hold the pinned patchwork cells, the palette name or the image. The Copy link button puts the URL on the clipboard.
 
-The hash writes only the values that differ from the default. These keys hold the repetition settings:
+The hash writes only the values that differ from the default. The key `fi` holds the fill: the mode (`c` for all closed shapes, `a` for every second shape), the color without `#` and the opacity, joined by `_`. It is empty when the fill is off. These keys hold the repetition settings:
 
 | Key | Meaning | Default |
 | --- | --- | --- |
@@ -261,6 +292,14 @@ The estimate counts one transfer of the export. It does not count these costs:
 
 The goal is a small tile. Heavier options are allowed: a deep kind, Reduce repetition, a second layer, Smooth curves. The page always states the bytes and the CO2 of the result, so you can weigh the cost.
 
+Some measured examples of the studio tile SVG, with seed 1, the Straight repeat, a 300 px tile and all families on:
+
+| Theme | Density 0.4 (default) | Density 0.5 |
+| --- | --- | --- |
+| Floral | 11,846 bytes | 13,142 bytes |
+| Sea | 10,068 bytes | 12,300 bytes |
+| Orchard | 11,981 bytes | 13,045 bytes |
+
 ### Logo and favicon
 
 The logo is one of the app's own patterns: the Whirl kind, seed 1, in the Lagoon, mono colors. `src/logo.ts` draws it. The command `make logo` writes it to `public/favicon.svg`.
@@ -269,24 +308,78 @@ While the page is open, the browser tab icon follows the current kind, seed and 
 
 ## Wallpaper Studio
 
-The Wallpaper Studio is a second page, `studio.html`. It makes original botanical wallpapers from a seed. One stem, the vine, runs through the tile and joins itself across the repeat, so it has no visible start or end. The other plants branch from an existing stem. Each stem carries a large motif at or near its tip and smaller motifs along its sides. Plants keep a gap from each other, and a few small filler motifs sit in the larger gaps. The code generates every motif from plain geometry and the seed. The tool contains no copy of an existing design.
+The Wallpaper Studio is a second page, `studio.html`. It makes original wallpapers from a seed. It has three themes, each with six motif families:
+
+| Theme | Motif families |
+| --- | --- |
+| Floral | Leaf, Frond, Flower, Bud, Berries, Sprig |
+| Sea | Kelp, Coral, Shell, Starfish, Fish, Bubbles |
+| Orchard | Pear, Apple, Cherries, Lemon, Blossom, Leaf |
+
+The page builds a tile in these steps:
+
+1. The stems. The first stem, the vine, runs through the tile and joins itself across the repeat, so it has no visible start or end. At high density there are two vines. Every other stem branches from an existing stem, between 20 and 80% of its length. With the Mirror repeat, one root stem replaces the vine.
+2. The large motifs. Each plant gets one large motif at its tip. The vine has no tip, so its large motif sits at the end of a short side stalk. If the place is taken, the motif shrinks, then moves back along its stem, and the stem gets shorter.
+3. The smaller motifs. They sit along each stem on alternating sides, one for each step of stem length, so a longer stem carries more of them. The step is 12% of the tile side at density 0.2, 9% at 0.5 and 7% at 0.9. Each plant also gets one short side branch with a small motif at its end.
+4. The twigs. The page measures the largest empty areas. An area above 9% of the side gets a twig, a stalk with one or two small motifs, from the nearest stem. If no twig fits, a small filler motif goes there instead. There are at most 2 + 6 × density of them.
+5. The filler. A few small filler motifs go in the larger gaps that are left.
+
+Motifs keep a gap from the stems and motifs of other plants. The code generates every motif from plain geometry and the seed. The tool contains no copy of an existing design.
 
 The controls:
 
 - Seed and Shuffle.
+- Theme: Floral, Sea or Orchard.
 - Palette: the same 24 palettes as the pattern page.
 - Density: 0 to 100%.
 - Tile size: 200 to 500 px in steps of 20.
 - Preview zoom: 50 to 200%. It changes only the preview.
 - Stems behind the large motifs.
 - Repeat: Straight, Half-drop, Brick or Mirror.
-- Motif families: Leaf, Frond, Flower, Bud, Berries and Sprig. At least one stays on.
+- Motif families: the six families of the theme. At least one stays on.
 
 The page names the number of placements, motif definitions and colors. The toolbar shows the size of the SVG and its CO2 footprint. Download SVG saves the tile. Copy CSS puts a `.wallpaper` rule with the background color and the tile on the clipboard. If the browser blocks the clipboard, the page shows the rule to copy by hand.
 
 ### Your own motif
 
-You can trace your own image into a motif. Color tracing groups the pixels into 2 to 6 colors and turns each color into one flat vector shape. The shapes stack in order. You choose to use the motif as the large motifs, as the leaves along the stems, or both. An option keeps the colors of the image. The panel shows the number of shapes and the bytes. A sample flower lets you try it without an image.
+You can turn your own image or SVG file into a motif. A sample flower lets you try it without an image. The page reads the image twice: at 256 px on the longer side for Color shapes, and at 600 px for Ink and Line drawing, because line art loses its fine lines at 256 px.
+
+The page has three methods:
+
+| Method | What it does | Good for |
+| --- | --- | --- |
+| Color shapes | Groups the pixels into 2 to 6 colors and turns each color into one flat vector shape. The shapes stack in order. | Photos and flat art. |
+| Ink | Splits the ink from the paper with a threshold and traces the outline of the ink. A loop inside a loop is a hole. | Line art in one color. |
+| Line drawing | Finds the edges with an edge detector and draws them as lines. | Drawings where the edges matter. |
+
+When you add an image, the page picks a method for you. It measures how dark the ink is against the paper (the contrast, from 0 to 1) and the share of pixels that are ink (the coverage). With a contrast of 0.35 or more and a coverage under 35%, it picks Ink. Otherwise it picks Color shapes. You can change the method.
+
+The controls:
+
+| Control | Range | Default | Method |
+| --- | --- | --- | --- |
+| Colors | 2 to 6 | 4 | Color shapes |
+| Edge detector | the seven detectors of the pattern page | XDoG (ink lines) | Line drawing |
+| Threshold | 0.05 to 0.9 | 0.3 | Line drawing |
+| Shortest line | 2 to 40 px | 8 px | Line drawing |
+| Detail | 0.15 to 1.2 | 0.6, or 0.3 for Ink | All |
+| Smooth curves | on or off | off | All, for an image |
+| Ink color or Line color | a color | the mean color of the ink | Ink and Line drawing |
+| Size | 0.4 to 3 | 1, or 1.6 for Ink | All |
+| Sits on the stem by | Its base or Its center | Its base for Color shapes, Its center for the others | All |
+| Use it as | Large motifs, Leaves along the stems, or Both | Large motifs | All |
+| Keep the image's colors | on or off | on | All |
+
+A change of method resets Detail, Size and Sits on the stem by to the defaults of that method. If a drawing is very detailed, the page coarsens the detail and says so: "The drawing is very detailed. Detail was coarsened to ... to keep the motif at a workable size." The panel shows the number of shapes and the bytes.
+
+An SVG file is read as vector shapes, not as a picture. The importer reads the `path`, `rect`, `circle`, `ellipse`, `line`, `polyline` and `polygon` elements and their fill, stroke and stroke width. It never copies markup. It keeps only numbers and colors and builds every path again from them. So a file cannot bring code or links into the tile. The importer skips these parts and lists what it skipped:
+
+- Scripts, style blocks, event attributes such as `onclick`, and links to outside files (`href`).
+- Definitions and references: `defs`, `symbol`, `use`, clip paths, masks, filters, patterns, gradients and markers.
+- Text, images, foreign objects and nested `svg` elements.
+- Elements with a transform, and shapes with units or percentages.
+
+For an SVG file read as vector shapes, the page hides the method and tracing controls. A gradient or an unknown color is drawn black. If the file does not give a good result, the "Trace it as an image instead" button traces it with the three methods above.
 
 The panel shows two notices:
 
@@ -305,7 +398,8 @@ The page keeps the design in the URL hash. The link does not carry your own moti
 | `d` | Density, 0 to 1 | `0.4` |
 | `z` | Tile size in px, 200 to 500 | `300` |
 | `st` | Stems behind the large motifs, `1` or `0` | `1` |
-| `f` | Motif families, a bit mask in the order Leaf, Frond, Flower, Bud, Berries, Sprig | all |
+| `t` | Theme: `f` Floral, `s` Sea, `o` Orchard | `f` |
+| `f` | Motif families, a bit mask in the order of the theme's families, as in the table above | all |
 
 ## Building blocks not yet in the page
 
@@ -313,15 +407,13 @@ The repository holds tested modules that the pages do not use yet, or use only i
 
 | Module | What it does | In the pages |
 | --- | --- | --- |
-| `src/fills.ts` | Fills closed shapes in a second color and checks the text contrast over every surface. | No |
-| `src/canvas-export.ts` | Exports a design as a canvas script, or as an experimental CSS Paint API worklet. | No |
 | `src/motifgrid.ts` | A tile made of a grid of small motifs, each defined once and placed with `<use>`. | Only helpers: the variant order and the path check |
 | `src/custom.ts` | A custom motif: strokes you draw in a square, repeated by a wallpaper group. | No |
 | `src/wang.ts` | Wang tiles: square tiles with edge codes, laid out so that every shared edge matches. The styles are pipes, weave and paths. | Only the pipes style, as the Pipes kind |
 | `src/penrose.ts` | A finite patch of the true Penrose tiling, next to the periodic approximant. | Only the approximant, as the Penrose kinds |
-| `src/isolines.ts` | Contour lines of the smoothed brightness, kept only where an edge is strong. | Only the contour step, in the studio color tracing |
+| `src/isolines.ts` | Contour lines of the smoothed brightness, kept only where an edge is strong. | Only the contour step, in the studio Color shapes and Ink methods |
 
-The two-layer export is in the page, as Second layer.
+The two-layer export is in the page, as Second layer. The fills are in the page, as the Fill group. The canvas script and the paint worklet are in the page, under "Other formats (experimental)".
 
 ## Requirements
 
@@ -444,11 +536,17 @@ Wallpaper Studio:
 | `studio.html` | The page shell that loads `src/studio/main.ts`. |
 | `src/studio/main.ts` | Mounts the studio app. |
 | `src/studio/StudioApp.vue` | The studio page: toolbar, preview, controls and Your own motif. |
-| `src/studio/motifs.ts` | The generated botanical motifs and their families. |
-| `src/studio/compose.ts` | Builds a whole tile from a seed: plants, stems, motifs and filler. |
+| `src/studio/motifs.ts` | The generated motifs and families of the Floral theme. |
+| `src/studio/motifs-sea.ts` | The generated motifs and families of the Sea theme. |
+| `src/studio/motifs-orchard.ts` | The generated motifs and families of the Orchard theme. |
+| `src/studio/compose.ts` | The themes, and a whole tile from a seed: stems, motifs, twigs and filler. |
 | `src/studio/scatter.ts` | Seeded placement of motifs on a tile that wraps around. |
 | `src/studio/model.ts` | The tile as layers of placed motifs with a repeat type, written as one SVG. |
 | `src/studio/colortrace.ts` | Color tracing of an image into flat stacked shapes. |
+| `src/studio/inktrace.ts` | The Ink method: the ink threshold and the outlines of the ink. |
+| `src/studio/linetrace.ts` | The Line drawing method: edges of an image as lines. |
+| `src/studio/svg-import.ts` | Reads an SVG file as vector shapes and rebuilds every path from numbers. |
+| `src/studio/own-motif.ts` | The choice of method, the defaults of each method and the ink color. |
 | `src/studio/studio-share.ts` | The studio design in the URL hash and back. |
 | `src/css/studio.css` | Studio styles. |
 
@@ -459,8 +557,9 @@ Export, colors and the rest:
 | `src/motion.ts` | Transform, drift and parallax CSS on the `::before` and `::after` layers. |
 | `src/export.ts` | The exported CSS, HTML sample and script. |
 | `src/scene.ts` | A tile as ordered layers of polylines, written as SVG or drawn on a canvas. |
-| `src/fills.ts` | Fills of closed shapes, not yet in the page. |
-| `src/canvas-export.ts` | Canvas script and CSS Paint worklet exports, not yet in the page. |
+| `src/fills.ts` | Fills of closed shapes and the text contrast over every surface. |
+| `src/canvas-export.ts` | The canvas script and CSS Paint worklet exports. |
+| `src/alt-export.ts` | When the canvas script and the paint worklet can draw the design, and why not. |
 | `src/motifgrid.ts` | The motif grid. The page uses only its helpers. |
 | `src/custom.ts` | The custom motif engine, not yet in the page. |
 | `src/palettes.ts` | The 24 generated palettes. |
@@ -504,7 +603,12 @@ Run the tests:
 make test       # npm test
 ```
 
-There are 512 tests now: 511 pass and 1 is skipped. If the environment variable `FP_REFERENCE_SVG` points to a reference SVG file, the skipped test runs. It reads 7 motifs and 49 placements from that file, rebuilds the grid with `src/motifgrid.ts`, and checks that the result reproduces the file. Run it like this:
+There are 581 tests now: 579 pass and 2 are skipped. If the environment variable `FP_REFERENCE_SVG` points to a reference SVG file, the two skipped tests run:
+
+- `src/motifgrid.test.ts` reads 7 motifs and 49 placements from that file, rebuilds the grid with `src/motifgrid.ts`, and checks that the result reproduces the file.
+- `src/studio/svg-import.test.ts` reads the file with the SVG importer and checks that it reports the skipped `use` elements, or rejects the file.
+
+Run them like this:
 
 ```sh
 FP_REFERENCE_SVG=/path/to/reference.svg npm test
@@ -554,6 +658,7 @@ The code implements these published methods. The references name the sources and
 - Wang tiles: after Hao Wang, 1961.
 - Smooth curves: based on the curve fitting method of Philip J. Schneider, "An Algorithm for Automatically Fitting Digitized Curves", Graphics Gems, 1990.
 - XDoG detector: after Winnemöller, Kyprianidis and Olsen, "XDoG: An eXtended difference-of-Gaussians compendium", 2012.
+- Ink threshold: after the method of Nobuyuki Otsu, "A Threshold Selection Method from Gray-Level Histograms", IEEE Transactions on Systems, Man, and Cybernetics, 1979.
 
 ## License
 

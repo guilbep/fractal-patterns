@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue';
 import { LOGO_DEFAULT, logoSvg } from '@/logo.ts';
 import { svgToDataUri } from '@/css.ts';
 import { formatFootprint, gzipSize, rawSize } from '@/co2.ts';
 import { PALETTES } from '@/palettes.ts';
+import { cropToSubject, sampleFlower, traceColors, traceSvg, type Rgba } from './colortrace.ts';
 import { compose, composeSummary } from './compose.ts';
 import { repeatCell, studioSvg, type Repeat } from './model.ts';
 import { MOTIF_FAMILIES, MOTIF_LABELS } from './motifs.ts';
@@ -20,7 +21,58 @@ const REPEAT_INFO: readonly (readonly [Repeat, string, string])[] = [
 const design = reactive(decodeStudio(location.hash));
 const zoom = ref(100);
 
-const studio = computed(() => compose(designOptions(design)));
+// The person's own motif: traced in the browser, never put in the link.
+const ownImage = shallowRef<Rgba | null>(null);
+const own = reactive({ colors: 4, role: 'hero' as 'hero' | 'support' | 'both', keepColors: true });
+const ownError = ref('');
+const ownTrace = computed(() =>
+  ownImage.value
+    ? cropToSubject(traceColors(ownImage.value, { colors: own.colors, size: 100, smooth: 1, tolerance: 0.6, minArea: 4, curves: false }), 0.04, 'bottom')
+    : null,
+);
+const ownPreview = computed(() => (ownTrace.value ? svgToDataUri(traceSvg(ownTrace.value, true)) : ''));
+const ownBytes = computed(() => (ownTrace.value ? rawSize(traceSvg(ownTrace.value, false)) : 0));
+
+// As the pattern tool: the image is drawn into a canvas, its longer side at most 256 px.
+async function readImage(file: File): Promise<Rgba> {
+  const bitmap = await createImageBitmap(file);
+  try {
+    const s = Math.min(1, 256 / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * s));
+    const height = Math.max(1, Math.round(bitmap.height * s));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) throw new Error('no 2d context');
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    return { data: ctx.getImageData(0, 0, width, height).data, width, height };
+  } finally {
+    bitmap.close();
+  }
+}
+async function onOwnFile(e: Event): Promise<void> {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = ''; // the same file can be picked again
+  if (!file) return;
+  ownError.value = '';
+  if (!file.type.startsWith('image/')) {
+    ownError.value = `"${file.name}" is not an image. Choose a JPEG, PNG, WebP, or GIF file.`;
+    return;
+  }
+  try {
+    ownImage.value = await readImage(file);
+  } catch {
+    ownError.value = `The browser could not read "${file.name}" as an image. Try another file or format.`;
+  }
+}
+
+const studio = computed(() => {
+  const t = ownTrace.value;
+  const o = designOptions(design);
+  return compose(t && t.shapes.length > 0 ? { ...o, custom: { shapes: t.shapes, box: t.box, role: own.role, keepColors: own.keepColors } } : o);
+});
 const svg = computed(() => studioSvg(studio.value));
 const cell = computed(() => repeatCell(studio.value));
 const uri = computed(() => svgToDataUri(svg.value));
@@ -181,7 +233,47 @@ onBeforeUnmount(() => sizes.disconnect());
             </label>
           </div>
         </fieldset>
-        <p id="summary" class="summary muted">{{ summary.instances }} placements, {{ summary.motifs }} motif definitions, {{ summary.plates }} colors (plates).</p>
+        <p id="summary" class="summary muted">{{ summary.instances }} placements, {{ summary.motifs }} motif definitions, {{ summary.plates }} colors (plates).<template v-if="ownTrace"> Your motif: {{ ownTrace.shapes.length }} shapes.</template></p>
+      </section>
+
+      <section class="panel" aria-labelledby="own-h">
+        <h2 id="own-h">Your own motif</h2>
+        <ul class="image-notes">
+          <li>Use only images that you own or have a license for.</li>
+          <li>Your image stays in your browser. Nothing is uploaded.</li>
+        </ul>
+        <div class="fields">
+          <div class="field">
+            <label for="own-file">Image</label>
+            <input id="own-file" type="file" accept="image/*" @change="onOwnFile">
+          </div>
+          <button id="own-sample" type="button" class="btn" @click="ownError = ''; ownImage = sampleFlower(128)">Try a sample flower</button>
+        </div>
+        <p class="error" role="alert">{{ ownError }}</p>
+        <template v-if="ownImage">
+          <div class="fields">
+            <div class="field">
+              <label for="own-colors">Colors <output for="own-colors">{{ own.colors }}</output></label>
+              <input id="own-colors" v-model.number="own.colors" type="range" min="2" max="6" step="1" aria-describedby="own-colors-hint">
+              <p id="own-colors-hint" class="hint-text">3 or 4 colors give the cleanest motif. Shaded photos split into bands.</p>
+            </div>
+            <div class="field">
+              <label for="own-role">Use it as</label>
+              <select id="own-role" v-model="own.role">
+                <option value="hero">Large motifs</option>
+                <option value="support">Leaves along the stems</option>
+                <option value="both">Both</option>
+              </select>
+            </div>
+          </div>
+          <label class="radio"><input id="own-keep" v-model="own.keepColors" type="checkbox"> Keep the image's colors</label>
+          <div class="own-preview">
+            <img id="own-preview" :src="ownPreview" alt="Your traced motif" width="96" height="96">
+            <p class="muted">{{ ownTrace?.shapes.length ?? 0 }} shapes, {{ ownBytes }} bytes.</p>
+          </div>
+          <button id="own-remove" type="button" class="btn" @click="ownImage = null">Remove my motif</button>
+        </template>
+        <p class="muted">Your motif is not part of the link.</p>
       </section>
     </div>
   </main>

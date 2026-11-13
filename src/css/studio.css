@@ -25,3 +25,14 @@
 .summary {
   margin: 0;
 }
+
+.own-preview {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin: var(--s2) 0;
+}
+.own-preview img {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}

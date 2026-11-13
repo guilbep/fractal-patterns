@@ -3,6 +3,7 @@
 // motifs on alternating sides, spaced on the repeat's own lattice; small filler in the
 // larger gaps; all stems in one stroke motif under four color layers.
 import type { Cubic } from '../curvefit.ts';
+import { safePathData } from '../motifgrid.ts';
 import { mulberry32, type Pt } from '../patterns/util.ts';
 import type { Placement, Repeat, Studio, StudioLayer, StudioMotif } from './model.ts';
 import { layerColors, studioBytes } from './model.ts';
@@ -26,6 +27,14 @@ export interface ComposeOptions {
     readonly stem: string;
   };
   readonly stems: boolean;
+  /** A motif of the person's own (a cropped trace): one fill shape per color, back to front. It replaces the generated
+   * hero motifs, the supports along the stems, or both. Shapes whose path data is unsafe are dropped. */
+  readonly custom?: {
+    readonly shapes: readonly { readonly color: string; readonly d: string }[];
+    readonly box: number;
+    readonly role: 'hero' | 'support' | 'both';
+    readonly keepColors: boolean;
+  };
 }
 
 /** Smallest circle around the bounds' center that holds the bounds, and its offset from the box center. */
@@ -143,7 +152,15 @@ function wrapPoint(x: number, y: number, repeat: Repeat, w: number, h: number): 
 const round = (v: number, k: number) => Math.round(v * k) / k;
 const deg = (a: number) => (a * 180) / Math.PI;
 
-type Variant = { sil: number; det: number | null; radius: ReturnType<typeof motifRadius>; bloom: boolean };
+// parts: the custom motif's shapes (motif indices, back to front), placed together; null for a generated motif.
+type Variant = {
+  sil: number;
+  det: number | null;
+  radius: ReturnType<typeof motifRadius>;
+  bloom: boolean;
+  box: number;
+  parts: number[] | null;
+};
 
 export function composeParts(o: ComposeOptions): ComposeParts {
   const allowed = o.families.length > 0 ? o.families : (['leaf'] as const);
@@ -153,7 +170,23 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   const rnd = mulberry32(o.seed ^ 0x2c1b3c6d);
   const motifs: StudioMotif[] = [];
   const families: MotifFamily[] = [];
+  const customShapes = (o.custom?.shapes ?? []).flatMap((c) => {
+    const d = safePathData(c.d);
+    return d ? [{ color: c.color, d }] : [];
+  });
+  const custom = o.custom && customShapes.length > 0 && o.custom.box > 0 ? { ...o.custom, shapes: customShapes } : null;
+  let customVariant: Variant | null = null;
   const variants = TIERS.map((pool, ti): Variant[] => {
+    if (custom && ((ti === 0 && custom.role !== 'support') || (ti === 1 && custom.role !== 'hero'))) {
+      rnd(); // the same draws as a generated tier, so the rest of the layout stays as it was
+      if (!customVariant) {
+        const parts = custom.shapes.map((c) => motifs.push({ d: c.d, box: custom.box, paint: 'fill' }) - 1);
+        // One motif to the rules: its bounds are the union of its shapes.
+        const radius = motifRadius({ d: custom.shapes.map((c) => c.d).join(''), box: custom.box, paint: 'fill' });
+        customVariant = { sil: parts[0]!, det: null, radius, bloom: false, box: custom.box, parts };
+      }
+      return [customVariant, customVariant];
+    }
     const fams0 = pool.filter((f) => allowed.includes(f));
     const fams = fams0.length > 0 ? fams0 : [...allowed];
     const start = Math.floor(rnd() * fams.length);
@@ -169,6 +202,8 @@ export function composeParts(o: ComposeOptions): ComposeParts {
         det: ti !== 2 ? motifs.length - 1 : null,
         radius: motifRadius(m.silhouette),
         bloom: BLOOMS.includes(fam),
+        box: m.silhouette.box,
+        parts: null,
       };
     });
   });
@@ -178,7 +213,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     const rotate = Math.round(deg(a) + 90);
     const scale = round(r / v.radius.radius, 100);
     const t = (rotate * Math.PI) / 180;
-    const [x, y] = [base[0] + 50 * scale * Math.sin(t), base[1] - 50 * scale * Math.cos(t)];
+    const [x, y] = [base[0] + (v.box / 2) * scale * Math.sin(t), base[1] - (v.box / 2) * scale * Math.cos(t)];
     return { motif: v.sil, x: round(x, 10), y: round(y, 10), scale, rotate, flip };
   };
   const realCircle = (v: Variant, p: Placement) => {
@@ -536,12 +571,18 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   const leaf: Placement[] = [];
   const bloom: Placement[] = [];
   const detail: Placement[] = [];
+  const own: Placement[][] = custom ? custom.shapes.map(() => []) : [];
   const wrapP = (p: Placement): Placement => {
     const [x, y] = wrapPoint(p.x, p.y, repeat, w, h);
     return { ...p, x: round(x, 10), y: round(y, 10) };
   };
   for (const c of [...plants.flatMap((pl) => pl.circles), ...filler]) {
     const p = wrapP(c.p);
+    // The custom motif: every shape with the same placement, each in its own layer.
+    if (c.v.parts) {
+      c.v.parts.forEach((m, k) => own[k]!.push({ ...p, motif: m }));
+      continue;
+    }
     (c.v.bloom ? bloom : leaf).push(p);
     if (c.v.det !== null) detail.push({ ...p, motif: c.v.det });
   }
@@ -558,6 +599,10 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   add(o.colors.leaf, 1, leaf);
   add(o.colors.bloom, 1, bloom);
   add(o.colors.detail, 1, detail);
+  // Palette roles: the back shape (a trace's largest, as every plate covers the colors in front of it) gets the leaf
+  // color, the next the bloom color, the rest the detail color.
+  const roles = [o.colors.leaf, o.colors.bloom];
+  custom?.shapes.forEach((c, k) => add(custom.keepColors ? c.color : (roles[k] ?? o.colors.detail), 1, own[k]!));
   return {
     studio: { width: w, height: h, background: o.colors.background, repeat, motifs, layers: out },
     heroes: plants.flatMap((pl) => (pl.tip ? [pl.tip] : [])),

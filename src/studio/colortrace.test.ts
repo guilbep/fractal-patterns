@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { safePathData } from '../motifgrid.ts';
-import { pathArea, quantize, traceColors, traceSvg, type Rgba } from './colortrace.ts';
+import { cropToSubject, pathArea, quantize, sampleFlower, traceColors, traceSvg, type Rgba } from './colortrace.ts';
+import { motifBounds } from './motifs.ts';
 
 type RGB = readonly [number, number, number];
 const RED: RGB = [220, 30, 40];
@@ -133,4 +134,39 @@ test('traceSvg: compact, one path per shape', () => {
   assert.ok(!svg.includes('\n'));
   assert.equal(svg.match(/<path /g)?.length, r.shapes.length + 1);
   assert.equal(traceSvg(r, false).match(/<path /g)?.length, r.shapes.length);
+});
+
+test('cropToSubject: the subject fills the box less the margin, aspect kept, safe paths', () => {
+  for (const curves of [false, true]) {
+    const r = traceColors(scene, { ...opts, curves });
+    const before = motifBounds(r.shapes.map((s) => s.d).join(''));
+    for (const anchor of ['center', 'bottom'] as const) {
+      const c = cropToSubject(r, 0.04, anchor);
+      assert.equal(c.shapes.length, r.shapes.length);
+      for (const s of c.shapes) assert.ok(safePathData(s.d), s.d.slice(0, 40));
+      const b = motifBounds(c.shapes.map((s) => s.d).join(''));
+      const [w, h] = [b.maxX - b.minX, b.maxY - b.minY];
+      // The longer side spans the box less two margins of 4.
+      assert.ok(Math.abs(Math.max(w, h) - 92) <= 1, `${curves} ${anchor} ${w} ${h}`);
+      const aspect = (before.maxX - before.minX) / (before.maxY - before.minY);
+      assert.ok(Math.abs(w / h / aspect - 1) < 0.01, `${w / h} vs ${aspect}`);
+      assert.ok(Math.abs((b.minX + b.maxX) / 2 - 50) <= 1);
+      if (anchor === 'bottom') assert.ok(Math.abs(b.maxY - 96) <= 1, String(b.maxY));
+      else assert.ok(Math.abs((b.minY + b.maxY) / 2 - 50) <= 1);
+    }
+  }
+});
+
+test('sampleFlower: white background, at least 3 more colors', () => {
+  const img = sampleFlower(96);
+  const px = (x: number, y: number) => [0, 1, 2].map((j) => img.data[4 * (y * 96 + x) + j]).join(',');
+  assert.equal(px(0, 0), '255,255,255');
+  assert.equal(px(95, 95), '255,255,255');
+  const flat = new Set<string>();
+  for (let i = 0; i < 96 * 96; i++) flat.add(px(i % 96, Math.floor(i / 96)));
+  assert.ok(flat.size >= 4);
+  // Traced with 4 colors: three colored shapes on a white background.
+  const t = traceColors(img, { ...opts, colors: 4 });
+  assert.equal(t.shapes.length, 3);
+  assert.ok(near(t.background, WHITE));
 });

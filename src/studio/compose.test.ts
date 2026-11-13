@@ -7,6 +7,8 @@ import { MOTIF_FAMILIES } from './motifs.ts';
 import { torusDistance } from './scatter.ts';
 import { compose, composeColors, composeParts, composeSummary, latticeDistance, motifRadius, type ComposeOptions } from './compose.ts';
 import type { Pt } from '../patterns/util.ts';
+import { createHash } from 'node:crypto';
+import { decodeStudio, designOptions } from './studio-share.ts';
 
 const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8];
 const REPEATS: Repeat[] = ['straight', 'half-drop', 'brick', 'mirror'];
@@ -329,4 +331,77 @@ test('a hero moved back from the tip sits on its cut stem, with no bare stem bey
         if (pl.stem.length < 129) moved++;
       }
   assert.ok(moved > 0);
+});
+
+test('compose without a custom motif: the same SVG as before custom motifs (sha-256 prefixes taken before the change)', () => {
+  const want: Record<number, string> = { 1: '7590d6259efb59b3', 2: 'f559d32054f2970c', 3: '928794dc891c594e' };
+  for (const seed of [1, 2, 3]) {
+    const svg = studioSvg(compose({ ...designOptions(decodeStudio('')), seed }));
+    assert.equal(createHash('sha256').update(svg).digest('hex').slice(0, 16), want[seed], `seed ${seed}`);
+  }
+});
+
+// Three nested shapes in a box of 100, base at the bottom center, back to front.
+const SHAPES = [
+  { color: '#2a7a3a', d: 'M30 96L50 4L70 96Z' },
+  { color: '#e070a0', d: 'M38 60L50 20L62 60Z' },
+  { color: '#f0c020', d: 'M45 45L50 30L55 45Z' },
+];
+const custom = (role: 'hero' | 'support' | 'both', keepColors: boolean, shapes = SHAPES) => ({ shapes, box: 100, role, keepColors });
+
+test('compose with a custom hero: each hero placement drawn once per shape with the same transform', () => {
+  for (const seed of SEEDS) {
+    const parts = composeParts(opt(seed, { custom: custom('hero', true) }));
+    const s = parts.studio;
+    const ids = SHAPES.map((sh) => s.motifs.findIndex((m) => m.d === sh.d));
+    assert.ok(ids.every((i) => i >= 0));
+    assert.ok(parts.heroes.length > 0);
+    const key = (p: Placement) => `${p.x} ${p.y} ${p.scale} ${p.rotate} ${p.flip}`;
+    const per = ids.map((m) =>
+      s.layers
+        .flatMap((l) => l.placements.filter((p) => p.motif === m))
+        .map(key)
+        .sort(),
+    );
+    assert.equal(per[0]!.length, parts.heroes.length);
+    assert.deepEqual(per[1], per[0]);
+    assert.deepEqual(per[2], per[0]);
+    // One layer per shape, back to front, in the traced colors.
+    const layers = s.layers.filter((l) => l.placements.some((p) => ids.includes(p.motif)));
+    assert.deepEqual(
+      layers.map((l) => l.color),
+      SHAPES.map((sh) => sh.color),
+    );
+    assert.ok(layerColors(s).length <= 5 + 3);
+    for (const m of s.motifs) assert.ok(safePathData(m.d));
+    assert.equal(studioSvg(compose(opt(seed, { custom: custom('hero', true) }))), studioSvg(s));
+  }
+});
+
+test('compose with a custom motif on the palette: at most 5 colors; support and both roles', () => {
+  for (const seed of SEEDS.slice(0, 4)) {
+    for (const role of ['hero', 'support', 'both'] as const) {
+      const p = composeParts(opt(seed, { custom: custom(role, false) }));
+      assert.ok(layerColors(p.studio).length <= 5, role);
+      const used = new Set(p.studio.layers.flatMap((l) => l.placements.map((q) => q.motif)));
+      const first = p.studio.motifs.findIndex((m) => m.d === SHAPES[0]!.d);
+      assert.ok(used.has(first), role);
+      const supports = p.plants.flatMap((pl) => pl.attached.filter((a) => !a.stalk).map((a) => a.placement.motif));
+      if (role !== 'hero') assert.ok(supports.length > 0 && supports.every((m) => m === first), role);
+      if (role !== 'support')
+        assert.ok(
+          p.heroes.every((h) => h.motif === first),
+          role,
+        );
+      else assert.ok(p.heroes.every((h) => h.motif !== first));
+    }
+  }
+});
+
+test('compose: unsafe custom path data is dropped; with nothing left the generated motif is used', () => {
+  const bad = [{ color: '#ff0000', d: 'M0 0L10 10"/><script>' }];
+  assert.equal(studioSvg(compose(opt(3, { custom: custom('hero', true, bad) }))), studioSvg(compose(opt(3))));
+  const mixed = composeParts(opt(3, { custom: custom('hero', true, [...bad, ...SHAPES.slice(1)]) })).studio;
+  assert.ok(mixed.motifs.every((m) => safePathData(m.d) && !m.d.includes('<')));
+  assert.ok(mixed.motifs.some((m) => m.d === SHAPES[1]!.d));
 });

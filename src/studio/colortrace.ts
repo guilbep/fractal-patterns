@@ -7,6 +7,7 @@ import { oklchToHex } from '../oklch.ts';
 import type { Pt } from '../patterns/util.ts';
 import { gaussianBlur } from '../trace.ts';
 import { simplify } from '../vectorize.ts';
+import { motifBounds } from './motifs.ts';
 
 export interface Rgba {
   readonly width: number;
@@ -191,4 +192,114 @@ export function traceSvg(result: { shapes: readonly ColorShape[]; background: st
   const bg = withBackground ? `<path fill="${result.background}" d="M0 0H${b}V${b}H0Z"/>` : '';
   const paths = result.shapes.map((p) => `<path fill="${p.color}" fill-rule="evenodd" d="${p.d}"/>`).join('');
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${b} ${b}" width="${b}" height="${b}">${bg}${paths}</svg>`;
+}
+
+const n1 = (v: number) => String(Math.round(v * 10) / 10);
+
+/** The same path with every point mapped by f, written as absolute M, L, C and Z (M L C H V Z, either case, in). */
+function mapPath(d: string, f: (x: number, y: number) => Pt): string {
+  const tokens = d.match(/[A-Za-z]|-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/g) ?? [];
+  const ARITY: Record<string, number> = { m: 2, l: 2, c: 6, h: 1, v: 1, z: 0 };
+  let [x, y, sx, sy] = [0, 0, 0, 0];
+  let cmd = '';
+  let out = '';
+  const pt = (px: number, py: number) => f(px, py).map(n1).join(' ');
+  for (let i = 0; i < tokens.length;) {
+    if (/[A-Za-z]/.test(tokens[i]!)) cmd = tokens[i++]!;
+    const lo = cmd.toLowerCase();
+    if (lo === 'z') {
+      out += 'Z';
+      [x, y] = [sx, sy];
+      continue;
+    }
+    const n = ARITY[lo];
+    if (!n) break;
+    const v = tokens.slice(i, i + n).map(Number);
+    if (v.length < n || v.some((q) => !Number.isFinite(q))) break;
+    i += n;
+    const rel = cmd === lo;
+    if (lo === 'h' || lo === 'v') {
+      if (lo === 'h') x = v[0]! + (rel ? x : 0);
+      else y = v[0]! + (rel ? y : 0);
+      out += 'L' + pt(x, y);
+      continue;
+    }
+    const abs = v.map((q, j) => q + (rel ? (j % 2 === 0 ? x : y) : 0));
+    const pts: string[] = [];
+    for (let j = 0; j < n; j += 2) pts.push(pt(abs[j]!, abs[j + 1]!));
+    out += (lo === 'c' ? 'C' : lo === 'm' ? 'M' : 'L') + pts.join(' ');
+    [x, y] = [abs[n - 2]!, abs[n - 1]!];
+    if (lo === 'm') {
+      [sx, sy] = [x, y];
+      cmd = rel ? 'l' : 'L';
+    }
+  }
+  return out;
+}
+
+/** Crop a trace to its subject: scale and move the shapes so that their bounds fill the box less the margin
+ * (a share of the box), centered; with anchor 'bottom' the subject's base sits at the bottom center (motifs grow upward). */
+export function cropToSubject(
+  result: { shapes: readonly ColorShape[]; background: string; box: number },
+  margin = 0.04,
+  anchor: 'center' | 'bottom' = 'center',
+): { shapes: ColorShape[]; background: string; box: number } {
+  const { box } = result;
+  const b = motifBounds(result.shapes.map((s) => s.d).join(''));
+  const bw = b.maxX - b.minX;
+  const bh = b.maxY - b.minY;
+  if (!(bw > 0 && bh > 0)) return { ...result, shapes: [...result.shapes] };
+  const k = (box * (1 - 2 * margin)) / Math.max(bw, bh);
+  const tx = box / 2 - ((b.minX + b.maxX) / 2) * k;
+  const ty = anchor === 'bottom' ? box * (1 - margin) - b.maxY * k : box / 2 - ((b.minY + b.maxY) / 2) * k;
+  const shapes = result.shapes.map((s) => ({ color: s.color, d: mapPath(s.d, (x, y) => [x * k + tx, y * k + ty]), area: s.area * k * k }));
+  return { shapes, background: result.background, box };
+}
+
+/** A flower drawn by code with soft edges, for trying the custom motif without a file: on white, a green stem and leaf,
+ * pink petals, a yellow heart. */
+export function sampleFlower(size: number): Rgba {
+  const data = new Uint8ClampedArray(size * size * 4);
+  const s = size / 100;
+  // Signed distances (negative inside), in 0..100 units.
+  const disc = (x: number, y: number, cx: number, cy: number, r: number) => Math.hypot(x - cx, y - cy) - r;
+  const ellipse = (x: number, y: number, cx: number, cy: number, rx: number, ry: number, a: number) => {
+    const [dx, dy] = [x - cx, y - cy];
+    const [u, v] = [dx * Math.cos(a) + dy * Math.sin(a), -dx * Math.sin(a) + dy * Math.cos(a)];
+    return (Math.hypot(u / rx, v / ry) - 1) * Math.min(rx, ry);
+  };
+  const layers: [readonly [number, number, number], (x: number, y: number) => number][] = [
+    [[60, 140, 60], (x, y) => (y > 40 && y < 95 ? Math.abs(x - 50) - 2.2 : 9)],
+    [[60, 140, 60], (x, y) => ellipse(x, y, 62, 72, 12, 5, -0.6)],
+    [
+      [230, 110, 150],
+      (x, y) =>
+        Math.min(
+          ...[0, 1, 2, 3, 4].map((i) =>
+            ellipse(
+              x,
+              y,
+              50 + 14 * Math.sin((i * 2 * Math.PI) / 5),
+              32 - 14 * Math.cos((i * 2 * Math.PI) / 5),
+              13,
+              8,
+              (i * 2 * Math.PI) / 5 + Math.PI / 2,
+            ),
+          ),
+        ),
+    ],
+    [[250, 200, 40], (x, y) => disc(x, y, 50, 32, 7)],
+  ];
+  for (let py = 0; py < size; py++) {
+    for (let px = 0; px < size; px++) {
+      const [x, y] = [(px + 0.5) / s, (py + 0.5) / s];
+      let c = [255, 255, 255];
+      for (const [rgb, sd] of layers) {
+        const a = Math.min(1, Math.max(0, 0.5 - sd(x, y) * s)); // one pixel soft edge
+        c = c.map((v, j) => v + (rgb[j]! - v) * a);
+      }
+      data.set([...c, 255], 4 * (py * size + px));
+    }
+  }
+  return { width: size, height: size, data };
 }

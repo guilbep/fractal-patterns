@@ -416,6 +416,10 @@ onBeforeUnmount(() => sizes.disconnect());
             <input id="size" v-model.number="design.size" type="range" :min="SIZE_MIN" :max="SIZE_MAX" :step="SIZE_STEP">
           </div>
           <div class="field">
+            <label class="radio"><input id="large" v-model="design.large" type="checkbox" aria-describedby="large-hint"> Large tile</label>
+            <p id="large-hint" class="hint-text">Composes one tile of twice the width and height, with about four times the plants. The picture comes back four times less often. About four times the bytes.</p>
+          </div>
+          <div class="field">
             <label for="zoom">Preview zoom <output for="zoom">{{ zoom }} %</output></label>
             <input id="zoom" v-model.number="zoom" type="range" min="50" max="200" step="10">
           </div>

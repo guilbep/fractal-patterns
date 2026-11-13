@@ -797,3 +797,49 @@ test('orchard: one fruit family per plant, and the fruit kinds spread over the p
     }
   assert.ok(checked > 10, `${checked} wallpapers with 3 plants or more`);
 });
+
+test('span 2 (large tile): nothing touches, stems apart, vines closed, about four times the plants, same motif cap', () => {
+  const W = 600;
+  let [one, two] = [0, 0];
+  for (const repeat of REPEATS)
+    for (let seed = 1; seed <= 6; seed++) {
+      const at = `span 2 ${repeat} ${seed}`;
+      const p = composeParts(opt(seed, { repeat, width: W, height: W, span: 2 }));
+      one += composeParts(opt(seed, { repeat })).plants.length;
+      two += p.plants.length;
+      assert.ok(p.studio.motifs.length <= 14, `${at} motifs ${p.studio.motifs.length}`);
+      const own = (pl: (typeof p.plants)[number]) => [...(pl.tip ? [pl.tip] : []), ...pl.attached.map((a) => a.placement)];
+      const ld = (a: Pt, b: Pt) => latticeDistance(a, b, repeat, W, W);
+      for (let i = 0; i < p.plants.length; i++)
+        for (const c of own(p.plants[i]!).map((q) => circle(p.studio, q)))
+          for (let j = 0; j < p.plants.length; j++) {
+            if (i === j) continue;
+            for (const q of p.plants[j]!.stem) assert.ok(ld([c.x, c.y], q) >= c.r + 0.75 + 2 - 0.2, `${at} stem ${i} ${j}`);
+            for (const k of own(p.plants[j]!).map((q) => circle(p.studio, q)))
+              assert.ok(ld([c.x, c.y], [k.x, k.y]) >= c.r + k.r + 2 - 0.2, `${at} circles ${i} ${j}`);
+          }
+      const samples = p.plants.map((pl) => pl.stem.filter((_, i) => i % 8 === 0));
+      const nearJunction = (i: number, j: number, b: Pt) => {
+        const s0 = p.plants[j]!.stem[0]!;
+        return p.plants[j]!.host === i && Math.hypot(b[0] - s0[0], b[1] - s0[1]) < p.junction;
+      };
+      for (let i = 0; i < samples.length; i++)
+        for (let j = i + 1; j < samples.length; j++)
+          for (const a of samples[i]!)
+            for (const b of samples[j]!)
+              if (!nearJunction(i, j, b) && !nearJunction(j, i, a)) assert.ok(ld(a, b) >= p.stemDistance - 1e-9, `${at} stems ${i} ${j}`);
+      for (const f of p.filler) {
+        const c = circle(p.studio, f);
+        for (const q of p.plants.flatMap((pl) => pl.stem)) assert.ok(ld([c.x, c.y], q) >= c.r + p.fillerMargin, `${at} filler`);
+      }
+      // Seam: every vine ends at its start plus one lattice vector, with a smooth joint.
+      for (const v of p.plants.filter((pl) => pl.vine)) {
+        const st = v.stem;
+        const [a, b] = [st[0]!, st[st.length - 1]!];
+        assert.ok(Math.hypot(b[0] - a[0], b[1] - a[1]) > 200 && ld(a, b) < 1e-6, `${at} closed`);
+        assert.ok(angleDiff(heading(st[0]!, st[1]!), heading(st[st.length - 2]!, st[st.length - 1]!)) < 5, `${at} joint`);
+      }
+      if (repeat !== 'mirror') assert.equal(p.plants.filter((pl) => pl.vine).length, 2, `${at} vines`);
+    }
+  assert.ok(two >= 3 * one, `plants ${one} at span 1, ${two} at span 2`);
+});

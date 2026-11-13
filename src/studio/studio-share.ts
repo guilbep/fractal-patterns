@@ -1,6 +1,6 @@
 // The studio design as a compact URL hash query: s seed, r repeat, d density, z tile size, st stems,
 // t theme (f floral, s sea, o orchard), f families bit mask (bit i: the theme's i-th family), pn palette name,
-// pc random palette colors (see linkedPalette). The old index key p is read, never written. Only values that differ from the defaults are written.
+// pc random palette colors (see linkedPalette), lg large tile (1: span 2). The old index key p is read, never written. Only values that differ from the defaults are written.
 import { PALETTES, linkedPalette, paletteParam, type Palette } from '../palettes.ts';
 import { composeColors, themeFamilies, type ComposeOptions, type Theme, type ThemeFamily } from './compose.ts';
 import type { Repeat } from './model.ts';
@@ -24,6 +24,8 @@ export interface StudioDesign {
   stems: boolean;
   theme: Theme;
   families: ThemeFamily[];
+  /** Large tile: one tile of twice the width and height (compose span 2). */
+  large: boolean;
 }
 
 export const DEFAULT_DESIGN: Readonly<StudioDesign> = {
@@ -35,6 +37,7 @@ export const DEFAULT_DESIGN: Readonly<StudioDesign> = {
   stems: true,
   theme: 'floral',
   families: [...MOTIF_FAMILIES],
+  large: false,
 };
 
 const mask = (t: Theme, fs: readonly ThemeFamily[]): number => ids(t).reduce((m, f, i) => (fs.includes(f) ? m | (1 << i) : m), 0);
@@ -53,6 +56,7 @@ export function encodeStudio(d: StudioDesign): string {
   const f = mask(d.theme, d.families);
   if (f !== ALL_FAMILIES) q.set('f', String(f));
   if (d.palette.name !== D.palette.name) q.set(...paletteParam(d.palette));
+  if (d.large) q.set('lg', '1');
   return q.toString();
 }
 
@@ -84,6 +88,7 @@ export function decodeStudio(hash: string): StudioDesign {
     stems: q.has('st') ? q.get('st') !== '0' : D.stems,
     theme,
     families: families.length > 0 ? families : ids(theme),
+    large: q.get('lg') === '1',
   };
 }
 
@@ -95,13 +100,14 @@ const oldPalette = (i: number): Palette => PALETTES.find((p) => p.name === OLD_H
 export function designOptions(d: StudioDesign): ComposeOptions {
   return {
     seed: d.seed,
-    width: d.size,
-    height: d.size,
+    width: d.large ? 2 * d.size : d.size,
+    height: d.large ? 2 * d.size : d.size,
     repeat: d.repeat,
     density: d.density,
     families: d.families,
     theme: d.theme,
     colors: composeColors(d.palette.colors),
     stems: d.stems,
+    ...(d.large ? { span: 2 as const } : {}),
   };
 }

@@ -23,6 +23,7 @@ test('50 seeded random designs survive a round trip', () => {
       stems: rnd() < 0.5,
       theme,
       families,
+      large: i % 3 === 0,
     };
     assert.deepEqual(decodeStudio(encodeStudio(d)), d);
     assert.deepEqual(decodeStudio(`#${encodeStudio(d)}`), d);
@@ -114,4 +115,16 @@ test('palette: round trip by name, random through pc, old p index, unknown name,
   assert.equal(decodeStudio('pc=12.34').palette, DEFAULT_DESIGN.palette);
   assert.equal(decodeStudio('pn=Plum&pc=000000.111111.222222.333333.444444&p=0').palette.name, 'Plum');
   assert.equal(decodeStudio('pn=Nope&pc=000000.111111.222222.333333.444444').palette.colors[4], '#444444');
+});
+
+test('large tile: lg=1 only when on, written last, round trip; old links decode to off; doubles the compose size', () => {
+  const d: StudioDesign = { ...DEFAULT_DESIGN, families: [...DEFAULT_DESIGN.families], seed: 7, large: true };
+  const h = encodeStudio(d);
+  assert.ok(h.endsWith('lg=1'), h);
+  assert.deepEqual(decodeStudio(h), d);
+  assert.ok(!encodeStudio({ ...d, large: false }).includes('lg'));
+  assert.equal(decodeStudio('s=7&r=1&d=0.6').large, false);
+  const o = designOptions(d);
+  assert.deepEqual([o.width, o.height, o.span], [2 * d.size, 2 * d.size, 2]);
+  assert.equal('span' in designOptions({ ...d, large: false }), false);
 });

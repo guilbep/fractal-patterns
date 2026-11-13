@@ -55,6 +55,9 @@ export interface ComposeOptions {
     /** Where the motif meets its stem: 'base' (default) its box's bottom center, 'center' its box's center. */
     readonly anchor?: 'base' | 'center';
   };
+  /** 1 (default) or 2: width and height hold span x span unit tiles of side min(width, height) / span; motif sizes and
+   * distances follow the unit, counts that scale with area (plants, twigs, filler) are multiplied by span x span. */
+  readonly span?: 1 | 2;
 }
 
 /** Smallest circle around the bounds' center that holds the bounds, and its offset from the box center. */
@@ -206,11 +209,27 @@ export function latticeDistance(a: Pt, b: Pt, repeat: Repeat, w: number, h: numb
     const k = Math.round(dy / h);
     dy -= k * h;
     dx = md(dx - (k * w) / 2, w);
-  } else [dx, dy] = [md(dx, w), md(dy, h)];
-  const [u, v] = lattice(repeat, w, h);
+  } else return Math.hypot(md(dx, w), md(dy, h)); // a rectangle: the nearest copy is the wrapped one (the hot path)
+  // ponytail: the lattice vectors inline, no allocation; this runs millions of times at span 2.
+  const hd = repeat === 'half-drop';
+  const uy = hd ? h / 2 : 0;
+  const vx = hd ? 0 : w / 2;
+  // Squared lengths pick the candidates; Math.hypot only on those within 1e-9 of the least, so the result is the same
+  // minimum of Math.hypot over the 9 copies as before.
+  let least = Infinity;
+  for (let i = -1; i <= 1; i++)
+    for (let j = -1; j <= 1; j++) {
+      const x = dx + i * w + j * vx;
+      const y = dy + i * uy + j * h;
+      least = Math.min(least, x * x + y * y);
+    }
   let best = Infinity;
   for (let i = -1; i <= 1; i++)
-    for (let j = -1; j <= 1; j++) best = Math.min(best, Math.hypot(dx + i * u[0] + j * v[0], dy + i * u[1] + j * v[1]));
+    for (let j = -1; j <= 1; j++) {
+      const x = dx + i * w + j * vx;
+      const y = dy + i * uy + j * h;
+      if (x * x + y * y <= least * (1 + 1e-9)) best = Math.min(best, Math.hypot(x, y));
+    }
   return best;
 }
 
@@ -271,7 +290,9 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   // None of the theme's: its first support family.
   const allowed = own0.length > 0 ? own0 : [theme.tiers[1]![0]!];
   const { width: w, height: h, repeat } = o;
-  const side = Math.min(w, h);
+  const span = o.span === 2 ? 2 : 1;
+  const area = span * span;
+  const side = Math.min(w, h) / span;
   const density = clamp01(o.density);
   const rnd = mulberry32(o.seed ^ 0x2c1b3c6d);
   const motifs: StudioMotif[] = [];
@@ -504,8 +525,9 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   // stem instead. Only stem rules apply: a start on the host, distance between stems outside a short
   // junction zone, and (mirror) the tile margin.
   const stems: Stem[] = [];
-  const want = Math.round(2 + 3 * density);
-  const vines = repeat === 'mirror' ? 0 : density > 0.7 ? 2 : 1;
+  const want = Math.round((2 + 3 * density) * area);
+  // span 2: one vine cannot cross the larger tile, so two (as at high density).
+  const vines = repeat === 'mirror' ? 0 : density > 0.7 || span === 2 ? 2 : 1;
   const stemDistance0 = 0.16 * side;
   const junction = JUNCTION * side;
   let stemDistance = stemDistance0;
@@ -522,9 +544,9 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     [0.5, 400],
     [0.35, 400],
   ] as const)
-    for (let tries = 0; stems.length < (lk === 1 ? want : Math.max(3, want)) && tries < budget; tries++) {
-      if (lk === 1 && tries > 0 && tries % 60 === 0) stemDistance *= 0.8;
-      if (budget === 400 && tries === 200) stemDistance *= 0.85;
+    for (let tries = 0; stems.length < (lk === 1 ? want : Math.max(3, want)) && tries < budget * area; tries++) {
+      if (lk === 1 && tries > 0 && tries % (60 * area) === 0) stemDistance *= 0.8;
+      if (budget === 400 && tries === 200 * area) stemDistance *= 0.85;
       const s = Math.floor(rnd() * 2 ** 32);
       const idx = stems.length;
       let st: Stem;
@@ -539,7 +561,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
         const [sx, sy] = [w / 2 - (Math.min(...xs) + Math.max(...xs)) / 2, h / 2 - (Math.min(...ys) + Math.max(...ys)) / 2];
         const start: Pt = [first[0]![0] + sx + (rnd() - 0.5) * 0.3 * w, first[0]![1] + sy + (rnd() - 0.5) * 0.3 * h];
         st = stemOf(rootKnots(start, mulberry32(s)), false, null, s, idx);
-      } else if (idx < vines && (lk === 1 ? tries < 120 : idx === 0)) {
+      } else if (idx < vines && (lk === 1 ? tries < 120 * area : idx === 0)) {
         st = stemOf(vineKnots([rnd() * w, rnd() * h]), true, null, s, idx);
       } else {
         if (stems.length === 0) continue;
@@ -752,7 +774,8 @@ export function composeParts(o: ComposeOptions): ComposeParts {
 
   // Gap filling by measurement: the largest empty discs (24 x 24 samples, distances on the repeat's lattice) above 9% of
   // the side get a twig (1 or 2 supports on a stalk) from the nearest stem, else a filler motif; at most 2 + 6 x density.
-  const grid = Array.from({ length: 576 }, (_, k): Pt => [(((k % 24) + 0.5) * w) / 24, ((Math.floor(k / 24) + 0.5) * h) / 24]);
+  const gn = 24 * span;
+  const grid = Array.from({ length: gn * gn }, (_, k): Pt => [(((k % gn) + 0.5) * w) / gn, ((Math.floor(k / gn) + 0.5) * h) / gn]);
   const empty = grid.map(() => Infinity);
   const mark = (q: Pt, r: number) => grid.forEach((g, k) => (empty[k] = Math.min(empty[k]!, dist(g, q) - r)));
   for (const pl of plants) {
@@ -788,12 +811,15 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     const [p0, p1] = [pl.stem[best.j - 1]!, pl.stem[best.j + 1]!];
     const sideSign = Math.sign((p1[0] - p0[0]) * (cc[1] - q[1]) - (p1[1] - p0[1]) * (cc[0] - q[0])) || 1;
     // The stalk itself keeps the gap from every motif and from other plants' stems.
-    const stalkClear = (st: [Pt, Pt]) =>
-      stalkPts(st).every(
+    const stalkClear = (st: [Pt, Pt]) => {
+      // Built once per stalk, not per sample (same result; span 2 made it the hot spot).
+      const ks = [...plants.flatMap((x) => x.circles), ...filler.map((f) => realCircle(f.v, f.p))];
+      const ls = lines();
+      return stalkPts(st).every(
         (s) =>
-          [...plants.flatMap((x) => x.circles), ...filler.map((f) => realCircle(f.v, f.p))].every((k) => dist(s, k.c) >= k.r + gap) &&
-          lines().every((line, j) => j === best.i || line.every((t) => dist(s, t) >= 2 * gap)),
+          ks.every((k) => dist(s, k.c) >= k.r + gap) && ls.every((line, j) => j === best.i || line.every((t) => dist(s, t) >= 2 * gap)),
       );
+    };
     for (const k of [1, 0.8, 0.6]) {
       const rr = Math.min(0.06 * side, 0.7 * R) * k;
       const len = Math.max(1.1 * minStalk, best.d - rr);
@@ -826,7 +852,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     filler.push({ v, p: fillerAt(c, v) });
     return true;
   };
-  const cap = Math.round(2 + 6 * density);
+  const cap = Math.round((2 + 6 * density) * area);
   for (let t = 0, added = 0; t < 4 * cap && added < cap; t++) {
     const k = empty.indexOf(Math.max(...empty));
     const R = empty[k]!;
@@ -844,7 +870,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   // Then sparse filler in the larger gaps that are left.
   const occupied = [...plants.flatMap((pl) => pl.circles.map((c) => ({ c: c.c, r: c.r }))), ...filler.map((f) => realCircle(f.v, f.p))];
   const stemPts = lines().flatMap((line) => line.filter((_, i) => i % 2 === 0));
-  for (let n = 0, want2 = filler.length + Math.round(8 * density); n < want2 * 4 && filler.length < want2; n++) {
+  for (let n = 0, want2 = filler.length + Math.round(8 * density * area); n < want2 * 4 && filler.length < want2; n++) {
     let best: { p: Pt; clear: number } | null = null;
     for (let k = 0; k < 16; k++) {
       const c: Pt = [rnd() * w, rnd() * h];

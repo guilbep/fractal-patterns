@@ -373,6 +373,7 @@ The controls:
 - Palette: the same 24 palettes as the pattern page.
 - Density: 0 to 100%.
 - Tile size: 200 to 500 px in steps of 20.
+- Large tile: one tile of twice the width and height, with about four times the plants at the same motif size. The picture comes back four times less often, so the repeat is harder to see. The SVG is about four times as large (Straight repeat, seed 1 to 5, density 0.5: about 13 kB becomes about 35 kB).
 - Preview zoom: 50 to 200%. It changes only the preview.
 - Show stems. The sea theme starts without stems, and the layout stays the same.
 - Repeat: Straight, Half-drop, Brick or Mirror.
@@ -443,6 +444,7 @@ The studio has the same palettes as the pattern tool. The palette strip in the t
 | `f` | Motif families, a bit mask in the order of the theme's families, as in the table above | all |
 | `pn` | Palette name, for example `Fern` | `Lagoon` |
 | `pc` | A random palette: its five colors (paper, ink, stroke, accent, soft) as 6-digit hex, joined with a dot. Read when `pn` is absent or unknown | none |
+| `lg` | Large tile, `1` when on (written only when on) | off |
 
 Links made before the palette names used `p`, an index into the old 24 palettes. The page still reads it and opens the nearest palette by base hue (a best match), but never writes it.
 

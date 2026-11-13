@@ -18,6 +18,7 @@ export default defineConfig({
       input: {
         index: fileURLToPath(new URL('./index.html', import.meta.url)),
         studio: fileURLToPath(new URL('./studio.html', import.meta.url)),
+        builder: fileURLToPath(new URL('./builder.html', import.meta.url)),
       },
     },
   },

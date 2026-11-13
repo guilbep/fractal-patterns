@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from '@playwright/test';
 
-const pages = { Patterns: '/index.html', Studio: '/studio.html' };
+const pages = { Patterns: '/index.html', Studio: '/studio.html', Builder: '/builder.html' };
 
 const runs = Number(process.argv[2] ?? 3);
 const port = '18493';

@@ -1,0 +1,32 @@
+/* Pattern Builder only. The layout reuses the pattern tool's toolbar, stage and panels. */
+.wall {
+  flex: 1;
+  background-repeat: repeat;
+}
+.stamp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));
+  gap: var(--s1);
+}
+.stamp-btn {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-width: 44px;
+  padding: var(--s1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #f4f1ea;
+  cursor: pointer;
+}
+.stamp-btn:hover {
+  border-color: var(--accent);
+}
+.stamp-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.stamp-btn svg {
+  width: 100%;
+  height: 100%;
+}

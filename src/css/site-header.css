@@ -114,3 +114,9 @@
     white-space: nowrap;
   }
 }
+/* Three tools at phone width: the words stay, the small marks go, so the header keeps one row at 360 px. */
+@media (max-width: 419.98px) {
+  .tool-switch img {
+    display: none;
+  }
+}

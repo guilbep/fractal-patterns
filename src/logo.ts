@@ -33,3 +33,14 @@ export function studioLogoSvg(o: Pick<LogoOptions, 'background' | 'color'> = LOG
     `<path d="M32 58V27M32 50C24 50 19 45 18 38C25 38 31 42 32 50M32 43C40 43 45 38 46 31C39 31 33 35 32 43"/>${petals}</g></svg>`
   );
 }
+
+// The Pattern Builder's mark: four placed shapes on a 2 x 2 grid (dot, square, triangle, ring), in the logo's line style.
+export function builderLogoSvg(o: Pick<LogoOptions, 'background' | 'color'> = LOGO_DEFAULT): string {
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">` +
+    `<rect width="${SIZE}" height="${SIZE}" rx="12" fill="${o.background}"/>` +
+    `<g fill="none" stroke="${o.color}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">` +
+    `<circle cx="20" cy="20" r="7" fill="${o.color}"/><rect x="37" y="13" width="14" height="14"/>` +
+    `<path d="M20 37L28 51H12z"/><circle cx="44" cy="44" r="7"/></g></svg>`
+  );
+}

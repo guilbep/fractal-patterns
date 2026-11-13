@@ -56,6 +56,8 @@ The library is a row of family tabs plus "All". The page draws only the previews
 
 The tool switch in the header opens the Wallpaper Studio, a second page, with the same palette. See [Wallpaper Studio](#wallpaper-studio).
 
+The Pattern Builder is a third page, `builder.html`. You place, rotate and color shapes by hand on one tile that repeats without a seam, then export the tile as SVG. Its code is in `src/builder/`; the design is kept in your browser's local storage.
+
 ### Pattern library
 
 The page draws 78 pattern kinds in six families:

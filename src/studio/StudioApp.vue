@@ -397,6 +397,8 @@ onBeforeUnmount(() => sizes.disconnect());
             <p id="balance-hint" class="hint-text">Composes again when the wallpaper has a dense strip or a large empty area, and keeps the best of up to six tries. Not used with Large tile.</p>
             <label class="radio"><input id="ground" v-model="design.ground" type="checkbox" aria-describedby="ground-hint"> Ground layer</label>
             <p id="ground-hint" class="hint-text">A quiet layer of small foliage behind the plants, in the soft color of the palette. It adds depth and fills empty areas.</p>
+            <label class="radio"><input id="variety" v-model="design.variety" type="checkbox" aria-describedby="variety-hint"> Varied sizes and spot filler</label>
+            <p id="variety-hint" class="hint-text">Plants come in three sizes, and the small motifs sit on a spot layout with one per row and per column, so no lines form.</p>
           </div>
           <div class="field">
             <label for="theme">Theme</label>

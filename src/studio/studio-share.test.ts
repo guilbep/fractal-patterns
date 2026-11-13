@@ -26,6 +26,7 @@ test('50 seeded random designs survive a round trip', () => {
       large: i % 3 === 0,
       balance: i % 2 === 0,
       ground: i % 3 !== 1,
+      variety: i % 4 !== 2,
     };
     assert.deepEqual(decodeStudio(encodeStudio(d)), d);
     assert.deepEqual(decodeStudio(`#${encodeStudio(d)}`), d);
@@ -33,7 +34,7 @@ test('50 seeded random designs survive a round trip', () => {
 });
 
 test('the defaults encode to ba=1 only, and an empty hash (a fresh page) decodes to them', () => {
-  assert.equal(encodeStudio({ ...DEFAULT_DESIGN, families: [...DEFAULT_DESIGN.families] }), 'ba=1&gr=1');
+  assert.equal(encodeStudio({ ...DEFAULT_DESIGN, families: [...DEFAULT_DESIGN.families] }), 'ba=1&gr=1&va=1');
   assert.deepEqual(decodeStudio(''), DEFAULT_DESIGN);
   assert.deepEqual(decodeStudio('#'), DEFAULT_DESIGN);
 });
@@ -47,7 +48,12 @@ test('malformed input gives the defaults', () => {
     assert.equal(d.size, DEFAULT_DESIGN.size, h);
     assert.deepEqual(d.families, DEFAULT_DESIGN.families, h);
   }
-  assert.deepEqual(decodeStudio('s=abc&p=x&r=&d=NaN&z=Infinity&f=zz'), { ...DEFAULT_DESIGN, balance: false, ground: false });
+  assert.deepEqual(decodeStudio('s=abc&p=x&r=&d=NaN&z=Infinity&f=zz'), {
+    ...DEFAULT_DESIGN,
+    balance: false,
+    ground: false,
+    variety: false,
+  });
 });
 
 test('out-of-range values are clamped', () => {
@@ -81,16 +87,16 @@ test('theme: round trip, absent is floral, unknown falls back to floral, old lin
     assert.ok(encodeStudio(two).includes('f=5'), id);
     assert.deepEqual(decodeStudio(encodeStudio(two)), two, id);
   }
-  assert.equal(encodeStudio({ ...DEFAULT_DESIGN, theme: 'sea', families: themeFamilies('sea').map((f) => f.id) }), 't=s&ba=1&gr=1');
+  assert.equal(encodeStudio({ ...DEFAULT_DESIGN, theme: 'sea', families: themeFamilies('sea').map((f) => f.id) }), 't=s&ba=1&gr=1&va=1');
   assert.equal(decodeStudio('s=3').theme, 'floral');
   assert.equal(decodeStudio('t=o&f=1').families.join(), 'pear');
   for (const h of ['t=x', 't=', 't=floral', 't=S'])
-    assert.deepEqual(decodeStudio(h), { ...DEFAULT_DESIGN, balance: false, ground: false }, h);
+    assert.deepEqual(decodeStudio(h), { ...DEFAULT_DESIGN, balance: false, ground: false, variety: false }, h);
   // An old link decodes as before.
   const old = decodeStudio('s=7&r=1&f=5');
   assert.equal(old.theme, 'floral');
   assert.deepEqual(old.families, [MOTIF_FAMILIES[0], MOTIF_FAMILIES[2]]);
-  assert.equal(encodeStudio(old), 's=7&r=1&f=5&ba=0&gr=0');
+  assert.equal(encodeStudio(old), 's=7&r=1&f=5&ba=0&gr=0&va=0');
   // Only the theme changed: a different string.
   const base = decodeStudio('s=7&f=5');
   assert.notEqual(encodeStudio({ ...base, theme: 'orchard' }), encodeStudio(base));
@@ -101,7 +107,7 @@ test('palette: round trip by name, random through pc, old p index, unknown name,
     const d = { ...DEFAULT_DESIGN, palette: p };
     const h = encodeStudio(d);
     assert.ok(
-      p === DEFAULT_DESIGN.palette ? h === 'ba=1&gr=1' : h === `pn=${encodeURIComponent(p.name).replace(/%20/g, '+')}&ba=1&gr=1`,
+      p === DEFAULT_DESIGN.palette ? h === 'ba=1&gr=1&va=1' : h === `pn=${encodeURIComponent(p.name).replace(/%20/g, '+')}&ba=1&gr=1&va=1`,
       h,
     );
     assert.deepEqual(decodeStudio(h).palette, p);
@@ -110,7 +116,7 @@ test('palette: round trip by name, random through pc, old p index, unknown name,
   for (let i = 0; i < 20; i++) {
     const r = rollPalette(rnd);
     const h = encodeStudio({ ...DEFAULT_DESIGN, palette: r });
-    assert.match(h, /^pc=[0-9a-f]{6}(\.[0-9a-f]{6}){4}&ba=1&gr=1$/);
+    assert.match(h, /^pc=[0-9a-f]{6}(\.[0-9a-f]{6}){4}&ba=1&gr=1&va=1$/);
     assert.deepEqual(decodeStudio(h).palette, r);
     assert.ok(!/(^|&)p=/.test(h), h);
   }
@@ -126,7 +132,7 @@ test('palette: round trip by name, random through pc, old p index, unknown name,
 test('large tile: lg=1 only when on, written last, round trip; old links decode to off; doubles the compose size', () => {
   const d: StudioDesign = { ...DEFAULT_DESIGN, families: [...DEFAULT_DESIGN.families], seed: 7, large: true };
   const h = encodeStudio(d);
-  assert.ok(h.endsWith('lg=1&ba=1&gr=1'), h);
+  assert.ok(h.endsWith('lg=1&ba=1&gr=1&va=1'), h);
   assert.deepEqual(decodeStudio(h), d);
   assert.ok(!encodeStudio({ ...d, large: false }).includes('lg'));
   assert.equal(decodeStudio('s=7&r=1&d=0.6').large, false);
@@ -139,7 +145,7 @@ test('balance: ba=1 and ba=0 round trip, a link without ba (made before the key)
   for (const balance of [true, false]) {
     const d: StudioDesign = { ...DEFAULT_DESIGN, seed: 9, balance };
     const h = encodeStudio(d);
-    assert.ok(h.endsWith(`ba=${balance ? 1 : 0}&gr=1`), h);
+    assert.ok(h.endsWith(`ba=${balance ? 1 : 0}&gr=1&va=1`), h);
     assert.deepEqual(decodeStudio(h), d);
     assert.equal(designOptions(d).balance, balance);
   }
@@ -160,7 +166,7 @@ test('ground: gr=1 and gr=0 round trip after ba; an old link is off; an empty or
   for (const ground of [true, false]) {
     const d: StudioDesign = { ...DEFAULT_DESIGN, seed: 9, ground };
     const h = encodeStudio(d);
-    assert.ok(h.endsWith(`ba=1&gr=${ground ? 1 : 0}`), h);
+    assert.ok(h.endsWith(`ba=1&gr=${ground ? 1 : 0}&va=1`), h);
     assert.deepEqual(decodeStudio(h), d);
     assert.equal(designOptions(d).ground, ground);
   }
@@ -169,4 +175,18 @@ test('ground: gr=1 and gr=0 round trip after ba; an old link is off; an empty or
   assert.equal(decodeStudio('#pn=Night').ground, true);
   assert.equal(decodeStudio('#pc=eefaf8.072522.5ea098.0088a6.c1ece6').ground, true);
   assert.equal(DEFAULT_DESIGN.ground, true);
+});
+
+test('variety: va=1 and va=0 round trip after gr; an old link is off; an empty or palette-only address is on', () => {
+  for (const variety of [true, false]) {
+    const d: StudioDesign = { ...DEFAULT_DESIGN, seed: 9, variety };
+    const h = encodeStudio(d);
+    assert.ok(h.endsWith(`gr=1&va=${variety ? 1 : 0}`), h);
+    assert.deepEqual(decodeStudio(h), d);
+    assert.equal(designOptions(d).variety, variety);
+  }
+  assert.equal(decodeStudio('s=9&r=3&ba=1&gr=1').variety, false);
+  assert.equal(decodeStudio('').variety, true);
+  assert.equal(decodeStudio('#pn=Night').variety, true);
+  assert.equal(DEFAULT_DESIGN.variety, true);
 });

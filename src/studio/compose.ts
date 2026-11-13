@@ -68,6 +68,8 @@ export interface ComposeOptions {
   /** Default false. True: a quiet layer of tiny foliage under everything (ground.ts), in colors.ground; it is not part of
    * the spacing rules nor of the balance measure. */
   readonly ground?: boolean;
+  /** Plants in three sizes and the small filler motifs on a spot layout (see docs/research/wallpaper-repeats.md). */
+  readonly variety?: boolean;
 }
 
 /** Smallest circle around the bounds' center that holds the bounds, and its offset from the box center. */

@@ -386,7 +386,7 @@ test('compose without a custom motif: a stable SVG (sha-256 prefixes)', () => {
   const want: Record<number, string> = { 1: 'd7b9370805fdf712', 2: '2620a0060c527b2a', 3: '6e3f8e4b0570a829' };
   for (const seed of [1, 2, 3]) {
     // balance: false pins one attempt; a fresh page now turns balance on, which changes seed 3 to 51f62e39d354b846.
-    const svg = studioSvg(compose({ ...designOptions(decodeStudio('')), seed, balance: false, ground: false }));
+    const svg = studioSvg(compose({ ...designOptions(decodeStudio('')), seed, balance: false, ground: false, variety: false }));
     assert.equal(createHash('sha256').update(svg).digest('hex').slice(0, 16), want[seed], `seed ${seed}`);
   }
 });

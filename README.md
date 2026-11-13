@@ -465,6 +465,7 @@ The studio has the same palettes as the pattern tool. The palette strip in the t
 | `lg` | Large tile, `1` when on (written only when on) | off |
 | `ba` | Balance automatically, `1` or `0`, always written. A link without it was made before the key and opens with it off; a page with no design in the address opens with it on | on |
 | `gr` | Ground layer, `1` or `0`, always written after `ba`. A link without it is from before the key and has no ground; an empty or palette-only address is a fresh page and has the ground on. |
+| `va` | Varied sizes and spot filler, `1` or `0`, always written after `gr`. A link without it is from before the key and has it off; an empty or palette-only address is a fresh page and has it on. |
 
 Links made before the palette names used `p`, an index into the old 24 palettes. The page still reads it and opens the nearest palette by base hue (a best match), but never writes it.
 

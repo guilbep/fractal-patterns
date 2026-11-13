@@ -868,23 +868,11 @@ export function composeOnce(o: ComposeOptions): Omit<ComposeParts, 'tracking'> {
     return true;
   };
   const cap = Math.round((2 + 6 * density) * area);
-  for (let t = 0, added = 0; t < 4 * cap && added < cap; t++) {
-    const k = empty.indexOf(Math.max(...empty));
-    const R = empty[k]!;
-    if (R < 0.09 * side) break;
-    const c = grid[k]!;
-    const before = plants.map((pl) => pl.circles.length);
-    if (twig(c, R, added) || (!o.variety && fillAt(c))) {
-      added++;
-      plants.forEach((pl, i) => pl.circles.slice(before[i]).forEach((x) => mark(x.c, x.r)));
-      plants.forEach((pl) => pl.stalks.flatMap(stalkPts).forEach((q) => mark(q, 0)));
-      filler.forEach((f) => ((x) => mark(x.c, x.r))(realCircle(f.v, f.p)));
-    } else grid.forEach((g, i) => dist(g, c) < R && (empty[i] = -Infinity));
-  }
-
   // Variety: filler on a sateen spot layout (docs/research/wallpaper-repeats.md), N x N cells, one spot per row and
   // column, spot i in column i and row s x i mod N; one seeded shift, a jitter in each cell's middle half, the same
-  // checks as the gap loop; a blocked spot is dropped. Angles: 6 steps of 60 degrees plus one offset, dealt shuffled.
+  // checks as the gap loop. It runs before the twigs, while the gaps are open; a blocked spot tries up to 11 more
+  // seeded positions in the middle 80 percent of its own cell, and is dropped only when all fail. Angles: 6 steps of
+  // 60 degrees plus one offset, dealt shuffled.
   if (o.variety) {
     const sr = mulberry32(o.seed ^ 0x3c6ef372);
     const n = 5 * span;
@@ -897,17 +885,35 @@ export function composeOnce(o: ComposeOptions): Omit<ComposeParts, 'tracking'> {
       return a;
     };
     const [dx, dy] = [Math.floor(sr() * n), Math.floor(sr() * n)];
-    const spots = Array.from({ length: n }, (_, i): Pt => [
-      ((((i + dx) % n) + 0.25 + 0.5 * sr()) * w) / n,
-      ((((((s * i) % n) + dy) % n) + 0.25 + 0.5 * sr()) * h) / n,
-    ]);
+    const cells = Array.from({ length: n }, (_, i): Pt => [(i + dx) % n, (((s * i) % n) + dy) % n]);
+    const at = ([cx, cy]: Pt, lo: number, span: number): Pt => [((cx + lo + span * sr()) * w) / n, ((cy + lo + span * sr()) * h) / n];
+    const spots = cells.map((cell) => ({ cell, c: at(cell, 0.25, 0.5) }));
     const off = sr() * 60;
     const angles = shuffle([0, 60, 120, 180, 240, 300].map((a) => Math.round(a + off) % 360));
     let k = 0;
-    for (const c of shuffle(spots)) {
+    for (const { cell, c } of shuffle(spots)) {
       if (filler.length >= cap) break;
-      if (fillAt(c, angles[k % angles.length])) k++;
+      for (let tries = 0, p = c; tries < 12; tries++, p = at(cell, 0.1, 0.8)) {
+        if (fillAt(p, angles[k % angles.length])) {
+          k++;
+          break;
+        }
+      }
     }
+    filler.forEach((f) => ((x) => mark(x.c, x.r))(realCircle(f.v, f.p)));
+  }
+  for (let t = 0, added = 0; t < 4 * cap && added < cap; t++) {
+    const k = empty.indexOf(Math.max(...empty));
+    const R = empty[k]!;
+    if (R < 0.09 * side) break;
+    const c = grid[k]!;
+    const before = plants.map((pl) => pl.circles.length);
+    if (twig(c, R, added) || (!o.variety && fillAt(c))) {
+      added++;
+      plants.forEach((pl, i) => pl.circles.slice(before[i]).forEach((x) => mark(x.c, x.r)));
+      plants.forEach((pl) => pl.stalks.flatMap(stalkPts).forEach((q) => mark(q, 0)));
+      filler.forEach((f) => ((x) => mark(x.c, x.r))(realCircle(f.v, f.p)));
+    } else grid.forEach((g, i) => dist(g, c) < R && (empty[i] = -Infinity));
   }
   // Then sparse filler in the larger gaps that are left.
   const occupied = [...plants.flatMap((pl) => pl.circles.map((c) => ({ c: c.c, r: c.r }))), ...filler.map((f) => realCircle(f.v, f.p))];

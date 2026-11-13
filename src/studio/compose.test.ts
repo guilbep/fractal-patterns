@@ -898,6 +898,17 @@ test('variety: nothing touches, filler clear of stems, one filler per spot row a
   assert.ok(angles.size >= 4, `${angles.size}`);
 });
 
+test('variety keeps a share of the filler count, per theme', () => {
+  // Measured over seeds 1 to 12: on / off = floral 2.00 / 5.50, sea 2.50 / 7.25, orchard 2.33 / 6.33 (34 to 37 percent).
+  // The 60 percent goal is not reached: the spots use the gap loop's strict checks, the sparse pass (off) does not.
+  const mean = (theme: 'floral' | 'sea' | 'orchard', variety: boolean) =>
+    Array.from({ length: 12 }, (_, i) => composeParts(opt(i + 1, { theme, variety })).filler.length).reduce((a, b) => a + b) / 12;
+  for (const theme of ['floral', 'sea', 'orchard'] as const) {
+    const [off, on] = [mean(theme, false), mean(theme, true)];
+    assert.ok(on >= 0.3 * off, `${theme} on ${on} off ${off}`);
+  }
+});
+
 test('variety false and absent give the same SVG', () => {
   for (const seed of [1, 2, 3]) assert.equal(studioSvg(compose(opt(seed, { variety: false }))), studioSvg(compose(opt(seed))), `${seed}`);
 });

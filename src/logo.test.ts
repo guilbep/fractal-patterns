@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { LOGO_DEFAULT, builderLogoSvg, logoSvg, studioLogoSvg, truchetLogoSvg } from './logo.ts';
+import { LOGO_DEFAULT, MARK_COLORS, builderLogoSvg, logoSvg, studioLogoSvg, truchetLogoSvg } from './logo.ts';
 
 test('logoSvg draws the default mark as one compact, deterministic line', () => {
   const s = logoSvg(LOGO_DEFAULT);
@@ -56,8 +56,8 @@ test('truchetLogoSvg draws the Truchet tile as one compact, deterministic line',
 test('each committed public/favicon*.svg equals the output of its function plus a newline', () => {
   const files: [string, string][] = [
     ['favicon.svg', truchetLogoSvg()],
-    ['favicon-studio.svg', studioLogoSvg()],
-    ['favicon-builder.svg', builderLogoSvg()],
+    ['favicon-studio.svg', studioLogoSvg(MARK_COLORS)],
+    ['favicon-builder.svg', builderLogoSvg(MARK_COLORS)],
   ];
   for (const [name, svg] of files) assert.equal(readFileSync(new URL(`../public/${name}`, import.meta.url), 'utf8'), svg + '\n', name);
 });

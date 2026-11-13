@@ -23,6 +23,9 @@ const LAGOON = (PALETTES.find((p) => p.name === 'Lagoon') ?? PALETTES[0]!).color
 // Chosen from `npm run logo -- candidates`: see scripts/make-logo.ts.
 export const LOGO_DEFAULT: LogoOptions = { kind: 'whirl', seed: 1, background: LAGOON[0]!, color: LAGOON[1]! };
 
+// The tool marks in the header use the logo's ink and paper, so the three read as one family.
+export const MARK_COLORS = { background: '#17181C', color: '#F3F2EC' } as const;
+
 // The site's mark: a Truchet tile, two quarter arcs joining the edge midpoints, so the tile repeats.
 export function truchetLogoSvg(o: { ink?: string; paper?: string; size?: number } = {}): string {
   const { ink = '#17181C', paper = '#F3F2EC', size = 64 } = o;

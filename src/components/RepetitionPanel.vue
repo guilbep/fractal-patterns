@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import '@/css/repetition.css';
+import { svgToDataUri } from '@/css.ts';
 import { hasCompat } from '@/fractal.ts';
 import { repeatDistance, scaledSecondSize } from '@/layers.ts';
+import { previewOptions } from '@/repetition-previews.ts';
 import { optionsFor } from '@/repetition.ts';
-import { canVary } from '@/supertile.ts';
+import { canVary, superTileSvg } from '@/supertile.ts';
 import {
   fade,
   layer2,
   layer2Settings,
+  opacity,
   parallax,
   params,
   resetLayer2,
   resetVariants,
+  roles,
   sections,
   tileSize,
   usingImage,
@@ -21,14 +26,29 @@ import {
   variantsOn,
 } from '@/state.ts';
 import { parallaxDemoCss } from '@/state-export.ts';
-import { STRENGTHS } from '@/variants.ts';
+import type { VariantOptions } from '@/variants.ts';
 
 const applies = computed(() => optionsFor(params.kind));
 const percent = (e: Event) => Number((e.target as HTMLInputElement).value) / 100;
-function setStrength(v: string): void {
-  const s = STRENGTHS.find((x) => `${x.cells}_${x.count}` === v);
-  if (s) Object.assign(variantOptions, { cells: s.cells, count: s.count });
+const possible = computed(() => !usingImage.value && canVary(params.kind));
+
+// Previews: drawn in black at a small cell size and colored by CSS masks, so colors never rebuild them.
+const CELL = 20;
+const cache = new Map<string, string>(); // ponytail: unbounded, holds one entry per picture seen this session
+function picture(o: VariantOptions): string {
+  const opts = { ...params, ...o, size: CELL, strokeWidth: (params.strokeWidth * CELL) / params.size, color: '#000000', opacity: 1 };
+  const key = JSON.stringify(opts);
+  let url = cache.get(key);
+  if (url === undefined) {
+    url = `url("${svgToDataUri(superTileSvg(opts))}")`;
+    cache.set(key, url);
+  }
+  return url;
 }
+const cards = computed(() => (variantsOn.value ? previewOptions({ ...variantOptions }, params.kind) : []));
+const pics = computed(() => new Map(cards.value.map((c) => [c.id, picture(c.options)])));
+const group = (g: string) => cards.value.filter((c) => c.group === g);
+const panelVars = computed(() => ({ '--rp-fg': roles.pattern, '--rp-bg': roles.background, '--rp-op': String(opacity.value) }));
 
 const size2 = computed(() => scaledSecondSize(tileSize.value, layer2Settings.scale));
 const repeat = computed(() => repeatDistance(tileSize.value, size2.value));
@@ -38,52 +58,68 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
 <template>
   <section class="panel" aria-labelledby="repetition-h">
     <h2 id="repetition-h">Repetition</h2>
-    <label class="radio"><input id="variants" v-model="variants" type="checkbox" :disabled="usingImage || !canVary(params.kind)" aria-describedby="variants-hint"> Reduce repetition</label>
-    <p id="variants-hint" class="hint-text">
-      <template v-if="usingImage">Variants need a math pattern.</template>
-      <template v-else-if="!canVary(params.kind)">Not available for this pattern yet.</template>
-      <template v-else>Shows several seeded variants in one larger tile, so the same picture comes back less often.</template>
-      <template v-if="!usingImage && variants && canVary(params.kind) && hasCompat(params.kind)"> This pattern uses its fixed layout in this mode.</template>
-      <template v-if="variantBytes">{{ ' ' }}{{ variantBytes.svg.toLocaleString('en') }} bytes against {{ variantBytes.plain.toLocaleString('en') }} for one tile.</template>
-    </p>
-    <p v-if="variantsOn" id="v-period" class="hint-text">The same picture comes back every {{ tileSize.toLocaleString('en') }} px.</p>
-    <div v-if="variantsOn" class="variants-group" role="group" aria-labelledby="variants-h">
+    <p v-if="usingImage" id="variants-hint" class="hint-text">Variants need a math pattern, so they are not available for an image. Second layer and Soft fade below still work.</p>
+    <p v-else-if="!canVary(params.kind)" id="variants-hint" class="hint-text">This pattern repeats by design, so variants are not available. Second layer and Soft fade below still work.</p>
+    <template v-else>
+      <label class="rep-switch"><input id="variants" v-model="variants" type="checkbox" role="switch" aria-describedby="variants-hint"> Reduce repetition</label>
+      <p id="variants-hint" class="hint-text rep-state">
+        <template v-if="!variantsOn">Draws several seeded variants into one larger tile, so the same picture comes back less often.</template>
+        <template v-else>
+          <span id="v-period">The same picture comes back every {{ tileSize.toLocaleString('en') }} px.</span>
+          <template v-if="hasCompat(params.kind)"> This pattern uses its fixed layout in this mode.</template>
+          <template v-if="variantBytes">{{ ' ' }}{{ variantBytes.svg.toLocaleString('en') }} bytes against {{ variantBytes.plain.toLocaleString('en') }} for one tile.</template>
+        </template>
+      </p>
+    </template>
+    <div v-if="possible && variantsOn" class="variants-group" role="group" aria-labelledby="variants-h" :style="panelVars">
       <h3 id="variants-h">Variants</h3>
-      <div class="fields">
+      <fieldset class="fields">
+        <legend>Strength</legend>
+        <div class="rep-cards">
+          <label v-for="c in group('strength')" :key="c.id" class="rep-card">
+            <span class="rep-pic" aria-hidden="true"><span :style="{ '--pic': pics.get(c.id) }"></span></span>
+            <span><input type="radio" name="v-strength" :checked="c.options.cells === variantOptions.cells && c.options.count === variantOptions.count" @change="Object.assign(variantOptions, { cells: c.options.cells, count: c.options.count })"> {{ c.label }}</span>
+          </label>
+        </div>
+      </fieldset>
+      <div v-if="applies.orient || applies.depths" class="rep-cards">
+        <label v-for="c in [...group('orient'), ...group('depths')]" :key="c.id" class="rep-card">
+          <span class="rep-pic" aria-hidden="true"><span :style="{ '--pic': pics.get(c.id) }"></span></span>
+          <span v-if="c.group === 'orient'"><input id="v-orient" v-model="variantOptions.orient" type="checkbox" aria-describedby="v-orient-hint"> {{ c.label }}</span>
+          <span v-else><input id="v-depths" v-model="variantOptions.depths" type="checkbox" aria-describedby="v-depths-hint"> {{ c.label }}</span>
+          <span v-if="c.group === 'orient'" id="v-orient-hint" class="hint-text">Each cell is turned or mirrored. The strongest effect, at no extra path.</span>
+          <span v-else id="v-depths-hint" class="hint-text">Half of the variants are drawn one depth lower.</span>
+        </label>
+      </div>
+      <fieldset v-if="applies.drop" class="fields" aria-describedby="v-drop-hint">
+        <legend>Offset</legend>
+        <p id="v-drop-hint" class="hint-text">Shifts every second column or row by half a cell, which hides the square grid.</p>
+        <div class="rep-cards">
+          <label v-for="c in group('drop')" :key="c.id" class="rep-card">
+            <span class="rep-pic" aria-hidden="true"><span :style="{ '--pic': pics.get(c.id) }"></span></span>
+            <span><input v-model="variantOptions.drop" type="radio" name="v-drop" :value="c.options.drop"> {{ c.label }}</span>
+          </label>
+        </div>
+      </fieldset>
+      <div v-if="applies.jitter" class="rep-slider">
+        <span class="rep-pic" aria-hidden="true"><span :style="{ '--pic': pics.get('jitter') }"></span></span>
         <div class="field">
-          <label for="v-strength">Strength</label>
-          <select id="v-strength" :value="`${variantOptions.cells}_${variantOptions.count}`" @change="setStrength(($event.target as HTMLSelectElement).value)">
-            <option v-for="s in STRENGTHS" :key="s.label" :value="`${s.cells}_${s.count}`">{{ s.label }}</option>
-          </select>
-        </div>
-        <div v-if="applies.orient" class="field">
-          <label class="radio"><input id="v-orient" v-model="variantOptions.orient" type="checkbox" aria-describedby="v-orient-hint"> Turn and flip each cell</label>
-          <p id="v-orient-hint" class="hint-text">Each cell is turned or mirrored. The strongest effect, at no extra path.</p>
-        </div>
-        <div v-if="applies.drop" class="field">
-          <label for="v-drop">Offset</label>
-          <select id="v-drop" v-model="variantOptions.drop" aria-describedby="v-drop-hint">
-            <option value="none">None</option>
-            <option value="half-drop">Half-drop</option>
-            <option value="brick">Brick</option>
-          </select>
-          <p id="v-drop-hint" class="hint-text">Shifts every second column or row by half a cell, which hides the square grid.</p>
-        </div>
-        <div v-if="applies.depths" class="field">
-          <label class="radio"><input id="v-depths" v-model="variantOptions.depths" type="checkbox" aria-describedby="v-depths-hint"> Mix two depths</label>
-          <p id="v-depths-hint" class="hint-text">Half of the variants are drawn one depth lower.</p>
-        </div>
-        <div v-if="applies.jitter" class="field">
           <label for="v-jitter">Shift and scale <output for="v-jitter">{{ Math.round(variantOptions.jitter * 100) }}%</output></label>
           <input id="v-jitter" :value="Math.round(variantOptions.jitter * 100)" type="range" min="0" max="100" step="1" aria-describedby="v-jitter-hint" @input="variantOptions.jitter = percent($event)">
           <p id="v-jitter-hint" class="hint-text">A small shift and size change per cell.</p>
         </div>
-        <div v-if="applies.weights" class="field">
+      </div>
+      <div v-if="applies.weights" class="rep-slider">
+        <span class="rep-pic" aria-hidden="true"><span :style="{ '--pic': pics.get('weights') }"></span></span>
+        <div class="field">
           <label for="v-weights">Line weight <output for="v-weights">{{ Math.round(variantOptions.weights * 100) }}%</output></label>
           <input id="v-weights" :value="Math.round(variantOptions.weights * 100)" type="range" min="0" max="100" step="1" aria-describedby="v-weights-hint" @input="variantOptions.weights = percent($event)">
           <p id="v-weights-hint" class="hint-text">Varies the stroke weight softly across the tile. It can show faint bands.</p>
         </div>
-        <div v-if="applies.skip" class="field">
+      </div>
+      <div v-if="applies.skip" class="rep-slider">
+        <span class="rep-pic" aria-hidden="true"><span :style="{ '--pic': pics.get('skip') }"></span></span>
+        <div class="field">
           <label for="v-skip">Empty cells <output for="v-skip">{{ Math.round(variantOptions.skip * 100) }}%</output></label>
           <input id="v-skip" :value="Math.round(variantOptions.skip * 100)" type="range" min="0" max="50" step="1" aria-describedby="v-skip-hint" @input="variantOptions.skip = percent($event)">
           <p id="v-skip-hint" class="hint-text">Leaves some cells empty. The holes repeat with the tile, so use it lightly.</p>
@@ -94,6 +130,7 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
       </div>
     </div>
 
+    <h3 class="rep-more">More ways to hide the repeat</h3>
     <label class="radio"><input id="layer2" v-model="layer2" type="checkbox" aria-describedby="layer2-hint"> Second layer</label>
     <p id="layer2-hint" class="hint-text">
       <template v-if="layer2">A second copy at {{ size2.toLocaleString('en') }} px. Together they repeat every {{ repeat.toLocaleString('en') }} px.</template>
@@ -125,7 +162,7 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
         <div class="field">
           <label for="l2-depth">Depth <output for="l2-depth">{{ layer2Settings.depth.toFixed(2) }}×</output></label>
           <input id="l2-depth" v-model.number="layer2Settings.depth" type="range" min="0.25" max="4" step="0.05" aria-describedby="l2-depth-hint">
-          <p id="l2-depth-hint" class="hint-text">Only visible when the pattern drifts (Motion tab). Below 1 the layer moves slower and looks farther away.</p>
+          <p id="l2-depth-hint" class="hint-text">Only visible when the pattern drifts (Layout tab). Below 1 the layer moves slower and looks farther away.</p>
         </div>
       </div>
       <label class="radio"><input id="parallax" v-model="parallax" type="checkbox" aria-describedby="parallax-hint"> Parallax on scroll</label>

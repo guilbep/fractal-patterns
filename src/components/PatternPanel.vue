@@ -2,7 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import { FAMILIES, FAMILY_LABELS, KINDS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH, tileAspect, type Kind } from '@/fractal.ts';
 import { LIB_TABS, kindsForTab, parseLibTab, tabForKind, type LibTab } from '@/library.ts';
-import { MAX_SEED, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, squareKind, usingImage, usingPatchwork } from '@/state.ts';
+import { MAX_SEED, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, squareKind, usingImage, usingPatchwork, imageShuffles } from '@/state.ts';
 import '@/css/library.css';
 
 // Patchwork cells are square: rectangular kinds are not offered.
@@ -108,7 +108,7 @@ const galleryVars = computed(() => ({ '--lib-bg': roles.background, '--lib-fg': 
         <label for="seed">Seed</label>
         <div class="seed-row">
           <input id="seed" :disabled="usingImage" type="number" min="0" :max="MAX_SEED" step="1" :value="params.seed" @input="setSeed(($event.target as HTMLInputElement).value)" @change="($event.target as HTMLInputElement).value = String(params.seed)">
-          <button type="button" class="btn icon-btn" title="New seed" :disabled="usingImage" @click="reseed">
+          <button type="button" class="btn icon-btn" title="New seed" :disabled="usingImage && !imageShuffles" @click="reseed">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" /><path d="M20 4v5h-5" /></svg>
             <span class="visually-hidden">New seed</span>
           </button>

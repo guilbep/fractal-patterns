@@ -7,7 +7,7 @@ import SiteHeader from '@/components/SiteHeader.vue';
 import { isTyping, readShortcut, shortcutFor, toggleFullscreen, writeShortcut } from '@/shortcuts.ts';
 import { KIND_LABELS } from '@/fractal.ts';
 import { SAMPLE_LABELS } from '@/samples.ts';
-import { activeSample, contrast, palette, layer2, variantsOn, fileName, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, randomPattern, ratioText, reseed, reset, svgHref, trace, traced, usingImage } from '@/state.ts';
+import { activeSample, contrast, palette, layer2, variantsOn, fileName, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, randomPattern, ratioText, reseed, reset, svgHref, trace, traced, usingImage, imageShuffles } from '@/state.ts';
 import { exportGzipBytes, exportText, footprint, gzipped, sizeBreakdown } from '@/state-export.ts';
 import { formatKb } from '@/co2.ts';
 import ColorPanel from '@/components/ColorPanel.vue';
@@ -137,7 +137,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
   <div ref="bar" class="toolbar" role="toolbar" aria-label="Design actions">
     <div class="bar-row">
-    <button type="button" class="btn primary" :disabled="usingImage" @click="reseed">Shuffle</button>
+    <button type="button" class="btn primary" :disabled="usingImage && !imageShuffles" @click="reseed">Shuffle</button>
     <button type="button" class="btn" @click="randomPattern">Random pattern</button>
     <button type="button" class="btn" :disabled="!canUndo" aria-keyshortcuts="Control+Z Meta+Z" @click="undo">Undo</button>
     <button type="button" class="btn" :disabled="!canRedo" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" @click="redo">Redo</button>

@@ -686,6 +686,27 @@ Run them like this:
 FP_REFERENCE_SVG=/path/to/reference.svg npm test
 ```
 
+## Measure page speed
+
+`make perf` builds the site and measures both pages with Lighthouse. Lighthouse is the page speed tool from Google. It uses the mobile setting: a slow 4G network and a CPU 4 times slower, both simulated.
+
+```sh
+make perf                     # 3 runs per page
+node perf/lighthouse.mjs 5    # 5 runs per page, dist must exist
+```
+
+The script serves `dist` with `vite preview` on port 18493. It prints one Markdown table row per page, with the median of the runs. The columns are:
+
+- the performance score, from 0 to 100
+- First Contentful Paint (FCP), Largest Contentful Paint (LCP) and Total Blocking Time (TBT), in milliseconds
+- Cumulative Layout Shift (CLS)
+- the bytes sent
+- the time the main thread spends on scripts, in milliseconds
+
+Each single run goes to stderr.
+
+Chrome comes from `CHROME_PATH`. If it is not set, the script uses the Chromium of Playwright. If that is missing, Lighthouse finds a Chrome by itself.
+
 ## Deployment
 
 The workflow `.github/workflows/deploy.yml` runs on each push to `main`. You can also start it by hand from the Actions tab.

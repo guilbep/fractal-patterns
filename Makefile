@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install dev lint format format-check typecheck test build preview ci clean logo
+.PHONY: help install dev lint format format-check typecheck test build preview perf ci clean logo
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-13s %s\n", $$1, $$2}'
@@ -33,6 +33,10 @@ logo: ## Write public/favicon.svg from the logo mark (src/logo.ts)
 
 preview: build ## Build, then serve dist locally
 	npx vite preview
+
+perf: ## Build, then print the Lighthouse mobile median of 3 runs per page
+	npm run build
+	node perf/lighthouse.mjs
 
 ci: ## Run lint, format-check, typecheck, test and build, like the GitHub workflow
 	$(MAKE) lint

@@ -20,6 +20,7 @@ import { vectorize } from '@/vectorize.ts';
 import { curveTileSvg } from '@/smoothtrace.ts';
 import { sampleImage, type Sample } from '@/samples.ts';
 import { PALETTES, makePalette, paletteRoles, randomPaletteSpec, type Palette } from '@/palettes.ts';
+import { apcaWorst } from '@/apca.ts';
 import { blend, contrastRatio, textLevel } from '@/contrast.ts';
 import { fixWithFill, patternContrast, patternInvisible, plateContrast, swapRoles, worstAt, type Roles } from '@/pairing.ts';
 import { cssPlate, svgToDataUri } from '@/css.ts';
@@ -388,6 +389,15 @@ export const contrast = computed(() => {
     patternInvisible: patternInvisible(roles, opacity.value),
     normal: textLevel(worst),
     large: textLevel(worst, true),
+    // APCA Lc over the same surfaces, informational only: WCAG 2.2 above stays the check.
+    apca: {
+      onPlate: apcaWorst(r, opacity.value, plateOpacity.value, spots.value),
+      direct: apcaWorst(r, opacity.value, 0, spots.value),
+      onFill:
+        r.fill === null
+          ? null
+          : apcaWorst({ ...r, background: blend(r.fill, r.background, r.fillOpacity), fill: null }, opacity.value, 0, spots.value),
+    },
   };
 });
 

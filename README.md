@@ -227,7 +227,14 @@ The Second opinion panel adds three checks:
 
 ### APCA
 
-The tool does not include APCA, the Accessible Perceptual Contrast Algorithm. Its license does not fit an MIT-licensed project, see <https://git.apcacontrast.com/>.
+The Colors panel shows the APCA™ Lc value next to the WCAG 2 ratio, for information only. APCA™ (Accessible Perceptual Contrast Algorithm): APCA™ is the candidate contrast method for WCAG 3, and is currently in public beta. WCAG 3 is still in development and subject to changes prior to adoption. APCA is not part of WCAG 2: WCAG 2.2 stays the check of this tool, and the page does not show Lc as a pass or a fail.
+
+- What is shown: the worst-case Lc over the same surfaces as the WCAG check (on the plate, directly on the pattern, on the fill), rounded to a whole number, with its polarity. A positive Lc is dark text on light, a negative Lc is light text on dark. The APCA guidance levels (Lc 90, 75, 60, 45, 30, 15) with their reference font sizes are listed next to it.
+- How: the tool calls the official npm package [apca-w3](https://www.npmjs.com/package/apca-w3) (`sRGBtoY` and `APCAcontrast`), unmodified. The page shows the version in use.
+- License: apca-w3 is under its own license, the "Limited W3 License" (<https://github.com/Myndex/apca-w3/blob/master/LICENSE.md>), which is not MIT. The code of this tool stays MIT. See THIRD-PARTY-NOTICES.md.
+- APCA™ is a trademark of Myndex Research and Andrew Somers. This tool is not certified by them and claims no APCA or WCAG 3 compliance.
+- Disclaimer required by the APCA documents: “APCA is a method for predicting text contrast on self-illuminated displays for web-based content. Some use-cases are prohibited by license, including the following: use in medical, clinical evaluation, human safety related, aerospace, transportation, automotive, military applications, are strictly prohibited without a specific license in writing granting such use.”
+- Links: <https://git.apcacontrast.com/>, [Why APCA](https://git.apcacontrast.com/documentation/WhyAPCA), [minimum compliance](https://git.apcacontrast.com/documentation/minimum_compliance.html).
 
 ### Transform and motion
 
@@ -579,6 +586,8 @@ Export, colors and the rest:
 | `src/palettes.ts` | The 24 generated palettes and the random palette rules. |
 | `src/oklch.ts` | OKLCH to hex conversion. |
 | `src/contrast.ts` | WCAG luminance, contrast ratio, color blend and levels. |
+| `src/apca.ts` | APCA Lc through the apca-w3 package, unmodified: the worst Lc over the WCAG surfaces. |
+| `src/css/apca.css` | Layout of the APCA block in the Colors panel. |
 | `src/pairing.ts` | Role choice, worst-case ratio, plate ratio and contrast fixes. |
 | `src/vision.ts` | CIE L* difference, in-between check and color vision simulation. |
 | `src/css.ts` | SVG to data URI, CSS background and plate CSS. |
@@ -660,6 +669,7 @@ The build writes two pages: `dist/index.html`, the pattern page, and `dist/studi
 ## Credits
 
 - Contrast formulas: [WCAG 2.2](https://www.w3.org/TR/WCAG22/).
+- APCA™ Lc value: the npm package [apca-w3](https://github.com/Myndex/apca-w3) by Andrew Somers and Myndex Research, used unmodified under its own license (not MIT).
 - Color vision simulation: Machado, Oliveira and Fernandes, "A Physiologically-based Model for Simulation of Color Vision Deficiency", IEEE TVCG 15(6), 2009.
 - OKLab color space: [Björn Ottosson](https://bottosson.github.io/posts/oklab/).
 - CO2 model: [pierreguilbert.com](https://pierreguilbert.com).
@@ -677,3 +687,5 @@ The code implements these published methods. The references name the sources and
 ## License
 
 MIT. See LICENSE.
+
+The dependency apca-w3 has its own license, which is not MIT. See THIRD-PARTY-NOTICES.md.

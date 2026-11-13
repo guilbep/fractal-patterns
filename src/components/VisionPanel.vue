@@ -93,7 +93,7 @@ const cvd = computed(() => cvdReport(roles, paraOpacity.value, shownFill.value).
     <p class="note">Simulation after Machado, Oliveira and Fernandes (2009), at full severity.</p>
 
     <p class="links">
-      This tool does not include APCA, the contrast method proposed for WCAG 3. Its license does not fit an MIT-licensed project.
+      The Colors panel also shows the APCA™ Lc value, for information only. APCA™ is the candidate contrast method for WCAG 3, and is currently in public beta. WCAG 3 is still in development and subject to changes prior to adoption. APCA is not part of WCAG 2.
       <a href="https://git.apcacontrast.com/">Read about APCA</a>
     </p>
   </section>

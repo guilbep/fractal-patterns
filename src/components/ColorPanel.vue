@@ -3,8 +3,21 @@ import { computed } from 'vue';
 import { DARK_NAMES, PALETTES } from '@/palettes.ts';
 import '@/css/palettes.css';
 import { largeTarget } from '@/pairing.ts';
+import { APCA_VERSION, lcText, polarity } from '@/apca.ts';
+import '@/css/apca.css';
 import { applyFix, applyPalette, randomPalette, closedShapes, contrast, fill, fillAvailable, lastFix, offPalette, opacity, paletteName, plateBlur, plateMode, plateOpacity, plateRadius, ratioText, swap, type PlateMode } from '@/state.ts';
 import RoleInput from './RoleInput.vue';
+
+const apcaWorstLc = computed(() => (plateMode.value === 'direct' ? contrast.value.apca.direct : contrast.value.apca.onPlate));
+// The levels and reference sizes (Arial or Helvetica, weight 400) from the APCA minimum compliance document.
+const APCA_LEVELS = [
+  ['90', 'preferred body text (14px)'],
+  ['75', 'minimum body text (16px)'],
+  ['60', 'minimum fluent text (24px)'],
+  ['45', 'minimum large text (42px)'],
+  ['30', 'minimum any text: non-content text only'],
+  ['15', 'invisibility point: certain non-text only'],
+] as const;
 
 const PALETTE_GROUPS = [
   { title: 'Light', list: PALETTES.filter((p) => !DARK_NAMES.has(p.name)) },
@@ -114,6 +127,32 @@ const fixes = computed(() => [
           <div v-if="contrast.onFill !== null"><dt>On the fill</dt><dd>{{ ratioText(contrast.onFill) }}:1</dd></div>
           <div class="info"><dt>Pattern visibility <span class="tag">informational</span></dt><dd>{{ ratioText(contrast.pattern) }}:1</dd></div>
         </dl>
+        <section class="apca" aria-labelledby="apca-h">
+          <h4 id="apca-h">APCA™ Lc value <span class="tag">informational</span></h4>
+          <p class="apca-lc"><strong>{{ lcText(apcaWorstLc) }}</strong>, {{ polarity(apcaWorstLc) }}, worst case</p>
+          <dl class="surfaces">
+            <div class="info"><dt>On the plate</dt><dd>{{ lcText(contrast.apca.onPlate) }}</dd></div>
+            <div class="info"><dt>Directly on the pattern</dt><dd>{{ lcText(contrast.apca.direct) }}</dd></div>
+            <div v-if="contrast.apca.onFill !== null" class="info"><dt>On the fill</dt><dd>{{ lcText(contrast.apca.onFill) }}</dd></div>
+          </dl>
+          <p class="hint-text">
+            APCA™ is the candidate contrast method for WCAG 3, and is currently in public beta. WCAG 3 is still in development and subject to changes prior to adoption. (<a href="https://www.w3.org/TR/wcag-3.0/#visual-contrast-of-text">WCAG 3 visual contrast of text</a>.) APCA is not part of WCAG 2: the WCAG 2.2 result above is the check of this tool, and Lc is not a pass or fail.
+            Lc is signed: positive for dark text on light, negative for light text on dark. Text is the first color, background the second; if you swap them, check again.
+          </p>
+          <details open>
+            <summary>APCA guidance levels</summary>
+            <ul class="apca-levels">
+              <li v-for="[lc, what] in APCA_LEVELS" :key="lc">Lc {{ lc }}: {{ what }}</li>
+            </ul>
+            <p class="hint-text">Absolute Lc values; sizes for Arial or Helvetica at weight 400. See <a href="https://git.apcacontrast.com/documentation/APCA_in_a_Nutshell">APCA in a Nutshell</a> for other sizes and weights.</p>
+          </details>
+          <p class="hint-text">
+            Computed with apca-w3 {{ APCA_VERSION }}, unmodified, under its <a href="https://github.com/Myndex/apca-w3/blob/master/LICENSE.md">own license</a> (not MIT). APCA™ is a trademark of Myndex Research and Andrew Somers. APCA is a method for predicting text contrast on self-illuminated displays for web-based content. Some use-cases are prohibited by license, including the following: use in medical, clinical evaluation, human safety related, aerospace, transportation, automotive, military applications, are strictly prohibited without a specific license in writing granting such use.
+            <a href="https://git.apcacontrast.com/documentation/WhyAPCA">Why APCA</a> ·
+            <a href="https://git.apcacontrast.com/">APCA documentation</a> ·
+            <a href="https://github.com/Myndex/SAPC-APCA/discussions">APCA discussion forum</a>
+          </p>
+        </section>
         <p v-if="plateMode === 'split'" class="badge heading-line" :class="contrast.heading === 'fail' ? 'fail' : 'pass'">
           <span aria-hidden="true" class="badge-icon">{{ contrast.heading === 'fail' ? '✕' : '✓' }}</span>
           <span>{{ contrast.heading === 'fail' ? 'Fail' : `Pass ${contrast.heading}` }}</span>

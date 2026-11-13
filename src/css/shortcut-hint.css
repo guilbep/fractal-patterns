@@ -1,0 +1,49 @@
+/* A pill in the lower right corner of the preview. Faint until the pointer is over the preview.
+   The stage is sticky, so it is already the containing block: do not set its position here. */
+.shortcut-hint {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 2;
+  margin: 0;
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: #fff;
+  background: rgb(17 17 17 / 0.62);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  opacity: 0.45;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: opacity 0.15s;
+}
+.stage:hover .shortcut-hint,
+.stage:fullscreen .shortcut-hint {
+  opacity: 1;
+}
+.shortcut-hint kbd {
+  padding: 0 0.3125rem;
+  border: 1px solid rgb(255 255 255 / 0.55);
+  border-radius: 0.25rem;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  background: none;
+}
+.shortcut-hint .sep {
+  opacity: 0.6;
+}
+/* No keyboard is likely on a touch device. */
+@media (hover: none) {
+  .shortcut-hint {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shortcut-hint {
+    transition: none;
+  }
+}

@@ -988,7 +988,7 @@ select {
 
 /* Full screen preview (F key or the toolbar button), on both pages. */
 .stage:fullscreen {
-  position: static;
+  position: relative;
   width: 100vw;
   height: 100vh;
   max-height: none;

@@ -46,6 +46,12 @@ function mgText(mg: number): string {
   return (Math.round(mg * 10 ** k) / 10 ** k).toFixed(k);
 }
 
+// The compressed size in KB with three significant digits: 0.312, 1.94, 12.6, 104.
+export function formatKb(gzipBytes: number): string {
+  const kb = gzipBytes / 1024;
+  return kb >= 1000 ? String(Math.round(kb)) : kb.toPrecision(3);
+}
+
 export function formatFootprint(gzipBytes: number): string {
   const mg = mgText(co2Mg(gzipBytes));
   const kb = (gzipBytes / 1024).toFixed(2);

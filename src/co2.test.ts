@@ -3,7 +3,17 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { co2Mg, DRIFT_WATTS, driftMgPerMinute, driftMultiple, formatFootprint, GRID_G_PER_KWH, gzipSize, rawSize } from './co2.ts';
+import {
+  formatKb,
+  co2Mg,
+  DRIFT_WATTS,
+  driftMgPerMinute,
+  driftMultiple,
+  formatFootprint,
+  GRID_G_PER_KWH,
+  gzipSize,
+  rawSize,
+} from './co2.ts';
 import { generate, KINDS, MAX_DEPTH } from './fractal.ts';
 
 test('co2Mg vectors', () => {
@@ -82,4 +92,12 @@ test('co2.ts uses no Node-only modules', () => {
   const src = readFileSync(join(import.meta.dirname, 'co2.ts'), 'utf8');
   assert.ok(!src.includes('zlib'));
   assert.ok(!src.includes('node:'));
+});
+
+test('formatKb: three significant digits', () => {
+  assert.equal(formatKb(320), '0.313');
+  assert.equal(formatKb(1987), '1.94');
+  assert.equal(formatKb(12902), '12.6');
+  assert.equal(formatKb(106496), '104');
+  assert.equal(formatKb(2048000), '2000');
 });

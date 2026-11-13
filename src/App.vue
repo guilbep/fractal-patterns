@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { APP_NAME } from '@/app-name.ts';
+import ShortcutHint from '@/components/ShortcutHint.vue';
 import { isTyping, readShortcut, shortcutFor, toggleFullscreen, writeShortcut } from '@/shortcuts.ts';
 import { LOGO_DEFAULT, logoSvg } from '@/logo.ts';
 import { svgToDataUri } from '@/css.ts';
@@ -8,7 +9,8 @@ import { KIND_LABELS } from '@/fractal.ts';
 import { DETECTOR_LABELS } from '@/detectors.ts';
 import { SAMPLE_LABELS } from '@/samples.ts';
 import { activeSample, contrast, palette, layer2, variantsOn, fileName, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, randomPattern, ratioText, reseed, reset, svgHref, trace, traced, usingImage } from '@/state.ts';
-import { exportText, footprint, gzipped } from '@/state-export.ts';
+import { exportGzipBytes, exportText, footprint, gzipped } from '@/state-export.ts';
+import { formatKb } from '@/co2.ts';
 import ColorPanel from '@/components/ColorPanel.vue';
 import VisionPanel from '@/components/VisionPanel.vue';
 import PatternPanel from '@/components/PatternPanel.vue';
@@ -159,6 +161,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <span class="stat-short" aria-hidden="true">{{ ratioText(contrast.worst) }}:1 AA</span>
     </span>
     <span class="stat" :title="footprintFull()"><span aria-hidden="true">{{ footprintText() }}</span><span class="visually-hidden">{{ footprintFull() }}</span></span>
+    <span v-if="exportGzipBytes !== null" class="stat" title="Size of the exported CSS and script, compressed">{{ formatKb(exportGzipBytes) }} KB</span>
     </div>
     <span class="visually-hidden" role="status" aria-live="polite">{{ copyStatus }}</span>
   </div>
@@ -168,6 +171,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     <!-- The hero uses the exported .fp-pattern class itself, so what you see is what you copy. -->
     <component :is="'style'">{{ exportText }}</component>
     <div ref="stage" class="stage">
+    <ShortcutHint :on="shortcutOn" />
     <div class="hero fp-pattern" :class="{ 'fp-paused': motionPaused }" @click="reseed">
       <!-- The plate sits on the wrapper in 'plate' mode, on the paragraph in 'split', nowhere in 'direct'. -->
       <div class="hero-text" :class="{ 'hero-plate': plateMode === 'plate' }" :style="plateMode === 'plate' ? plateStyle : undefined">

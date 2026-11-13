@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { aspect, curvesOn, resetSpacing, spacing, variantsOn } from '@/state.ts';
+import { aspect, curvesOn, resetSpacing, spacing, usingImage, variantsOn } from '@/state.ts';
 
 const off = computed(() => variantsOn.value || curvesOn.value || aspect.value !== 1);
+// Mirror also works on the cells of an image grid (see imageCells).
+const mirrorOff = computed(() => off.value && !(variantsOn.value && usingImage.value));
 </script>
 
 <template>
   <section class="panel" aria-labelledby="spacing-h">
     <h2 id="spacing-h">Spacing</h2>
-    <p v-if="variantsOn" class="hint-text">Not combined with Reduce repetition yet.</p>
+    <p v-if="variantsOn" class="hint-text">Not combined with Reduce repetition yet{{ usingImage ? ', except Mirror' : '' }}.</p>
     <p v-if="curvesOn" class="hint-text">Not combined with Smooth curves yet.</p>
     <p v-if="aspect !== 1" class="hint-text">Not available for this pattern yet.</p>
     <p class="hint-text">Zoom above 1 removes the empty margin around a pattern. Gap adds space between repeats.</p>
@@ -22,7 +24,7 @@ const off = computed(() => variantsOn.value || curvesOn.value || aspect.value !=
         <input id="gap" :disabled="off" v-model.number="spacing.gap" type="range" min="0" max="120" step="2">
       </div>
     </div>
-    <label class="radio"><input v-model="spacing.mirror" type="checkbox" :disabled="off" aria-describedby="mirror-hint"> Mirror</label>
+    <label class="radio"><input v-model="spacing.mirror" type="checkbox" :disabled="mirrorOff" aria-describedby="mirror-hint"> Mirror</label>
     <p id="mirror-hint" class="hint-text">Makes any tile repeat without a seam. Use it for traced photos.</p>
     <button type="button" class="btn" @click="resetSpacing">Reset spacing</button>
   </section>

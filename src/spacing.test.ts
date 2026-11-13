@@ -186,3 +186,60 @@ test('spacing source hygiene', () => {
   const src = readFileSync(join(import.meta.dirname, 'spacing.ts'), 'utf8');
   for (const word of ['node:', 'document', 'Math.random']) assert.ok(!src.includes(word), word);
 });
+
+// Seamless edges for a traced picture: the Mirror block, alone and as the cell of the image grid.
+test('mirrorTile makes a seamless block from lines that end at the edges anywhere', async () => {
+  const { signature, sameSig } = await import('./repetition.ts');
+  const { imageSuperTileSvg } = await import('./supertile.ts');
+  const S = 100;
+  const lines: Pt[][] = [
+    [
+      [0, 13],
+      [40, 50],
+    ],
+    [
+      [37, 0],
+      [60, 70],
+    ],
+    [
+      [100, 71],
+      [80, 20],
+    ],
+    [
+      [22, 100],
+      [50, 50],
+    ],
+    [
+      [0, 88],
+      [100, 5],
+    ],
+  ];
+  // Without the mirror the picture does not wrap: the check must be able to fail.
+  assert.ok(!sameSig(signature(lines, 0, 0), signature(lines, 0, S)));
+  const block = mirrorTile(lines, S);
+  // The block keeps the tile edge: each quarter holds the picture at half size.
+  assert.ok(block.flat().every(([x, y]) => x >= 0 && x <= S && y >= 0 && y <= S));
+  assert.equal(block.length, 4 * lines.length);
+  assert.ok(sameSig(signature(block, 0, 0), signature(block, 0, S)), 'left = right');
+  assert.ok(sameSig(signature(block, 1, 0), signature(block, 1, S)), 'top = bottom');
+  assert.ok(signature(block, 0, 0).points.length > 0 && signature(block, 1, 0).points.length > 0);
+
+  // The grid of mirrored cells: path data once, every cell placed by a plain translate, so neighbors meet.
+  const o = { seed: 1, size: S, strokeWidth: 1, precision: 2, color: '#000000', opacity: 1, cells: 2 as const };
+  const svg = imageSuperTileSvg(o, block);
+  assert.equal(svg.match(/<path /g)?.length, 1);
+  const uses = [...svg.matchAll(/<use href="#a"(?: transform="translate\(([\d.]+) ([\d.]+)\)")?\/>/g)];
+  assert.equal(uses.length, 4);
+  assert.match(svg, /width="200" height="200"/);
+  const at = (r: number, c: number) => {
+    const m = uses[r * 2 + c]!;
+    const [x, y] = [Number(m[1] ?? 0), Number(m[2] ?? 0)];
+    assert.deepEqual([x, y], [c * S, r * S]);
+    return block;
+  };
+  for (let r = 0; r < 2; r++)
+    for (let c = 0; c < 2; c++) {
+      assert.ok(sameSig(signature(at(r, c), 0, S), signature(at(r, (c + 1) % 2), 0, 0)), `${r},${c} right`);
+      assert.ok(sameSig(signature(at(r, c), 1, S), signature(at((r + 1) % 2, c), 1, 0)), `${r},${c} below`);
+    }
+});

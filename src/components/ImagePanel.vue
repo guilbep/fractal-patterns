@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { DETECTORS, DETECTOR_LABELS } from '@/detectors.ts';
-import { RESOLUTIONS, activeSample, curveBytes, image, loadImage, loadSample, rawBytes, removeImage, source, trace, traced, usingImage } from '@/state.ts';
+import { RESOLUTIONS, activeSample, curveBytes, image, loadImage, loadSample, rawBytes, removeImage, source, spacing, trace, traced, usingImage } from '@/state.ts';
 import { SAMPLES, SAMPLE_LABELS, sampleImage, type Sample } from '@/samples.ts';
 
 const painted = new WeakSet<Element>();
@@ -113,6 +113,12 @@ function onDrop(e: DragEvent): void {
         </div>
       </div>
 
+      <label class="radio"><input id="img-seamless" v-model="spacing.mirror" type="checkbox" :disabled="!usingImage || trace.curves" aria-describedby="img-seamless-hint"> Seamless edges (mirror)</label>
+      <p id="img-seamless-hint" class="hint-text">
+        Mirrors the picture left to right and top to bottom, so the edges meet. Each quarter of the tile holds the picture at half size, so the tile size stays the same and the path is about 4 times longer. Same switch as Mirror in Spacing.
+        <template v-if="trace.curves">{{ ' ' }}Not available with Smooth curves yet.</template>
+      </p>
+
       <dl class="stats">
         <div><dt>Lines kept</dt><dd>{{ traced?.length ?? 0 }}</dd></div>
         <div><dt>SVG size</dt><dd>{{ usingImage ? `${rawBytes.toLocaleString('en')} bytes` : 'not in use' }}</dd></div>
@@ -121,7 +127,7 @@ function onDrop(e: DragEvent): void {
     </template>
 
     <ul class="image-notes muted">
-      <li>A traced tile repeats without a visible seam only when the source image itself repeats, or when Mirror is on (see Spacing).</li>
+      <li>A traced tile repeats without a visible seam only when the source image itself repeats, or when Seamless edges is on.</li>
       <li>Traced tiles are heavier than math patterns. Watch the CO2 line and raise Detail or Minimum line length to lighten the tile.</li>
     </ul>
   </section>

@@ -20,6 +20,7 @@ import {
   resetVariants,
   roles,
   sections,
+  spacing,
   tileSize,
   usingImage,
   variantBytes,
@@ -80,6 +81,9 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
           <template v-if="!usingImage && hasCompat(params.kind)"> This pattern uses its fixed layout in this mode.</template>
           <template v-if="variantBytes">{{ ' ' }}{{ variantBytes.svg.toLocaleString('en') }} bytes against {{ variantBytes.plain.toLocaleString('en') }} for one tile.</template>
         </template>
+      </p>
+      <p v-if="usingImage && !spacing.mirror" id="v-seamless" class="hint-text">
+        The edges of a traced picture do not meet. <button type="button" class="btn" @click="spacing.mirror = true">Turn on Seamless edges</button>
       </p>
     </template>
     <div v-if="possible && variantsOn" class="variants-group" role="group" aria-label="Variants" :style="panelVars">

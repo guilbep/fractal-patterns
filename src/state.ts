@@ -307,8 +307,11 @@ export const variantsOn = computed(
     variantsActive({ variants: variants.value, kind: params.kind, layout: layout.value, usingImage: usingImage.value }) && !curvesOn.value,
 );
 const superOptions = (seed: number, color = roles.pattern) => ({ ...params, ...variantOptions, seed, color, opacity: opacity.value });
-// The traced picture in every cell of the super tile, or null for a math pattern.
-export const imageCells = computed(() => (usingImage.value ? traced.value : null));
+// The traced picture in every cell of the super tile, or null for a math pattern. With Mirror on, the
+// cell is the mirrored 2 x 2 block, so every cell is seamless and the grid options work on it.
+export const imageCells = computed(() =>
+  usingImage.value && traced.value ? (spacing.mirror ? mirrorTile(traced.value, params.size) : traced.value) : null,
+);
 const superSvg = (seed: number, color = roles.pattern): string =>
   imageCells.value ? imageSuperTileSvg(superOptions(seed, color), imageCells.value) : variantTile(superOptions(seed, color)).svg;
 // The measured cost shown under the switch: the super tile against one plain tile.

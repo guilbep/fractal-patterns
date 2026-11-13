@@ -18,6 +18,11 @@ const REPEATS: readonly (readonly [BuilderRepeat, string, string])[] = [
   ['mirror', 'Mirror', 'Every other tile is a mirror image, across and down. The repeating block is twice as wide and twice as tall.'],
 ];
 const PRESETS = [120, 240, 480] as const;
+const tileSummary = computed(() => {
+  const d = design.value;
+  const repeat = REPEATS.find(([r]) => r === d.repeat)?.[1].toLowerCase() ?? d.repeat;
+  return `${d.width} × ${d.height} · ${repeat} · ${d.background ? `${d.background} ground` : 'no ground'}`;
+});
 const repeatHint = computed(() => REPEATS.find(([r]) => r === design.value.repeat)?.[2] ?? '');
 
 // Our own previews and commits: any other new design (a change by hand on the stage) ends the live fill.
@@ -82,6 +87,11 @@ function rollPal(): void {
   settle();
 }
 
+const fillSummary = computed(() => {
+  const n = opts.stampIndices.length;
+  const shapes = n === 0 ? 'no shapes' : n >= design.value.stamps.length ? 'all shapes' : `${n} ${n === 1 ? 'shape' : 'shapes'}`;
+  return `${opts.columns} × ${opts.rows} · ${shapes} · seed ${opts.seed}`;
+});
 const choice = computed<FillChoice>(() => ({
   columns: opts.columns,
   rows: opts.rows,
@@ -115,8 +125,13 @@ function another(): void {
 </script>
 
 <template>
-  <section class="panel" aria-labelledby="tile-h">
-    <h2 id="tile-h">Tile</h2>
+  <section class="card" aria-labelledby="tile-h">
+    <details>
+    <summary class="card-head">
+      <h2 id="tile-h">Tile</h2>
+      <span class="card-sum">{{ tileSummary }}</span>
+    </summary>
+    <div class="card-body">
     <div class="fields">
       <div class="field">
         <label for="tile-w">Width</label>
@@ -158,9 +173,17 @@ function another(): void {
         <input id="tile-line" type="range" min="0.5" max="12" step="0.5" :value="design.strokeWidth" @input="set({ ...design, strokeWidth: Number(val($event)) }, false)" @change="set({ ...design, strokeWidth: Number(val($event)) }, true)">
       </div>
     </div>
+    </div>
+    </details>
+  </section>
 
-    <details class="group">
-    <summary>Fill the tile with a grid</summary>
+  <section class="card" aria-labelledby="fill-h">
+    <details>
+    <summary class="card-head">
+      <h2 id="fill-h">Fill the tile with a grid</h2>
+      <span class="card-sum">{{ fillSummary }}</span>
+    </summary>
+    <div class="card-body">
     <!-- Every change event inside commits the live fill; the watch on the choice has already previewed it. -->
     <div class="fill" @change="settle">
       <div class="fields">
@@ -227,6 +250,7 @@ function another(): void {
     </div>
     <button type="button" class="btn primary" aria-describedby="fill-hint" :disabled="opts.stampIndices.length === 0" @click="fillNow">Fill the tile</button>
     <p id="fill-hint" class="hint-text">This replaces every shape on the tile. Undo brings them back.</p>
+    </div>
     </details>
   </section>
 </template>

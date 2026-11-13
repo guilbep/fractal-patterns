@@ -323,6 +323,7 @@ function onKey(e: KeyboardEvent): void {
     <div class="snap-bar">
       <UiSwitch v-model="snapOn" label="Snap" />
       <UiSegmented v-model="parts" label="Grid" :options="GRID_OPTIONS" :disabled="!snapOn" />
+      <span class="tile-size">{{ design.width }} × {{ design.height }}</span>
     </div>
     <svg
       ref="svgEl"
@@ -409,7 +410,8 @@ function onKey(e: KeyboardEvent): void {
 }
 @media (min-width: 64rem) {
   .stage-editor {
-    --max-h: calc(100dvh - var(--bar-h, 0px) - 5.5rem);
+    --max-h: calc(100dvh - var(--bar-h, 0px) - 6.75rem);
+    padding: 1rem 3.75rem;
   }
 }
 /* Exactly the viewBox: its ratio, as wide as the column unless the height limit is reached. */
@@ -420,6 +422,7 @@ function onKey(e: KeyboardEvent): void {
   height: auto;
   max-height: var(--max-h);
   overflow: hidden;
+  border-radius: var(--radius-card);
   touch-action: none;
   user-select: none;
   cursor: default;
@@ -437,8 +440,9 @@ function onKey(e: KeyboardEvent): void {
 }
 .cell-edge {
   fill: none;
-  stroke: #333;
-  stroke-dasharray: 6 4;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 7 5;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
@@ -457,7 +461,7 @@ function onKey(e: KeyboardEvent): void {
   pointer-events: none;
 }
 .handle {
-  fill: #fff;
+  fill: var(--surface);
   stroke: var(--accent);
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
@@ -469,9 +473,40 @@ function onKey(e: KeyboardEvent): void {
   flex-wrap: wrap;
   gap: var(--s2) var(--s4);
   align-items: center;
-  margin: 0 0 var(--s2);
+  margin: 0 0 0.75rem;
   padding-inline: var(--s3);
   font-size: 0.875rem;
+}
+@media (min-width: 64rem) {
+  .snap-bar {
+    gap: var(--s2) 0.875rem;
+    padding-inline: 0;
+  }
+}
+/* The design shows no "Grid" text; it stays the accessible name of the options. */
+.snap-bar :deep(.ui-segmented-label) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.snap-bar :deep(.ui-segmented-option) {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+}
+/* ponytail: on a phone the row has no room for it; the Tile card's summary shows the same size. */
+@media (max-width: 30rem) {
+  .tile-size {
+    display: none;
+  }
+}
+.tile-size {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--muted);
 }
 /* One row: the Grid label beside its options, not above them. */
 .snap-bar :deep(.ui-segmented) {
@@ -487,6 +522,13 @@ function onKey(e: KeyboardEvent): void {
   align-self: stretch;
   margin: 0.5rem 0 0;
   padding-inline: var(--s3);
+}
+@media (min-width: 64rem) {
+  .stage-hint {
+    padding-inline: 0;
+  }
+}
+.stage-hint {
   font-size: 0.875rem;
 }
 /* The phone stage shows the drag hint; wide screens point to the key panel in the header. */

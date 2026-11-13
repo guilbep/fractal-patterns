@@ -288,7 +288,8 @@ test('penroseTile is seamless on the rectangle, deterministic, seeded and inside
         assertSeamless(polys, T, `${decorate} depth ${depth} seed ${seed}`, TY);
         for (const poly of polys) for (const [x, y] of poly) assert.ok(x >= -1e-9 && x <= T + 1e-9 && y >= -1e-9 && y <= TY + 1e-9);
       }
-  for (const gen of [penroseEdges, penroseArcs, penroseBoth]) {
+  assert.deepEqual(penroseArcs(mulberry32(1), 2, T), []);
+  for (const gen of [penroseEdges, penroseBoth]) {
     assert.deepEqual(gen(mulberry32(1), 2, T), gen(mulberry32(1), 2, T));
     assert.notDeepEqual(gen(mulberry32(1), 2, T), gen(mulberry32(2), 2, T));
   }

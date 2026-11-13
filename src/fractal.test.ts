@@ -9,6 +9,7 @@ import {
   KIND_FAMILY,
   KIND_LABELS,
   MAX_DEPTH,
+  extraPath,
   generate,
   geometry,
   hasCompat,
@@ -83,10 +84,10 @@ test('size cap', () => {
     for (let seed = 1; seed <= 20; seed++) {
       const len = generate(params(kind, { seed, depth: MAX_DEPTH[kind] })).length;
       // The Penrose kinds are allowed more: the owner accepts a heavy tile there (the page shows its bytes), so
-      // their cap is 125000, measured worst 118102 for 'penroseboth' depth 4 at size 120.
+      // their cap is 70000, measured worst 68488 for 'penroseboth' (seed 19) depth 4 at size 120 (arcs as SVG arc commands).
       // The same holds for the 8-fold quasicrystal kinds at depth 3, size 120, seeds 1 to 20:
       // measured worst 93016 for 'octa' (seed 18) and 100040 for 'octastars' (seed 14).
-      const cap = tileAspect(kind) !== 1 ? 125000 : kind === 'octa' ? 95000 : kind === 'octastars' ? 105000 : 60000;
+      const cap = tileAspect(kind) !== 1 ? 70000 : kind === 'octa' ? 95000 : kind === 'octastars' ? 105000 : 60000;
       assert.ok(len <= cap, `${kind} seed ${seed}: ${len}`);
     }
     const deep = generate(params(kind, { depth: MAX_DEPTH[kind] })).length;
@@ -121,10 +122,8 @@ test('precision', () => {
 test('non-empty at depth 1', () => {
   for (const kind of KINDS) {
     const g = geometry(params(kind, { depth: 1 }));
-    assert.ok(
-      g.some((poly) => poly.length >= 2),
-      kind,
-    );
+    // 'penrosearcs' has no polylines: its arcs are raw path data.
+    assert.ok(g.some((poly) => poly.length >= 2) || extraPath(params(kind, { depth: 1 })).length > 0, kind);
   }
 });
 
@@ -588,16 +587,16 @@ const PINS: Readonly<Record<PatternParams['kind'], readonly (readonly [number, n
     [23246, 1796574155],
   ],
   penrosearcs: [
-    [14880, 723624810],
-    [94698, 1400798053],
-    [14771, 286776405],
-    [94829, 2890536417],
+    [7282, 669318964],
+    [44990, 2382018206],
+    [7059, 1065379310],
+    [44733, 2794684567],
   ],
   penroseboth: [
-    [18568, 2102647298],
-    [118102, 3289418917],
-    [18420, 3219815402],
-    [117872, 966209441],
+    [10970, 2968059852],
+    [68394, 2408687582],
+    [10708, 782850435],
+    [67776, 1797724759],
   ],
   chladni: [
     [1303, 672125876],
@@ -748,4 +747,23 @@ test('Penrose rhombs at depth 2: every whole edge segment has one length (one un
   const whole = lens.filter((l) => l > max - 1e-3);
   assert.ok(whole.length > lens.length / 2);
   for (const l of whole) assert.ok(Math.abs(l - max) < 1e-6, `${l} vs ${max}`);
+});
+
+test('Penrose arcs: one <path>, arcs as A commands; edges unchanged; other kinds have no extra path', () => {
+  for (const kind of KINDS) if (!['penrosearcs', 'penroseboth'].includes(kind)) assert.equal(extraPath(params(kind)), '', kind);
+  const arcs = generate(params('penrosearcs'));
+  assert.equal(arcs.split('<path').length - 1, 1);
+  assert.match(pathD(arcs), /A/);
+  assert.doesNotMatch(pathD(arcs), /[Ll]/);
+  const both = generate(params('penroseboth'));
+  assert.equal(both.split('<path').length - 1, 1);
+  assert.match(pathD(both), /[lhv]/);
+  assert.match(pathD(both), /A/);
+  assert.ok(pathD(both).startsWith(pathD(generate(params('penrose')))));
+  assert.deepEqual(PINS.penrose, [
+    [3891, 2504793203],
+    [23607, 943003851],
+    [3852, 4200862368],
+    [23246, 1796574155],
+  ]);
 });

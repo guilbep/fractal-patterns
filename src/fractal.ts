@@ -32,10 +32,10 @@ import { CHLADNI_MAX_DEPTH, chladni } from './patterns/themes-chladni.ts';
 import { PIPES_MAX_DEPTH, pipes } from './patterns/themes-pipes.ts';
 import { THEME_WATER_MAX_DEPTH, rain, ridges, seigaiha } from './patterns/themes-water.ts';
 import { circuit, maze, topo } from './patterns/themes.ts';
-import { PENROSE_ASPECT, PENROSE_MAX_DEPTH, penroseArcs, penroseBoth, penroseEdges } from './penrose.ts';
+import { PENROSE_ASPECT, PENROSE_MAX_DEPTH, penroseArcs, penroseArcsPath, penroseBoth, penroseEdges } from './penrose.ts';
 import { QUASI_MAX_DEPTH, dodecaEdges, dodecaStars, octaEdges, octaStars } from './quasi.ts';
-import { mulberry32, type Generator, type Pt } from './patterns/util.ts';
-import { sceneToSvg, squareScene } from './scene.ts';
+import { mulberry32, type Generator, type Pt, type Rng } from './patterns/util.ts';
+import { pathData, sceneToSvg, squareScene } from './scene.ts';
 
 export const FAMILIES = ['fractal', 'line', 'surface', 'symmetry', 'theme', 'quasi'] as const;
 export type Family = (typeof FAMILIES)[number];
@@ -114,7 +114,11 @@ export type Kind = (typeof KINDS)[number];
 
 // maxDepth: the measured worst case over many seeds stays near or under 20k chars at precision 1,
 // and one level more either breaks that or only adds sub-pixel detail at size 120.
-const PATTERNS: Readonly<Record<Kind, { family: Family; label: string; maxDepth: number; gen: Generator; aspect?: number }>> = {
+// extra: raw path data drawn after the polylines, for parts that are not polylines (arcs).
+type Extra = (rnd: Rng, depth: number, size: number, precision: number) => string;
+const PATTERNS: Readonly<
+  Record<Kind, { family: Family; label: string; maxDepth: number; gen: Generator; aspect?: number; extra?: Extra }>
+> = {
   carpet: { family: 'fractal', label: 'Carpet', maxDepth: 3, gen: carpet },
   quadtree: { family: 'fractal', label: 'Quadtree', maxDepth: 6, gen: quadtree },
   tree: { family: 'fractal', label: 'Tree', maxDepth: 10, gen: tree },
@@ -169,8 +173,22 @@ const PATTERNS: Readonly<Record<Kind, { family: Family; label: string; maxDepth:
   pipes: { family: 'theme', label: 'Pipes', maxDepth: PIPES_MAX_DEPTH, gen: pipes },
   // A rectangular tile (aspect = width / height): the generator's `size` is the tile width.
   penrose: { family: 'quasi', label: 'Penrose rhombs', maxDepth: PENROSE_MAX_DEPTH, gen: penroseEdges, aspect: PENROSE_ASPECT },
-  penrosearcs: { family: 'quasi', label: 'Penrose arcs', maxDepth: PENROSE_MAX_DEPTH, gen: penroseArcs, aspect: PENROSE_ASPECT },
-  penroseboth: { family: 'quasi', label: 'Penrose rhombs and arcs', maxDepth: PENROSE_MAX_DEPTH, gen: penroseBoth, aspect: PENROSE_ASPECT },
+  penrosearcs: {
+    family: 'quasi',
+    label: 'Penrose arcs',
+    maxDepth: PENROSE_MAX_DEPTH,
+    gen: penroseArcs,
+    aspect: PENROSE_ASPECT,
+    extra: penroseArcsPath,
+  },
+  penroseboth: {
+    family: 'quasi',
+    label: 'Penrose rhombs and arcs',
+    maxDepth: PENROSE_MAX_DEPTH,
+    gen: penroseBoth,
+    aspect: PENROSE_ASPECT,
+    extra: penroseArcsPath,
+  },
   chladni: { family: 'theme', label: 'Chladni figures', maxDepth: CHLADNI_MAX_DEPTH, gen: chladni },
   octa: { family: 'quasi', label: 'Eightfold rhombs', maxDepth: QUASI_MAX_DEPTH, gen: octaEdges },
   octastars: { family: 'quasi', label: 'Eightfold stars', maxDepth: QUASI_MAX_DEPTH, gen: octaStars },
@@ -213,14 +231,21 @@ const COMPAT: Partial<Record<Kind, Generator>> = {
 };
 export const hasCompat = (kind: Kind): boolean => kind in COMPAT;
 
+const clampDepth = (kind: Kind, depth: number) => Math.min(MAX_DEPTH[kind], Math.max(1, Math.floor(depth) || 1));
+
 export function geometry(p: Pick<PatternParams, 'kind' | 'seed' | 'depth' | 'size' | 'compat'>): readonly (readonly Pt[])[] {
-  const depth = Math.min(MAX_DEPTH[p.kind], Math.max(1, Math.floor(p.depth) || 1));
   const gen = (p.compat && COMPAT[p.kind]) || PATTERNS[p.kind].gen;
-  return gen(mulberry32(p.seed), depth, p.size);
+  return gen(mulberry32(p.seed), clampDepth(p.kind, p.depth), p.size);
+}
+
+// The kind's raw path data next to its polylines ('' for most kinds), in tile coordinates.
+export function extraPath(p: Pick<PatternParams, 'kind' | 'seed' | 'depth' | 'size' | 'precision'>): string {
+  const extra = PATTERNS[p.kind].extra;
+  return extra ? extra(mulberry32(p.seed), clampDepth(p.kind, p.depth), p.size, p.precision) : '';
 }
 
 export function generate(p: PatternParams): string {
-  return svgFromPolylines(geometry(p), p, tileAspect(p.kind));
+  return svgFromPolylines(geometry(p), p, tileAspect(p.kind), extraPath(p));
 }
 
 // `aspect` (width / height) other than 1 gives a tile of `size` by `size / aspect`.
@@ -228,6 +253,10 @@ export function svgFromPolylines(
   polys: readonly (readonly Pt[])[],
   p: Pick<PatternParams, 'size' | 'strokeWidth' | 'precision' | 'color' | 'opacity'>,
   aspect = 1,
+  extra = '',
 ): string {
-  return sceneToSvg({ ...squareScene(polys, p), height: tileHeight(p.size, aspect) }, p.precision);
+  const scene = { ...squareScene(polys, p), height: tileHeight(p.size, aspect) };
+  if (!extra) return sceneToSvg(scene, p.precision);
+  const layers = scene.layers.map((l) => ({ ...l, d: pathData(l.polys, p.precision) + extra }));
+  return sceneToSvg({ ...scene, layers }, p.precision);
 }

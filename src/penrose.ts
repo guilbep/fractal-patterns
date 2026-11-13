@@ -84,21 +84,36 @@ export function arcRadius(fat: boolean, centerIndex: number): number {
   return fat && (i === 2 || i === 3) ? 0.75 : 0.25;
 }
 
-export function rhombArcs(r: Rhomb, segments = 8): Poly[] {
+// One arc: centre, radius, start angle and signed sweep (under half a turn).
+interface Arc {
+  readonly o: Pt;
+  readonly rad: number;
+  readonly a0: number;
+  readonly da: number;
+}
+
+function arcsOf(r: Rhomb): [Arc, Arc] {
   const [a, b, c, d] = r.points;
-  const arc = (o: Pt, p: Pt, q: Pt, rad: number): Poly => {
+  const arc = (o: Pt, p: Pt, q: Pt, rad: number): Arc => {
     const s = lerp(o, p, rad);
     const t = lerp(o, q, rad);
     const a0 = Math.atan2(s[1] - o[1], s[0] - o[0]);
     let da = Math.atan2(t[1] - o[1], t[0] - o[0]) - a0;
     while (da > Math.PI) da -= TAU;
     while (da < -Math.PI) da += TAU;
-    return Array.from({ length: segments + 1 }, (_, i): Pt => [
-      o[0] + rad * Math.cos(a0 + (da * i) / segments),
-      o[1] + rad * Math.sin(a0 + (da * i) / segments),
-    ]);
+    return { o, rad, a0, da };
   };
   return [arc(a, b, d, arcRadius(r.fat, r.index)), arc(c, b, d, arcRadius(r.fat, r.index + 2))];
+}
+
+const sampleArc = ({ o, rad, a0, da }: Arc, segments: number): Poly =>
+  Array.from({ length: segments + 1 }, (_, i): Pt => [
+    o[0] + rad * Math.cos(a0 + (da * i) / segments),
+    o[1] + rad * Math.sin(a0 + (da * i) / segments),
+  ]);
+
+export function rhombArcs(r: Rhomb, segments = 8): Poly[] {
+  return arcsOf(r).map((a) => sampleArc(a, segments));
 }
 
 export function patchSvg(
@@ -246,10 +261,37 @@ export function penroseTile(rnd: Rng, depth: number, size: number, decorate: 'ed
   ).map((poly) => poly.map(([x, y]): Pt => [x, (y * h) / size]));
 }
 
-const gen =
-  (decorate: 'edges' | 'arcs' | 'both'): Generator =>
-  (rnd, depth, size) =>
-    penroseTile(rnd, depth, size, decorate);
-export const penroseEdges = gen('edges');
-export const penroseArcs = gen('arcs');
-export const penroseBoth = gen('both');
+// The arcs as SVG arc commands `M x y A r r 0 0 sweep x y` in tile coordinates, the same uniform scale as
+// penroseTile. An arc across the tile border is written once per period shift whose bounding box meets
+// the tile; the root <svg> clips at its viewBox. Numbers at `precision` decimals.
+export function penroseArcsPath(rnd: Rng, depth: number, size: number, precision = 1): string {
+  const seed = Math.floor(rnd() * 2 ** 32);
+  const { rhombs, width: W } = approximant(seed, Math.min(Math.max(depth, 1), PENROSE_MAX_DEPTH));
+  const k = size / W;
+  const h = size / PENROSE_ASPECT;
+  const f = (v: number) => String(+v.toFixed(precision));
+  const out = new Set<string>();
+  for (const r of rhombs)
+    for (const arc of arcsOf(r)) {
+      const scaled: Arc = { ...arc, o: [(arc.o[0] + OFF[0]) * k, (arc.o[1] + OFF[1]) * k], rad: arc.rad * k };
+      const pts = sampleArc(scaled, 8);
+      const xs = pts.map(([x]) => x);
+      const ys = pts.map(([, y]) => y);
+      const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+      const [s, t] = [pts[0]!, pts[8]!];
+      for (const dx of [-size, 0, size])
+        for (const dy of [-h, 0, h]) {
+          if (x1 + dx < 0 || x0 + dx > size || y1 + dy < 0 || y0 + dy > h) continue;
+          out.add(
+            `M${f(s[0] + dx)} ${f(s[1] + dy)}A${f(scaled.rad)} ${f(scaled.rad)} 0 0 ${scaled.da > 0 ? 1 : 0} ${f(t[0] + dx)} ${f(t[1] + dy)}`,
+          );
+        }
+    }
+  return [...out].join('');
+}
+
+// Polylines only; the arcs of 'penrosearcs' and 'penroseboth' come from penroseArcsPath.
+// penroseTile(..., 'arcs' | 'both') stays the polyline version (tests, a future canvas export).
+export const penroseEdges: Generator = (rnd, depth, size) => penroseTile(rnd, depth, size, 'edges');
+export const penroseArcs: Generator = () => [];
+export const penroseBoth = penroseEdges;

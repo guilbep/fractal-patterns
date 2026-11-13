@@ -85,6 +85,8 @@ const THEME_TABLE: Record<
     tiers: readonly (readonly ThemeFamily[])[];
     make: (f: ThemeFamily, seed: number) => Made;
     blooms: readonly ThemeFamily[];
+    /** Families that hang (fruit): body straight down whatever the stem's direction. */
+    hangs?: readonly ThemeFamily[];
   }
 > = {
   floral: {
@@ -111,6 +113,7 @@ const THEME_TABLE: Record<
     tiers: [ORCHARD_ROLES.hero, ORCHARD_ROLES.support, ORCHARD_ROLES.filler],
     make: (f, seed) => makeOrchardMotif(f as OrchardFamily, seed),
     blooms: ['pear', 'apple', 'cherries', 'lemon', 'blossom'],
+    hangs: ['pear', 'apple', 'cherries', 'lemon'],
   },
 };
 
@@ -232,6 +235,8 @@ type Variant = {
   body: number;
   /** The motif's box center sits on its base (custom anchor 'center'). */
   centered: boolean;
+  /** Fruit: hangs from its base, body down (+y) with a small seeded swing. */
+  hang: boolean;
 };
 
 /** A custom motif's body: the circle with the area of the tight bounds of its largest shape whose bounds are not thin
@@ -286,7 +291,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
         );
         const body = (k > 1 ? own : Math.max(own, radius.radius / 1.8)) / k;
         const centered = custom.anchor === 'center';
-        customVariant = { sil: parts[0]!, det: null, radius, bloom: false, box: custom.box, parts, body, centered };
+        customVariant = { sil: parts[0]!, det: null, radius, bloom: false, box: custom.box, parts, body, centered, hang: false };
       }
       return [customVariant, customVariant];
     }
@@ -309,12 +314,18 @@ export function composeParts(o: ComposeOptions): ComposeParts {
         parts: null,
         body: motifRadius(m.silhouette).radius,
         centered: false,
+        hang: theme.hangs?.includes(fam) ?? false,
       };
     });
   });
 
+  // Fruit hangs: straight down plus a swing of at most 12 degrees, seeded by the seed and the base (no draw from rnd, so
+  // the rest of the layout keeps its draws).
+  const swing = (q: Pt) =>
+    (mulberry32((o.seed ^ Math.imul(Math.round(q[0] * 10), 73856093) ^ Math.imul(Math.round(q[1] * 10), 19349663)) >>> 0)() * 2 - 1) * 12;
   // A motif whose base sits at `base`, pointing along angle `a` (radians), with real circle radius r.
-  const put = (v: Variant, base: Pt, a: number, r: number, flip: boolean): Placement => {
+  const put = (v: Variant, base: Pt, a0: number, r: number, flip: boolean): Placement => {
+    const a = v.hang ? ((90 + swing(base)) * Math.PI) / 180 : a0;
     const rotate = Math.round(deg(a) + 90);
     const cap = v.parts ? Math.floor(((CUSTOM_MAX * side) / 2 / v.radius.radius) * 100) / 100 : Infinity;
     const scale = Math.min(round(r / v.body, 100), cap);
@@ -667,7 +678,8 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   const filler: { v: Variant; p: Placement }[] = [];
   const fr = 0.04 * side;
   const fillerAt = (c: Pt, v: Variant): Placement => {
-    const rotate = Math.round(rnd() * 360);
+    const rotate0 = Math.round(rnd() * 360);
+    const rotate = v.hang ? Math.round(180 + swing(c)) : rotate0;
     const scale = round(fr / v.radius.radius, 100);
     const fl = rnd() < 0.5;
     // Move the anchor so the real circle sits at the chosen point.

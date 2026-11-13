@@ -698,3 +698,30 @@ test('themes: one family allowed, at least 6 placements; ids of another theme ar
   // Without a theme, a sea id is ignored: the floral fallback (leaf).
   assert.ok(composeParts(opt(1, { families: ['kelp'] })).families.every((f) => f === 'leaf'));
 });
+
+// How the direction is read: every motif is drawn with its base (the fruit's stalk end) at the bottom of its box and its
+// body toward the top (motifs-orchard.ts); a placement rotates the box by `rotate` degrees, so the body points along
+// (sin rotate, -cos rotate), which is straight down (+y) at rotate 180. Flip mirrors x only and keeps that axis.
+test('orchard: every fruit hangs, body within 20 degrees of straight down; leaves and blossom follow the stem', () => {
+  const fruit = ['pear', 'apple', 'cherries', 'lemon'];
+  let hung = 0;
+  let turned = 0;
+  for (const repeat of ['straight', 'half-drop', 'mirror'] as const)
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const ids = themeFamilies('orchard').map((f) => f.id);
+      const p = composeParts(opt(seed, { repeat, theme: 'orchard', families: ids as ComposeOptions['families'] }));
+      // Silhouette indices: hero and support variants have a detail motif after them, the 2 small ones do not.
+      const sil = [0, 2, 4, 6, 8, 9];
+      const family = (pl: Placement) => p.families[sil.indexOf(pl.motif)]!;
+      const all = [...p.plants.flatMap((pl) => [...(pl.tip ? [pl.tip] : []), ...pl.attached.map((a) => a.placement)]), ...p.filler];
+      for (const pl of all) {
+        const off = Math.abs(((((pl.rotate - 180) % 360) + 540) % 360) - 180);
+        if (fruit.includes(family(pl))) {
+          assert.ok(off <= 20, `${repeat} ${seed} ${family(pl)} ${off} degrees from down`);
+          hung++;
+        } else if (off > 20) turned++;
+      }
+    }
+  assert.ok(hung > 30, `${hung} fruit`);
+  assert.ok(turned > 10, `${turned} leaves and blossom off the vertical`);
+});

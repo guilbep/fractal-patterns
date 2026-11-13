@@ -476,6 +476,8 @@ export function setFillColor(hex: string): void {
 // ponytail: choosing a palette always sets the fill color to its soft color, edited or not.
 export function applyPalette(p: Palette): void {
   lastFix.value = null;
+  // A palette that is not in the curated list (random, or one that came with a link) keeps its five colors here.
+  if (!PALETTES.some((x) => x.name === p.name)) randomColors.value = p;
   paletteName.value = p.name;
   fill.color = softOf(p);
   layer2Color.value = accentOf(p);

@@ -36,3 +36,12 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
+
+/* The palette strip leads the stats row, as in the pattern tool. On a phone the row wraps and never widens the page. */
+.toolbar > .bar-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1);
+  min-width: 0;
+}

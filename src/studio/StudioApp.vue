@@ -320,10 +320,9 @@ onBeforeUnmount(() => sizes.disconnect());
     <span class="bar-sep" aria-hidden="true"></span>
     <a class="btn" :href="uri" :download="fileName">Download SVG</a>
     <button type="button" class="btn" @click="copyCss">{{ copyStatus === 'Copied' ? 'Copied' : 'Copy CSS' }}</button>
-    <span class="bar-sep" aria-hidden="true"></span>
-    <PaletteStrip :colors="design.palette.colors" :name="design.palette.name" @previous="stepPal(-1)" @next="stepPal(1)" @random="rollPal" />
     </div>
     <div class="bar-stats">
+    <PaletteStrip :colors="design.palette.colors" :name="design.palette.name" @previous="stepPal(-1)" @next="stepPal(1)" @random="rollPal" />
     <span id="svg-size" class="stat">{{ sizeText }}</span>
     <span id="svg-co2" class="stat" :title="footprintFull"><span aria-hidden="true">{{ footprintText }}</span><span class="visually-hidden">{{ footprintFull }}</span></span>
     </div>

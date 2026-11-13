@@ -123,24 +123,28 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   <div ref="bar" class="toolbar" role="toolbar" aria-label="Design actions">
     <div class="bar-row">
     <button type="button" class="btn primary" :disabled="usingImage && !imageShuffles" @click="reseed">Shuffle</button>
-    <button type="button" class="btn" @click="randomPattern">Random pattern</button>
-    <button type="button" class="btn" :disabled="!canUndo" aria-keyshortcuts="Control+Z Meta+Z" @click="undo">Undo</button>
-    <button type="button" class="btn" :disabled="!canRedo" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" @click="redo">Redo</button>
-    <button type="button" class="btn" @click="reset">Reset</button>
-    <span class="bar-sep" aria-hidden="true"></span>
-    <button type="button" class="btn" @click="copyCss">Copy CSS</button>
-    <a class="btn" :href="svgHref" :download="fileName">Download SVG</a>
-    <button type="button" class="btn" @click="copyLink">Copy link</button>
+    <button type="button" class="btn secondary" @click="randomPattern">Random pattern</button>
+    <button type="button" class="btn secondary" :disabled="!canUndo" aria-keyshortcuts="Control+Z Meta+Z" @click="undo">Undo</button>
+    <button type="button" class="btn secondary" :disabled="!canRedo" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" @click="redo">Redo</button>
+    <button type="button" class="btn secondary" @click="reset">Reset</button>
     </div>
     <div class="bar-stats">
+    <span class="bar-sep join" aria-hidden="true"></span>
     <PaletteStrip />
     <button type="button" class="icon-btn" aria-label="Full screen" title="Full screen (F)" :aria-keyshortcuts="shortcutOn ? 'F' : undefined" @click="fullscreen"><span aria-hidden="true">⛶</span></button>
+    <span class="bar-sep" aria-hidden="true"></span>
     <span class="stat" :class="contrast.normal !== 'fail' ? 'ok' : 'bad'">
       <span aria-hidden="true">{{ contrast.normal !== 'fail' ? '✓' : '✗' }}</span>
       <span class="stat-long">Contrast {{ ratioText(contrast.worst) }}:1 {{ contrast.normal !== 'fail' ? 'AA pass' : 'AA fail' }}</span>
       <span class="stat-short" aria-hidden="true">{{ ratioText(contrast.worst) }}:1 AA</span>
     </span>
     <SizeBadge :gzip="gzipped === 'unknown' ? 'unknown' : exportGzipBytes" :breakdown="sizeBreakdown" />
+    </div>
+    <div class="bar-row">
+    <span class="bar-sep join" aria-hidden="true"></span>
+    <button type="button" class="btn secondary" @click="copyCss">Copy CSS</button>
+    <button type="button" class="btn secondary" @click="copyLink">Copy link</button>
+    <a class="btn secondary" :href="svgHref" :download="fileName">Download SVG</a>
     </div>
     <span class="visually-hidden" role="status" aria-live="polite">{{ copyStatus }}</span>
   </div>

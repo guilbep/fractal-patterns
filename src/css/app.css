@@ -209,6 +209,10 @@ html {
   align-self: stretch;
   border-left: 1px solid var(--line);
 }
+/* The separator between two rows shows only when they join into one (64rem and up). */
+.bar-sep.join {
+  display: none;
+}
 .stat {
   display: inline-flex;
   align-items: center;
@@ -388,6 +392,9 @@ kbd {
   .bar-row,
   .bar-stats {
     display: contents;
+  }
+  .bar-sep.join {
+    display: block;
   }
   .stage {
     z-index: 0;

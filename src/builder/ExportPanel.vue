@@ -1,19 +1,13 @@
 <script setup lang="ts">
 // The builder's export: size badge, the shared actions, and the design as a JSON file.
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import ExportActions from '@/components/ExportActions.vue';
 import SizeBadge from '@/components/SizeBadge.vue';
-import { tileCss } from '@/export-file.ts';
-import { repeatCell } from '@/studio/model.ts';
-import { parseDesign, toStudio } from './design.ts';
+import { css } from './builder-css.ts';
+import { parseDesign } from './design.ts';
 import { commit, design, svg } from './store.ts';
 
 const MAX_BYTES = 5 * 1024 * 1024;
-
-const css = computed(() => {
-  const cell = repeatCell(toStudio(design.value));
-  return tileCss(svg.value, cell.width, cell.height, design.value.background);
-});
 
 function downloadDesign(): void {
   const url = URL.createObjectURL(new Blob([JSON.stringify(design.value)], { type: 'application/json' }));

@@ -7,6 +7,7 @@ import { svgToDataUri } from '@/css.ts';
 import SponsorBanner from '@/components/SponsorBanner.vue';
 import SizeBadge from '@/components/SizeBadge.vue';
 import { copyText } from '@/clipboard.ts';
+import { decodeImage, sample } from '@/image-file.ts';
 import { rawSize } from '@/co2.ts';
 import { PALETTE_GROUPS, PALETTES, paletteParam, rollPalette } from '@/palettes.ts';
 import { stepPalette } from '@/shell.ts';
@@ -141,41 +142,13 @@ const ownSvgText = computed(() => {
 const ownPreview = computed(() => (ownSvgText.value ? svgToDataUri(ownSvgText.value) : ''));
 const ownBytes = computed(() => rawSize(ownSvgText.value));
 
-// As the pattern tool: the image is drawn into a canvas, its longer side at most `max` px.
-function toRgba(src: CanvasImageSource, w: number, h: number, max: number): Rgba {
-  const s = Math.min(1, max / Math.max(w, h));
-  const width = Math.max(1, Math.round(w * s));
-  const height = Math.max(1, Math.round(h * s));
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) throw new Error('no 2d context');
-  ctx.drawImage(src, 0, 0, width, height);
-  return { data: ctx.getImageData(0, 0, width, height).data, width, height };
-}
 async function readImage(file: File): Promise<void> {
   const t = await loadTracers();
-  if (isSvgFile(file.name, file.type)) {
-    // An SVG file is drawn as an image through an <img> and an object URL; its text never enters the page.
-    const url = URL.createObjectURL(file);
-    try {
-      const img = new Image();
-      img.src = url;
-      await img.decode();
-      const w = img.naturalWidth || 600;
-      const h = img.naturalHeight || 600;
-      setOwnImage(t, toRgba(img, w, h, 256), toRgba(img, w, h, 600));
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-    return;
-  }
-  const bitmap = await createImageBitmap(file);
+  const image = await decodeImage(file);
   try {
-    setOwnImage(t, toRgba(bitmap, bitmap.width, bitmap.height, 256), toRgba(bitmap, bitmap.width, bitmap.height, 600));
+    setOwnImage(t, sample(image, 256), sample(image, 600));
   } finally {
-    bitmap.close();
+    image.close();
   }
 }
 async function onOwnFile(e: Event): Promise<void> {

@@ -6,6 +6,8 @@ Fractal Patterns is a one-page generator of repeating SVG background tiles, made
 
 The site will be at <https://guilbep.github.io/fractal-patterns/> after the first deployment.
 
+The live site still shows the first version: the features below that are new in phase 2 are on the `phase-2` branch until it is merged.
+
 ## What it does
 
 ### Page layout
@@ -24,26 +26,40 @@ Two badges sit at the end of the toolbar. The first shows the worst text contras
 
 The hero is the large preview under the toolbar. It uses the exported `.fp-pattern` class, so it shows what you copy. Five tabs below it hold the controls:
 
-- Pattern: the R key option, the pattern controls and the spacing.
+- Pattern: the R key option, the pattern controls, the Repetition panel and the spacing.
 - Colors: the colors and contrast, and the Second opinion panel.
-- Image: the trace from your image.
+- Image: the trace from your image, and the Repetition panel.
 - Motion: the transform and motion controls.
 - Export: the performance settings and the "Use it" panel.
 
+The header also has a link to the Wallpaper Studio, a second page. See [Wallpaper Studio](#wallpaper-studio).
+
 ### Pattern library
 
-The page draws 37 pattern kinds in four families:
+The page draws 64 pattern kinds in six families:
 
 | Family | Kinds | Names |
 | --- | --- | --- |
 | Fractals | 8 | Carpet, Quadtree, Tree, Folded curve, Hilbert curve, Koch lattice, Sierpinski, H-tree |
 | Line art | 4 | Curve stitching, Whirl, Rosette, Spirals |
 | Surfaces | 13 | Running bond, Stack bond, Herringbone, Basket weave, Honeycomb, Triangular net, Nested boxes, Dot grid, Hatch, Crosshatch, Zigzag, Fish scales, Waves |
-| Symmetry groups | 12 | p1 translation, p2 half turn, pm mirror, pg glide, cm mirror and glide, pmm two mirrors, pmg mirror and glide, pgg two glides, cmm two mirrors, centered, p4 quarter turn, p4m quarter turn and mirrors, p4g quarter turn and glides |
+| Symmetry groups | 17 | p1 translation, p2 half turn, pm mirror, pg glide, cm mirror and glide, pmm two mirrors, pmg mirror and glide, pgg two glides, cmm two mirrors, centered, p4 quarter turn, p4m quarter turn and mirrors, p4g quarter turn and glides, p3 third turn, p3m1 third turn and mirrors, p31m third turn, mirrors off center, p6 sixth turn, p6m sixth turn and mirrors |
+| Themes | 15 | Topography, Maze, Circuit, Waves (seigaiha), Rain, Mountain ridges, Constellations, Roots, Cracked earth, Knotwork, Roof tiles, Feathers, Chain and fence, Pipes, Chladni figures |
+| Quasicrystals | 7 | Penrose rhombs, Penrose arcs, Penrose rhombs and arcs, Eightfold rhombs, Eightfold stars, Twelvefold rhombs, Twelvefold stars |
 
-A wallpaper group is one of the 17 ways to repeat a motif over a plane with mirrors, turns and glides. The page has the 12 groups that fit a square tile. The 5 hexagonal groups are not included, because the tile is square.
+A wallpaper group is one of the 17 ways to repeat a motif over a plane with mirrors, turns and glides. The page has all 17. The 12 square groups use a square tile. The 5 hexagonal groups are p3, p3m1, p31m, p6 and p6m. They use a rectangular tile, 1 wide by the square root of 3 high. A hexagonal lattice repeats in that rectangle.
+
+A quasicrystal tiling is a tiling with five-, eight- or twelvefold order that never repeats. A CSS background must repeat, so the page draws a periodic approximant: a tile that repeats exactly and looks like the tiling that never repeats. The Penrose kinds use a rectangular tile. The eightfold and twelvefold kinds use a square tile.
+
+A rectangular tile turns off some features for now: the patchwork layout (its cells are square), the spacing controls, and Reduce repetition. The panels say "Not available for this pattern yet." The kinds with a rectangular tile are the 5 hexagonal groups and the 3 Penrose kinds.
 
 Each kind has its own maximum depth, the number of recursion or detail levels. The other controls are tile size and stroke width.
+
+Some kinds give a large tile at their highest depth. For most kinds, the depth limit keeps the worst case near or under 20,000 characters of SVG at precision 1. The hexagonal groups go up to about 70,000. The page does not hide this cost: the Export tab shows the bytes and the CO2 badge shows the footprint for every design.
+
+### Free and compatible layouts
+
+Seven Surfaces kinds have two layouts: Running bond, Stack bond, Herringbone, Basket weave, Honeycomb, Triangular net and Nested boxes. In the free layout, the seed also chooses the layout. In the compatible layout, the layout is fixed for each depth, so tiles with different seeds can sit next to each other without a seam. The page uses the free layout. There is no separate control: Reduce repetition switches these kinds to the compatible layout, and the panel says so.
 
 ### Seeds and events
 
@@ -74,17 +90,55 @@ The patchwork layout splits the tile into a grid of cells, and each cell gets a 
 - Mirror: puts four mirrored copies of the content in the tile, so any content repeats without a seam.
 - Fit: for an image, Cover fills the tile and crops the longer side. Contain shows the whole image and leaves an empty strip.
 
+The spacing controls are off with Reduce repetition, with Smooth curves, and for a kind with a rectangular tile.
+
+### Repetition
+
+A repeating tile shows the same picture again at a fixed distance, and the eye finds the grid. The Repetition panel has four ways to make that less visible. It sits in the Pattern tab and in the Image tab.
+
+Reduce repetition puts several seeded variants of the kind into one larger tile. No two neighbor cells show the same variant, also across the tile edge. It needs a math pattern with a single layout. It applies to the 16 kinds whose edges match between seeds: Carpet, Quadtree, Tree, Folded curve, Koch lattice, Sierpinski, H-tree, Curve stitching, Whirl and the 7 Surfaces kinds with a compatible layout. The panel shows the bytes of the larger tile against the bytes of one tile. The options:
+
+| Option | What it does | Kinds |
+| --- | --- | --- |
+| Strength | Light: 2 variants, 2 by 2. Medium: 4 variants, 4 by 4. Wide: 4 variants, 6 by 6. Strong: 6 variants, 6 by 6. | All 16 |
+| Line weight | Varies the stroke weight softly across the tile. | All 16 |
+| Turn and flip each cell | Turns or mirrors each cell, at no extra path. | Carpet, Tree, Folded curve, Koch lattice, H-tree, Curve stitching, Whirl |
+| Empty cells | Leaves up to 50% of the cells empty. | Carpet, Tree, Folded curve, Koch lattice, H-tree, Curve stitching, Whirl |
+| Offset | None, Half-drop or Brick: shifts every second column or row by half a cell. | Carpet, Tree, Folded curve, H-tree, Curve stitching, Whirl |
+| Mix two depths | Draws half of the variants one depth lower. | Carpet, Tree, Folded curve, H-tree, Curve stitching, Whirl |
+| Shift and scale | A small shift and size change per cell. | Carpet, Tree, Folded curve, H-tree, Curve stitching, Whirl |
+
+Second layer adds a second copy of the tile on top of the first. Its size is coprime with the first size, so the two layers together repeat only at a much larger distance. Two whole numbers are coprime if no number above 1 divides both. The panel gives that distance. The controls:
+
+- Shift right and Shift down: 0 to 100% of the second tile.
+- Turn: -180 to 180 degrees.
+- Size: 0.5 to 3 times the first tile.
+- Strength: 10 to 100%.
+- Depth: 0.25 to 4. With drift on, it changes the speed of the second layer. Below 1 the layer moves slower and looks farther away.
+
+With two layers, the text can sit on a spot where both layers cross. Let o be the pattern opacity and p the strength of the second layer. The page then gives that spot a stroke opacity of 1 - (1 - o) × (1 - o × p). The contrast badge takes the worst of the plain background, one layer and the crossing.
+
+Parallax on scroll is an option of the second layer. On scroll, the two layers move at different speeds, set by the Depth value. The exported CSS uses scroll-driven animations. A comment in the export gives the browser support: Chrome or Edge 115, Safari 26, or Firefox 159. Other browsers show the two layers without the effect. The CSS sits inside a `prefers-reduced-motion: no-preference` media query, so it is off for visitors who ask for reduced motion.
+
+Soft fade adds two large radial gradient masks with coprime sizes over the pattern. They dim the pattern unevenly, so the grid is harder to see. It is CSS only, with no extra image. A mask only lowers the alpha, so the text contrast never gets worse.
+
+Different angle per section adds three helper classes to the CSS: `fp-a`, `fp-b` and `fp-c`. Each turns the pattern by a different angle (137, 95 and 52 degrees). Put them next to `fp-pattern` on successive sections of a page. The preview does not change.
+
 ### From image
 
-The page can trace the edges of your image and turn them into tile lines. An edge detector is a filter that finds the places where the brightness changes quickly. The page has five detectors:
+The page can trace the edges of your image and turn them into tile lines. An edge detector is a filter that finds the places where the brightness changes quickly. The page has seven detectors:
 
 - Sobel.
 - Prewitt.
-- Roberts.
+- Roberts cross.
 - Laplacian.
 - Canny, the default.
+- Scharr: a gradient filter like Sobel, with weights that respond more evenly at all angles. It helps on fine edges at an angle.
+- XDoG (ink lines), the extended difference of Gaussians: it marks the places that are darker than their surroundings, relative to the local brightness. It helps on drawings and dark outlines, and reads a stroke the same in shadow and in light.
 
 The controls are the edge detector, the threshold, the detail, the minimum line length, the fit and the resolution. The resolution is 128, 192 or 256 px on the longer edge. The vectorizer then follows the edge pixels and turns them into simplified polylines in tile coordinates.
+
+Smooth curves replaces the straight segments with cubic Bézier curves. A Bézier curve is a smooth curve set by a few control points. The page smooths the pixel chains, fits the curves by least squares, and then moves them onto the strongest edges. The tile is smoother and usually 1.3 to 3 times larger. The panel shows the bytes with curves against the bytes with straight segments.
 
 The Image tab has four built-in examples: brick wall, rounded stones, roof tiles and grass tufts. The app draws them in memory. They are not photos, and nothing is downloaded.
 
@@ -173,7 +227,21 @@ Put the script after the markup. The script looks for the `.fp-pattern` elements
 
 ### Sharing
 
-The page keeps the design in the URL hash. The hash holds the kind, seed, controls, colors, plate, spacing, motion and patchwork settings. The hash does not hold the pinned patchwork cells, the palette name or the image. The Copy link button puts the URL on the clipboard.
+The page keeps the design in the URL hash. The hash holds the kind, seed, controls, colors, plate, spacing, motion, patchwork and repetition settings. The hash does not hold the pinned patchwork cells, the palette name or the image. The Copy link button puts the URL on the clipboard.
+
+The hash writes only the values that differ from the default. These keys hold the repetition settings:
+
+| Key | Meaning | Default |
+| --- | --- | --- |
+| `v` | Reduce repetition, `1` or `0` | `0` |
+| `vo` | Options of Reduce repetition: cells, count, turn and flip, offset (`n`, `h` or `b`), mix of depths, shift and scale, line weight, empty cells, joined by `_` | 4 cells, 4 variants, all options off |
+| `l2` | Second layer, `1` or `0` | `0` |
+| `l2s` | Second layer settings: shift right, shift down, turn, size, strength, depth, joined by `_` | `0_0_0_1_1_1` |
+| `px` | Parallax on scroll, `1` or `0` | `0` |
+| `fd` | Soft fade, `1` or `0` | `0` |
+| `sx` | Different angle per section, `1` or `0` | `0` |
+
+The page reads the hash as untrusted input. A missing or broken value takes its default, and a number outside its range is clamped. The older keys keep their meaning, so older links still work.
 
 ### Performance settings and CO2
 
@@ -189,11 +257,71 @@ The estimate counts one transfer of the export. It does not count these costs:
 - Browser caching. A repeat visit transfers nothing.
 - The energy to draw the pattern on the visitor's device.
 
+### Sizes
+
+The goal is a small tile. Heavier options are allowed: a deep kind, Reduce repetition, a second layer, Smooth curves. The page always states the bytes and the CO2 of the result, so you can weigh the cost.
+
 ### Logo and favicon
 
 The logo is one of the app's own patterns: the Whirl kind, seed 1, in the Lagoon, mono colors. `src/logo.ts` draws it. The command `make logo` writes it to `public/favicon.svg`.
 
 While the page is open, the browser tab icon follows the current kind, seed and colors. With an image or a patchwork, the icon keeps the last single pattern.
+
+## Wallpaper Studio
+
+The Wallpaper Studio is a second page, `studio.html`. It makes original botanical wallpapers from a seed. A few plants grow on stems that follow a calm flow. Each stem has a large motif at its tip and smaller motifs on alternating sides. Small filler motifs fill the larger gaps. The code generates every motif from plain geometry and the seed. The tool contains no copy of an existing design.
+
+The controls:
+
+- Seed and Shuffle.
+- Palette: the same 24 palettes as the pattern page.
+- Density: 0 to 100%.
+- Tile size: 200 to 500 px in steps of 20.
+- Preview zoom: 50 to 200%. It changes only the preview.
+- Stems behind the large motifs.
+- Repeat: Straight, Half-drop, Brick or Mirror.
+- Motif families: Leaf, Frond, Flower, Bud, Berries and Sprig. At least one stays on.
+
+The page names the number of placements, motif definitions and colors. The toolbar shows the size of the SVG and its CO2 footprint. Download SVG saves the tile. Copy CSS puts a `.wallpaper` rule with the background color and the tile on the clipboard. If the browser blocks the clipboard, the page shows the rule to copy by hand.
+
+### Your own motif
+
+You can trace your own image into a motif. Color tracing groups the pixels into 2 to 6 colors and turns each color into one flat vector shape. The shapes stack in order. You choose to use the motif as the large motifs, as the leaves along the stems, or both. An option keeps the colors of the image. The panel shows the number of shapes and the bytes. A sample flower lets you try it without an image.
+
+The panel shows two notices:
+
+- Use only images that you own or have a license for.
+- Your image stays in your browser. Nothing is uploaded.
+
+### Studio link
+
+The page keeps the design in the URL hash. The link does not carry your own motif.
+
+| Key | Meaning | Default |
+| --- | --- | --- |
+| `s` | Seed | `1` |
+| `p` | Palette index, from 0 | `0` |
+| `r` | Repeat: `0` Straight, `1` Half-drop, `2` Brick, `3` Mirror | `0` |
+| `d` | Density, 0 to 1 | `0.4` |
+| `z` | Tile size in px, 200 to 500 | `300` |
+| `st` | Stems behind the large motifs, `1` or `0` | `1` |
+| `f` | Motif families, a bit mask in the order Leaf, Frond, Flower, Bud, Berries, Sprig | all |
+
+## Building blocks not yet in the page
+
+The repository holds tested modules that the pages do not use yet, or use only in part:
+
+| Module | What it does | In the pages |
+| --- | --- | --- |
+| `src/fills.ts` | Fills closed shapes in a second color and checks the text contrast over every surface. | No |
+| `src/canvas-export.ts` | Exports a design as a canvas script, or as an experimental CSS Paint API worklet. | No |
+| `src/motifgrid.ts` | A tile made of a grid of small motifs, each defined once and placed with `<use>`. | Only helpers: the variant order and the path check |
+| `src/custom.ts` | A custom motif: strokes you draw in a square, repeated by a wallpaper group. | No |
+| `src/wang.ts` | Wang tiles: square tiles with edge codes, laid out so that every shared edge matches. The styles are pipes, weave and paths. | Only the pipes style, as the Pipes kind |
+| `src/penrose.ts` | A finite patch of the true Penrose tiling, next to the periodic approximant. | Only the approximant, as the Penrose kinds |
+| `src/isolines.ts` | Contour lines of the smoothed brightness, kept only where an edge is strong. | Only the contour step, in the studio color tracing |
+
+The two-layer export is in the page, as Second layer.
 
 ## Requirements
 
@@ -253,6 +381,8 @@ The script writes `candidates.svg` in the current folder. Give a path after `can
 
 ## Project layout
 
+The pattern page:
+
 | File | Role |
 | --- | --- |
 | `src/main.ts` | Mounts the Vue app, loads the stylesheet and keeps the favicon in step with the pattern. |
@@ -262,20 +392,77 @@ The script writes `candidates.svg` in the current folder. Give a path after `can
 | `src/state.ts` | Reactive state, user actions and derived values for the page. |
 | `src/state-export.ts` | The exported CSS and script, and their gzip size and footprint. |
 | `src/state-share.ts` | The design in the URL hash and the undo history. |
-| `src/fractal.ts` | The kinds, families, labels and depths, and the SVG output. |
+
+Patterns:
+
+| File | Role |
+| --- | --- |
+| `src/fractal.ts` | The kinds, families, labels, depths, tile shapes and layouts, and the SVG output. |
 | `src/patterns/fractals.ts` | Generators of the Fractals family. |
 | `src/patterns/lineart.ts` | Generators of the Line art family. |
-| `src/patterns/surfaces.ts` | Generators of the Surfaces family. |
-| `src/patterns/symmetry.ts` | Generators of the 12 square wallpaper groups. |
-| `src/patterns/symmetry.test.ts` | Tests of the wallpaper groups. |
+| `src/patterns/surfaces.ts` | Generators of the Surfaces family, with the free and compatible layouts. |
+| `src/patterns/symmetry.ts` | Generators of the 17 wallpaper groups. |
+| `src/patterns/themes.ts` | Generators of Topography, Maze and Circuit. |
+| `src/patterns/themes-water.ts` | Generators of Waves (seigaiha), Rain and Mountain ridges. |
+| `src/patterns/themes-earth.ts` | Generators of Constellations, Roots and Cracked earth. |
+| `src/patterns/themes-craft.ts` | Generators of Knotwork and Roof tiles. |
+| `src/patterns/themes-air.ts` | Generators of Feathers and Chain and fence. |
+| `src/patterns/themes-pipes.ts` | The Pipes generator, from Wang tiles. |
+| `src/patterns/themes-chladni.ts` | The Chladni figures generator. |
 | `src/patterns/util.ts` | Seeded random generator, tile placement and periodic clipping. |
+| `src/penrose.ts` | Penrose tilings from de Bruijn's pentagrid, and the periodic approximant. |
+| `src/quasi.ts` | Eightfold and twelvefold periodic approximants. |
+| `src/wang.ts` | Wang tile layouts and styles. |
 | `src/patchwork.ts` | The patchwork grid of cells. |
 | `src/spacing.ts` | Zoom with wrap, gap and mirror tiling. |
+
+Repetition:
+
+| File | Role |
+| --- | --- |
+| `src/supertile.ts` | The larger tile of seeded variants, and the kinds that can vary. |
+| `src/repetition.ts` | The options of Reduce repetition for each kind, and the measurement behind them. |
+| `src/variants.ts` | The strengths and default options of Reduce repetition. |
+| `src/layers.ts` | The second layer: coprime size, repeat distance and the stroke opacity at crossings. |
+| `src/fade.ts` | The Soft fade masks. |
+
+Image tracing:
+
+| File | Role |
+| --- | --- |
 | `src/samples.ts` | The four built-in example pictures for the tracer, drawn in memory. |
-| `src/trace.ts` | Image pixels to a binary edge map with five detectors. |
+| `src/trace.ts` | Image pixels to a binary edge map with seven detectors. |
 | `src/vectorize.ts` | Edge map to simplified polylines in tile coordinates. |
-| `src/motion.ts` | Transform and drift CSS on the `::before` layer. |
+| `src/smoothtrace.ts` | Image to smooth Bézier curves, for Smooth curves. |
+| `src/curvefit.ts` | Curve fitting of point chains with cubic Bézier curves. |
+| `src/isolines.ts` | Contour lines of the brightness, and the edge-snapped isoline tracer. |
+
+Wallpaper Studio:
+
+| File | Role |
+| --- | --- |
+| `studio.html` | The page shell that loads `src/studio/main.ts`. |
+| `src/studio/main.ts` | Mounts the studio app. |
+| `src/studio/StudioApp.vue` | The studio page: toolbar, preview, controls and Your own motif. |
+| `src/studio/motifs.ts` | The generated botanical motifs and their families. |
+| `src/studio/compose.ts` | Builds a whole tile from a seed: plants, stems, motifs and filler. |
+| `src/studio/scatter.ts` | Seeded placement of motifs on a tile that wraps around. |
+| `src/studio/model.ts` | The tile as layers of placed motifs with a repeat type, written as one SVG. |
+| `src/studio/colortrace.ts` | Color tracing of an image into flat stacked shapes. |
+| `src/studio/studio-share.ts` | The studio design in the URL hash and back. |
+| `src/css/studio.css` | Studio styles. |
+
+Export, colors and the rest:
+
+| File | Role |
+| --- | --- |
+| `src/motion.ts` | Transform, drift and parallax CSS on the `::before` and `::after` layers. |
 | `src/export.ts` | The exported CSS, HTML sample and script. |
+| `src/scene.ts` | A tile as ordered layers of polylines, written as SVG or drawn on a canvas. |
+| `src/fills.ts` | Fills of closed shapes, not yet in the page. |
+| `src/canvas-export.ts` | Canvas script and CSS Paint worklet exports, not yet in the page. |
+| `src/motifgrid.ts` | The motif grid. The page uses only its helpers. |
+| `src/custom.ts` | The custom motif engine, not yet in the page. |
 | `src/palettes.ts` | The 24 generated palettes. |
 | `src/oklch.ts` | OKLCH to hex conversion. |
 | `src/contrast.ts` | WCAG luminance, contrast ratio, color blend and levels. |
@@ -295,10 +482,11 @@ The script writes `candidates.svg` in the current folder. Give a path after `can
 | `src/components/OutputPanel.vue` | Performance settings, footprint and the export. |
 | `src/css/app.css` | Page styles. |
 | `src/env.d.ts` | Type declarations for Vite and `.vue` files. |
-| `src/*.test.ts` | Unit tests, one file beside each logic module. |
+| `src/**/*.test.ts` | Unit tests, one file beside each logic module. |
 | `scripts/make-logo.ts` | Writes `public/favicon.svg`, or a contact sheet of logo candidates. |
 | `public/favicon.svg` | The static favicon. Vite copies it into `dist`. |
 | `index.html` | The page shell that loads `src/main.ts`. |
+| `vite.config.ts` | The Vite settings, with the two pages as build inputs. |
 | `Makefile` | The make targets. |
 | `.oxlintrc.json` | The oxlint rules. |
 | `.oxfmtrc.json` | The oxfmt settings. |
@@ -316,7 +504,11 @@ Run the tests:
 make test       # npm test
 ```
 
-There are 196 tests now.
+There are 512 tests now: 511 pass and 1 is skipped. If the environment variable `FP_REFERENCE_SVG` points to a reference SVG file, the skipped test runs. It reads 7 motifs and 49 placements from that file, rebuilds the grid with `src/motifgrid.ts`, and checks that the result reproduces the file. Run it like this:
+
+```sh
+FP_REFERENCE_SVG=/path/to/reference.svg npm test
+```
 
 ## Deployment
 
@@ -343,6 +535,8 @@ Do these steps one time, before the first deployment:
 2. Go to Settings, then Pages.
 3. Set Source to GitHub Actions.
 
+The build writes two pages: `dist/index.html`, the pattern page, and `dist/studio.html`, the Wallpaper Studio.
+
 `vite.config.ts` sets `base: './'`. The built page then loads its assets with relative paths. The site works under the `/fractal-patterns/` path without the repository name in the build.
 
 ## Credits
@@ -351,6 +545,15 @@ Do these steps one time, before the first deployment:
 - Color vision simulation: Machado, Oliveira and Fernandes, "A Physiologically-based Model for Simulation of Color Vision Deficiency", IEEE TVCG 15(6), 2009.
 - OKLab color space: [Björn Ottosson](https://bottosson.github.io/posts/oklab/).
 - CO2 model: [pierreguilbert.com](https://pierreguilbert.com).
+
+The code implements these published methods. The references name the sources and claim no endorsement:
+
+- Penrose and other quasicrystal tilings: based on the pentagrid method of N. G. de Bruijn, "Algebraic theory of Penrose's non-periodic tilings of the plane", 1981.
+- Eightfold tiling: after the Ammann-Beenker tiling, from the work of Robert Ammann and F. P. M. Beenker.
+- Chladni figures: after the nodal figures of vibrating plates, Ernst Chladni, 1787.
+- Wang tiles: after Hao Wang, 1961.
+- Smooth curves: based on the curve fitting method of Philip J. Schneider, "An Algorithm for Automatically Fitting Digitized Curves", Graphics Gems, 1990.
+- XDoG detector: after Winnemöller, Kyprianidis and Olsen, "XDoG: An eXtended difference-of-Gaussians compendium", 2012.
 
 ## License
 

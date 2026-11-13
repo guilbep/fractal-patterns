@@ -198,10 +198,6 @@ function useSample(): void {
 const studio = computed(() => {
   const r = ownResult.value;
   const o = designOptions(design);
-  // TODO(W9d): an ink shape carries `evenodd: true`; compose must forward it to the model motif
-  // (motifs.push({ d: c.d, box: custom.box, paint: c.paint, evenodd: c.evenodd })) and accept its path data up to
-  // INK_MAX_LENGTH (safePathData(c.d, c.evenodd ? INK_MAX_LENGTH : undefined)). Until then holes fill in and an ink
-  // path above 20,000 characters is dropped by the composer.
   return compose(
     r && r.shapes.length > 0
       ? { ...o, custom: { shapes: r.shapes, box: r.box, role: own.role, keepColors: own.keepColors, scale: own.scale, anchor: own.anchor } }

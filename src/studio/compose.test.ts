@@ -634,3 +634,22 @@ test("custom anchor 'center': the box center sits on the stem point", () => {
       assert.ok(Math.hypot(pl.tip!.x - pl.tipStalk![1][0], pl.tip!.y - pl.tipStalk![1][1]) <= 1, `seed ${seed} stalk`);
   }
 });
+
+test('custom ink shape: the even-odd rule and a long path reach the model', () => {
+  // A ring: an outer square and an inner square in one path. With the even-odd rule the inner square is a hole.
+  const ring = 'M10 10L90 10L90 90L10 90ZM30 30L70 30L70 70L30 70Z';
+  const long = ring + 'M40 40L60 40L60 60L40 60Z'.repeat(1200); // about 30,000 characters, above the 20,000 default
+  assert.ok(long.length > 20000 && long.length < 60000);
+  const o = designOptions(decodeStudio(''));
+  for (const d of [ring, long]) {
+    const s = compose({ ...o, custom: { shapes: [{ color: '#143c14', d, evenodd: true }], box: 100, role: 'hero', keepColors: true } });
+    const ink = s.motifs.filter((m) => m.d === d);
+    assert.equal(ink.length, 1, 'the ink motif is in the studio');
+    assert.equal(ink[0]?.evenodd, true);
+    assert.ok(studioSvg(s).includes('fill-rule="evenodd"'));
+  }
+  // Without the flag a path above the default limit is dropped and the composer falls back to the generated motif.
+  const s = compose({ ...o, custom: { shapes: [{ color: '#143c14', d: long }], box: 100, role: 'hero', keepColors: true } });
+  assert.equal(s.motifs.filter((m) => m.d === long).length, 0);
+  assert.equal(studioSvg(s), studioSvg(compose(o)));
+});

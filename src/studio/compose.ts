@@ -6,7 +6,7 @@ import type { Cubic } from '../curvefit.ts';
 import { safePathData } from '../motifgrid.ts';
 import { mulberry32, type Pt } from '../patterns/util.ts';
 import type { Placement, Repeat, Studio, StudioLayer, StudioMotif } from './model.ts';
-import { layerColors, studioBytes } from './model.ts';
+import { INK_MAX_LENGTH, layerColors, studioBytes } from './model.ts';
 import { makeMotif, motifBounds, type MotifFamily } from './motifs.ts';
 import { flowAngle } from './scatter.ts';
 
@@ -17,6 +17,8 @@ export interface CustomShape {
   readonly paint?: 'fill' | 'stroke';
   /** Stroke width in the motif's box units, default 1.5 (1.5 reads as about 1.2 px on a 300 px tile). */
   readonly width?: number;
+  /** Fill with the even-odd rule, so that a loop inside a loop is a hole (an ink drawing). Allows a longer path. */
+  readonly evenodd?: boolean;
 }
 
 export interface ComposeOptions {
@@ -206,8 +208,10 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   const motifs: StudioMotif[] = [];
   const families: MotifFamily[] = [];
   const customShapes = (o.custom?.shapes ?? []).flatMap((c) => {
-    const d = safePathData(c.d);
-    return d ? [{ color: c.color, d, paint: c.paint ?? 'fill', width: c.width ?? 1.5 }] : [];
+    const d = safePathData(c.d, c.evenodd ? INK_MAX_LENGTH : undefined);
+    return d
+      ? [{ color: c.color, d, paint: c.paint ?? 'fill', width: c.width ?? 1.5, ...(c.evenodd ? { evenodd: true as const } : {}) }]
+      : [];
   });
   const custom = o.custom && customShapes.length > 0 && o.custom.box > 0 ? { ...o.custom, shapes: customShapes } : null;
   let customVariant: Variant | null = null;
@@ -215,7 +219,9 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     if (custom && ((ti === 0 && custom.role !== 'support') || (ti === 1 && custom.role !== 'hero'))) {
       rnd(); // the same draws as a generated tier, so the rest of the layout stays as it was
       if (!customVariant) {
-        const parts = custom.shapes.map((c) => motifs.push({ d: c.d, box: custom.box, paint: c.paint }) - 1);
+        const parts = custom.shapes.map(
+          (c) => motifs.push({ d: c.d, box: custom.box, paint: c.paint, ...(c.evenodd ? { evenodd: true } : {}) }) - 1,
+        );
         // One motif to the rules: its bounds are the union of its shapes.
         const union = custom.shapes.map((c) => c.d).join('');
         const radius = motifRadius({ d: union, box: custom.box, paint: 'fill' });

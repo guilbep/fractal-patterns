@@ -985,3 +985,22 @@ select {
 .patchwork .btn {
   justify-self: start;
 }
+
+/* Full screen preview (F key or the toolbar button), on both pages. */
+.stage:fullscreen {
+  position: static;
+  width: 100vw;
+  height: 100vh;
+  max-height: none;
+}
+.stage:fullscreen > .hero,
+.stage:fullscreen > .wall {
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+}
+@media (hover: none) {
+  .shortcut-switch {
+    display: none;
+  }
+}

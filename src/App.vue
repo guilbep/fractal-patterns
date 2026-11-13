@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { APP_NAME } from '@/app-name.ts';
+import { isTyping, readShortcut, shortcutFor, toggleFullscreen, writeShortcut } from '@/shortcuts.ts';
 import { LOGO_DEFAULT, logoSvg } from '@/logo.ts';
 import { svgToDataUri } from '@/css.ts';
 import { KIND_LABELS } from '@/fractal.ts';
@@ -30,22 +31,10 @@ const LOGO_URI = svgToDataUri(logoSvg(LOGO_DEFAULT));
 const studioHref = computed(() => (palette.value ? `./studio.html#${new URLSearchParams([paletteParam(palette.value)])}` : './studio.html'));
 
 // WCAG 2.1.4: a single-key shortcut needs an off switch. The choice survives a reload.
-const SHORTCUT_KEY = 'fp-shortcut';
-function readShortcut(): boolean {
-  try {
-    return localStorage.getItem(SHORTCUT_KEY) !== '0';
-  } catch {
-    return true;
-  }
-}
 const shortcutOn = ref(readShortcut());
-watch(shortcutOn, (on) => {
-  try {
-    localStorage.setItem(SHORTCUT_KEY, on ? '1' : '0');
-  } catch {
-    /* storage blocked: the choice lasts for this visit only */
-  }
-});
+watch(shortcutOn, writeShortcut);
+const stage = ref<HTMLElement | null>(null);
+const fullscreen = () => toggleFullscreen(stage.value);
 
 // One polite live region for the toolbar copies.
 const copyStatus = ref('');
@@ -134,11 +123,9 @@ function onKey(e: KeyboardEvent): void {
     return;
   }
   if (!shortcutOn.value) return;
-  if (e.key !== 'r' && e.key !== 'R') return;
-  if (e.ctrlKey || e.metaKey || e.altKey) return;
-  const t = e.target as HTMLElement | null;
-  if (t?.closest('input, textarea, select, [contenteditable="true"]')) return;
-  reseed();
+  const action = shortcutFor(e, isTyping(e));
+  if (action === 'shuffle') reseed();
+  else if (action === 'fullscreen') fullscreen();
 }
 onMounted(() => window.addEventListener('keydown', onKey));
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
@@ -165,6 +152,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     </div>
     <div class="bar-stats">
     <PaletteStrip />
+    <button type="button" class="icon-btn" aria-label="Full screen" title="Full screen (F)" :aria-keyshortcuts="shortcutOn ? 'F' : undefined" @click="fullscreen"><span aria-hidden="true">⛶</span></button>
     <span class="stat" :class="contrast.normal !== 'fail' ? 'ok' : 'bad'">
       <span aria-hidden="true">{{ contrast.normal !== 'fail' ? '✓' : '✗' }}</span>
       <span class="stat-long">Contrast {{ ratioText(contrast.worst) }}:1 {{ contrast.normal !== 'fail' ? 'AA pass' : 'AA fail' }}</span>
@@ -179,7 +167,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     <!-- ponytail: pointer shortcut only; the Shuffle button is the keyboard path. -->
     <!-- The hero uses the exported .fp-pattern class itself, so what you see is what you copy. -->
     <component :is="'style'">{{ exportText }}</component>
-    <div class="stage">
+    <div ref="stage" class="stage">
     <div class="hero fp-pattern" :class="{ 'fp-paused': motionPaused }" @click="reseed">
       <!-- The plate sits on the wrapper in 'plate' mode, on the paragraph in 'split', nowhere in 'direct'. -->
       <div class="hero-text" :class="{ 'hero-plate': plateMode === 'plate' }" :style="plateMode === 'plate' ? plateStyle : undefined">
@@ -198,7 +186,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <div v-show="tab === 'pattern'" id="panel-pattern" class="tabpanel" role="tabpanel" aria-labelledby="tab-pattern">
         <PatternPanel />
         <div class="shortcut-line">
-          <label class="radio"><input v-model="shortcutOn" type="checkbox"> Keyboard shortcut: R shuffles</label>
+          <label class="radio"><input v-model="shortcutOn" type="checkbox"> Keyboard shortcuts: R shuffles, F shows the pattern full screen</label>
           <span class="muted hint">{{ usingImage ? 'Shuffle applies to math patterns only.' : '' }}<template v-if="!usingImage && shortcutOn">Or click the pattern, or press <kbd>R</kbd>.</template><template v-else-if="!usingImage">Or click the pattern.</template></span>
         </div>
       </div>

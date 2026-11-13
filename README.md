@@ -32,6 +32,9 @@ The toolbar ends with a palette strip and two badges. The strip shows the colors
 The hero is the large preview under the toolbar. It uses the exported `.fp-pattern` class, so it shows what you copy. Six tabs hold the controls:
 
 - Pattern: the library, the seed, the depth, the tile size, the stroke width, the patchwork layout, and the R key option.
+
+Two single-key shortcuts work in both pages: R shuffles, and F shows the preview full screen (Esc or F leaves it). A toolbar button does the same as F. One checkbox turns both shortcuts off, and the choice is stored for both pages.
+
 - Repetition: the "Reduce repetition" switch with a picture for each option, the second layer, the soft fade, and the angle per section. The tab shows a mark while one of them is on.
 - Layout: the spacing, and the transform and motion controls.
 - Colors: the colors and contrast, the APCA value, the palettes, and the Second opinion panel.

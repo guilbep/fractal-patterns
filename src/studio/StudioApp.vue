@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue';
+import { isTyping, readShortcut, shortcutFor, toggleFullscreen, writeShortcut } from '@/shortcuts.ts';
 import { LOGO_DEFAULT, logoSvg } from '@/logo.ts';
 import { svgToDataUri } from '@/css.ts';
 import SponsorBanner from '@/components/SponsorBanner.vue';
@@ -259,6 +260,19 @@ function setTheme(t: Theme): void {
 function shuffle(): void {
   design.seed = Math.floor(Math.random() * MAX_SEED);
 }
+// The same single-key shortcuts as the pattern tool, with the same stored off switch (WCAG 2.1.4).
+const shortcutOn = ref(readShortcut());
+watch(shortcutOn, writeShortcut);
+const stage = ref<HTMLElement | null>(null);
+const fullscreen = () => toggleFullscreen(stage.value);
+function onKey(e: KeyboardEvent): void {
+  if (!shortcutOn.value) return;
+  const action = shortcutFor(e, isTyping(e));
+  if (action === 'shuffle') shuffle();
+  else if (action === 'fullscreen') fullscreen();
+}
+onMounted(() => window.addEventListener('keydown', onKey));
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 // The same palette controls as the pattern tool: previous, next, random, and the grouped select.
 const PALETTE_GROUPS = [
   { label: 'Light', palettes: PALETTES.filter((p) => !DARK_NAMES.has(p.name)) },
@@ -323,6 +337,7 @@ onBeforeUnmount(() => sizes.disconnect());
     </div>
     <div class="bar-stats">
     <PaletteStrip :colors="design.palette.colors" :name="design.palette.name" @previous="stepPal(-1)" @next="stepPal(1)" @random="rollPal" />
+    <button type="button" class="icon-btn" aria-label="Full screen" title="Full screen (F)" :aria-keyshortcuts="shortcutOn ? 'F' : undefined" @click="fullscreen"><span aria-hidden="true">⛶</span></button>
     <span id="svg-size" class="stat">{{ sizeText }}</span>
     <span id="svg-co2" class="stat" :title="footprintFull"><span aria-hidden="true">{{ footprintText }}</span><span class="visually-hidden">{{ footprintFull }}</span></span>
     </div>
@@ -330,7 +345,7 @@ onBeforeUnmount(() => sizes.disconnect());
   </div>
 
   <main class="layout">
-    <div class="stage">
+    <div ref="stage" class="stage">
       <div id="wall" class="wall" role="img" :aria-label="`Wallpaper preview, ${REPEAT_INFO.find(([r]) => r === design.repeat)?.[1]} repeat, seed ${design.seed}`" :style="wallStyle"></div>
     </div>
 
@@ -381,6 +396,7 @@ onBeforeUnmount(() => sizes.disconnect());
           </div>
         </div>
         <label class="radio"><input id="stems" v-model="design.stems" type="checkbox"> Stems behind the large motifs</label>
+        <label class="radio shortcut-switch"><input id="shortcuts" v-model="shortcutOn" type="checkbox"> Keyboard shortcuts: R shuffles, F shows the wallpaper full screen</label>
       </section>
 
       <section class="panel" aria-labelledby="repeat-h">

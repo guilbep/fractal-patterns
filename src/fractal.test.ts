@@ -62,7 +62,8 @@ test('bounds', () => {
           for (const [x, y] of poly) {
             const msg = `${kind} seed ${seed} depth ${depth}: (${x}, ${y})`;
             assert.ok(Number.isFinite(x) && Number.isFinite(y), msg);
-            assert.ok(x >= -1e-9 && x <= 120 + 1e-9 && y >= -1e-9 && y <= 120 + 1e-9, msg);
+            // A rectangular tile is 120 by 120 / aspect (taller than wide for the hexagonal groups).
+            assert.ok(x >= -1e-9 && x <= 120 + 1e-9 && y >= -1e-9 && y <= 120 / tileAspect(kind) + 1e-9, msg);
           }
         }
       }
@@ -191,7 +192,7 @@ test('families', () => {
 });
 
 test('all kinds are registered', () => {
-  assert.equal(KINDS.length, 59);
+  assert.equal(KINDS.length, 64);
   const ids = [
     'carpet',
     'quadtree',
@@ -252,9 +253,32 @@ test('all kinds are registered', () => {
     'octastars',
     'dodeca',
     'dodecastars',
+    'p3',
+    'p3m1',
+    'p31m',
+    'p6',
+    'p6m',
   ];
   for (const id of ids) assert.ok((KINDS as readonly string[]).includes(id), id);
-  for (const kind of ['p1', 'p2', 'pm', 'pg', 'cm', 'pmm', 'pmg', 'pgg', 'cmm', 'p4', 'p4m', 'p4g'] as const)
+  for (const kind of [
+    'p1',
+    'p2',
+    'pm',
+    'pg',
+    'cm',
+    'pmm',
+    'pmg',
+    'pgg',
+    'cmm',
+    'p4',
+    'p4m',
+    'p4g',
+    'p3',
+    'p3m1',
+    'p31m',
+    'p6',
+    'p6m',
+  ] as const)
     assert.equal(KIND_FAMILY[kind], 'symmetry', kind);
 });
 
@@ -628,6 +652,36 @@ const PINS: Readonly<Record<PatternParams['kind'], readonly (readonly [number, n
     [15005, 3140798711],
     [27456, 966033677],
   ],
+  p3: [
+    [11868, 237956064],
+    [49024, 2418842715],
+    [10715, 2107225881],
+    [37762, 10403331],
+  ],
+  p3m1: [
+    [16660, 1284970298],
+    [51474, 4031906138],
+    [16149, 2725328701],
+    [41701, 699667399],
+  ],
+  p31m: [
+    [18077, 2240896842],
+    [56629, 2233200882],
+    [15727, 1305684112],
+    [40229, 969841023],
+  ],
+  p6: [
+    [18066, 702864651],
+    [56681, 2969996904],
+    [15772, 2917334946],
+    [40329, 2897816869],
+  ],
+  p6m: [
+    [28063, 2369358513],
+    [28063, 2369358513],
+    [25657, 3765041639],
+    [25657, 3765041639],
+  ],
 };
 
 // The compatible layouts (compat: true) of the kinds that have one.
@@ -721,8 +775,14 @@ test('distinct outputs over seeds 1..12 at depth 2, free and compatible', () => 
 
 const PENROSE_KINDS = ['penrose', 'penrosearcs', 'penroseboth'] as const;
 
-test('tileAspect: 1 for every square kind, PENROSE_ASPECT for the three Penrose kinds', () => {
-  for (const kind of KINDS) assert.equal(tileAspect(kind), (PENROSE_KINDS as readonly string[]).includes(kind) ? PENROSE_ASPECT : 1, kind);
+test('tileAspect: 1 for every square kind, PENROSE_ASPECT for the Penrose kinds, 1 / sqrt(3) for the hexagonal groups', () => {
+  const hex: readonly string[] = ['p3', 'p3m1', 'p31m', 'p6', 'p6m'];
+  for (const kind of KINDS)
+    assert.equal(
+      tileAspect(kind),
+      (PENROSE_KINDS as readonly string[]).includes(kind) ? PENROSE_ASPECT : hex.includes(kind) ? 1 / Math.sqrt(3) : 1,
+      kind,
+    );
 });
 
 test('generate for a Penrose kind: an SVG of size by size / aspect, viewBox to match', () => {

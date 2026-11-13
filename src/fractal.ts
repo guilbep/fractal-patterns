@@ -2,7 +2,7 @@
 // Every kind is one generator function registered in PATTERNS; the generators live in src/patterns/.
 import { carpet, fold, hilbert, htree, koch, quadtree, sierpinski, tree } from './patterns/fractals.ts';
 import { rosette, spiral, stitch, whirl } from './patterns/lineart.ts';
-import { cm, cmm, p1, p2, p4, p4g, p4m, pg, pgg, pm, pmg, pmm } from './patterns/symmetry.ts';
+import { cm, cmm, HEX_ASPECT, p1, p2, p3, p31m, p3m1, p4, p4g, p4m, p6, p6m, pg, pgg, pm, pmg, pmm } from './patterns/symmetry.ts';
 import {
   basket,
   basketCompat,
@@ -109,6 +109,11 @@ export const KINDS = [
   'octastars',
   'dodeca',
   'dodecastars',
+  'p3',
+  'p3m1',
+  'p31m',
+  'p6',
+  'p6m',
 ] as const;
 export type Kind = (typeof KINDS)[number];
 
@@ -194,6 +199,13 @@ const PATTERNS: Readonly<
   octastars: { family: 'quasi', label: 'Eightfold stars', maxDepth: QUASI_MAX_DEPTH, gen: octaStars },
   dodeca: { family: 'quasi', label: 'Twelvefold rhombs', maxDepth: QUASI_MAX_DEPTH, gen: dodecaEdges },
   dodecastars: { family: 'quasi', label: 'Twelvefold stars', maxDepth: QUASI_MAX_DEPTH, gen: dodecaStars },
+  // Hexagonal lattice: a 1 by sqrt(3) rectangle tile. Worst over seeds 1..20 at size 120: p3 49k chars at
+  // depth 4; 6 ops 57k at depth 3 (68k at 4, too near the 70k cap); p6m 34k at depth 2 (92k at 3).
+  p3: { family: 'symmetry', label: 'p3 third turn', maxDepth: 4, gen: p3, aspect: HEX_ASPECT },
+  p3m1: { family: 'symmetry', label: 'p3m1 third turn and mirrors', maxDepth: 3, gen: p3m1, aspect: HEX_ASPECT },
+  p31m: { family: 'symmetry', label: 'p31m third turn, mirrors off center', maxDepth: 3, gen: p31m, aspect: HEX_ASPECT },
+  p6: { family: 'symmetry', label: 'p6 sixth turn', maxDepth: 3, gen: p6, aspect: HEX_ASPECT },
+  p6m: { family: 'symmetry', label: 'p6m sixth turn and mirrors', maxDepth: 2, gen: p6m, aspect: HEX_ASPECT },
 };
 
 const byKind = <T>(f: (k: Kind) => T): Readonly<Record<Kind, T>> => Object.fromEntries(KINDS.map((k) => [k, f(k)])) as Record<Kind, T>;

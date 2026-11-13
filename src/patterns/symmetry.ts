@@ -257,3 +257,120 @@ export const cmm = wallpaper('cmm');
 export const p4 = wallpaper('p4');
 export const p4m = wallpaper('p4m');
 export const p4g = wallpaper('p4g');
+
+// Hexagonal groups: lattice a = (1, 0), b = (1/2, sqrt(3)/2) in plane coordinates. All five are
+// symmorphic with the origin (a lattice point) as the rotation center, so their cosets modulo the
+// lattice are linear maps: closed from a rotation and, for the mirror groups, one mirror.
+// The tile is the rectangle 1 by sqrt(3) (two lattice cells), n by n times, aspect 1 / sqrt(3).
+export type Mat = readonly [number, number, number, number]; // [m00, m01, m10, m11]
+export const HEX_ASPECT = 1 / Math.sqrt(3);
+const S3 = Math.sqrt(3);
+const C1: Pt = [0.5, S3 / 6]; // center of the triangle 0, a, a + b
+const C0: Pt = [0.5, -S3 / 6]; // center of the triangle 0, a, a - b (below the a edge)
+const turn = (deg: number): Mat => {
+  const t = (deg * Math.PI) / 180;
+  return [Math.cos(t), -Math.sin(t), Math.sin(t), Math.cos(t)];
+};
+const mul = (p: Mat, q: Mat): Mat => [
+  p[0] * q[0] + p[1] * q[2],
+  p[0] * q[1] + p[1] * q[3],
+  p[2] * q[0] + p[3] * q[2],
+  p[2] * q[1] + p[3] * q[3],
+];
+export const apply = (m: Mat, [x, y]: Pt): Pt => [m[0] * x + m[1] * y, m[2] * x + m[3] * y];
+
+// Closes the generators under composition (identity first).
+function close(gens: readonly Mat[]): Mat[] {
+  const out: Mat[] = [[1, 0, 0, 1]];
+  for (let i = 0; i < out.length; i++)
+    for (const g of gens) {
+      const m = mul(g, out[i]!);
+      if (!out.some((o) => o.every((v, k) => Math.abs(v - m[k]!) < 1e-9))) out.push(m);
+    }
+  return out;
+}
+
+// p31m mirror: along a (y -> -y), through lattice points only. p3m1 mirror: x -> -x, through 0 and (0, sqrt(3)/3).
+export const HEX_OPS: Readonly<Record<string, readonly Mat[]>> = {
+  p3: close([turn(120)]),
+  p3m1: close([turn(120), [-1, 0, 0, 1]]),
+  p31m: close([turn(120), [1, 0, 0, -1]]),
+  p6: close([turn(60)]),
+  p6m: close([turn(60), [1, 0, 0, -1]]),
+};
+
+// Fundamental regions as convex polygons (counter-clockwise), proved by the tiling test.
+export const HEX_REGION: Readonly<Record<string, readonly Pt[]>> = {
+  p3: [[0, 0], C0, [1, 0], C1], // rhombus: lattice point, triangle center, lattice point, triangle center
+  p3m1: [[0, 0], C0, C1], // equilateral, bounded by three mirrors
+  p31m: [[0, 0], [1, 0], C1], // 30-30-120: two lattice points and a triangle center
+  p6: [[0, 0], [1, 0], C1],
+  p6m: [[0, 0], [0.5, 0], C1], // 30-60-90
+};
+
+// The motif's unit box squeezed onto the region by a bilinear map (a triangle repeats its last
+// corner): convex weights, so every motif point stays in the convex region.
+function intoRegion(shapes: Pt[][], region: readonly Pt[]): Pt[][] {
+  const [A, B, C, D = C] = region as [Pt, Pt, Pt, Pt?];
+  const pts = shapes.flat();
+  const lo = [Math.min(...pts.map((p) => p[0])), Math.min(...pts.map((p) => p[1]))] as const;
+  const hi = [Math.max(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[1]))] as const;
+  // Margins differ: with u = v the p3 rhombus maps onto its diagonal (the tile border y = 0), and a
+  // motif end point exactly on the border would leave a lone border point.
+  return shapes.map((s) =>
+    s.map(([x, y]): Pt => {
+      const u = 0.03 + (0.94 * (x - lo[0])) / (hi[0] - lo[0]);
+      const v = 0.04 + (0.92 * (y - lo[1])) / (hi[1] - lo[1]);
+      const w = [(1 - u) * (1 - v), u * (1 - v), u * v, (1 - u) * v] as const;
+      return [w[0] * A[0] + w[1] * B[0] + w[2] * C[0] + w[3] * D[0], w[0] * A[1] + w[1] * B[1] + w[2] * C[1] + w[3] * D[1]];
+    }),
+  );
+}
+
+// Pure helpers for the tests: the motif in the region and its orbit (every op, no translation).
+export const hexMotif = (group: string, rnd: Rng, depth: number): Pt[][] =>
+  intoRegion(motif(rnd, depth, [0, 0, 1, 1]), HEX_REGION[group] ?? []);
+export const hexOrbit = (group: string, shapes: readonly (readonly Pt[])[]): Pt[][] =>
+  (HEX_OPS[group] ?? []).flatMap((m) => shapes.map((s) => s.map((p) => apply(m, p))));
+
+// Cells per tile side: 1, 1, 2 by depth; the motif gets depth - 1 extra shapes (12 copies crowd).
+// Depth 3 reaches 57k chars with 6 ops and 92k with 12 (p6m stops at 2), size 120, seeds 1..20.
+export const hexCells = (depth: number): number => (depth <= 2 ? 1 : 2);
+
+export function hexWallpaper(group: string): Generator {
+  return (rnd, depth, size) => {
+    const n = hexCells(depth);
+    const orbit = hexOrbit(group, hexMotif(group, rnd, depth - 1));
+    const k = size / n;
+    const polys: Poly[] = [];
+    for (const shape of orbit)
+      for (const b of [0, 1]) {
+        // Lattice translate by b (the rectangle holds two cells), then by whole rectangles so the
+        // bounding box center lies in the rectangle; wrap() then handles the +-1 rectangle overlap.
+        const moved = shape.map(([x, y]): Pt => [x + b / 2, y + (b * S3) / 2]);
+        const xs = moved.map((p) => p[0]);
+        const ys = moved.map((p) => p[1]);
+        const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+        const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+        const dx = -Math.floor(cx);
+        const dy = -Math.floor(cy / S3) * S3;
+        for (let i = 0; i < n; i++)
+          for (let j = 0; j < n; j++)
+            // y stretched by 1 / sqrt(3) into a size by size square for the square-only wrap().
+            polys.push(
+              thin(
+                moved.map(([x, y]): Pt => [(x + dx + i) * k, ((y + dy + j * S3) * k) / S3]),
+                2 / S3,
+              ),
+            );
+      }
+    // ponytail: wrap() is square only (as in penroseTile): wrap the y-stretched square, then stretch back.
+    return wrap(polys, size).map((poly) => poly.map(([x, y]): Pt => [x, y * S3]));
+  };
+}
+
+export const p3 = hexWallpaper('p3');
+export const p3m1 = hexWallpaper('p3m1');
+export const p31m = hexWallpaper('p31m');
+export const p6 = hexWallpaper('p6');
+export const p6m = hexWallpaper('p6m');

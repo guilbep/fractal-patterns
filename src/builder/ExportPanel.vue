@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The builder's export: size badge, the shared actions, and the design as a JSON file.
+// The builder's export, in Use it › Website background: size badge, the shared actions, and the design as a JSON file.
 import { ref } from 'vue';
 import ExportActions from '@/components/ExportActions.vue';
 import SizeBadge from '@/components/SizeBadge.vue';
@@ -42,13 +42,7 @@ async function openDesign(e: Event): Promise<void> {
 </script>
 
 <template>
-  <section class="card" aria-labelledby="export-h">
-    <details>
-    <summary class="card-head">
-      <h2 id="export-h">Export</h2>
-      <span class="card-sum">SVG · CSS · design file</span>
-    </summary>
-    <div class="card-body">
+  <div class="builder-export">
     <p class="export-stats"><SizeBadge :svg="svg" /></p>
     <ExportActions :svg="svg" :css="css" file-name="pattern-builder" :css-box="false" />
     <details class="group">
@@ -62,9 +56,7 @@ async function openDesign(e: Event): Promise<void> {
       </div>
       <p class="copy-status" role="status" aria-live="polite">{{ openStatus }}</p>
     </details>
-    </div>
-    </details>
-  </section>
+  </div>
 </template>
 
 <style scoped>

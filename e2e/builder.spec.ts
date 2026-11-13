@@ -162,7 +162,7 @@ test('an example changes the background, and Undo restores it', async ({ page })
 });
 
 test('Download SVG gives a clean svg file', async ({ page }) => {
-  await page.getByRole('heading', { name: 'Export', exact: true }).click();
+  await page.getByRole('button', { name: 'Use it…' }).click();
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download SVG' }).click()]);
   expect(download.suggestedFilename()).toMatch(/\.svg$/);
   const text = await readFile(await download.path(), 'utf8');

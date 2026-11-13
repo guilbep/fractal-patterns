@@ -210,3 +210,12 @@ details[open] > .card-head::after {
     border-right-color: var(--hairline);
   }
 }
+
+/* Use it: the way back to the sections, above the panel. */
+.use-back {
+  justify-self: start;
+  padding: 0 8px;
+}
+.builder-sections {
+  display: contents;
+}

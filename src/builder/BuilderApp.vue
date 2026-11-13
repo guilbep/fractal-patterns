@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The Pattern Builder page: the shared header, a toolbar, the tile stage and four control panels.
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useBarHeight } from '@/bar-height.ts';
 import SiteHeader from '@/components/SiteHeader.vue';
 import SponsorBanner from '@/components/SponsorBanner.vue';
@@ -8,7 +8,11 @@ import { isTyping } from '@/shortcuts.ts';
 import { copyText } from '@/clipboard.ts';
 import SizeBadge from '@/components/SizeBadge.vue';
 import ToolIcon from '@/components/ToolIcon.vue';
-import { canRedo, canUndo, commit, redo, resetDesign, selectedId, svg, undo } from './store.ts';
+import UseIt from '@/components/UseIt.vue';
+import { DESTINATIONS, type Destination } from '@/use-it.ts';
+import { repeatCell } from '@/studio/model.ts';
+import { toStudio } from './design.ts';
+import { canRedo, canUndo, commit, design, redo, resetDesign, selectedId, svg, undo } from './store.ts';
 import { css } from './builder-css.ts';
 import { EXAMPLE_LIST } from './example-list.ts';
 import BuilderStage from './BuilderStage.vue';
@@ -19,6 +23,10 @@ import ExportPanel from './ExportPanel.vue';
 
 const bar = ref<HTMLElement | null>(null);
 useBarHeight(bar);
+// Until the header scrolls away, the stage's bottom sits lower by its height (the Use it preview pads for it).
+const head = ref<HTMLElement | null>(null);
+onMounted(() => (head.value = document.querySelector<HTMLElement>('.site-header')));
+useBarHeight(head, '--head-h');
 
 // Same texts as the Export card's copies.
 const copyStatus = ref('');
@@ -30,13 +38,43 @@ async function copyCss(): Promise<void> {
   copyTimer = setTimeout(() => (copyStatus.value = ''), 2000);
 }
 
-// "Use it…": the Export card for now. A later phase replaces it.
-function useIt(): void {
-  const card = document.getElementById('export-h')?.closest('section');
-  if (!card) return;
-  card.tabIndex = -1;
-  card.scrollIntoView({ block: 'start' });
-  card.focus({ preventScroll: true });
+// "Use it…": the shared Use it view replaces the sections; the stage shows the device preview. Not stored, not in the link.
+const useOpen = ref(false);
+const useBtn = ref<HTMLButtonElement | null>(null);
+async function useIt(): Promise<void> {
+  useOpen.value = true;
+  await nextTick();
+  const legend = document.querySelector<HTMLElement>('.controls .use-it-panel legend');
+  if (!legend) return;
+  legend.tabIndex = -1;
+  legend.focus();
+}
+function closeUse(): void {
+  useOpen.value = false;
+  useBtn.value?.focus();
+}
+function onUseKey(e: KeyboardEvent): void {
+  if (useOpen.value && e.key === 'Escape') closeUse();
+}
+// Same tile as the CSS export: the repeat cell, not the drawn tile.
+const cell = computed(() => repeatCell(toStudio(design.value)));
+// The same SVG text as the Export card's download.
+const svgHref = computed(() => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg.value)}`);
+// The last destination, for the session only; "Website background" (the export) first.
+const USE_KEY = 'fp-use-builder';
+function readUse(): Destination['id'] {
+  try {
+    return DESTINATIONS.find((d) => d.id === sessionStorage.getItem(USE_KEY))?.id ?? 'web';
+  } catch {
+    return 'web';
+  }
+}
+function writeUse(id: Destination['id']): void {
+  try {
+    sessionStorage.setItem(USE_KEY, id);
+  } catch {
+    /* storage blocked: the choice resets on reload */
+  }
 }
 
 // The example designs load on demand: "Falling leaves" needs the studio's motif generators.
@@ -88,10 +126,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <SizeBadge :svg="svg" />
     </div>
     <div class="bar-out">
-      <!-- Raw SVG bytes, the same file as the Export card's Blob download. Not on the canvas toolbar: it moves into "Use it" next phase. -->
-      <a class="btn quiet" :href="`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`" download="pattern-builder.svg" title="Download SVG"><ToolIcon name="download" /><span class="out-label">Download SVG</span></a>
       <button type="button" class="btn secondary" @click="copyCss">Copy CSS</button>
-      <button type="button" class="btn use-it" @click="useIt">Use it…</button>
+      <button ref="useBtn" type="button" class="btn use-it" @click="useIt">Use it…</button>
     </div>
     <span class="visually-hidden" role="status" aria-live="polite">{{ copyStatus }}</span>
     <!-- ponytail: hidden while empty, so the empty live region takes no row in the toolbar. -->
@@ -99,14 +135,35 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   </div>
 
   <main class="layout">
-    <div class="stage">
+    <div class="stage" :class="{ 'stage-use': useOpen }">
       <BuilderStage />
+      <!-- Use it draws its device preview here; the editor stays underneath (hidden). -->
+      <div v-show="useOpen" id="use-preview" class="use-stage"></div>
     </div>
-    <div class="controls">
-      <StampPanel />
-      <ItemPanel />
-      <TilePanel />
-      <ExportPanel />
+    <div class="controls" @keydown="onUseKey">
+      <!-- Hidden, not destroyed, while Use it is open: folds and fields keep their state. -->
+      <div v-show="!useOpen" class="builder-sections">
+        <StampPanel />
+        <ItemPanel />
+        <TilePanel />
+      </div>
+      <template v-if="useOpen">
+        <button type="button" class="btn quiet use-back" @click="closeUse">‹ Back to the design</button>
+        <UseIt
+          :svg="svg"
+          :tile-width="cell.width"
+          :tile-height="cell.height"
+          :background="design.background"
+          base-name="pattern-builder"
+          :svg-href="svgHref"
+          svg-file-name="pattern-builder.svg"
+          :initial="readUse()"
+          preview-target="#use-preview"
+          @destination="writeUse"
+        >
+          <template #web><ExportPanel /></template>
+        </UseIt>
+      </template>
     </div>
   </main>
   <footer class="site-footer">

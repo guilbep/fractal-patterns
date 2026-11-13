@@ -765,8 +765,8 @@ export function composeOnce(o: ComposeOptions): Omit<ComposeParts, 'tracking'> {
   const fillerMargin = 0.03 * side;
   const filler: { v: Variant; p: Placement }[] = [];
   const fr = 0.04 * side;
-  const fillerAt = (c: Pt, v: Variant): Placement => {
-    const rotate0 = Math.round(rnd() * 360);
+  const fillerAt = (c: Pt, v: Variant, angle?: number): Placement => {
+    const rotate0 = angle ?? Math.round(rnd() * 360);
     const rotate = v.hang ? Math.round(180 + swing(c)) : v.floats ? 0 : rotate0;
     const scale = round(fr / v.radius.radius, 100);
     const fl = rnd() < 0.5;
@@ -861,10 +861,10 @@ export function composeOnce(o: ComposeOptions): Omit<ComposeParts, 'tracking'> {
     }
     return false;
   };
-  const fillAt = (c: Pt): boolean => {
+  const fillAt = (c: Pt, angle?: number): boolean => {
     const v = variants[2]![filler.length % VARIANTS]!;
     if (!allClear(-1, c, fr) || !lines().every((line) => line.every((q) => dist(c, q) >= fr + fillerMargin))) return false;
-    filler.push({ v, p: fillerAt(c, v) });
+    filler.push({ v, p: fillerAt(c, v, angle) });
     return true;
   };
   const cap = Math.round((2 + 6 * density) * area);
@@ -874,7 +874,7 @@ export function composeOnce(o: ComposeOptions): Omit<ComposeParts, 'tracking'> {
     if (R < 0.09 * side) break;
     const c = grid[k]!;
     const before = plants.map((pl) => pl.circles.length);
-    if (twig(c, R, added) || fillAt(c)) {
+    if (twig(c, R, added) || (!o.variety && fillAt(c))) {
       added++;
       plants.forEach((pl, i) => pl.circles.slice(before[i]).forEach((x) => mark(x.c, x.r)));
       plants.forEach((pl) => pl.stalks.flatMap(stalkPts).forEach((q) => mark(q, 0)));
@@ -882,10 +882,37 @@ export function composeOnce(o: ComposeOptions): Omit<ComposeParts, 'tracking'> {
     } else grid.forEach((g, i) => dist(g, c) < R && (empty[i] = -Infinity));
   }
 
+  // Variety: filler on a sateen spot layout (docs/research/wallpaper-repeats.md), N x N cells, one spot per row and
+  // column, spot i in column i and row s x i mod N; one seeded shift, a jitter in each cell's middle half, the same
+  // checks as the gap loop; a blocked spot is dropped. Angles: 6 steps of 60 degrees plus one offset, dealt shuffled.
+  if (o.variety) {
+    const sr = mulberry32(o.seed ^ 0x3c6ef372);
+    const n = 5 * span;
+    const s = span === 2 ? 3 : 2;
+    const shuffle = <T>(a: T[]): T[] => {
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(sr() * (i + 1));
+        [a[i], a[j]] = [a[j]!, a[i]!];
+      }
+      return a;
+    };
+    const [dx, dy] = [Math.floor(sr() * n), Math.floor(sr() * n)];
+    const spots = Array.from({ length: n }, (_, i): Pt => [
+      ((((i + dx) % n) + 0.25 + 0.5 * sr()) * w) / n,
+      ((((((s * i) % n) + dy) % n) + 0.25 + 0.5 * sr()) * h) / n,
+    ]);
+    const off = sr() * 60;
+    const angles = shuffle([0, 60, 120, 180, 240, 300].map((a) => Math.round(a + off) % 360));
+    let k = 0;
+    for (const c of shuffle(spots)) {
+      if (filler.length >= cap) break;
+      if (fillAt(c, angles[k % angles.length])) k++;
+    }
+  }
   // Then sparse filler in the larger gaps that are left.
   const occupied = [...plants.flatMap((pl) => pl.circles.map((c) => ({ c: c.c, r: c.r }))), ...filler.map((f) => realCircle(f.v, f.p))];
   const stemPts = lines().flatMap((line) => line.filter((_, i) => i % 2 === 0));
-  for (let n = 0, want2 = filler.length + Math.round(8 * density * area); n < want2 * 4 && filler.length < want2; n++) {
+  for (let n = 0, want2 = o.variety ? 0 : filler.length + Math.round(8 * density * area); n < want2 * 4 && filler.length < want2; n++) {
     let best: { p: Pt; clear: number } | null = null;
     for (let k = 0; k < 16; k++) {
       const c: Pt = [rnd() * w, rnd() * h];

@@ -873,3 +873,31 @@ test('balance: nothing touches (seeds 1-8, 4 repeats), deterministic, span 2 unc
     assert.equal(big(true), big(false), `span 2 seed ${seed}`);
   }
 });
+
+test('variety: nothing touches, filler clear of stems, one filler per spot row and column, varied angles', () => {
+  const angles = new Set<number>();
+  for (const repeat of REPEATS)
+    for (const seed of SEEDS) {
+      const at = `${repeat} ${seed}`;
+      const p = composeParts(opt(seed, { repeat, variety: true }));
+      assertGap(p, repeat, at);
+      const stemPts = p.plants.flatMap((pl) => pl.stem);
+      const cols = new Set<number>();
+      const rows = new Set<number>();
+      for (const f of p.filler) {
+        const c = circle(p.studio, f);
+        for (const q of stemPts) assert.ok(latticeDistance([c.x, c.y], q, repeat, 300, 300) >= c.r + p.fillerMargin, `${at} filler`);
+        const [col, row] = [Math.floor((c.x / 300) * 5), Math.floor((c.y / 300) * 5)];
+        assert.ok(!cols.has(col) && !rows.has(row), `${at} spot ${col} ${row}`);
+        cols.add(col);
+        rows.add(row);
+        angles.add(f.rotate);
+      }
+    }
+  // The default theme (floral) has no hanging or floating family: every filler rotates.
+  assert.ok(angles.size >= 4, `${angles.size}`);
+});
+
+test('variety false and absent give the same SVG', () => {
+  for (const seed of [1, 2, 3]) assert.equal(studioSvg(compose(opt(seed, { variety: false }))), studioSvg(compose(opt(seed))), `${seed}`);
+});

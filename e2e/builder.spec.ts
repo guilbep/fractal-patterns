@@ -174,3 +174,22 @@ test('the design is still there after a reload', async ({ page }) => {
   await expect(stage(page)).toBeVisible();
   expect(await stageCount(page)).toBe(17);
 });
+
+test('keyboard selects shapes', async ({ page }) => {
+  await startAgain(page);
+  const before = await page.evaluate((key) => localStorage.getItem(key), KEY);
+  const live = page.locator('.stage-editor [aria-live="polite"]');
+  await stage(page).focus();
+  await page.keyboard.press('n');
+  await expect(panel(page).getByText('Select a shape on the tile.')).toHaveCount(0);
+  await expect(live).toHaveText(/shape 1 of 16$/);
+  const name = (await live.innerText()).split(',')[0]!;
+  await expect(panel(page).getByText(name, { exact: true })).toBeVisible();
+  const first = await panel(page).innerText();
+  for (let k = 2; k <= 17; k++) await page.keyboard.press('n');
+  await expect(live).toHaveText(/shape 1 of 16$/);
+  expect(await panel(page).innerText()).toBe(first);
+  await page.keyboard.press('p');
+  await expect(live).toHaveText(/shape 16 of 16$/);
+  expect(await page.evaluate((key) => localStorage.getItem(key), KEY)).toBe(before);
+});

@@ -35,3 +35,11 @@ export function viewBox(cellWidth: number, cellHeight: number): string {
 export function hitStroke(strokeWidth: number, unitsPerPixel: number, minPixels = 14): number {
   return Math.max(strokeWidth, minPixels * unitsPerPixel);
 }
+
+/** The id after `current` in `ids`, wrapping around; with no (or an unknown) selection, the first or the last. */
+export function stepSelection(ids: readonly number[], current: number | null, step: 1 | -1): number | null {
+  if (!ids.length) return null;
+  const k = current === null ? -1 : ids.indexOf(current);
+  if (k < 0) return ids[step === 1 ? 0 : ids.length - 1]!;
+  return ids[mod(k + step, ids.length)]!;
+}

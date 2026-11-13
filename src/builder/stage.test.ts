@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { handleTransform, hitStroke, viewBox } from './stage.ts';
+import { handleTransform, hitStroke, stepSelection, viewBox } from './stage.ts';
 
 const near = (a: number, b: number): void => assert.ok(Math.abs(a - b) < 1e-9, `${a} != ${b}`);
 
@@ -41,4 +41,15 @@ test('hitStroke keeps a line at least minPixels wide on the screen', () => {
   near(hitStroke(10, 0.5), 10);
   near(hitStroke(3, 1, 20), 20);
   near(hitStroke(0, 0.9), 12.6);
+});
+
+test('stepSelection steps through the ids and wraps around', () => {
+  assert.equal(stepSelection([5, 7, 9], null, 1), 5);
+  assert.equal(stepSelection([5, 7, 9], null, -1), 9);
+  assert.equal(stepSelection([5, 7, 9], 7, 1), 9);
+  assert.equal(stepSelection([5, 7, 9], 9, 1), 5);
+  assert.equal(stepSelection([5, 7, 9], 5, -1), 9);
+  assert.equal(stepSelection([5, 7, 9], 42, 1), 5);
+  assert.equal(stepSelection([], null, 1), null);
+  assert.equal(stepSelection([4], 4, 1), 4);
 });

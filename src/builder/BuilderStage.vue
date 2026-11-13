@@ -6,7 +6,7 @@ import { instanceMatrix, repeatCell, studioInstances } from '@/studio/model.ts';
 import { duplicateItem, moveBy, owners, removeItem, reorder, toStudio, updateItem } from './design.ts';
 import { commit, design, preview, selected, selectedId } from './store.ts';
 import type { Design } from './types.ts';
-import { handleTransform, hitStroke, viewBox } from './stage.ts';
+import { handleTransform, hitStroke, stepSelection, viewBox } from './stage.ts';
 
 const svgEl = ref<SVGSVGElement | null>(null);
 const svgPixels = ref(0);
@@ -156,8 +156,23 @@ function onUp(e: PointerEvent): void {
   if (svgEl.value?.hasPointerCapture(e.pointerId)) svgEl.value.releasePointerCapture(e.pointerId);
 }
 
+/** What the live region says: a function of the selected id and the item list only, so a drag says nothing new. */
+const spoken = computed(() => {
+  const items = design.value.items;
+  const k = items.findIndex((t) => t.id === selectedId.value);
+  if (k < 0) return 'No shape selected';
+  return `${design.value.stamps[items[k]!.stamp]?.name ?? 'Shape'}, shape ${k + 1} of ${items.length}`;
+});
+
 function onKey(e: KeyboardEvent): void {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const pick = e.key === 'n' ? 1 : e.key === 'p' || e.key === 'N' ? -1 : 0;
+  if (pick) {
+    e.preventDefault();
+    const ids = design.value.items.map((t) => t.id);
+    if (ids.length) selectedId.value = stepSelection(ids, selectedId.value, pick);
+    return;
+  }
   const it = selected.value;
   if (!it) return;
   const d = design.value;
@@ -210,7 +225,7 @@ function onKey(e: KeyboardEvent): void {
       :style="sizeStyle"
       tabindex="0"
       role="application"
-      aria-label="Tile editor. Arrow keys move the selected shape."
+      aria-label="Tile editor. N and P select the next and previous shape. Arrow keys move the selected shape."
       @pointerdown="onDown"
       @pointermove="onMove"
       @pointerup="onUp"
@@ -260,7 +275,8 @@ function onKey(e: KeyboardEvent): void {
       />
       <circle v-if="handle" class="handle" data-handle :cx="handle.cx" :cy="handle.cy" :r="handle.r" />
     </svg>
-    <p class="stage-hint">Drag to move. Drag the round handle to turn and resize. Shapes that cross an edge come back on the other side.</p>
+    <p class="visually-hidden" aria-live="polite">{{ spoken }}</p>
+    <p class="stage-hint">Keys: N and P choose a shape, arrows move it. Drag to move. Drag the round handle to turn and resize. Shapes that cross an edge come back on the other side.</p>
   </div>
 </template>
 

@@ -3,7 +3,7 @@
 // tool. Same contract as the floral theme (./motifs.ts): box 100, base at the bottom
 // center, tip toward the top, a filled silhouette and a stroked detail that register.
 // Each family is drawn in its own units, then scaled and placed into the box by `fit`.
-import { curvePathData, type Cubic } from '../curvefit.ts';
+import { curvePathData, type Cubic } from '../curvepath.ts';
 import { mulberry32, TAU, type Pt, type Rng } from '../patterns/util.ts';
 import type { StudioMotif } from './motifs.ts';
 

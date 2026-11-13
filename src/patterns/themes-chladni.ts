@@ -1,7 +1,7 @@
 // Chladni figures: the nodal lines (where the plate does not move) of a square plate,
 // f = a (cos(n u) cos(m v) + s cos(m u) cos(n v)) + b (cos(k u) cos(l v) + s2 cos(l u) cos(k v)),
 // with u, v full periods over the tile so the figure repeats with no seam.
-import { simplify } from '../vectorize.ts';
+import { simplify } from '../simplify.ts';
 import { TAU, type Generator, type Poly, type Pt, type Rng } from './util.ts';
 
 export const CHLADNI_MAX_DEPTH = 5;

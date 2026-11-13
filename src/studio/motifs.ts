@@ -2,7 +2,7 @@
 // berry cluster and sprig is computed from plain geometry and a seed, so each one is
 // original to the tool. Box 100 x 100, origin top left, base at the bottom center,
 // tip toward the top. Two layers that register: a filled silhouette, a stroked detail.
-import { curvePathData, type Cubic } from '../curvefit.ts';
+import { curvePathData, type Cubic } from '../curvepath.ts';
 import { mulberry32, TAU, type Pt, type Rng } from '../patterns/util.ts';
 
 export interface StudioMotif {

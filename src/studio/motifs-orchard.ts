@@ -2,7 +2,7 @@
 // and leaf, each computed from plain geometry and a seed, so each one is original to the
 // tool. Same contract as `makeMotif` (motifs.ts): box 100, origin top left, base at the
 // bottom center. Fruit hangs: the stalk sits at the base, the fruit body beyond it.
-import { curvePathData, type Cubic } from '../curvefit.ts';
+import { curvePathData, type Cubic } from '../curvepath.ts';
 import { mulberry32, TAU, type Pt, type Rng } from '../patterns/util.ts';
 import { bez, type MotifParts, type StudioMotif } from './motifs.ts';
 

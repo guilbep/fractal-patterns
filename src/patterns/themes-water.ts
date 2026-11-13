@@ -1,5 +1,5 @@
 // Theme kinds: seigaiha waves, rain, and stacked mountain ridges. All live on a torus.
-import { simplify } from '../vectorize.ts';
+import { simplify } from '../simplify.ts';
 import { TAU, wrap, type Generator, type Poly, type Pt, type Rng } from './util.ts';
 
 export const THEME_WATER_MAX_DEPTH = { seigaiha: 3, rain: 4, ridges: 4 } as const;

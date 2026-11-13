@@ -1,6 +1,6 @@
 // Earth and sky theme kinds: a night sky of constellations, root systems, cracked earth.
 // All three live on a torus (wrap-around distances, lines through wrap()), so the tile repeats with no seam.
-import { simplify } from '../vectorize.ts';
+import { simplify } from '../simplify.ts';
 import { TAU, wrap, type Generator, type Poly, type Pt, type Rng } from './util.ts';
 
 export const THEME_EARTH_MAX_DEPTH = { stars: 5, roots: 4, cracks: 4 } as const;

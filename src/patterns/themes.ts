@@ -1,6 +1,6 @@
 // Theme kinds: patterns that depict something (a contour map, a maze, a circuit board).
 // All three live on a torus, so the tile repeats with no seam.
-import { simplify } from '../vectorize.ts';
+import { simplify } from '../simplify.ts';
 import { TAU, wrap, type Generator, type Poly, type Pt, type Rng } from './util.ts';
 
 const pick = <T>(rnd: Rng, xs: readonly T[]): T => xs[Math.floor(rnd() * xs.length)] as T;

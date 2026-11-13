@@ -10,12 +10,10 @@ import { DARK_NAMES, PALETTES, paletteParam, rollPalette } from '@/palettes.ts';
 import { stepPalette } from '@/shell.ts';
 import PaletteStrip from '@/components/PaletteStrip.vue';
 import { safePathData } from '@/motifgrid.ts';
-import { DETECTOR_LABELS, DETECTORS, type Detector } from '@/trace.ts';
-import { cropToSubject, sampleFlower, traceColors, type Rgba } from './colortrace.ts';
-import { inkMask, traceInk } from './inktrace.ts';
-import { cropLines, traceLines } from './linetrace.ts';
+import { DETECTOR_LABELS, DETECTORS, type Detector } from '@/detectors.ts';
+import type { Rgba } from './colortrace.ts';
 import { defaultsFor, inkColor, inkSpread, isSvgFile, ownShapes, pickMethod, type OwnMethod, type OwnShape } from './own-motif.ts';
-import { importSvg, type SvgImport } from './svg-import.ts';
+import type { SvgImport } from './svg-import.ts';
 import { compose, composeSummary, THEMES, themeFamilies, type Theme } from './compose.ts';
 import { INK_MAX_LENGTH, repeatCell, studioSvg, type Repeat } from './model.ts';
 import { decodeStudio, designOptions, encodeStudio, MAX_SEED, SIZE_MAX, SIZE_MIN, SIZE_STEP } from './studio-share.ts';
@@ -52,6 +50,26 @@ const own = reactive({
   minLength: 8,
 });
 const ownError = ref('');
+// The tracing code (vectorizer, curve fitting) loads only when a person first picks a file or the sample: a studio
+// link never holds an image, so the page does not need it at start.
+type Tracers = {
+  color: typeof import('./colortrace.ts');
+  ink: typeof import('./inktrace.ts');
+  lines: typeof import('./linetrace.ts');
+  svg: typeof import('./svg-import.ts');
+};
+let tracers: Tracers | null = null; // set before ownSmall, ownLarge or ownVector, so ownResult can read it
+let tracersLoad: Promise<Tracers> | null = null;
+function loadTracers(): Promise<Tracers> {
+  tracersLoad ??= Promise.all([import('./colortrace.ts'), import('./inktrace.ts'), import('./linetrace.ts'), import('./svg-import.ts')]).then(
+    ([color, ink, lines, svg]) => (tracers = { color, ink, lines, svg }),
+    (e: unknown) => {
+      tracersLoad = null; // a failed load can be tried again
+      throw e;
+    },
+  );
+  return tracersLoad;
+}
 const METHODS: readonly (readonly [OwnMethod, string])[] = [
   ['color', 'Color shapes (photos and flat art)'],
   ['ink', 'Ink (line art in one color)'],
@@ -62,11 +80,11 @@ watch(
   (m) => Object.assign(own, defaultsFor(m)),
 );
 
-function setOwnImage(small: Rgba, large: Rgba): void {
+function setOwnImage(t: Tracers, small: Rgba, large: Rgba): void {
   ownVector.value = null;
   ownSmall.value = small;
   ownLarge.value = large;
-  const ink = inkMask(large, {});
+  const ink = t.ink.inkMask(large, {});
   own.inkColor = inkColor(large.data, ink.mask);
   own.method = pickMethod({ ...ink, spread: inkSpread(large.data, ink.mask) });
   Object.assign(own, defaultsFor(own.method));
@@ -80,10 +98,12 @@ const ownResult = computed((): { shapes: OwnShape[]; box: number; count: string;
   if (v) return { ...ownShapes({ method: 'svg', result: v }), count: `${v.shapes.length} shapes`, notes: [] };
   const small = ownSmall.value;
   const large = ownLarge.value;
-  if (!small || !large) return null;
+  const t = tracers;
+  if (!small || !large || !t) return null;
+  const { cropToSubject, traceColors } = t.color;
   const crop = own.anchor === 'base' ? 'bottom' : 'center';
   if (own.method === 'ink') {
-    const r = traceInk(large, { size: 100, detail: own.detail, smooth: 0.8, minArea: 0.05, curves: own.curves, maxLength: INK_MAX_LENGTH });
+    const r = t.ink.traceInk(large, { size: 100, detail: own.detail, smooth: 0.8, minArea: 0.05, curves: own.curves, maxLength: INK_MAX_LENGTH });
     const c = r.d ? cropToSubject({ shapes: [{ color: own.inkColor, d: r.d, area: 0 }], background: '#ffffff', box: r.box }, 0.04, crop) : null;
     const d = c ? (safePathData(c.shapes[0]!.d, INK_MAX_LENGTH) ?? '') : '';
     const notes: string[] = [];
@@ -93,15 +113,15 @@ const ownResult = computed((): { shapes: OwnShape[]; box: number; count: string;
     return { ...ownShapes({ method: 'ink', result: { d, box: r.box }, color: own.inkColor }), count: `${r.loops} loops (${r.holes} holes)`, notes };
   }
   if (own.method === 'lines') {
-    const r = cropLines(
-      traceLines(large, { detector: own.detector, threshold: own.threshold, detail: own.detail, minLength: own.minLength, curves: own.curves, size: 100 }),
+    const r = t.lines.cropLines(
+      t.lines.traceLines(large, { detector: own.detector, threshold: own.threshold, detail: own.detail, minLength: own.minLength, curves: own.curves, size: 100 }),
       0.04,
       crop,
     );
     return { ...ownShapes({ method: 'lines', result: r, color: own.inkColor }), count: `${r.lines} lines`, notes: [] };
   }
-  const t = cropToSubject(traceColors(small, { colors: own.colors, size: 100, smooth: 1, tolerance: own.detail, minArea: 4, curves: own.curves }), 0.04, crop);
-  return { ...ownShapes({ method: 'color', shapes: t.shapes, box: t.box }), count: `${t.shapes.length} shapes`, notes: [] };
+  const c = cropToSubject(traceColors(small, { colors: own.colors, size: 100, smooth: 1, tolerance: own.detail, minArea: 4, curves: own.curves }), 0.04, crop);
+  return { ...ownShapes({ method: 'color', shapes: c.shapes, box: c.box }), count: `${c.shapes.length} shapes`, notes: [] };
 });
 // The motif alone, for the preview and its size: built from numbers and safe path data only.
 const ownSvgText = computed(() => {
@@ -132,6 +152,7 @@ function toRgba(src: CanvasImageSource, w: number, h: number, max: number): Rgba
   return { data: ctx.getImageData(0, 0, width, height).data, width, height };
 }
 async function readImage(file: File): Promise<void> {
+  const t = await loadTracers();
   if (isSvgFile(file.name, file.type)) {
     // An SVG file is drawn as an image through an <img> and an object URL; its text never enters the page.
     const url = URL.createObjectURL(file);
@@ -141,7 +162,7 @@ async function readImage(file: File): Promise<void> {
       await img.decode();
       const w = img.naturalWidth || 600;
       const h = img.naturalHeight || 600;
-      setOwnImage(toRgba(img, w, h, 256), toRgba(img, w, h, 600));
+      setOwnImage(t, toRgba(img, w, h, 256), toRgba(img, w, h, 600));
     } finally {
       URL.revokeObjectURL(url);
     }
@@ -149,7 +170,7 @@ async function readImage(file: File): Promise<void> {
   }
   const bitmap = await createImageBitmap(file);
   try {
-    setOwnImage(toRgba(bitmap, bitmap.width, bitmap.height, 256), toRgba(bitmap, bitmap.width, bitmap.height, 600));
+    setOwnImage(t, toRgba(bitmap, bitmap.width, bitmap.height, 256), toRgba(bitmap, bitmap.width, bitmap.height, 600));
   } finally {
     bitmap.close();
   }
@@ -166,17 +187,17 @@ async function onOwnFile(e: Event): Promise<void> {
     return;
   }
   ownSvgFile.value = svgFile ? file : null;
-  if (svgFile) {
-    const shapes = importSvg(await file.text());
-    if (shapes) {
-      removeOwn();
-      ownSvgFile.value = file;
-      ownVector.value = shapes;
-      own.method = 'color';
-      return;
-    }
-  }
   try {
+    if (svgFile) {
+      const shapes = (await loadTracers()).svg.importSvg(await file.text());
+      if (shapes) {
+        removeOwn();
+        ownSvgFile.value = file;
+        ownVector.value = shapes;
+        own.method = 'color';
+        return;
+      }
+    }
     await readImage(file);
   } catch {
     ownError.value = `The browser could not read "${file.name}" as an image. Try another file or format.`;
@@ -192,10 +213,15 @@ async function traceSvgFile(): Promise<void> {
     ownError.value = `The browser could not draw "${file.name}" as an image.`;
   }
 }
-function useSample(): void {
+async function useSample(): Promise<void> {
   ownError.value = '';
   ownSvgFile.value = null;
-  setOwnImage(sampleFlower(128), sampleFlower(400));
+  try {
+    const t = await loadTracers();
+    setOwnImage(t, t.color.sampleFlower(128), t.color.sampleFlower(400));
+  } catch {
+    ownError.value = 'The browser could not load the tracing code. Check the connection and try again.';
+  }
 }
 
 const studio = computed(() => {

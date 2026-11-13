@@ -23,6 +23,7 @@ import { compose, composeSummary, studioTracking, studioTries, THEMES, themeFami
 import { balance } from './tracking.ts';
 import { INK_MAX_LENGTH, repeatCell, studioSvg, type Repeat } from './model.ts';
 import { decodeStudio, designOptions, encodeStudio, MAX_SEED, SIZE_MAX, SIZE_MIN, SIZE_STEP } from './studio-share.ts';
+import { createStudioHistory, isUndoKey } from './studio-history.ts';
 
 const REPEAT_INFO: readonly (readonly [Repeat, string, string])[] = [
   ['straight', 'Straight', 'The tile repeats side by side in a plain grid.'],
@@ -221,9 +222,36 @@ const wallStyle = computed(() => ({
 }));
 const fileName = computed(() => `wallpaper-${design.repeat}-${design.seed}.svg`);
 
+// Undo and redo cover the whole design (seed, palette, repeat, sliders, options), not the zoom or the own motif.
+// `tick` makes canUndo and canRedo recompute after a change; the history commits a pending change itself, and a pending
+// change already counts as undoable, so no timer callback is needed.
+const snapshot = (): typeof design => JSON.parse(JSON.stringify(design));
+const undoHistory = createStudioHistory(snapshot());
+const tick = ref(0);
+watch(
+  design,
+  () => {
+    undoHistory.record(snapshot());
+    tick.value++;
+  },
+  { deep: true },
+);
+const canUndo = computed(() => tick.value >= 0 && undoHistory.canUndo());
+const canRedo = computed(() => tick.value >= 0 && undoHistory.canRedo());
+function apply(state: typeof design | undefined): void {
+  if (state) Object.assign(design, state);
+  tick.value++;
+}
+const undo = () => apply(undoHistory.undo());
+const redo = () => apply(undoHistory.redo());
+
 // The hash follows the design, without new history entries; a pasted link loads its design.
 watch(design, (d) => history.replaceState(null, '', `#${encodeStudio(d)}`), { deep: true });
-const onHash = () => Object.assign(design, decodeStudio(location.hash));
+const onHash = () => {
+  Object.assign(design, decodeStudio(location.hash));
+  undoHistory.reset(snapshot());
+  tick.value++;
+};
 onMounted(() => window.addEventListener('hashchange', onHash));
 onBeforeUnmount(() => window.removeEventListener('hashchange', onHash));
 
@@ -249,6 +277,14 @@ watch(shortcutOn, writeShortcut);
 const stage = ref<HTMLElement | null>(null);
 const fullscreen = () => toggleFullscreen(stage.value);
 function onKey(e: KeyboardEvent): void {
+  // Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z: design undo and redo, except in form fields, where native text undo wins.
+  const step = isUndoKey(e, isTyping(e));
+  if (step) {
+    e.preventDefault();
+    if (step === 'redo') redo();
+    else undo();
+    return;
+  }
   if (!shortcutOn.value) return;
   const action = shortcutFor(e, isTyping(e));
   if (action === 'shuffle') shuffle();
@@ -302,14 +338,18 @@ useBarHeight(bar);
   <div ref="bar" class="toolbar" role="toolbar" aria-label="Wallpaper actions">
     <div class="bar-row">
     <button type="button" class="btn primary" @click="shuffle">Shuffle</button>
+    <button type="button" class="btn" :disabled="!canUndo" aria-keyshortcuts="Control+Z Meta+Z" @click="undo">Undo</button>
+    <button type="button" class="btn" :disabled="!canRedo" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" @click="redo">Redo</button>
     <span class="bar-sep" aria-hidden="true"></span>
-    <a class="btn" :href="uri" :download="fileName">Download SVG</a>
-    <button type="button" class="btn" @click="copyCss">{{ copyStatus === 'Copied' ? 'Copied' : 'Copy CSS' }}</button>
     </div>
     <div class="bar-stats">
     <PaletteStrip :colors="design.palette.colors" :name="design.palette.name" @previous="stepPal(-1)" @next="stepPal(1)" @random="rollPal" />
     <button type="button" class="icon-btn" aria-label="Full screen" title="Full screen (F)" :aria-keyshortcuts="shortcutOn ? 'F' : undefined" @click="fullscreen"><span aria-hidden="true">⛶</span></button>
+    <span class="bar-sep" aria-hidden="true"></span>
     <SizeBadge :svg="svg" />
+    <span class="bar-sep" aria-hidden="true"></span>
+    <button type="button" class="btn" @click="copyCss">{{ copyStatus === 'Copied' ? 'Copied' : 'Copy CSS' }}</button>
+    <a class="btn" :href="uri" :download="fileName">Download SVG</a>
     </div>
     <span class="visually-hidden" role="status" aria-live="polite">{{ copyStatus }}</span>
   </div>

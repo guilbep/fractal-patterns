@@ -38,6 +38,17 @@
   gap: var(--s1);
   min-width: 0;
 }
+/* Below the one-line toolbar, a separator at the end of a row or of a wrapped line only adds a stray line. */
+@media (max-width: 63.99rem) {
+  .toolbar > .bar-row > .bar-sep:last-child {
+    display: none;
+  }
+}
+@media (max-width: 40rem) {
+  .toolbar > .bar-stats > .bar-sep {
+    display: none;
+  }
+}
 
 /* Design panel: the controls of a grid row keep their own height, and a select never stretches. */
 .fields {

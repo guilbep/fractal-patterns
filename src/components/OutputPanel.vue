@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { fileName, params, svgHref, usingImage } from '@/state.ts';
 import { exportHtml } from '@/export.ts';
+import { copyText } from '@/clipboard.ts';
 import { GRADE_SCALE, weightGrade } from '@/co2.ts';
 import { altBytes, exportGzipBytes, altFormat, altGzip, altOpen, altReason, altText, cssBytes, exportScript, exportText, footprint, gzipped, scriptBytes, sizeBreakdown, scriptCount, scriptEvent, scriptOn } from '@/state-export.ts';
 
@@ -16,12 +17,7 @@ const copyStatus = ref('');
 let timer: ReturnType<typeof setTimeout> | undefined;
 
 async function copy(text: string): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(text);
-    copyStatus.value = 'Copied';
-  } catch {
-    copyStatus.value = 'Copy failed. Select the code and copy it by hand.';
-  }
+  copyStatus.value = (await copyText(text)) ? 'Copied' : 'Copy failed. Select the code and copy it by hand.';
   clearTimeout(timer);
   timer = setTimeout(() => (copyStatus.value = ''), 2500);
 }

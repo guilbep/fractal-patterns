@@ -21,6 +21,7 @@ import RepetitionPanel from '@/components/RepetitionPanel.vue';
 import { canRedo, canUndo, redo, shareUrl, undo } from '@/state-share.ts';
 import PaletteStrip from '@/components/PatternPaletteStrip.vue';
 import { paletteParam } from '@/palettes.ts';
+import { copyText } from '@/clipboard.ts';
 import { migrateTab, type TabId } from '@/shell.ts';
 import '@/css/shell.css';
 import SponsorBanner from '@/components/SponsorBanner.vue';
@@ -40,19 +41,14 @@ const fullscreen = () => toggleFullscreen(stage.value);
 // One polite live region for the toolbar copies.
 const copyStatus = ref('');
 let copyTimer: ReturnType<typeof setTimeout> | undefined;
-async function copyText(text: string, done: string, failed: string): Promise<void> {
+async function copyWithStatus(text: string, done: string, failed: string): Promise<void> {
   copyStatus.value = '';
-  try {
-    await navigator.clipboard.writeText(text);
-    copyStatus.value = done;
-  } catch {
-    copyStatus.value = failed;
-  }
+  copyStatus.value = (await copyText(text)) ? done : failed;
   clearTimeout(copyTimer);
   copyTimer = setTimeout(() => (copyStatus.value = ''), 2500);
 }
-const copyLink = () => copyText(shareUrl(), 'Link copied', 'Could not copy the link. Copy it from the address bar.');
-const copyCss = () => copyText(exportText.value, 'Copied', 'Copy failed. Copy the CSS from the Export tab.');
+const copyLink = () => copyWithStatus(shareUrl(), 'Link copied', 'Could not copy the link. Copy it from the address bar.');
+const copyCss = () => copyWithStatus(exportText.value, 'Copied', 'Copy failed. Copy the CSS from the Export tab.');
 
 // Tabs (WAI-ARIA tabs pattern, automatic activation). All panels stay mounted, except Repetition (v-if: its previews cost nothing while closed).
 const TABS: readonly { id: TabId; label: string }[] = [

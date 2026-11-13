@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { DARK_NAMES, PALETTES } from '@/palettes.ts';
+import { PALETTE_GROUPS } from '@/palettes.ts';
 import '@/css/palettes.css';
 import { largeTarget } from '@/pairing.ts';
 import { APCA_SCORE, APCA_VERSION, lcText, polarity } from '@/apca.ts';
@@ -32,10 +32,6 @@ const apcaReached = computed(
     (plateMode.value !== 'split' || Math.abs(contrast.value.apca.direct) >= APCA_SCORE.lower(apcaTarget.value)),
 );
 
-const PALETTE_GROUPS = [
-  { title: 'Light', list: PALETTES.filter((p) => !DARK_NAMES.has(p.name)) },
-  { title: 'Dark', list: PALETTES.filter((p) => DARK_NAMES.has(p.name)) },
-];
 const offPaletteText = computed(() => new Intl.ListFormat('en', { type: 'conjunction' }).format(offPalette.value));
 
 const badges = computed(() => [
@@ -222,10 +218,10 @@ const fixes = computed(() => [
     <h3 id="palettes-h">Start from a palette</h3>
     <p class="muted">Picking one assigns the strongest pair to background and text, or on a dark palette the dark paper to the background. The palettes follow studies of color preference: close hues, cool grounds, saturated figures on calm grounds.</p>
     <button type="button" class="btn random-palette" @click="randomPalette">Random palette</button>
-    <template v-for="g in PALETTE_GROUPS" :key="g.title">
-      <h4 :id="`palettes-${g.title}`" class="palette-group">{{ g.title }}</h4>
-      <ul class="palettes" :aria-labelledby="`palettes-${g.title}`">
-        <li v-for="p in g.list" :key="p.name">
+    <template v-for="g in PALETTE_GROUPS" :key="g.label">
+      <h4 :id="`palettes-${g.label}`" class="palette-group">{{ g.label }}</h4>
+      <ul class="palettes" :aria-labelledby="`palettes-${g.label}`">
+        <li v-for="p in g.palettes" :key="p.name">
           <button type="button" class="palette" :aria-pressed="paletteName === p.name" @click="applyPalette(p)">
             <span class="swatches" aria-hidden="true">
               <span v-for="c in p.colors" :key="c" :style="{ backgroundColor: c }"></span>

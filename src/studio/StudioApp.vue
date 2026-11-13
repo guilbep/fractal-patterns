@@ -14,7 +14,8 @@ import { DETECTOR_LABELS, DETECTORS, type Detector } from '@/detectors.ts';
 import type { Rgba } from './colortrace.ts';
 import { defaultsFor, inkColor, inkSpread, isSvgFile, ownShapes, pickMethod, type OwnMethod, type OwnShape } from './own-motif.ts';
 import type { SvgImport } from './svg-import.ts';
-import { compose, composeSummary, THEMES, themeFamilies, type Theme } from './compose.ts';
+import { compose, composeSummary, studioTracking, THEMES, themeFamilies, type Theme } from './compose.ts';
+import { balance } from './tracking.ts';
 import { INK_MAX_LENGTH, repeatCell, studioSvg, type Repeat } from './model.ts';
 import { decodeStudio, designOptions, encodeStudio, MAX_SEED, SIZE_MAX, SIZE_MIN, SIZE_STEP } from './studio-share.ts';
 
@@ -390,6 +391,7 @@ onBeforeUnmount(() => sizes.disconnect());
               <input id="seed" type="number" min="0" :max="MAX_SEED" step="1" :value="design.seed" @input="setSeed(($event.target as HTMLInputElement).value)" @change="($event.target as HTMLInputElement).value = String(design.seed)">
               <button type="button" class="btn" @click="shuffle">Shuffle</button>
             </div>
+            <p v-if="studioTracking(studio)" id="tracking" class="hint-text" :title="`Worst part: ${balance(studioTracking(studio)!).worst}`">Balance: {{ balance(studioTracking(studio)!).label }}</p>
           </div>
           <div class="field">
             <label for="theme">Theme</label>

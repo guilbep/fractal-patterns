@@ -357,6 +357,8 @@ The Wallpaper Studio is a second page, `studio.html`. It makes original wallpape
 | Sea | Kelp, Coral, Shell, Starfish, Fish, Bubbles |
 | Orchard | Pear, Apple, Cherries, Lemon, Blossom, Leaf |
 
+A tracking test (`src/studio/tracking.ts`) measures the tile as it tiles: the weight of the motifs in vertical, horizontal and diagonal strips, and the largest empty disc. A search over derived seeds that keeps the best tile is built but switched off for now, because it changes a pinned design. The Design panel shows the result under the seed as "Balance: good", "fair" or "uneven".
+
 In the Orchard theme each plant (a stem with its branches) carries one kind of fruit, as a tree does. The plants are dealt the enabled fruit in turn, from a seeded shuffle, so several plants show several kinds. Leaves, blossom and the cherries that float in the gaps are shared by all plants.
 
 The page builds a tile in these steps:

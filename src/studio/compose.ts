@@ -7,6 +7,7 @@ import { safePathData } from '../motifgrid.ts';
 import { mulberry32, type Pt } from '../patterns/util.ts';
 import type { Placement, Repeat, Studio, StudioLayer, StudioMotif } from './model.ts';
 import { INK_MAX_LENGTH, layerColors, studioBytes } from './model.ts';
+import { trackingInput, trackingScore, type Tracking } from './tracking.ts';
 import { makeMotif, MOTIF_FAMILIES, MOTIF_LABELS, motifBounds, type MotifFamily } from './motifs.ts';
 import { makeOrchardMotif, ORCHARD_FAMILIES, ORCHARD_LABELS, ORCHARD_ROLES, type OrchardFamily } from './motifs-orchard.ts';
 import { makeSeaMotif, SEA_FAMILIES, SEA_LABELS, SEA_ROLES, type SeaFamily } from './motifs-sea.ts';
@@ -157,6 +158,8 @@ export interface ComposeParts {
   readonly stemDistance: number;
   /** A branch's stem may come closer than stemDistance to its host within this distance of its start. */
   readonly junction: number;
+  /** How the tiled result reads (tracking.ts). */
+  readonly tracking: Tracking;
 }
 
 export interface Plant {
@@ -284,7 +287,8 @@ function customBody(ds: readonly string[], union: string): number {
   return Math.sqrt(a / Math.PI) / Math.sqrt(2 / Math.PI);
 }
 
-export function composeParts(o: ComposeOptions): ComposeParts {
+/** One attempt: the composition of exactly this seed (composeParts searches over attempts). */
+export function composeOnce(o: ComposeOptions): Omit<ComposeParts, 'tracking'> {
   const theme = THEME_TABLE[o.theme ?? 'floral'] ?? THEME_TABLE.floral;
   const own0 = o.families.filter((f) => theme.families.includes(f));
   // None of the theme's: its first support family.
@@ -950,8 +954,38 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   };
 }
 
+/** Compositions scoring above this go through the search: the 75th percentile of the measured first-attempt score (3 themes x 4
+ * repeats x seeds 1-30, density 0.5, span 1), so about the worst quarter gets more attempts. */
+export const TRACKING_LIMIT = 4.7;
+/** Attempts in all (the first is the seed itself). Span 2: one (no search), as one attempt already costs about 320 ms. */
+// ponytail: search off (1 attempt) until the owner decides on the pinned seed 3 hash; measured: 6 halves the bad share.
+const ATTEMPTS = { 1: 1, 2: 1 } as const;
+const tracked = new WeakMap<Studio, Tracking>();
+
+/** Composes with the seed; when the tiled result tracks (score above TRACKING_LIMIT), composes again with seeds derived
+ * from (seed, k) and keeps the best, so the result stays a pure function of the options. */
+export function composeParts(o: ComposeOptions): ComposeParts {
+  const span = o.span === 2 ? 2 : 1;
+  const score = (p: Omit<ComposeParts, 'tracking'>) => trackingScore(trackingInput(p), o.repeat, o.width, o.height, span);
+  let best = composeOnce(o);
+  let bestT = score(best);
+  for (let k = 1; k < ATTEMPTS[span] && bestT.score > TRACKING_LIMIT; k++) {
+    const seed = (Math.imul(o.seed ^ Math.imul(k, 0x9e3779b9), 0x85ebca6b) ^ (o.seed >>> 13)) >>> 1;
+    const p = composeOnce({ ...o, seed });
+    const t = score(p);
+    if (t.score < bestT.score) [best, bestT] = [p, t];
+  }
+  tracked.set(best.studio, bestT);
+  return { ...best, tracking: bestT };
+}
+
 export function compose(o: ComposeOptions): Studio {
   return composeParts(o).studio;
+}
+
+/** The tracking measure of a studio that compose returned (null for any other). */
+export function studioTracking(s: Studio): Tracking | null {
+  return tracked.get(s) ?? null;
 }
 
 /** Roles from a 5-color palette (paper, ink, stroke, accent, soft). */

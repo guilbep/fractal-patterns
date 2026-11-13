@@ -121,6 +121,21 @@ const fixes = computed(() => [
             <span class="badge-label">{{ b.label }} ({{ b.min }}:1)</span>
           </li>
         </ul>
+        <div class="fixes">
+          <button v-for="f in fixes" :key="f.name" type="button" class="btn" :class="{ primary: !f.ok }" :disabled="f.ok" @click="applyFix(f.target)">
+            {{ f.ok ? `${f.name} passes, nothing to fix` : `Fix contrast for ${f.name} (${f.target}:1)` }}
+          </button>
+        </div>
+        <p class="fix-msg" role="status">
+          <template v-if="lastFix && lastFix.heading !== undefined && !lastFix.reached">
+            Could not reach {{ lastFix.target }}:1 for the paragraph and {{ largeTarget(lastFix.target) }}:1 for the heading with these colors. {{ lastFix.changed }} Best found: paragraph {{ ratioText(lastFix.ratio) }}:1, heading {{ ratioText(lastFix.heading) }}:1, now applied. Try another background or palette.
+          </template>
+          <template v-else-if="lastFix && lastFix.heading !== undefined">Fixed. {{ lastFix.changed }} Paragraph {{ ratioText(lastFix.ratio) }}:1, heading {{ ratioText(lastFix.heading) }}:1.</template>
+          <template v-else-if="lastFix && !lastFix.reached">
+            Could not reach {{ lastFix.target }}:1 with these colors. {{ lastFix.changed }} Best found: {{ ratioText(lastFix.ratio) }}:1, now applied. Try another background or palette.
+          </template>
+          <template v-else-if="lastFix">Fixed. {{ lastFix.changed }} Now {{ ratioText(lastFix.ratio) }}:1.</template>
+        </p>
         <dl class="surfaces">
           <div><dt>On the plate</dt><dd>{{ ratioText(contrast.onPlate) }}:1</dd></div>
           <div><dt>Directly on the pattern</dt><dd>{{ ratioText(contrast.direct) }}:1</dd></div>
@@ -166,21 +181,6 @@ const fixes = computed(() => [
         </p>
         <p class="note">Text on the pattern crosses both the background and the strokes, so the lower ratio is the one a reader gets. A plate hides part of the pattern behind the text, so the large number counts the surface the paragraph really sits on: the plate, or the pattern in "Text on the pattern" mode. The pattern itself is decorative and exempt from WCAG 1.4.11; its ratio only tells you how visible it is.</p>
 
-        <div class="fixes">
-          <button v-for="f in fixes" :key="f.name" type="button" class="btn" :class="{ primary: !f.ok }" :disabled="f.ok" @click="applyFix(f.target)">
-            {{ f.ok ? `${f.name} passes, nothing to fix` : `Fix contrast for ${f.name} (${f.target}:1)` }}
-          </button>
-        </div>
-        <p class="fix-msg" role="status">
-          <template v-if="lastFix && lastFix.heading !== undefined && !lastFix.reached">
-            Could not reach {{ lastFix.target }}:1 for the paragraph and {{ largeTarget(lastFix.target) }}:1 for the heading with these colors. {{ lastFix.changed }} Best found: paragraph {{ ratioText(lastFix.ratio) }}:1, heading {{ ratioText(lastFix.heading) }}:1, now applied. Try another background or palette.
-          </template>
-          <template v-else-if="lastFix && lastFix.heading !== undefined">Fixed. {{ lastFix.changed }} Paragraph {{ ratioText(lastFix.ratio) }}:1, heading {{ ratioText(lastFix.heading) }}:1.</template>
-          <template v-else-if="lastFix && !lastFix.reached">
-            Could not reach {{ lastFix.target }}:1 with these colors. {{ lastFix.changed }} Best found: {{ ratioText(lastFix.ratio) }}:1, now applied. Try another background or palette.
-          </template>
-          <template v-else-if="lastFix">Fixed. {{ lastFix.changed }} Now {{ ratioText(lastFix.ratio) }}:1.</template>
-        </p>
         <p class="links">
           WCAG 2.2:
           <a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html">1.4.3 Contrast (minimum)</a>,

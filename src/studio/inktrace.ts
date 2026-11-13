@@ -46,15 +46,13 @@ function darkness(img: Rgba): Float32Array {
   return raw;
 }
 
-function otsu(dark: Float32Array): { threshold: number; inkIsDark: boolean; contrast: number } {
-  const hist = new Float64Array(256);
-  for (const v of dark) hist[Math.min(255, Math.max(0, Math.round(v * 255)))]! += 1;
-  const n = dark.length;
-  let total = 0;
-  for (let b = 0; b < 256; b++) total += b * hist[b]!;
-  let [best, bestT, w0, s0] = [-1, -1, 0, 0];
-  let res = { threshold: 1, inkIsDark: true, contrast: 0 };
-  for (let t = 0; t < 255; t++) {
+// Otsu on the histogram bins from..255.
+function split(hist: Float64Array, from: number): { threshold: number; inkIsDark: boolean; contrast: number; darkMean: number } {
+  let [n, total] = [0, 0];
+  for (let b = from; b < 256; b++) [n, total] = [n + hist[b]!, total + b * hist[b]!];
+  let [best, w0, s0] = [-1, 0, 0];
+  let res = { threshold: 1, inkIsDark: true, contrast: 0, darkMean: 0 };
+  for (let t = from; t < 255; t++) {
     w0 += hist[t]!;
     s0 += t * hist[t]!;
     const w1 = n - w0;
@@ -62,11 +60,25 @@ function otsu(dark: Float32Array): { threshold: number; inkIsDark: boolean; cont
     const [m0, m1] = [s0 / w0, (total - s0) / w1];
     const between = w0 * w1 * (m1 - m0) ** 2;
     if (between > best) {
-      [best, bestT] = [between, t];
-      res = { threshold: (t + 0.5) / 255, inkIsDark: w1 <= w0, contrast: (m1 - m0) / 255 };
+      best = between;
+      res = { threshold: (t + 0.5) / 255, inkIsDark: w1 <= w0, contrast: (m1 - m0) / 255, darkMean: m1 / 255 };
     }
   }
-  return bestT < 0 ? { threshold: 1, inkIsDark: true, contrast: 0 } : res;
+  return res;
+}
+
+function otsu(dark: Float32Array): { threshold: number; inkIsDark: boolean; contrast: number } {
+  const hist = new Float64Array(256);
+  for (const v of dark) hist[Math.min(255, Math.max(0, Math.round(v * 255)))]! += 1;
+  const first = split(hist, 0);
+  // Both classes light (the darker one still above 0.55 luma): Otsu split paper against paper, e.g. the white and gray
+  // squares of a baked transparency checkerboard under sparse ink. Split again inside the darker class; keep that split
+  // only if it separates more than the first did, so a pale drawing on plain paper keeps its first split.
+  if (first.darkMean < 0.45) {
+    const again = split(hist, Math.round(first.threshold * 255 - 0.5) + 1);
+    if (again.contrast > first.contrast) return { threshold: again.threshold, inkIsDark: true, contrast: again.contrast };
+  }
+  return { threshold: first.threshold, inkIsDark: first.inkIsDark, contrast: first.contrast };
 }
 
 /** Otsu's split of the darkness histogram: the smaller class is the ink. Contrast below 0.15: not two-tone. */

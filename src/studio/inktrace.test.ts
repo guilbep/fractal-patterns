@@ -144,3 +144,53 @@ test('maxLength caps the path data, default 20,000', () => {
   assert.ok(m.detailUsed > opts.detail);
   assert.equal(traceInk(white, { ...opts, maxLength: 20000 }).d, traceInk(white, opts).d);
 });
+
+// A baked transparency checkerboard (16 px squares, 255 and 215) under sparse black ink: the two lightest classes must
+// not be split as ink against paper.
+test('sparse ink on a baked checkerboard: the gray squares are not ink', () => {
+  const BLACK: RGB = [0, 0, 0];
+  const board = (x: number, y: number): RGB => ((Math.floor(x / 16) + Math.floor(y / 16)) % 2 ? [215, 215, 215] : WHITE);
+  for (const [rings, maxInk] of [
+    [[[50, 2]], 0.03],
+    [
+      [
+        [40, 4],
+        [70, 4],
+        [100, 4],
+      ],
+      0.12,
+    ],
+  ] as const) {
+    const cov = drawing([], rings);
+    const truth = cov.reduce((s, v) => s + (v >= 0.5 ? 1 : 0), 0) / (N * N);
+    const m = inkMask(render(cov, board, BLACK), {});
+    assert.ok(m.coverage < maxInk, String(m.coverage));
+    close(m.coverage, truth, 0.25, 'coverage');
+    for (let sy = 0; sy < N; sy += 16) {
+      for (let sx = 0; sx < N; sx += 16) {
+        let touched = false;
+        for (let y = sy; y < sy + 16; y++) for (let x = sx; x < sx + 16; x++) touched ||= cov[y * N + x]! > 0;
+        if (!touched) assert.equal(m.mask[(sy + 8) * N + sx + 8], 0, `square ${sx},${sy}`);
+      }
+    }
+  }
+});
+
+test('plain white ground and mid-gray ink still trace', () => {
+  const cov = drawing([], [[50, 2]]);
+  const truth = cov.reduce((s, v) => s + (v >= 0.5 ? 1 : 0), 0) / (N * N);
+  close(
+    inkMask(
+      render(cov, () => WHITE, [0, 0, 0]),
+      {},
+    ).coverage,
+    truth,
+    0.25,
+    'black on white',
+  );
+  const g = Math.round(0.45 * 255); // luma 0.45
+  const gray = render(ART, () => WHITE, [g, g, g]);
+  const gt = ART.reduce((s, v) => s + (v >= 0.5 ? 1 : 0), 0) / (N * N);
+  close(inkMask(gray, {}).coverage, gt, 0.25, 'gray ink');
+  assert.equal(inkThreshold(gray).inkIsDark, true);
+});

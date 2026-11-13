@@ -9,8 +9,8 @@ import { isTyping, readShortcut, shortcutFor, toggleFullscreen, writeShortcut } 
 import { KIND_LABELS } from '@/fractal.ts';
 import { SAMPLE_LABELS } from '@/samples.ts';
 import { activeSample, contrast, palette, layer2, variantsOn, fileName, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, randomPattern, ratioText, reseed, reset, svgHref, trace, traced, usingImage, imageShuffles } from '@/state.ts';
-import { exportGzipBytes, exportText, footprint, gzipped, sizeBreakdown } from '@/state-export.ts';
-import { formatKb, GRADE_SCALE, gradeBand, gradeLine, weightGrade } from '@/co2.ts';
+import { exportGzipBytes, exportText, gzipped, sizeBreakdown } from '@/state-export.ts';
+import SizeBadge from '@/components/SizeBadge.vue';
 import ColorPanel from '@/components/ColorPanel.vue';
 import VisionPanel from '@/components/VisionPanel.vue';
 import PatternPanel from '@/components/PatternPanel.vue';
@@ -93,10 +93,6 @@ async function toDepth(): Promise<void> {
   document.getElementById('depth')?.focus();
 }
 
-// The badge keeps the CO₂ part only ("≈ 0.4 mg CO₂"); the Export tab shows the full line.
-const footprintFull = () => (gzipped.value === null ? 'computing' : gzipped.value === 'unknown' ? 'size unknown' : (footprint.value ?? ''));
-const footprintText = () => footprintFull().split(' / ')[0];
-
 // Sticky heights for the offsets below the toolbar and for scroll-padding-top.
 const bar = ref<HTMLElement | null>(null);
 const tabBar = ref<HTMLElement | null>(null);
@@ -144,8 +140,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <span class="stat-long">Contrast {{ ratioText(contrast.worst) }}:1 {{ contrast.normal !== 'fail' ? 'AA pass' : 'AA fail' }}</span>
       <span class="stat-short" aria-hidden="true">{{ ratioText(contrast.worst) }}:1 AA</span>
     </span>
-    <span class="stat" :title="footprintFull()"><span aria-hidden="true">{{ footprintText() }}</span><span class="visually-hidden">{{ footprintFull() }}</span></span>
-    <span v-if="exportGzipBytes !== null" class="stat size-badge" tabindex="0" aria-describedby="size-tip"><span aria-hidden="true"><span class="grade-chip" :class="gradeBand(weightGrade(exportGzipBytes).grade)">{{ weightGrade(exportGzipBytes).grade }}</span> · {{ formatKb(exportGzipBytes) }} <span class="size-unit">KB<span class="size-gz"> gz</span></span></span><span class="visually-hidden">Weight grade {{ weightGrade(exportGzipBytes).grade }}, {{ formatKb(exportGzipBytes) }} kilobytes compressed</span><span id="size-tip" class="size-tip" role="tooltip"><span class="size-line">{{ gradeLine(exportGzipBytes) }}</span><span class="size-line">{{ GRADE_SCALE }}</span><span v-for="line in sizeBreakdown" :key="line" class="size-line">{{ line }}</span></span></span>
+    <SizeBadge :gzip="gzipped === 'unknown' ? 'unknown' : exportGzipBytes" :breakdown="sizeBreakdown" />
     </div>
     <span class="visually-hidden" role="status" aria-live="polite">{{ copyStatus }}</span>
   </div>

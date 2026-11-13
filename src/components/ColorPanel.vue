@@ -153,7 +153,7 @@ const fixes = computed(() => [
 
     <h3 id="palettes-h">Start from a palette</h3>
     <p class="muted">Picking one assigns the strongest pair to background and text, or on a dark palette the dark paper to the background. The palettes follow studies of color preference: close hues, cool grounds, saturated figures on calm grounds.</p>
-    <button type="button" class="random-palette" @click="randomPalette">Random palette</button>
+    <button type="button" class="btn random-palette" @click="randomPalette">Random palette</button>
     <template v-for="g in PALETTE_GROUPS" :key="g.title">
       <h4 :id="`palettes-${g.title}`" class="palette-group">{{ g.title }}</h4>
       <ul class="palettes" :aria-labelledby="`palettes-${g.title}`">

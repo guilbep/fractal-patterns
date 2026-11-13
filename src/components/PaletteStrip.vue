@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { PALETTES } from '@/palettes.ts';
-import { applyPalette, palette, paletteName, roles } from '@/state.ts';
+import { applyPalette, palette, paletteName, randomPalette, roles } from '@/state.ts';
 import { stepPalette } from '@/shell.ts';
 
 // Custom colors (no palette): show the three role colors instead of the five swatches.
@@ -20,6 +20,6 @@ function step(dir: 1 | -1): void {
     <span class="swatches" aria-hidden="true"><span v-for="(c, i) in swatches" :key="i" class="swatch" :style="{ background: c }"></span></span>
     <span class="palette-name"><span class="visually-hidden">Palette: </span>{{ label }}</span>
     <button type="button" class="icon-btn" aria-label="Next palette" title="Next palette" @click="step(1)"><span aria-hidden="true">›</span></button>
-    <!-- Slot for a later ticket: the "Random palette" button goes here. -->
+    <button type="button" class="icon-btn" aria-label="Random palette" title="Random palette" @click="randomPalette"><span aria-hidden="true">⚄</span></button>
   </span>
 </template>

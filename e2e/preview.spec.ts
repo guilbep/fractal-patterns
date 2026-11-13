@@ -4,7 +4,7 @@ test('the T button hides the preview text without changing the contrast check', 
   await page.goto('/index.html');
   const t = page.getByRole('button', { name: 'Show the text' });
   const text = page.locator('.hero-text');
-  const chip = page.locator('.toolbar .stat', { hasText: ':1' });
+  const chip = page.locator('.toolbar .bar-chip', { hasText: ':1' });
   await expect(t).toHaveAttribute('aria-pressed', 'true');
   await expect(text).toBeVisible();
   const before = await chip.textContent();

@@ -22,7 +22,7 @@ import { sampleImage, type Sample } from '@/samples.ts';
 import { PALETTES, type Palette } from '@/palettes.ts';
 import { blend, contrastRatio, textLevel } from '@/contrast.ts';
 import { fixWithFill, patternContrast, patternInvisible, pickRoles, plateContrast, swapRoles, worstAt, type Roles } from '@/pairing.ts';
-import { cssBackground, cssPlate, svgToDataUri } from '@/css.ts';
+import { cssPlate, svgToDataUri } from '@/css.ts';
 import { rawSize } from '@/co2.ts';
 import { MOTION_NONE, type Motion } from '@/motion.ts';
 import { superTileBytes } from '@/supertile.ts';
@@ -313,23 +313,36 @@ export const fileName = computed(() =>
       : `fractal-${params.kind}-${params.seed}.svg`,
 );
 
-// One small live tile per kind, current colors and seed, for the gallery.
-// Reads only seed and colors, so slider moves on the selected pattern never regenerate it.
-export const previews = computed(() =>
-  KINDS.map((kind) => {
-    const tile = generate({
-      kind,
-      seed: params.seed,
-      size: 64,
-      depth: Math.min(2, MAX_DEPTH[kind]),
-      strokeWidth: 1,
-      precision: 1,
-      color: roles.pattern,
-      opacity: opacity.value,
-    });
-    return { kind, css: cssBackground(tile, roles.background) };
-  }),
-);
+// One small tile per kind for the gallery, as a CSS mask: black at opacity 1, so it depends on kind and seed only.
+// The gallery paints the colors and opacity through custom properties, so a color change regenerates nothing.
+// ponytail: one Map for the current seed, cleared on a seed change; no LRU.
+const previewCache = new Map<Kind, string>();
+let previewSeed = NaN;
+export function previews(kinds: readonly Kind[]): { kind: Kind; mask: string }[] {
+  const seed = params.seed; // read inside the caller's render: a seed change re-renders the gallery
+  if (seed !== previewSeed) {
+    previewCache.clear();
+    previewSeed = seed;
+  }
+  return kinds.map((kind) => {
+    let mask = previewCache.get(kind);
+    if (mask === undefined) {
+      const tile = generate({
+        kind,
+        seed,
+        size: 64,
+        depth: Math.min(2, MAX_DEPTH[kind]),
+        strokeWidth: 1,
+        precision: 1,
+        color: '#000000',
+        opacity: 1,
+      });
+      mask = `url("${svgToDataUri(tile)}")`;
+      previewCache.set(kind, mask);
+    }
+    return { kind, mask };
+  });
+}
 
 // The stroke opacities the page shows, for the badge and the Fix button alike.
 const spots = computed(() => {

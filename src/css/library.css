@@ -1,0 +1,51 @@
+/* Pattern library: family tabs and color-free preview tiles. */
+.lib-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+  margin-bottom: var(--s2);
+}
+.lib-tab {
+  font: inherit;
+  color: var(--ink);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0 var(--s2);
+  min-height: 2.75rem;
+  cursor: pointer;
+}
+.lib-tab[aria-selected='true'] {
+  border: 2px solid var(--ink);
+  font-weight: 700;
+}
+.lib-tab .muted {
+  font-weight: 400;
+}
+.lib-tab:focus-visible {
+  outline: 0.1875rem solid var(--accent);
+  outline-offset: 0.125rem;
+}
+/* The tile image is a black mask; the colors and opacity come from the gallery root. */
+.lib-tile {
+  display: block;
+  background-color: var(--lib-bg);
+}
+.lib-ink {
+  display: block;
+  block-size: 100%;
+  background-color: var(--lib-fg);
+  opacity: var(--lib-opacity);
+  mask-repeat: repeat;
+  -webkit-mask-repeat: repeat;
+}
+.lib-patchwork {
+  margin-top: var(--s3);
+}
+.lib-patchwork summary {
+  cursor: pointer;
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+}

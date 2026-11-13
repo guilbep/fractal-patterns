@@ -20,6 +20,7 @@ import { canRedo, canUndo, redo, shareUrl, undo } from '@/state-share.ts';
 import PaletteStrip from '@/components/PaletteStrip.vue';
 import { migrateTab, type TabId } from '@/shell.ts';
 import '@/css/shell.css';
+import SponsorBanner from '@/components/SponsorBanner.vue';
 
 const LOGO_URI = svgToDataUri(logoSvg(LOGO_DEFAULT));
 
@@ -215,5 +216,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
   <footer class="site-footer">
     <p>The app generates the palettes by rule from a hue and a harmony scheme in the OKLCH color space. Contrast follows WCAG 2.2: <a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html">1.4.3</a>, <a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-enhanced.html">1.4.6</a>, <a href="https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html">1.4.11</a>.</p>
+    <p><a href="https://github.com/guilbep/fractal-patterns">Source on GitHub</a></p>
+    <SponsorBanner />
   </footer>
 </template>

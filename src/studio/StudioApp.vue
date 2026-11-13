@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue';
 import { LOGO_DEFAULT, logoSvg } from '@/logo.ts';
 import { svgToDataUri } from '@/css.ts';
+import SponsorBanner from '@/components/SponsorBanner.vue';
 import { formatFootprint, gzipSize, rawSize } from '@/co2.ts';
 import { PALETTES } from '@/palettes.ts';
 import { safePathData } from '@/motifgrid.ts';
@@ -477,4 +478,8 @@ onBeforeUnmount(() => sizes.disconnect());
       </section>
     </div>
   </main>
+  <footer class="site-footer">
+    <p><a href="https://github.com/guilbep/fractal-patterns">Source on GitHub</a></p>
+    <SponsorBanner />
+  </footer>
 </template>

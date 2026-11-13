@@ -1,5 +1,9 @@
 # Fractal Patterns
 
+Live: https://guilbep.github.io/fractal-patterns/ ([studio](https://guilbep.github.io/fractal-patterns/studio.html))
+
+Sponsor: [github.com/sponsors/guilbep](https://github.com/sponsors/guilbep)
+
 Fractal Patterns is a one-page generator of repeating SVG background tiles, made from seeded math or from your own image. It tests the colors against the WCAG 2.2 contrast thresholds and estimates the CO2 cost of the result.
 
 ## Live site

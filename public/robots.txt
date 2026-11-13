@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://guilbep.github.io/fractal-patterns/sitemap.xml

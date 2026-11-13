@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue';
+import { useBarHeight } from '@/bar-height.ts';
 import ShortcutHint from '@/components/ShortcutHint.vue';
 import SiteHeader from '@/components/SiteHeader.vue';
 import { isTyping, readShortcut, shortcutFor, toggleFullscreen, writeShortcut } from '@/shortcuts.ts';
@@ -294,9 +295,7 @@ async function copyCss(): Promise<void> {
 
 // Sticky offset under the toolbar, as in the pattern tool.
 const bar = ref<HTMLElement | null>(null);
-const sizes = new ResizeObserver(() => document.documentElement.style.setProperty('--bar-h', `${bar.value?.offsetHeight ?? 0}px`));
-onMounted(() => bar.value && sizes.observe(bar.value));
-onBeforeUnmount(() => sizes.disconnect());
+useBarHeight(bar);
 </script>
 
 <template>

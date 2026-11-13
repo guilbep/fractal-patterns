@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { APP_NAME } from '@/app-name.ts';
+import { useBarHeight } from '@/bar-height.ts';
 import { traceName } from '@/detectors.ts';
 import ShortcutHint from '@/components/ShortcutHint.vue';
 import SiteHeader from '@/components/SiteHeader.vue';
@@ -99,16 +100,8 @@ const footprintText = () => footprintFull().split(' / ')[0];
 // Sticky heights for the offsets below the toolbar and for scroll-padding-top.
 const bar = ref<HTMLElement | null>(null);
 const tabBar = ref<HTMLElement | null>(null);
-const sizes = new ResizeObserver(() => {
-  const root = document.documentElement.style;
-  root.setProperty('--bar-h', `${bar.value?.offsetHeight ?? 0}px`);
-  root.setProperty('--tabs-h', `${tabBar.value?.offsetHeight ?? 0}px`);
-});
-onMounted(() => {
-  if (bar.value) sizes.observe(bar.value);
-  if (tabBar.value) sizes.observe(tabBar.value);
-});
-onBeforeUnmount(() => sizes.disconnect());
+useBarHeight(bar);
+useBarHeight(tabBar, '--tabs-h');
 
 function onKey(e: KeyboardEvent): void {
   // Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z: design undo and redo, except in form fields, where native text undo wins.

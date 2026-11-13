@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // The Pattern Builder page: the shared header, a toolbar, the tile stage and four control panels.
-import { onBeforeUnmount, onMounted } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { useBarHeight } from '@/bar-height.ts';
 import SiteHeader from '@/components/SiteHeader.vue';
 import SponsorBanner from '@/components/SponsorBanner.vue';
 import { isTyping } from '@/shortcuts.ts';
@@ -12,12 +13,23 @@ import ItemPanel from './ItemPanel.vue';
 import TilePanel from './TilePanel.vue';
 import ExportPanel from './ExportPanel.vue';
 
+const bar = ref<HTMLElement | null>(null);
+useBarHeight(bar);
+
 // The example designs load on demand: "Falling leaves" needs the studio's motif generators.
+const exampleError = ref('');
 async function openExample(e: Event): Promise<void> {
   const select = e.target as HTMLSelectElement;
   const id = select.value;
   select.selectedIndex = 0;
-  const { EXAMPLES } = await import('./examples.ts');
+  let EXAMPLES;
+  try {
+    ({ EXAMPLES } = await import('./examples.ts'));
+  } catch {
+    exampleError.value = 'The examples could not be loaded. Reload the page to try again.';
+    return;
+  }
+  exampleError.value = '';
   const example = EXAMPLES.find((x) => x.id === id);
   if (!example) return;
   selectedId.value = null;
@@ -37,7 +49,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 <template>
   <SiteHeader current="builder" patterns-href="./index.html" studio-href="./studio.html" tagline="Place your own shapes on a repeating tile" />
 
-  <div class="toolbar" role="toolbar" aria-label="Builder actions">
+  <div ref="bar" class="toolbar" role="toolbar" aria-label="Builder actions">
     <div class="bar-row">
       <button type="button" class="btn" :disabled="!canUndo" aria-keyshortcuts="Control+Z Meta+Z" @click="undo">Undo</button>
       <button type="button" class="btn" :disabled="!canRedo" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" @click="redo">Redo</button>
@@ -49,6 +61,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <option v-for="x in EXAMPLE_LIST" :key="x.id" :value="x.id">{{ x.label }}</option>
       </select>
     </div>
+    <!-- ponytail: hidden while empty, so the empty live region takes no row in the toolbar grid. -->
+    <p :class="exampleError ? 'muted example-error' : 'visually-hidden'" role="status">{{ exampleError }}</p>
   </div>
 
   <main class="layout">
@@ -71,5 +85,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 <style scoped>
 .examples {
   max-width: 100%;
+}
+.example-error {
+  margin: 0;
+  font-size: 0.875rem;
 }
 </style>

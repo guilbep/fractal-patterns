@@ -11,17 +11,9 @@ import { handleTransform, hitStroke, stepSelection, viewBox } from './stage.ts';
 const svgEl = ref<SVGSVGElement | null>(null);
 const svgPixels = ref(0);
 
-// The builder page sets no --bar-h, so the stage measures the sticky toolbar itself, as StudioApp does.
-const sizes = new ResizeObserver(() => {
-  const bar = document.querySelector<HTMLElement>('.toolbar');
-  document.documentElement.style.setProperty('--bar-h', `${bar?.offsetHeight ?? 0}px`);
-  svgPixels.value = svgEl.value?.clientWidth ?? 0;
-});
-onMounted(() => {
-  const bar = document.querySelector('.toolbar');
-  if (bar) sizes.observe(bar);
-  if (svgEl.value) sizes.observe(svgEl.value);
-});
+// The drawn width of the stage, for the hit area of line shapes. BuilderApp sets --bar-h.
+const sizes = new ResizeObserver(() => (svgPixels.value = svgEl.value?.clientWidth ?? 0));
+onMounted(() => svgEl.value && sizes.observe(svgEl.value));
 onBeforeUnmount(() => sizes.disconnect());
 
 const studio = computed(() => toStudio(design.value, false));

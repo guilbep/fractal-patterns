@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { APP_NAME } from '@/app-name.ts';
 import { LOGO_DEFAULT, logoSvg } from '@/logo.ts';
 import { svgToDataUri } from '@/css.ts';
 import { KIND_LABELS } from '@/fractal.ts';
-import { DETECTOR_LABELS } from '@/trace.ts';
+import { DETECTOR_LABELS } from '@/detectors.ts';
 import { SAMPLE_LABELS } from '@/samples.ts';
 import { activeSample, contrast, layer2, variantsOn, fileName, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, randomPattern, ratioText, reseed, reset, svgHref, trace, traced, usingImage } from '@/state.ts';
 import { exportText, footprint, gzipped } from '@/state-export.ts';
@@ -12,7 +12,6 @@ import ColorPanel from '@/components/ColorPanel.vue';
 import VisionPanel from '@/components/VisionPanel.vue';
 import PatternPanel from '@/components/PatternPanel.vue';
 import OutputPanel from '@/components/OutputPanel.vue';
-import ImagePanel from '@/components/ImagePanel.vue';
 import SpacingPanel from '@/components/SpacingPanel.vue';
 import MotionPanel from '@/components/MotionPanel.vue';
 import RepetitionPanel from '@/components/RepetitionPanel.vue';
@@ -21,6 +20,9 @@ import PaletteStrip from '@/components/PaletteStrip.vue';
 import { migrateTab, type TabId } from '@/shell.ts';
 import '@/css/shell.css';
 import SponsorBanner from '@/components/SponsorBanner.vue';
+
+// The Image tab loads its code when first opened, then stays mounted so its state stays.
+const ImagePanel = defineAsyncComponent(() => import('@/components/ImagePanel.vue'));
 
 const LOGO_URI = svgToDataUri(logoSvg(LOGO_DEFAULT));
 
@@ -77,6 +79,8 @@ function readTab(): TabId {
   }
 }
 const tab = ref<TabId>(readTab());
+const imageOpened = ref(false);
+watch(tab, (t) => (imageOpened.value ||= t === 'image'), { immediate: true });
 watch(tab, (t) => {
   try {
     sessionStorage.setItem(TAB_KEY, t);
@@ -207,7 +211,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <VisionPanel />
       </div>
       <div v-show="tab === 'image'" id="panel-image" class="tabpanel" role="tabpanel" aria-labelledby="tab-image">
-        <ImagePanel />
+        <ImagePanel v-if="imageOpened" />
       </div>
       <div v-show="tab === 'export'" id="panel-export" class="tabpanel" role="tabpanel" aria-labelledby="tab-export">
         <OutputPanel @depth="toDepth" />

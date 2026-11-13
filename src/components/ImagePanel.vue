@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { DETECTORS, DETECTOR_LABELS } from '@/trace.ts';
+import { DETECTORS, DETECTOR_LABELS } from '@/detectors.ts';
 import { RESOLUTIONS, activeSample, curveBytes, image, loadImage, loadSample, rawBytes, removeImage, source, trace, traced, usingImage } from '@/state.ts';
 import { SAMPLES, SAMPLE_LABELS, sampleImage, type Sample } from '@/samples.ts';
 

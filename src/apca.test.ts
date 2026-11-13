@@ -53,7 +53,9 @@ test('apcaWorst is never above the background value in magnitude', () => {
   }
 });
 
-test('the version shown is the installed package version', () => {
+test('the build defines the installed package version', async () => {
   const pkg = JSON.parse(readFileSync(new URL('../node_modules/apca-w3/package.json', import.meta.url), 'utf8'));
-  assert.equal(APCA_VERSION, pkg.version);
+  const { default: config } = await import('../vite.config.ts');
+  assert.equal(config.define?.__APCA_VERSION__, JSON.stringify(pkg.version));
+  assert.equal(APCA_VERSION, 'unknown'); // no define under node --test
 });

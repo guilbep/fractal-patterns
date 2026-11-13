@@ -6,18 +6,8 @@ export interface Gray {
   readonly height: number;
 }
 
-export const DETECTORS = ['sobel', 'prewitt', 'roberts', 'laplacian', 'canny', 'scharr', 'xdog'] as const; // append only: ids are persisted
-export type Detector = (typeof DETECTORS)[number];
-
-export const DETECTOR_LABELS: Readonly<Record<Detector, string>> = {
-  sobel: 'Sobel',
-  prewitt: 'Prewitt',
-  roberts: 'Roberts cross',
-  laplacian: 'Laplacian',
-  canny: 'Canny',
-  scharr: 'Scharr',
-  xdog: 'XDoG (ink lines)',
-};
+import type { Detector } from './detectors.ts';
+export { DETECTORS, DETECTOR_LABELS, type Detector } from './detectors.ts';
 
 export function toGray(rgba: ArrayLike<number>, width: number, height: number): Gray {
   if (rgba.length !== width * height * 4) throw new Error(`expected ${width * height * 4} values, got ${rgba.length}`);

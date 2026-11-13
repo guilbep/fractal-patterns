@@ -15,9 +15,7 @@ import {
 import { patchworkCells, patchworkGeometry, type PatchworkParams } from '@/patchwork.ts';
 import { mirrorTile, withGap, zoomWrap } from '@/spacing.ts';
 import type { Pt } from '@/patterns/util.ts';
-import { edges, toGray, type Detector } from '@/trace.ts';
-import { vectorize } from '@/vectorize.ts';
-import { curveTileSvg } from '@/smoothtrace.ts';
+import type { Detector } from '@/detectors.ts';
 import { sampleImage, type Sample } from '@/samples.ts';
 import { PALETTES, makePalette, paletteRoles, randomPaletteSpec, type Palette } from '@/palettes.ts';
 import { apcaWorst } from '@/apca.ts';
@@ -188,16 +186,28 @@ export function removeImage(): void {
   source.value = 'math';
 }
 
+// The tracing code loads with the first image: a share link never holds one, so the page starts without it.
+const loadTracing = () =>
+  Promise.all([import('@/trace.ts'), import('@/vectorize.ts'), import('@/smoothtrace.ts')]).then(([t, v, s]) => ({ ...t, ...v, ...s }));
+const tracing = shallowRef<Awaited<ReturnType<typeof loadTracing>> | null>(null);
+watch(image, (img) => {
+  if (img && !tracing.value) void loadTracing().then((m) => (tracing.value = m));
+});
 const gray = computed(() => {
   const img = image.value;
-  return img ? toGray(img.data, img.width, img.height) : null;
+  return img && tracing.value ? tracing.value.toGray(img.data, img.width, img.height) : null;
 });
-const edgeMap = computed(() => (gray.value ? edges(gray.value, trace.detector, trace.threshold) : null));
+const edgeMap = computed(() => (gray.value && tracing.value ? tracing.value.edges(gray.value, trace.detector, trace.threshold) : null));
 export const traced = computed(() => {
   const img = image.value;
   const map = edgeMap.value;
-  return img && map
-    ? vectorize(map, img.width, img.height, { size: params.size, tolerance: trace.tolerance, minLength: trace.minLength, fit: trace.fit })
+  return img && map && tracing.value
+    ? tracing.value.vectorize(map, img.width, img.height, {
+        size: params.size,
+        tolerance: trace.tolerance,
+        minLength: trace.minLength,
+        fit: trace.fit,
+      })
     : null;
 });
 export const usingImage = computed(() => source.value === 'image' && traced.value !== null);
@@ -243,8 +253,8 @@ export const closedShapes = computed(() => splitClosed(tile.value.polys).closed.
 // ponytail: spacing (mirror, zoom, gap) is skipped in this mode, it works on polylines; combine it when a ticket asks.
 export const curvesOn = computed(() => usingImage.value && trace.curves);
 const curveSvg = computed(() =>
-  curvesOn.value && gray.value
-    ? curveTileSvg(gray.value, {
+  curvesOn.value && gray.value && tracing.value
+    ? tracing.value.curveTileSvg(gray.value, {
         detector: trace.detector,
         threshold: trace.threshold,
         size: params.size,

@@ -1,9 +1,15 @@
+import { readFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
   base: './',
+  define: {
+    __APCA_VERSION__: JSON.stringify(
+      JSON.parse(readFileSync(new URL('./node_modules/apca-w3/package.json', import.meta.url), 'utf8')).version,
+    ),
+  },
   plugins: [vue()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   build: {

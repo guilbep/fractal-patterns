@@ -1,15 +1,14 @@
 // What the page copies: the complete CSS, and an optional script that switches the tile. Reads state.ts only.
-import { computed, ref, watch } from 'vue';
+import { computed, ref, shallowRef, watch } from 'vue';
 import { APP_NAME } from '@/app-name.ts';
 import { formatFootprint, gzipSize } from '@/co2.ts';
 import { exportCss, exportJs, exportParallax, type ExportInput } from '@/export.ts';
 import { KIND_LABELS, extraPath, geometry, tileHeight } from '@/fractal.ts';
 import { altUnavailable } from '@/alt-export.ts';
-import { exportCanvasJs, exportPaintWorklet } from '@/canvas-export.ts';
 import { patchworkGeometry } from '@/patchwork.ts';
 import { squareScene } from '@/scene.ts';
 import { mirrorTile, withGap, zoomWrap } from '@/spacing.ts';
-import { DETECTOR_LABELS } from '@/trace.ts';
+import { DETECTOR_LABELS } from '@/detectors.ts';
 import { scaledSecondSize } from '@/layers.ts';
 import {
   aspect,
@@ -148,8 +147,18 @@ const altScene = computed(() => {
   const scene = squareScene(polys, { size: w, strokeWidth: params.strokeWidth, color: roles.pattern, opacity: opacity.value });
   return { ...scene, height: tileHeight(w, aspect.value) };
 });
+// The canvas export code loads when the group first opens.
+const canvasExport = shallowRef<typeof import('@/canvas-export.ts') | null>(null);
+watch(
+  altOpen,
+  (open) => {
+    if (open && !canvasExport.value) void import('@/canvas-export.ts').then((m) => (canvasExport.value = m));
+  },
+  { immediate: true },
+);
 export const altText = computed(() => {
-  if (!altOpen.value || altReason.value) return '';
+  if (!altOpen.value || altReason.value || !canvasExport.value) return '';
+  const { exportCanvasJs, exportPaintWorklet } = canvasExport.value;
   if (altFormat.value === 'canvas') return exportCanvasJs(altScene.value, roles.background, params.precision);
   const { worklet, css, register } = exportPaintWorklet(altScene.value, roles.background, params.precision);
   return [`// fp-pattern.worklet.js`, worklet, '', '/* CSS */', css, '', '// Register (in the page)', register].join('\n');

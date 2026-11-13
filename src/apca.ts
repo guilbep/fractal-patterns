@@ -1,11 +1,11 @@
 // APCA through the official apca-w3 package, unmodified, under its own license (not MIT): see THIRD-PARTY-NOTICES.md.
 import { APCAcontrast, sRGBtoY } from 'apca-w3';
-import pkg from 'apca-w3/package.json' with { type: 'json' };
 import { parseHex } from './contrast.ts';
 import { plateSurfaces, surfaceColors } from './fills.ts';
 import type { FilledRoles, Spots } from './pairing.ts';
 
-export const APCA_VERSION: string = pkg.version;
+// Set at build time by vite.config.ts; plain node --test has no define.
+export const APCA_VERSION: string = typeof __APCA_VERSION__ !== 'undefined' ? __APCA_VERSION__ : 'unknown';
 
 // Signed Lc: text first, background second. Positive: dark text on light; negative: light text on dark.
 export function apcaLc(textHex: string, backgroundHex: string): number {

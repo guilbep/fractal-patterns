@@ -381,7 +381,6 @@ useBarHeight(head, '--head-h');
       <button type="button" class="btn secondary tool-btn" :disabled="!canRedo" aria-label="Redo" title="Redo (Ctrl/Cmd+Shift+Z)" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" @click="redo"><ToolIcon name="redo" /></button>
       <span class="bar-sep" aria-hidden="true"></span>
       <PaletteStrip :colors="design.palette.colors" :name="design.palette.name" @previous="stepPal(-1)" @next="stepPal(1)" @random="rollPal" />
-      <button type="button" class="btn quiet tool-btn" aria-label="Full screen" title="Full screen (F)" :aria-keyshortcuts="shortcutOn ? 'F' : undefined" @click="fullscreen"><ToolIcon name="fullscreen" /></button>
     </div>
     <div class="bar-stats">
       <SizeBadge :svg="svg" />

@@ -525,6 +525,11 @@ export function ratioText(r: number): string {
   return (Math.floor(r * 100) / 100).toFixed(2);
 }
 
+// The toolbar chip's short form, one decimal, rounded down so a ratio just under a threshold never shows as passing it.
+export function ratioShort(r: number): string {
+  return (Math.floor(r * 10) / 10).toFixed(1);
+}
+
 export const rawBytes = computed(() => rawSize(svg.value));
 
 // No-op in image mode, except Reduce repetition with two or more pictures: the seed deals them.

@@ -8,7 +8,7 @@ import SiteHeader from '@/components/SiteHeader.vue';
 import { isTyping, readShortcut, shortcutFor, toggleFullscreen, writeShortcut } from '@/shortcuts.ts';
 import { KIND_LABELS, tileHeight } from '@/fractal.ts';
 import { SAMPLE_LABELS } from '@/samples.ts';
-import { activeSample, contrast, palette, layer2, variantsOn, fileName, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, randomPattern, ratioText, reseed, reset, svgHref, trace, traced, usingImage, imageShuffles, tileSize, aspect, variantOptions } from '@/state.ts';
+import { activeSample, contrast, palette, layer2, variantsOn, fileName, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, randomPattern, ratioShort, ratioText, reseed, reset, svgHref, trace, traced, usingImage, imageShuffles, tileSize, aspect, variantOptions } from '@/state.ts';
 import { exportGzipBytes, exportText, gzipped, sizeBreakdown } from '@/state-export.ts';
 import SizeBadge from '@/components/SizeBadge.vue';
 import ToolIcon from '@/components/ToolIcon.vue';
@@ -152,13 +152,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <button type="button" class="btn secondary tool-btn" aria-label="Reset" title="Reset" @click="reset"><ToolIcon name="reset" /></button>
       <span class="bar-sep" aria-hidden="true"></span>
       <PaletteStrip />
-      <button type="button" class="btn quiet tool-btn" aria-label="Full screen" title="Full screen (F)" :aria-keyshortcuts="shortcutOn ? 'F' : undefined" @click="fullscreen"><ToolIcon name="fullscreen" /></button>
     </div>
     <div class="bar-stats">
       <span class="bar-chip" :class="contrast.normal !== 'fail' ? 'ok' : 'bad'">
         <span aria-hidden="true">{{ contrast.normal !== 'fail' ? '✓' : '✕' }}</span>
         <span class="stat-long">Contrast {{ ratioText(contrast.worst) }}:1 {{ contrast.normal !== 'fail' ? 'AA pass' : 'AA fail' }}</span>
-        <span class="stat-short" aria-hidden="true">{{ ratioText(contrast.worst) }}:1 · {{ contrast.normal !== 'fail' ? 'AA' : 'fails AA' }}</span>
+        <span class="stat-short" aria-hidden="true">{{ ratioShort(contrast.worst) }}:1 · {{ contrast.normal !== 'fail' ? 'AA' : 'fails AA' }}</span>
       </span>
       <SizeBadge :gzip="gzipped === 'unknown' ? 'unknown' : exportGzipBytes" :breakdown="sizeBreakdown" />
     </div>

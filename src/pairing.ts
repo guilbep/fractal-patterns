@@ -61,6 +61,16 @@ export function textSurfaces(r: FilledRoles, opacity: number, plate: number, spo
 }
 export const worstAt = (r: FilledRoles, o: number, spots: Spots) => textWorst(r, o, 0, spots);
 
+// What the fix search measures and moves. `at`: the worst value over the surfaces, higher is better.
+// `ends`: the colors the text may move toward. `lower`: the heading target in 'split' mode.
+export interface Score {
+  readonly at: (r: FilledRoles, opacity: number, plate: number, spots: Spots) => number;
+  readonly ends: (r: Roles) => readonly string[];
+  readonly lower: (target: number) => number;
+}
+// WCAG 2.2: the worst contrast ratio; the text may move toward black or white.
+export const WCAG_SCORE: Score = { at: textWorst, ends: () => ['#000000', '#ffffff'], lower: (t) => largeTarget(t) };
+
 const TEXT_STEPS = 100;
 const OPACITY_STEP = 0.05;
 
@@ -113,7 +123,8 @@ export function patternInvisible(r: Roles, opacity: number): boolean {
   return patternContrast(r, opacity) < PATTERN_VISIBLE_MIN;
 }
 
-export function fixContrast(r: Roles, opacity: number, target = 4.5, spots: Spots = ONE): Fix {
+export function fixContrast(r: Roles, opacity: number, target = 4.5, spots: Spots = ONE, score: Score = WCAG_SCORE): Fix {
+  const worstAt = (rr: FilledRoles, o: number, sp: Spots) => score.at(rr, o, 0, sp);
   const start = worstAt(r, opacity, spots);
   if (start >= target) return { text: r.text, opacity, ratio: start, reached: true };
   let best: Fix = { text: r.text, opacity, ratio: start, reached: false };
@@ -122,7 +133,7 @@ export function fixContrast(r: Roles, opacity: number, target = 4.5, spots: Spot
     for (let i = 0; i <= TEXT_STEPS; i++) {
       // Same t passing in both directions: keep the higher ratio.
       let hit: Fix | undefined;
-      for (const end of ['#000000', '#ffffff']) {
+      for (const end of score.ends(r)) {
         const text = blend(end, r.text, i / TEXT_STEPS);
         const ratio = worstAt({ ...r, text }, o, spots);
         const cand: Fix = { text, opacity: o, ratio, reached: ratio >= target };
@@ -136,8 +147,8 @@ export function fixContrast(r: Roles, opacity: number, target = 4.5, spots: Spot
 }
 
 // A plate of opacity p over a stroke at `opacity` shows the stroke at opacity * (1 - p).
-export function plateContrast(r: FilledRoles, opacity: number, plate: number, spots: Spots = ONE): number {
-  return textWorst(r, opacity, plate, spots);
+export function plateContrast(r: FilledRoles, opacity: number, plate: number, spots: Spots = ONE, score: Score = WCAG_SCORE): number {
+  return score.at(r, opacity, plate, spots);
 }
 
 export interface PlateFix {
@@ -147,7 +158,15 @@ export interface PlateFix {
   readonly reached: boolean;
 }
 
-export function fixWithPlate(r: Roles, opacity: number, plate: number, target = 4.5, spots: Spots = ONE): PlateFix {
+export function fixWithPlate(
+  r: Roles,
+  opacity: number,
+  plate: number,
+  target = 4.5,
+  spots: Spots = ONE,
+  score: Score = WCAG_SCORE,
+): PlateFix {
+  const plateContrast = (rr: FilledRoles, o: number, p: number, sp: Spots) => score.at(rr, o, p, sp);
   const start = plateContrast(r, opacity, plate, spots);
   if (start >= target) return { text: r.text, plate, ratio: start, reached: true };
   for (let k = 1; ; k++) {
@@ -157,7 +176,7 @@ export function fixWithPlate(r: Roles, opacity: number, plate: number, target = 
     if (p === 1) break;
   }
   // Plate 1 hides the pattern: only the text against the bare background is left.
-  const f = fixContrast(r, 0, target, spots);
+  const f = fixContrast(r, 0, target, spots, score);
   return { text: f.text, plate: 1, ratio: plateContrast({ ...r, text: f.text }, opacity, 1, spots), reached: f.reached };
 }
 
@@ -176,11 +195,13 @@ export function largeTarget(target: number): number {
 }
 
 // Split layout: the paragraph sits on a plate, the heading on the bare pattern.
-export function fixSplit(r: Roles, opacity: number, plate: number, target = 4.5, spots: Spots = ONE): SplitFix {
-  const large = largeTarget(target);
-  const fixHeading = (text: string, o: number): Fix => fixContrast({ ...r, text }, o, large, spots);
+export function fixSplit(r: Roles, opacity: number, plate: number, target = 4.5, spots: Spots = ONE, score: Score = WCAG_SCORE): SplitFix {
+  const worstAt = (rr: FilledRoles, o: number, sp: Spots) => score.at(rr, o, 0, sp);
+  const plateContrast = (rr: FilledRoles, o: number, p: number, sp: Spots) => score.at(rr, o, p, sp);
+  const large = score.lower(target);
+  const fixHeading = (text: string, o: number): Fix => fixContrast({ ...r, text }, o, large, spots, score);
   let { text, opacity: o } = fixHeading(r.text, opacity);
-  const p = fixWithPlate({ ...r, text }, o, plate, target, spots);
+  const p = fixWithPlate({ ...r, text }, o, plate, target, spots, score);
   text = p.text;
   // Step 3 only changes the text at plate 1, where the paragraph no longer depends on the opacity,
   // and at opacity 0 the heading equals the text against the background: lowering the opacity ends.
@@ -210,19 +231,22 @@ export function fixForMode(
   plate: number,
   target: number,
   spots: Spots = ONE,
+  score: Score = WCAG_SCORE,
 ): ModeFix {
+  const worstAt = (rr: FilledRoles, o: number, sp: Spots) => score.at(rr, o, 0, sp);
+  const plateContrast = (rr: FilledRoles, o: number, p: number, sp: Spots) => score.at(rr, o, p, sp);
   if (mode === 'split') {
-    const f = fixSplit(r, opacity, plate, target, spots);
+    const f = fixSplit(r, opacity, plate, target, spots, score);
     return { text: f.text, opacity: f.opacity, plate: f.plate, ratio: f.paragraph, heading: f.heading, reached: f.reached };
   }
   if (mode === 'direct') {
-    const f = fixContrast(r, opacity, target, spots);
+    const f = fixContrast(r, opacity, target, spots, score);
     const o = Math.round(f.opacity * 100) / 100;
     const ratio = worstAt({ ...r, text: f.text }, o, spots); // after opacity rounding
     return { text: f.text, opacity: o, plate, ratio, heading: undefined, reached: ratio >= target };
   }
   // The pattern opacity stays: only the plate and, if needed, the text change.
-  const f = fixWithPlate(r, opacity, plate, target, spots);
+  const f = fixWithPlate(r, opacity, plate, target, spots, score);
   const ratio = plateContrast({ ...r, text: f.text }, opacity, f.plate, spots);
   return { text: f.text, opacity, plate: f.plate, ratio, heading: undefined, reached: ratio >= target };
 }
@@ -238,11 +262,14 @@ export function fixWithFill(
   plate: number,
   target: number,
   spots: Spots = ONE,
+  score: Score = WCAG_SCORE,
 ): ModeFix & { readonly fillOpacity: number | undefined } {
+  const worstAt = (rr: FilledRoles, o: number, sp: Spots) => score.at(rr, o, 0, sp);
+  const textWorst = (rr: FilledRoles, o: number, p: number, sp: Spots) => score.at(rr, o, p, sp);
   const ok = (rr: FilledRoles): boolean =>
     mode === 'direct'
       ? worstAt(rr, opacity, spots) >= target
-      : textWorst(rr, opacity, plate, spots) >= target && (mode !== 'split' || worstAt(rr, opacity, spots) >= largeTarget(target));
+      : textWorst(rr, opacity, plate, spots) >= target && (mode !== 'split' || worstAt(rr, opacity, spots) >= score.lower(target));
   const fo = r.fillOpacity ?? 1;
   if (r.fill && !ok(r)) {
     for (let k = 1; ; k++) {
@@ -257,5 +284,5 @@ export function fixWithFill(
       if (f === FILL_FIX_MIN) break;
     }
   }
-  return { ...fixForMode(mode, r, opacity, plate, target, spots), fillOpacity: r.fillOpacity };
+  return { ...fixForMode(mode, r, opacity, plate, target, spots, score), fillOpacity: r.fillOpacity };
 }

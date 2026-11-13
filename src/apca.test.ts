@@ -2,8 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { APCAcontrast, sRGBtoY } from 'apca-w3';
-import { APCA_VERSION, apcaLc, apcaWorst, lcText, polarity } from './apca.ts';
-import { parseHex, toHex } from './contrast.ts';
+import { APCA_SCORE, APCA_VERSION, apcaLc, apcaWorst, lcText, polarity } from './apca.ts';
+import { parseHex, relativeLuminance, toHex } from './contrast.ts';
+import { WCAG_SCORE, fixWithFill } from './pairing.ts';
 
 // Reference vectors from the package's own test folder (node_modules/apca-w3/test/index.js).
 test('matches the vectors of the apca-w3 test suite', () => {
@@ -58,4 +59,63 @@ test('the build defines the installed package version', async () => {
   const { default: config } = await import('../vite.config.ts');
   assert.equal(config.define?.__APCA_VERSION__, JSON.stringify(pkg.version));
   assert.equal(APCA_VERSION, 'unknown'); // no define under node --test
+});
+
+// The fix search with the APCA score (pairing.ts fixWithFill, APCA_SCORE). Every expected Lc is measured with apcaLc.
+const raise = (
+  r: { background: string; pattern: string; text: string },
+  opacity: number,
+  target: number,
+  mode: 'plate' | 'split' | 'direct' = 'direct',
+) => fixWithFill(mode, r, opacity, 0, target, undefined, APCA_SCORE);
+
+test('APCA fix raises dark text on light to Lc 75 and moves the text darker', () => {
+  const r = { background: '#ffffff', pattern: '#dddddd', text: '#848484' };
+  const start = apcaWorst(r, 0.5, 0);
+  assert.ok(start > 45 && start < 65, `start Lc ${start}`);
+  const f = raise(r, 0.5, 75);
+  assert.equal(f.reached, true);
+  const now = apcaWorst({ ...r, text: f.text }, f.opacity, 0);
+  assert.ok(now >= 75, `now Lc ${now}`);
+  assert.equal(f.ratio, Math.abs(now));
+  assert.ok(relativeLuminance(f.text) < relativeLuminance(r.text), 'text moved darker');
+});
+
+test('APCA fix keeps light-on-dark polarity', () => {
+  const r = { background: '#111111', pattern: '#333333', text: '#777777' };
+  assert.ok(apcaWorst(r, 0.5, 0) < 0);
+  const f = raise(r, 0.5, 75);
+  assert.equal(f.reached, true);
+  const now = apcaWorst({ ...r, text: f.text }, f.opacity, 0);
+  assert.ok(now <= -75, `now Lc ${now}`);
+  assert.ok(relativeLuminance(f.text) > relativeLuminance(r.text), 'text moved lighter');
+});
+
+test('APCA fix reports an unreachable target with the best value applied', () => {
+  const r = { background: '#808080', pattern: '#888888', text: '#7a7a7a' };
+  const f = raise(r, 0, 90);
+  assert.equal(f.reached, false);
+  const now = Math.abs(apcaWorst({ ...r, text: f.text }, f.opacity, 0));
+  assert.equal(f.ratio, now);
+  assert.ok(now < 90 && now > Math.abs(apcaWorst(r, 0, 0)), `best Lc ${now}`);
+  // The best end for dark text on mid gray is black: nothing in the search beats it.
+  assert.equal(now, Math.abs(apcaLc('#000000', r.background)));
+});
+
+test('APCA split fix aims the heading at the next lower level', () => {
+  assert.equal(APCA_SCORE.lower(90), 75);
+  assert.equal(APCA_SCORE.lower(75), 60);
+  assert.equal(APCA_SCORE.lower(60), 45);
+  const r = { background: '#ffffff', pattern: '#cccccc', text: '#9a9a9a' };
+  const f = fixWithFill('split', r, 0.6, 0.5, 75, undefined, APCA_SCORE);
+  assert.equal(f.reached, true);
+  assert.ok(Math.abs(apcaWorst({ ...r, text: f.text }, f.opacity, f.plate)) >= 75);
+  assert.ok(Math.abs(apcaWorst({ ...r, text: f.text }, f.opacity, 0)) >= 60);
+});
+
+test('the WCAG score passed explicitly gives the default result', () => {
+  for (const mode of ['plate', 'split', 'direct'] as const) {
+    const r = { background: '#f4efe6', pattern: '#5a7d9a', text: '#8a8a8a' };
+    assert.deepEqual(fixWithFill(mode, r, 0.6, 0.3, 4.5, undefined, WCAG_SCORE), fixWithFill(mode, r, 0.6, 0.3, 4.5));
+  }
 });

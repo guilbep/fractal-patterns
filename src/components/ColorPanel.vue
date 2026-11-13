@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { DARK_NAMES, PALETTES } from '@/palettes.ts';
 import '@/css/palettes.css';
 import { largeTarget } from '@/pairing.ts';
-import { APCA_VERSION, lcText, polarity } from '@/apca.ts';
+import { APCA_SCORE, APCA_VERSION, lcText, polarity } from '@/apca.ts';
 import '@/css/apca.css';
 import { applyFix, applyPalette, randomPalette, closedShapes, contrast, fill, fillAvailable, lastFix, offPalette, opacity, paletteName, plateBlur, plateMode, plateOpacity, plateRadius, ratioText, swap, type PlateMode } from '@/state.ts';
 import RoleInput from './RoleInput.vue';
@@ -18,6 +18,19 @@ const APCA_LEVELS = [
   ['30', 'minimum any text: non-content text only'],
   ['15', 'invisibility point: certain non-text only'],
 ] as const;
+// The APCA raise target: page state only, not in the share link.
+const APCA_TARGETS = [
+  [60, 'large fluent text'],
+  [75, 'body text'],
+  [90, 'preferred body text'],
+] as const;
+const apcaTarget = ref(75);
+// In 'split' mode the heading on the bare pattern counts too, at the next lower level (APCA_SCORE.lower).
+const apcaReached = computed(
+  () =>
+    Math.abs(apcaWorstLc.value) >= apcaTarget.value &&
+    (plateMode.value !== 'split' || Math.abs(contrast.value.apca.direct) >= APCA_SCORE.lower(apcaTarget.value)),
+);
 
 const PALETTE_GROUPS = [
   { title: 'Light', list: PALETTES.filter((p) => !DARK_NAMES.has(p.name)) },
@@ -127,14 +140,14 @@ const fixes = computed(() => [
           </button>
         </div>
         <p class="fix-msg" role="status">
-          <template v-if="lastFix && lastFix.heading !== undefined && !lastFix.reached">
+          <template v-if="lastFix?.measure === 'wcag' && lastFix.heading !== undefined && !lastFix.reached">
             Could not reach {{ lastFix.target }}:1 for the paragraph and {{ largeTarget(lastFix.target) }}:1 for the heading with these colors. {{ lastFix.changed }} Best found: paragraph {{ ratioText(lastFix.ratio) }}:1, heading {{ ratioText(lastFix.heading) }}:1, now applied. Try another background or palette.
           </template>
-          <template v-else-if="lastFix && lastFix.heading !== undefined">Fixed. {{ lastFix.changed }} Paragraph {{ ratioText(lastFix.ratio) }}:1, heading {{ ratioText(lastFix.heading) }}:1.</template>
-          <template v-else-if="lastFix && !lastFix.reached">
+          <template v-else-if="lastFix?.measure === 'wcag' && lastFix.heading !== undefined">Fixed. {{ lastFix.changed }} Paragraph {{ ratioText(lastFix.ratio) }}:1, heading {{ ratioText(lastFix.heading) }}:1.</template>
+          <template v-else-if="lastFix?.measure === 'wcag' && !lastFix.reached">
             Could not reach {{ lastFix.target }}:1 with these colors. {{ lastFix.changed }} Best found: {{ ratioText(lastFix.ratio) }}:1, now applied. Try another background or palette.
           </template>
-          <template v-else-if="lastFix">Fixed. {{ lastFix.changed }} Now {{ ratioText(lastFix.ratio) }}:1.</template>
+          <template v-else-if="lastFix?.measure === 'wcag'">Fixed. {{ lastFix.changed }} Now {{ ratioText(lastFix.ratio) }}:1.</template>
         </p>
         <dl class="surfaces">
           <div><dt>On the plate</dt><dd>{{ ratioText(contrast.onPlate) }}:1</dd></div>
@@ -150,6 +163,22 @@ const fixes = computed(() => [
             <div class="info"><dt>Directly on the pattern</dt><dd>{{ lcText(contrast.apca.direct) }}</dd></div>
             <div v-if="contrast.apca.onFill !== null" class="info"><dt>On the fill</dt><dd>{{ lcText(contrast.apca.onFill) }}</dd></div>
           </dl>
+          <div class="apca-raise">
+            <label for="apca-target">Raise target</label>
+            <select id="apca-target" v-model.number="apcaTarget">
+              <option v-for="[lc, what] in APCA_TARGETS" :key="lc" :value="lc">Lc {{ lc }}: {{ what }}</option>
+            </select>
+            <button type="button" class="btn" :disabled="apcaReached" @click="applyFix(apcaTarget, 'apca')">
+              {{ apcaReached ? `Lc ${apcaTarget} reached` : `Raise to Lc ${apcaTarget}` }}
+            </button>
+          </div>
+          <p class="fix-msg" role="status">
+            <template v-if="lastFix?.measure === 'apca' && !lastFix.reached">
+              Could not reach Lc {{ lastFix.target }}<template v-if="lastFix.heading !== undefined"> for the paragraph and Lc {{ APCA_SCORE.lower(lastFix.target) }} for the heading</template> with these colors. {{ lastFix.changed }} Best found: <template v-if="lastFix.heading !== undefined">paragraph {{ lcText(lastFix.ratio) }}, heading {{ lcText(lastFix.heading) }}</template><template v-else>{{ lcText(lastFix.ratio) }}</template>, now applied. Try another background or palette.
+            </template>
+            <template v-else-if="lastFix?.measure === 'apca' && lastFix.heading !== undefined">Raised. {{ lastFix.changed }} Paragraph {{ lcText(lastFix.ratio) }}, heading {{ lcText(lastFix.heading) }}.</template>
+            <template v-else-if="lastFix?.measure === 'apca'">Raised. {{ lastFix.changed }} Now {{ lcText(lastFix.ratio) }}.</template>
+          </p>
           <p class="hint-text">
             APCA™ is the candidate contrast method for WCAG 3, and is currently in public beta. WCAG 3 is still in development and subject to changes prior to adoption. (<a href="https://www.w3.org/TR/wcag-3.0/#visual-contrast-of-text">WCAG 3 visual contrast of text</a>.) APCA is not part of WCAG 2: the WCAG 2.2 result above is the check of this tool, and Lc is not a pass or fail.
             Lc is signed: positive for dark text on light, negative for light text on dark. Text is the first color, background the second; if you swap them, check again.

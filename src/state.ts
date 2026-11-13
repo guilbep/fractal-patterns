@@ -18,7 +18,7 @@ import type { Pt } from '@/patterns/util.ts';
 import type { Detector } from '@/detectors.ts';
 import { sampleImage, type Sample } from '@/samples.ts';
 import { PALETTES, paletteRoles, rollPalette, type Palette } from '@/palettes.ts';
-import { apcaWorst } from '@/apca.ts';
+import { APCA_SCORE, apcaWorst } from '@/apca.ts';
 import { blend, contrastRatio, textLevel } from '@/contrast.ts';
 import { fixWithFill, patternContrast, patternInvisible, plateContrast, swapRoles, worstAt, type Roles } from '@/pairing.ts';
 import { cssPlate, svgToDataUri } from '@/css.ts';
@@ -78,7 +78,16 @@ export const palette = computed(
 
 // Result of the last Fix click, shown until the colors change by another action.
 // `heading` is set in 'split' mode only, where the fix covers both the paragraph and the heading.
-export const lastFix = ref<{ target: number; reached: boolean; ratio: number; heading: number | undefined; changed: string } | null>(null);
+// `measure`: 'wcag' (ratio and heading are contrast ratios) or 'apca' (they are absolute Lc values).
+export type FixMeasure = 'wcag' | 'apca';
+export const lastFix = ref<{
+  measure: FixMeasure;
+  target: number;
+  reached: boolean;
+  ratio: number;
+  heading: number | undefined;
+  changed: string;
+} | null>(null);
 
 watch(plateMode, () => (lastFix.value = null));
 
@@ -515,9 +524,10 @@ function changedText(parts: string[]): string {
   return parts.length ? `Changed the ${new Intl.ListFormat('en', { type: 'conjunction' }).format(parts)}.` : 'Changed nothing.';
 }
 
-export function applyFix(target: number): void {
+export function applyFix(target: number, measure: FixMeasure = 'wcag'): void {
   const before = { text: roles.text, opacity: opacity.value, plate: plateOpacity.value, fill: fill.opacity };
-  const fix = fixWithFill(plateMode.value, checkedRoles.value, opacity.value, plateOpacity.value, target, spots.value);
+  const score = measure === 'apca' ? APCA_SCORE : undefined;
+  const fix = fixWithFill(plateMode.value, checkedRoles.value, opacity.value, plateOpacity.value, target, spots.value, score);
   if (fix.fillOpacity !== undefined) fill.opacity = fix.fillOpacity;
   opacity.value = fix.opacity;
   plateOpacity.value = fix.plate;
@@ -529,7 +539,7 @@ export function applyFix(target: number): void {
     ...(opacity.value !== before.opacity ? ['pattern opacity'] : []),
     ...(roles.text !== before.text ? ['text color'] : []),
   ]);
-  lastFix.value = { target, reached, ratio, heading, changed };
+  lastFix.value = { measure, target, reached, ratio, heading, changed };
 }
 
 // Back to the first-load state, including the seed drawn at load.

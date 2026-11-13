@@ -62,7 +62,7 @@ async function onPickMore(e: Event): Promise<void> {
     </fieldset>
 
     <!-- Only the first image is taken, from the picker or from a drop. -->
-    <UiFileDrop label="Choose an image or drop it here" accept="image/*" @files="(f) => take(f[0])" />
+    <UiFileDrop label="Choose an image or drop it here" accept="image/*" hide-privacy @files="(f) => take(f[0])" />
     <p class="error" role="alert">{{ error }}</p>
 
     <fieldset v-if="image" class="more-images">

@@ -199,13 +199,13 @@ I found those by their parts: `src/components/ColorPanel.vue:135` and `src/build
 These are not missing, but they change what a visitor sees.
 
 - On touch devices the shortcut switch was hidden. Now it is in the keyboard panel, and a touch visitor can open that panel.
-- The Patterns Image tab now shows two privacy lines: the old note and the drop zone's "Stays on your device. Nothing is uploaded."
+- The Patterns Image tab keeps its two old privacy notes. The drop zone's own line is hidden there (`hide-privacy`), as in the Studio, so the same fact is not said twice.
 - The Studio and Builder badges no longer show "N bytes, M gzipped" on the page. That text is in the tooltip.
 - The drop zone's `accept` filter does not apply to dropped files. The code that reads the file still checks it.
 
 ## Not checked by reading code
 
-These need a browser to confirm.
+To make sure of these, a person must look in a browser.
 
 - The size badge tooltip text, its position, and Esc to hide it.
 - The keyboard panel: focus moves into it, Esc closes it, focus returns to the "?" button.

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { DESTINATIONS, clampCustom, detectedSize, pngFileName } from './use-it.ts';
+import { DESTINATIONS, clampCustom, detectedSize, pngFileName, resolvePreset } from './use-it.ts';
 
 const byId = (id: string) => {
   const d = DESTINATIONS.find((x) => x.id === id);
@@ -75,4 +75,29 @@ test('source hygiene', () => {
   for (const word of ['Math.random', 'Date', 'document', 'window']) {
     assert.ok(!src.includes(word), word);
   }
+});
+
+test('resolvePreset', () => {
+  const s = { width: 1, height: 1, dpr: 1 };
+  const c = { width: 1000, height: 1000 };
+  assert.deepEqual(resolvePreset(byId('phone'), 'iphone-17', s, c), { width: 1206, height: 2622, output: 'png' });
+  assert.deepEqual(resolvePreset(byId('phone'), 'this-phone', { width: 402, height: 874, dpr: 3 }, c), {
+    width: 1206,
+    height: 2622,
+    output: 'png',
+  });
+  assert.deepEqual(resolvePreset(byId('desktop'), 'this-screen', { width: 1512, height: 982, dpr: 2 }, c), {
+    width: 3024,
+    height: 1964,
+    output: 'png',
+  });
+  assert.deepEqual(resolvePreset(byId('phone'), 'custom', s, { width: 10, height: 99999 }), { width: 16, height: 8192, output: 'png' });
+  assert.deepEqual(resolvePreset(byId('web'), 'repeat', s, c), { width: null, height: null, output: 'css' });
+  assert.equal(resolvePreset(byId('paper'), 'svg', s, c).output, 'svg');
+  assert.deepEqual(resolvePreset(byId('slides'), 'nope', s, c), resolvePreset(byId('slides'), '16-9', s, c));
+  assert.deepEqual(resolvePreset(byId('slides'), 'nope', s, c), { width: 1920, height: 1080, output: 'png' });
+});
+
+test('every destination has a short hint for its card', () => {
+  for (const d of DESTINATIONS) assert.ok(d.hint.trim().length > 0 && d.hint.length <= 30, d.id);
 });

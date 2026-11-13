@@ -338,3 +338,17 @@ test('all options combined on tree: deterministic, one line, sized by repetition
   assert.equal(repetitionBytes(o).svg, new TextEncoder().encode(svg).length);
   assert.notEqual(svg, superTileSvg({ ...base, depth: 4 }));
 });
+
+test('imageOptions: every per-cell option but the depth mix; turning needs a square tile', async () => {
+  const { imageOptions } = await import('./repetition.ts');
+  assert.deepEqual(imageOptions(true), {
+    weights: true,
+    skip: true,
+    jitter: true,
+    depths: false,
+    drop: true,
+    orient: true,
+    variants: true,
+  });
+  assert.equal(imageOptions(false).orient, false);
+});

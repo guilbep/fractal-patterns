@@ -10,7 +10,8 @@ test('variantsActive: switch on, a kind that can vary, single pattern mode', () 
   for (const kind of VARIANT_KINDS) assert.equal(variantsActive({ ...on, kind }), true, kind);
   assert.equal(variantsActive({ ...on, kind: 'maze' }), false);
   assert.equal(variantsActive({ ...on, layout: 'patchwork' }), false);
-  assert.equal(variantsActive({ ...on, usingImage: true }), false);
+  // A traced image always can: every cell holds the same picture.
+  assert.equal(variantsActive({ ...on, usingImage: true, kind: 'maze', layout: 'patchwork' }), true);
   assert.equal(variantsActive({ ...on, variants: false }), false);
 });
 

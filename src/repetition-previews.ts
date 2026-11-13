@@ -1,7 +1,7 @@
 // The preview cards of the Repetition panel: one card per choice, each the current options with that
 // one choice applied on top. Pure.
 import type { Kind } from './fractal.ts';
-import { optionsFor } from './repetition.ts';
+import { imageOptions, optionsFor } from './repetition.ts';
 import { STRENGTHS, type VariantOptions } from './variants.ts';
 
 export type CardGroup = 'strength' | 'orient' | 'depths' | 'drop' | 'jitter' | 'weights' | 'skip';
@@ -39,13 +39,15 @@ const SLIDERS = [
 ] as const;
 
 // At most 12 cards: 4 strengths, 2 toggles, 3 offsets, 3 sliders (each at its current value, or its example value at 0).
-export function previewOptions(current: VariantOptions, kind: Kind): PreviewCard[] {
-  const a = optionsFor(kind);
+// `kind` null is a traced image: Strength is the grid size only, one card per cell count.
+export function previewOptions(current: VariantOptions, kind: Kind | null): PreviewCard[] {
+  const a = kind === null ? imageOptions(true) : optionsFor(kind);
   if (!a.variants) return [];
-  const cards: PreviewCard[] = STRENGTHS.map((s) => ({
+  const strengths = kind === null ? STRENGTHS.filter((s, i) => STRENGTHS.findIndex((t) => t.cells === s.cells) === i) : STRENGTHS;
+  const cards: PreviewCard[] = strengths.map((s) => ({
     id: `strength-${s.cells}-${s.count}`,
     group: 'strength',
-    label: s.label,
+    label: kind === null ? `${s.cells} by ${s.cells}` : s.label,
     options: { ...current, cells: s.cells, count: s.count },
   }));
   if (a.orient) cards.push({ id: 'orient', group: 'orient', label: 'Turn and flip each cell', options: { ...current, orient: true } });

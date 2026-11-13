@@ -6,6 +6,9 @@ import type { Pt } from './patterns/util.ts';
 import { pathData } from './scene.ts';
 import {
   canVary,
+  imageSuperTileExpanded,
+  imageSuperTileSvg,
+  ORIENTATIONS,
   SUPER_CELLS,
   superTileBytes,
   superTileSvg,
@@ -328,4 +331,56 @@ test('skip: tree has 1..4 empty cells, never neighbors, deterministic; brick has
     for (const [r2, c2] of empty)
       assert.ok(!((r === r2 && (c2 - c + 4) % 4 === 1) || (c === c2 && (r2 - r + 4) % 4 === 1)), `${r},${c} ${r2},${c2}`);
   assert.equal(superTileSvg({ ...o, kind: 'brick' }).split('<use ').length - 1, 16);
+});
+
+// An image super tile: one synthetic "traced" picture in every cell of edge 10.
+const pic = [
+  [
+    [0, 0],
+    [10, 3],
+    [4, 10],
+  ],
+  [
+    [2, 2],
+    [8, 8],
+  ],
+] as const satisfies readonly (readonly (readonly [number, number])[])[];
+const img = { seed: 1, size: 10, strokeWidth: 1, precision: 1, color: '#000000', opacity: 1 } as const;
+const uses = (svg: string) => [...svg.matchAll(/<use [^>]*\/>/g)].map((m) => m[0]);
+
+test('image super tile: half-drop puts cell (1,0) half a cell lower and wraps it', () => {
+  const svg = imageSuperTileSvg({ ...img, cells: 4, drop: 'half-drop' }, pic);
+  const u = uses(svg);
+  assert.ok(
+    u.some((x) => x.includes('translate(10 5)')),
+    'column 1 row 0 at y = 5',
+  );
+  assert.ok(
+    u.some((x) => x.includes('translate(10 -5)')),
+    'its wrap one period back',
+  );
+  assert.equal(u.length, 16 + 2, '2 dropped columns cross the bottom edge');
+});
+
+test('image super tile: turn and flip uses only the 8 symmetries of the square', () => {
+  const svg = imageSuperTileSvg({ ...img, cells: 4, orient: true }, pic);
+  const allowed = new Set(
+    Array.from({ length: 4 }, (_, r) => Array.from({ length: 4 }, (_, c) => ORIENTATIONS.map((f) => f(c * 10, r * 10, 10)))).flat(2),
+  );
+  for (const x of uses(svg)) {
+    const t = /transform="([^"]*)"/.exec(x)?.[1] ?? 'translate(0 0)';
+    assert.ok(allowed.has(t), t);
+  }
+});
+
+test('image super tile: the path data occurs once, the expanded form 16 times', () => {
+  const o = { ...img, cells: 4, orient: true, jitter: 0.5, weights: 0.5 } as const;
+  const d = pathData(pic, 1);
+  const svg = imageSuperTileSvg(o, pic);
+  assert.equal(svg.split(d).length - 1, 1);
+  assert.equal(imageSuperTileExpanded(o, pic).split(d).length - 1, 16);
+});
+
+test('image super tile: empty cells at 0.25 leave 12 of 16 cells (seed 1, measured)', () => {
+  assert.equal(uses(imageSuperTileSvg({ ...img, cells: 4, skip: 0.25 }, pic)).length, 12);
 });

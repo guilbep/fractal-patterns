@@ -10,7 +10,8 @@ export interface VariantsInput {
 }
 
 // Only a tile made of one kind and one seed can become a super tile.
-export const variantsActive = (d: VariantsInput): boolean => d.variants && !d.usingImage && d.layout === 'single' && canVary(d.kind);
+// A traced image always can: every cell holds the same picture.
+export const variantsActive = (d: VariantsInput): boolean => d.variants && (d.usingImage || (d.layout === 'single' && canVary(d.kind)));
 
 // The options of the super tile the person sets; the defaults give today's 4 by 4 tile of 4 variants.
 export interface VariantOptions {

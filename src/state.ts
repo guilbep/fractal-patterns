@@ -24,7 +24,7 @@ import { fixWithFill, patternContrast, patternInvisible, plateContrast, swapRole
 import { cssPlate, svgToDataUri } from '@/css.ts';
 import { rawSize } from '@/co2.ts';
 import { MOTION_NONE, type Motion } from '@/motion.ts';
-import { superTileBytes } from '@/supertile.ts';
+import { imageSuperTileExpanded, imageSuperTileSvg, superTileBytes } from '@/supertile.ts';
 import { VARIANT_DEFAULTS, variantTile, variantsActive, type VariantOptions } from '@/variants.ts';
 import { LAYER2_DEFAULTS, layerSpots, type Layer2Settings } from '@/layers.ts';
 import { fillScene, splitClosed, type FillStyle } from '@/fills.ts';
@@ -290,20 +290,36 @@ export const variantOptions = reactive<{ -readonly [K in keyof VariantOptions]: 
 export function resetVariants(): void {
   Object.assign(variantOptions, VARIANT_DEFAULTS);
 }
-export const variantsOn = computed(() =>
-  variantsActive({ variants: variants.value, kind: params.kind, layout: layout.value, usingImage: usingImage.value }),
+// An image super tile takes the straight trace only: the curve tile is a finished SVG, not polylines.
+// ponytail: curves stay off this mode; reuse the curve path through <use> when a ticket asks.
+export const variantsOn = computed(
+  () =>
+    variantsActive({ variants: variants.value, kind: params.kind, layout: layout.value, usingImage: usingImage.value }) && !curvesOn.value,
 );
 const superOptions = (seed: number, color = roles.pattern) => ({ ...params, ...variantOptions, seed, color, opacity: opacity.value });
+// The traced picture in every cell of the super tile, or null for a math pattern.
+export const imageCells = computed(() => (usingImage.value ? traced.value : null));
+const superSvg = (seed: number, color = roles.pattern): string =>
+  imageCells.value ? imageSuperTileSvg(superOptions(seed, color), imageCells.value) : variantTile(superOptions(seed, color)).svg;
 // The measured cost shown under the switch: the super tile against one plain tile.
-export const variantBytes = computed(() => (variantsOn.value ? superTileBytes(superOptions(params.seed)) : null));
+export const variantBytes = computed(() => {
+  if (!variantsOn.value) return null;
+  if (!imageCells.value) return superTileBytes(superOptions(params.seed));
+  const o = superOptions(params.seed);
+  return {
+    svg: rawSize(imageSuperTileSvg(o, imageCells.value)),
+    expanded: rawSize(imageSuperTileExpanded(o, imageCells.value)),
+    plain: rawSize(tileSvg(tile.value)),
+  };
+});
 
 export const tileSize = computed(() =>
-  variantsOn.value ? variantTile(superOptions(params.seed)).size : curveSvg.value !== null ? params.size : tile.value.size,
+  variantsOn.value ? variantOptions.cells * params.size : curveSvg.value !== null ? params.size : tile.value.size,
 );
 // The tile for any seed with the current settings; a traced image gives the same tile for every seed.
 // `color` draws the strokes in another color (the second layer's own color).
 export function svgForSeed(seed: number, color = roles.pattern): string {
-  if (variantsOn.value) return variantTile(superOptions(seed, color)).svg;
+  if (variantsOn.value) return superSvg(seed, color);
   if (curveSvg.value !== null) return recolor(curveSvg.value, color);
   return tileSvg(seed === params.seed ? tile.value : tileFor(seed), color);
 }

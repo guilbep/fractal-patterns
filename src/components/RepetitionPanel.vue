@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import '@/css/repetition.css';
 import { svgToDataUri } from '@/css.ts';
 import { hasCompat } from '@/fractal.ts';
 import { repeatDistance, scaledSecondSize } from '@/layers.ts';
 import { previewOptions } from '@/repetition-previews.ts';
-import { optionsFor } from '@/repetition.ts';
-import { canVary, superTileSvg } from '@/supertile.ts';
+import { imageOptions, optionsFor } from '@/repetition.ts';
+import { canVary, imageSuperTileSvg, superTileSvg } from '@/supertile.ts';
 import {
+  curvesOn,
   fade,
+  imageCells,
   layer2,
   layer2Own,
   layer2Settings,
@@ -29,9 +31,10 @@ import { parallaxDemoCss } from '@/state-export.ts';
 import RoleInput from '@/components/RoleInput.vue';
 import type { VariantOptions } from '@/variants.ts';
 
-const applies = computed(() => optionsFor(params.kind));
+// ponytail: the traced tile is always square (the vectorizer fits the image into a square cell).
+const applies = computed(() => (usingImage.value ? imageOptions(true) : optionsFor(params.kind)));
 const percent = (e: Event) => Number((e.target as HTMLInputElement).value) / 100;
-const possible = computed(() => !usingImage.value && canVary(params.kind));
+const possible = computed(() => (usingImage.value ? !curvesOn.value : canVary(params.kind)));
 
 // Previews: drawn in black at a small cell size and colored by CSS masks, so colors never rebuild them.
 // The stroke is about 1.6 px in the 120 px picture, whatever the cell count, so the picture reads.
@@ -40,15 +43,18 @@ const PIC_PX = 120;
 const cache = new Map<string, string>(); // ponytail: unbounded, holds one entry per picture seen this session
 function picture(o: VariantOptions): string {
   const opts = { ...params, ...o, size: CELL, strokeWidth: (1.6 * o.cells * CELL) / PIC_PX, color: '#000000', opacity: 1 };
-  const key = JSON.stringify(opts);
+  const cells = imageCells.value;
+  // ponytail: the key holds no image id; the cache is cleared when the traced picture changes (below).
+  const key = JSON.stringify(opts) + (cells ? 'image' : '');
   let url = cache.get(key);
   if (url === undefined) {
-    url = `url("${svgToDataUri(superTileSvg(opts))}")`;
+    url = `url("${svgToDataUri(cells ? imageSuperTileSvg(opts, cells) : superTileSvg(opts))}")`;
     cache.set(key, url);
   }
   return url;
 }
-const cards = computed(() => (variantsOn.value ? previewOptions({ ...variantOptions }, params.kind) : []));
+watch(imageCells, () => cache.clear());
+const cards = computed(() => (variantsOn.value ? previewOptions({ ...variantOptions }, usingImage.value ? null : params.kind) : []));
 const pics = computed(() => new Map(cards.value.map((c) => [c.id, picture(c.options)])));
 const example = (id: string) => cards.value.find((c) => c.id === id)?.example;
 const group = (g: string) => cards.value.filter((c) => c.group === g);
@@ -62,15 +68,16 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
 <template>
   <section class="panel" aria-labelledby="repetition-h">
     <h2 id="repetition-h">Repetition</h2>
-    <p v-if="usingImage" id="variants-hint" class="hint-text">Variants need a math pattern, so they are not available for an image. Second layer and Soft fade below still work.</p>
-    <p v-else-if="!canVary(params.kind)" id="variants-hint" class="hint-text">This pattern repeats by design, so variants are not available. Second layer and Soft fade below still work.</p>
+    <p v-if="usingImage && curvesOn" id="variants-hint" class="hint-text">Turn off Smooth curves to reduce repetition on an image.</p>
+    <p v-else-if="!usingImage && !canVary(params.kind)" id="variants-hint" class="hint-text">This pattern repeats by design, so variants are not available. Second layer and Soft fade below still work.</p>
     <template v-else>
       <label class="rep-switch"><input id="variants" v-model="variants" type="checkbox" role="switch" aria-describedby="variants-hint"> Reduce repetition</label>
       <p id="variants-hint" class="hint-text rep-state">
-        <template v-if="!variantsOn">Draws several seeded variants into one larger tile, so the same picture comes back less often.</template>
+        <template v-if="!variantsOn && usingImage">Draws the picture into a grid of cells, each turned, shifted or weighted, so the same tile comes back less often. The edges of a photo do not match, so seams can show.</template>
+        <template v-else-if="!variantsOn">Draws several seeded variants into one larger tile, so the same picture comes back less often.</template>
         <template v-else>
           <span id="v-period">The same picture comes back every {{ tileSize.toLocaleString('en') }} px.</span>
-          <template v-if="hasCompat(params.kind)"> This pattern uses its fixed layout in this mode.</template>
+          <template v-if="!usingImage && hasCompat(params.kind)"> This pattern uses its fixed layout in this mode.</template>
           <template v-if="variantBytes">{{ ' ' }}{{ variantBytes.svg.toLocaleString('en') }} bytes against {{ variantBytes.plain.toLocaleString('en') }} for one tile.</template>
         </template>
       </p>

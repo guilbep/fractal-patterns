@@ -139,3 +139,15 @@ export function optionsFor(kind: Kind): {
     variants: canVary(kind),
   };
 }
+
+// Which super tile options change the picture for a traced image: one picture, so no variant count
+// and no depth mix; turning and flipping needs a square tile.
+export const imageOptions = (square: boolean): ReturnType<typeof optionsFor> => ({
+  weights: true,
+  skip: true,
+  jitter: true,
+  depths: false,
+  drop: true,
+  orient: square,
+  variants: true,
+});

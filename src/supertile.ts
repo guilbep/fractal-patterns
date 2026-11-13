@@ -130,31 +130,75 @@ const VALID = ['2,2', '4,4', '6,4', '6,6'];
 
 export const safeColor = (c: string): string => (/^#[0-9a-fA-F]{6}$/.test(c) ? c : '#000000');
 
+// The grid options shared by a math kind and a traced image.
+export type GridOptions = Pick<
+  SuperTileOptions,
+  'seed' | 'size' | 'strokeWidth' | 'precision' | 'color' | 'opacity' | 'orient' | 'cells' | 'jitter' | 'weights' | 'skip' | 'drop'
+>;
+// What fills the cells: one geometry per variant in a cell of edge o.size, the variant of each cell,
+// and which per-cell options apply. `shift` allows jitter and offset inside `margin`.
+interface CellSource {
+  readonly geos: readonly Geo[];
+  readonly variantAt: (r: number, c: number) => number;
+  readonly orient: boolean;
+  readonly skip: boolean;
+  readonly shift: boolean;
+  readonly margin: number;
+}
+
 function parts(o: SuperTileOptions) {
   if (!canVary(o.kind)) throw new RangeError(`kind "${o.kind}" cannot vary: its edges differ between seeds`);
   const n = o.cells ?? SUPER_CELLS;
   const count = o.count ?? VARIANTS;
   if (!VALID.includes(`${n},${count}`)) throw new RangeError(`cells ${n} with ${count} variants is not supported`);
-  const s = n * o.size;
-  const head = `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">`;
-  const g = `<g fill="none" stroke="${safeColor(o.color)}" stroke-width="${o.strokeWidth}" stroke-opacity="${o.opacity}" stroke-linecap="round">`;
   const S = o.size;
   const lower = o.depths === true && DEPTH_MIX_KINDS.includes(o.kind);
   // Variants 1, 2, 5 take depth - 1: with variantIndex, odd variants alone would fill whole columns.
   const geos = variantSeeds(o.seed, count).map((seed, v) =>
     geometry({ kind: o.kind, seed, depth: lower && (v + 1) % 4 >= 2 ? Math.max(1, o.depth - 1) : o.depth, size: S, compat: true }),
   );
-  const ds = geos.map((geo) => pathData(geo, o.precision));
   const map = n === SUPER_CELLS && count === VARIANTS ? null : arrange(count, n, o.seed);
+  const jitter = Math.min(1, Math.max(0, o.jitter ?? 0));
+  const margin = (jitter > 0 || (o.drop ?? 'none') !== 'none') && MARGIN_KINDS.includes(o.kind) ? marginOf(geos, S) : 0;
+  return grid(o, {
+    geos,
+    variantAt: (r, c) => (map ? (map[r * n + c] ?? 0) : variantIndex(r, c)),
+    orient: o.orient === true && ORIENTATION_KINDS.includes(o.kind),
+    skip: ORIENTATION_KINDS.includes(o.kind),
+    shift: margin >= MIN_MARGIN,
+    margin,
+  });
+}
+
+// One traced picture in every cell: no edge agrees, so every per-cell option applies; the seams it
+// shows are the picture's own. The polylines sit in a cell of edge o.size.
+const imageParts = (o: GridOptions, polys: Geo) =>
+  grid(o, {
+    geos: [polys],
+    variantAt: () => 0,
+    orient: o.orient === true,
+    skip: true,
+    shift: true,
+    margin: Math.max(0, marginOf([polys], o.size)),
+  });
+
+function grid(o: GridOptions, src: CellSource) {
+  const n = o.cells ?? SUPER_CELLS;
+  const count = src.geos.length;
+  const s = n * o.size;
+  const head = `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">`;
+  const g = `<g fill="none" stroke="${safeColor(o.color)}" stroke-width="${o.strokeWidth}" stroke-opacity="${o.opacity}" stroke-linecap="round">`;
+  const S = o.size;
+  const ds = src.geos.map((geo) => pathData(geo, o.precision));
   const cells: { v: number; x: number; y: number; t: string }[] = [];
-  const orient = o.orient === true && ORIENTATION_KINDS.includes(o.kind);
+  const orient = src.orient;
   const jitter = Math.min(1, Math.max(0, o.jitter ?? 0));
   const drop = o.drop ?? 'none';
-  const margin = (jitter > 0 || drop !== 'none') && MARGIN_KINDS.includes(o.kind) ? marginOf(geos, S) : 0;
-  const shake = margin >= MIN_MARGIN && jitter > 0;
-  const shift = margin >= MIN_MARGIN ? drop : 'none';
+  const margin = src.margin;
+  const shake = src.shift && jitter > 0;
+  const shift = src.shift ? drop : 'none';
   const skip = Math.min(0.5, Math.max(0, o.skip ?? 0));
-  const empty = skip > 0 && ORIENTATION_KINDS.includes(o.kind) ? emptyCells(n, skip, o.seed) : new Set<number>();
+  const empty = skip > 0 && src.skip ? emptyCells(n, skip, o.seed) : new Set<number>();
   const weights = Math.min(1, Math.max(0, o.weights ?? 0));
   const wf = weights > 0 ? field(mulberry32((o.seed * 131 + 7) >>> 0), n) : null;
   const of = weights > 0 ? field(mulberry32((o.seed * 137 + 11) >>> 0), n) : null;
@@ -175,7 +219,7 @@ function parts(o: SuperTileOptions) {
   const T = n * S;
   for (let r = 0; r < n; r++)
     for (let c = 0; c < n; c++) {
-      const v = map ? (map[r * n + c] ?? 0) : variantIndex(r, c);
+      const v = src.variantAt(r, c);
       const k = seen[v]!++;
       // Jitter: scale k about the cell origin, then a shift around the centered position, inside the margin.
       let jit = '';
@@ -211,21 +255,29 @@ function parts(o: SuperTileOptions) {
   return { head, g, ds, cells };
 }
 
-export function superTileSvg(o: SuperTileOptions): string {
-  const { head, g, ds, cells } = parts(o);
+type Parts = ReturnType<typeof grid>;
+const render = ({ head, g, ds, cells }: Parts): string => {
   const defs = ds.map((d, i) => `<path id="${IDS[i]}" d="${d}"/>`).join('');
   const uses = cells.map(({ v, t }) => `<use href="#${IDS[v]}"${t}/>`).join('');
   return `${head}<defs>${defs}</defs>${g}${uses}</g></svg>`;
-}
+};
+// The same tile with every cell a copy of its path: what the <use> structure saves.
+const expand = ({ head, g, ds, cells }: Parts): string =>
+  `${head}${g}${cells.map(({ v, t }) => `<path d="${ds[v]}"${t}/>`).join('')}</g></svg>`;
+
+export const superTileSvg = (o: SuperTileOptions): string => render(parts(o));
 
 const bytes = (s: string): number => new TextEncoder().encode(s).length;
 
 export function superTileBytes(o: SuperTileOptions): { svg: number; expanded: number; plain: number } {
-  const { head, g, ds, cells } = parts(o);
-  const expanded = `${head}${g}${cells.map(({ v, t }) => `<path d="${ds[v]}"${t}/>`).join('')}</g></svg>`;
+  const p = parts(o);
   return {
-    svg: bytes(superTileSvg(o)),
-    expanded: bytes(expanded),
+    svg: bytes(render(p)),
+    expanded: bytes(expand(p)),
     plain: bytes(generate({ ...o, color: safeColor(o.color), compat: true })),
   };
 }
+
+// A super tile of one traced picture: the path is written once and placed in every cell with <use>.
+export const imageSuperTileSvg = (o: GridOptions, polys: Geo): string => render(imageParts(o, polys));
+export const imageSuperTileExpanded = (o: GridOptions, polys: Geo): string => expand(imageParts(o, polys));

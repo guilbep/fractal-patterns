@@ -119,6 +119,8 @@ Reduce repetition puts several seeded variants of the kind into one larger tile.
 | Mix two depths | Draws half of the variants one depth lower. | Carpet, Tree, Folded curve, H-tree, Curve stitching, Whirl, Dot grid |
 | Shift and scale | A small shift and size change per cell. | Carpet, Tree, Folded curve, H-tree, Curve stitching, Whirl |
 
+Reduce repetition also works for a traced image. The larger tile is then a grid of the same picture, 2 by 2, 4 by 4 or 6 by 6, and the variation comes from each cell: Turn and flip, Offset, Shift and scale, Line weight and Empty cells. Mix two depths is not available, because an image has one picture only. The SVG writes the traced path once and places it in each cell with `<use>`, so a 4 by 4 grid costs little more than one tile. The edges of a traced picture do not match, so seams can show, and the mode needs the straight trace: turn off Smooth curves first.
+
 Second layer adds a second copy of the tile on top of the first. Its size is coprime with the first size, so the two layers together repeat only at a much larger distance. Two whole numbers are coprime if no number above 1 divides both. The panel gives that distance. "Own color for the second layer" draws the second layer in its own color; a palette sets it to its accent color. The second tile then has its own data URI, so the export grows a little. The contrast check also counts the second color alone and where it crosses the first layer. The color vision panel does not show the second color yet. The controls:
 
 - Shift right and Shift down: 0 to 100% of the second tile.

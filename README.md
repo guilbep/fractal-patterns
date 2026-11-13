@@ -343,6 +343,8 @@ The Wallpaper Studio is a second page, `studio.html`. It makes original wallpape
 | Sea | Kelp, Coral, Shell, Starfish, Fish, Bubbles |
 | Orchard | Pear, Apple, Cherries, Lemon, Blossom, Leaf |
 
+In the Orchard theme each plant (a stem with its branches) carries one kind of fruit, as a tree does. The plants are dealt the enabled fruit in turn, from a seeded shuffle, so several plants show several kinds. Leaves, blossom and the cherries that float in the gaps are shared by all plants.
+
 The page builds a tile in these steps:
 
 1. The stems. The first stem, the vine, runs through the tile and joins itself across the repeat, so it has no visible start or end. At high density there are two vines. Every other stem branches from an existing stem, between 20 and 80% of its length. With the Mirror repeat, one root stem replaces the vine.

@@ -755,9 +755,8 @@ test('orchard: every fruit hangs, body within 20 degrees of straight down; leave
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
       const ids = themeFamilies('orchard').map((f) => f.id);
       const p = composeParts(opt(seed, { repeat, theme: 'orchard', families: ids as ComposeOptions['families'] }));
-      // Silhouette indices: hero and support variants have a detail motif after them, the 2 small ones do not.
-      const sil = [0, 2, 4, 6, 8, 9];
-      const family = (pl: Placement) => p.families[sil.indexOf(pl.motif)]!;
+      // familyOf: the family of every generated silhouette by motif index (the per-plant fruit variants too).
+      const family = (pl: Placement) => p.familyOf[pl.motif]!;
       const all = [...p.plants.flatMap((pl) => [...(pl.tip ? [pl.tip] : []), ...pl.attached.map((a) => a.placement)]), ...p.filler];
       for (const pl of all) {
         const off = Math.abs(((((pl.rotate - 180) % 360) + 540) % 360) - 180);
@@ -769,4 +768,32 @@ test('orchard: every fruit hangs, body within 20 degrees of straight down; leave
     }
   assert.ok(hung > 30, `${hung} fruit`);
   assert.ok(turned > 10, `${turned} leaves and blossom off the vertical`);
+});
+
+// How plant and family are read: a plant is one entry of parts.plants (its stem with its tip hero and its attached
+// motifs: supports, side branch end, twigs); a placement's family is parts.familyOf at its silhouette index. Filler
+// (parts.filler) has no plant and keeps its own pick.
+test('orchard: one fruit family per plant, and the fruit kinds spread over the plants', () => {
+  const fruit = ['pear', 'apple', 'cherries', 'lemon'];
+  let checked = 0;
+  for (const repeat of ['straight', 'half-drop', 'mirror'] as const)
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const ids = themeFamilies('orchard').map((f) => f.id);
+      const p = composeParts(opt(seed, { repeat, theme: 'orchard', families: ids as ComposeOptions['families'] }));
+      const kinds = new Set<string>();
+      for (const pl of p.plants) {
+        const own = new Set(
+          [...(pl.tip ? [pl.tip] : []), ...pl.attached.map((a) => a.placement)]
+            .map((x) => p.familyOf[x.motif]!)
+            .filter((f) => fruit.includes(f)),
+        );
+        assert.ok(own.size <= 1, `${repeat} ${seed}: one plant carries ${[...own].join(', ')}`);
+        own.forEach((f) => kinds.add(f));
+      }
+      if (p.plants.length >= 3) {
+        assert.ok(kinds.size >= 2, `${repeat} ${seed}: ${p.plants.length} plants, only ${[...kinds].join(', ')}`);
+        checked++;
+      }
+    }
+  assert.ok(checked > 10, `${checked} wallpapers with 3 plants or more`);
 });

@@ -89,6 +89,8 @@ const THEME_TABLE: Record<
     hangs?: readonly ThemeFamily[];
     /** Families that float free: only in the gaps, never on a stem or stalk end, drawn level (not rotated). */
     floats?: readonly ThemeFamily[];
+    /** Families of which a plant carries only one (fruit): each plant is dealt one, every fruit on it is of that one. */
+    onePerPlant?: readonly ThemeFamily[];
   }
 > = {
   floral: {
@@ -117,6 +119,7 @@ const THEME_TABLE: Record<
     make: (f, seed) => makeOrchardMotif(f as OrchardFamily, seed),
     blooms: ['pear', 'apple', 'cherries', 'lemon', 'blossom'],
     hangs: ['pear', 'apple', 'cherries', 'lemon'],
+    onePerPlant: ['pear', 'apple', 'cherries', 'lemon'],
   },
 };
 
@@ -138,8 +141,10 @@ export interface ComposeParts {
   readonly studio: Studio;
   /** Hero placements (the tip motif of each plant), with motif indices into studio.motifs (the silhouettes). */
   readonly heroes: readonly Placement[];
-  /** The family of each motif variant used: tip, support, small. */
+  /** The family of each motif variant used: tip, support, small (the 2 x 3 base variants, not the per-plant fruit). */
   readonly families: readonly ThemeFamily[];
+  /** The family of every generated silhouette, by motif index (per-plant fruit variants too). */
+  readonly familyOf: Readonly<Record<number, ThemeFamily>>;
   readonly plants: readonly Plant[];
   /** Small motifs in the gaps between plants (silhouettes). */
   readonly filler: readonly Placement[];
@@ -242,6 +247,8 @@ type Variant = {
   hang: boolean;
   /** Placed only in the gaps, unrotated (the theme's `floats`). */
   floats?: boolean;
+  /** The generated motif's family, null for a custom motif. */
+  fam: ThemeFamily | null;
 };
 
 /** A custom motif's body: the circle with the area of the tight bounds of its largest shape whose bounds are not thin
@@ -277,6 +284,27 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   });
   const custom = o.custom && customShapes.length > 0 && o.custom.box > 0 ? { ...o.custom, shapes: customShapes } : null;
   let customVariant: Variant | null = null;
+  const familyOf: Record<number, ThemeFamily> = {};
+  const makeVariant = (fam: ThemeFamily, ti: number, i: number): Variant => {
+    const m = theme.make(fam, o.seed * 97 + ti * 13 + i);
+    motifs.push(m.silhouette);
+    familyOf[motifs.length - 1] = fam;
+    // ponytail: small motifs (about 24 px) read as silhouettes; their detail would cost bytes, not looks.
+    if (ti !== 2) motifs.push(m.detail);
+    return {
+      sil: motifs.indexOf(m.silhouette),
+      det: ti !== 2 ? motifs.length - 1 : null,
+      radius: motifRadius(m.silhouette),
+      bloom: theme.blooms.includes(fam),
+      box: m.silhouette.box,
+      parts: null,
+      body: motifRadius(m.silhouette).radius,
+      centered: false,
+      hang: theme.hangs?.includes(fam) ?? false,
+      floats: theme.floats?.includes(fam) ?? false,
+      fam,
+    };
+  };
   const variants = theme.tiers.map((pool, ti): Variant[] => {
     if (custom && ((ti === 0 && custom.role !== 'support') || (ti === 1 && custom.role !== 'hero'))) {
       rnd(); // the same draws as a generated tier, so the rest of the layout stays as it was
@@ -296,7 +324,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
         );
         const body = (k > 1 ? own : Math.max(own, radius.radius / 1.8)) / k;
         const centered = custom.anchor === 'center';
-        customVariant = { sil: parts[0]!, det: null, radius, bloom: false, box: custom.box, parts, body, centered, hang: false };
+        customVariant = { sil: parts[0]!, det: null, radius, bloom: false, box: custom.box, parts, body, centered, hang: false, fam: null };
       }
       return [customVariant, customVariant];
     }
@@ -305,25 +333,31 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     const start = Math.floor(rnd() * fams.length);
     return Array.from({ length: VARIANTS }, (_, i) => {
       const fam = fams[(start + i) % fams.length]!;
-      const m = theme.make(fam, o.seed * 97 + ti * 13 + i);
       families.push(fam);
-      motifs.push(m.silhouette);
-      // ponytail: small motifs (about 24 px) read as silhouettes; their detail would cost bytes, not looks.
-      if (ti !== 2) motifs.push(m.detail);
-      return {
-        sil: motifs.indexOf(m.silhouette),
-        det: ti !== 2 ? motifs.length - 1 : null,
-        radius: motifRadius(m.silhouette),
-        bloom: theme.blooms.includes(fam),
-        box: m.silhouette.box,
-        parts: null,
-        body: motifRadius(m.silhouette).radius,
-        centered: false,
-        hang: theme.hangs?.includes(fam) ?? false,
-        floats: theme.floats?.includes(fam) ?? false,
-      };
+      return makeVariant(fam, ti, i);
     });
   });
+  // One fruit per plant (the theme's onePerPlant): plant i gets deal[i mod n], dealt round-robin from a seeded shuffle of
+  // the enabled fruit (its own generator, so rnd keeps its draws). A fruit variant of another family on that plant is
+  // swapped for one of the plant's fruit. Leaves, blossom and the gap filler keep their pick.
+  const deal = (theme.onePerPlant ?? []).filter((f) => allowed.includes(f));
+  const rs = mulberry32(o.seed ^ 0x6a09e667);
+  for (let i = deal.length - 1; i > 0; i--) {
+    const j = Math.floor(rs() * (i + 1));
+    [deal[i], deal[j]] = [deal[j]!, deal[i]!];
+  }
+  const fruitOf = (plant: number): ThemeFamily | null => (deal.length > 0 ? deal[plant % deal.length]! : null);
+  const swapped = new Map<string, Variant>();
+  const pick = (ti: number, i: number, fruit: ThemeFamily | null): Variant => {
+    const v = variants[ti]![i % VARIANTS]!;
+    if (!fruit || !v.fam || v.fam === fruit || !theme.onePerPlant!.includes(v.fam)) return v;
+    // ponytail: any variant of that fruit serves every tier (the size comes from the placement), so a wallpaper adds at
+    // most one motif per enabled fruit; a silhouette only, to keep the motif count down.
+    const have = variants.flat().find((x) => x.fam === fruit);
+    if (have) return have;
+    if (!swapped.has(fruit)) swapped.set(fruit, makeVariant(fruit, 2, VARIANTS + swapped.size));
+    return swapped.get(fruit)!;
+  };
 
   // Fruit hangs: straight down plus a swing of at most 12 degrees, seeded by the seed and the base (no draw from rnd, so
   // the rest of the layout keeps its draws).
@@ -457,7 +491,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
       hero = { p: step(q.p, a, 0.12 * side), a };
       tipStalk = [q.p, hero.p];
     }
-    const hv = variants[0]![idx % VARIANTS]!;
+    const hv = pick(0, idx, fruitOf(idx));
     const zone = [false, true].map((fl) => {
       const pl = put(hv, hero.p, hero.a, 0.6 * HERO_MAX * side, fl);
       return { ...realCircle(hv, pl), v: hv, p: pl };
@@ -540,7 +574,13 @@ export function composeParts(o: ComposeOptions): ComposeParts {
 
   // Phase 2, motifs: every plant's hero first, then plant by plant the supports and a side branch. A motif that would come
   // closer than the gap to another plant's stem or placed motif shrinks, then moves along its stem, then drops.
-  type Built = Omit<Plant, 'attached'> & { attached: Plant['attached'][number][]; circles: Circle[]; segs: Cubic[]; stalks: [Pt, Pt][] };
+  type Built = Omit<Plant, 'attached'> & {
+    attached: Plant['attached'][number][];
+    circles: Circle[];
+    segs: Cubic[];
+    stalks: [Pt, Pt][];
+    fruit: ThemeFamily | null;
+  };
   // Supports every `spacing` along a stem: 12% of the side at density 0.2, 9% at 0.5, 7% at 0.9.
   const spacing = side * (density <= 0.5 ? 0.12 - 0.1 * (density - 0.2) : 0.09 - 0.05 * (density - 0.5));
   const plants: Built[] = [];
@@ -554,7 +594,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   const ends = stems.map(() => 1);
   const tipStalks = stems.map((st) => st.tipStalk);
   const tips = stems.map(({ r, flip, hero: hb, heroU, at, vine, sA }, index): Placement | null => {
-    const hv = variants[0]![index % VARIANTS]!;
+    const hv = pick(0, index, fruitOf(index));
     const hr = 0.12 * side * (0.9 + 0.2 * r());
     const tryAt = (q: Knot, ks: readonly number[]): Placement | null => {
       for (const k of ks) {
@@ -629,7 +669,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
       const s = sStart + (i + 0.5) * spacing + ((r() * 2 - 1) * spacing) / 4;
       const sideSign = i % 2 === 0 ? sA : -sA;
       const turn = (sideSign * (40 + 25 * r()) * Math.PI) / 180;
-      const v = variants[1]![i % VARIANTS]!;
+      const v = pick(1, i, fruitOf(index));
       const rr = 0.075 * side * (vine ? 0.85 + 0.15 * r() : 1 - (0.4 * i) / n);
       const fl = r() < 0.5;
       // ponytail: full size, 0.8, then 0.8 at 3 next positions along the stem (0.3 spacing apart) on the same side.
@@ -653,13 +693,13 @@ export function composeParts(o: ComposeOptions): ComposeParts {
       }
     }
     // One short side branch ending in a small motif (bud or berries), opposite the nearest support.
-    if (r() < 0.3 + 0.5 * density && !variants[2]![index % VARIANTS]!.floats) {
+    if (r() < 0.3 + 0.5 * density && !pick(2, index, fruitOf(index)).floats) {
       const qu = (0.5 + 0.1 * r()) * end;
       const q = at(qu);
       const sideSign = n % 2 === 0 ? sA : -sA;
       const a = q.a + (sideSign * 50 * Math.PI) / 180;
       const b = step(q.p, a, 0.1 * side);
-      const v = variants[2]![index % VARIANTS]!;
+      const v = pick(2, index, fruitOf(index));
       const pl = put(v, b, a, 0.04 * side, r() < 0.5);
       const c = realCircle(v, pl);
       if (ownClear(c)) {
@@ -673,7 +713,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     if (!tip && !vine) end = Math.min(1, lastU + 0.02);
     const stem = end < 1 ? full.slice(0, Math.ceil(end * 128 - 1e-9) + 1) : full;
     const segs = end < 1 ? cutSegs(fullSegs, end) : fullSegs;
-    plants.push({ stem, tip, tipStalk, attached, circles, segs, stalks, vine, host });
+    plants.push({ stem, tip, tipStalk, attached, circles, segs, stalks, vine, host, fruit: fruitOf(index) });
   });
 
   // A plant with no motif that no other plant starts on goes (its host may then become one); hosts are renumbered.
@@ -759,7 +799,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
       const len = Math.max(1.1 * minStalk, best.d - rr);
       if (len > 0.15 * side) return false;
       const b = step(q, a, len);
-      const v = variants[1]![n % VARIANTS]!;
+      const v = pick(1, n, pl.fruit);
       const p = put(v, b, a, rr, rnd() < 0.5);
       const circ = realCircle(v, p);
       if (!allClear(best.i, circ.c, circ.r) || !stalkClear([q, b])) continue;
@@ -769,7 +809,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
       // A second, smaller leaf from the stalk's middle, to one side.
       const m = step(q, a, 0.55 * len);
       const a2 = a + (((rnd() < 0.5 ? -1 : 1) * 50) / 180) * Math.PI;
-      const v2 = variants[1]![(n + 1) % VARIANTS]!;
+      const v2 = pick(1, n + 1, pl.fruit);
       const p2 = put(v2, m, a2, 0.7 * rr, rnd() < 0.5);
       const c2 = realCircle(v2, p2);
       if (allClear(best.i, c2.c, c2.r)) {
@@ -875,6 +915,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     studio: { width: w, height: h, background: o.colors.background, repeat, motifs, layers: out },
     heroes: plants.flatMap((pl) => (pl.tip ? [pl.tip] : [])),
     families,
+    familyOf,
     plants: plants.map(({ stem, tip, tipStalk, vine, host, attached }) => ({ stem, tip, tipStalk, vine, host, attached })),
     filler: filler.map((f) => f.p),
     fillerMargin,

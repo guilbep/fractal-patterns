@@ -64,6 +64,7 @@ function randomDesign(r: () => number): Design {
     sections: r() < 0.5,
     fill: r() < 0.5 ? DESIGN_DEFAULTS.fill : { mode: pick(['closed', 'alternate'] as const), color: color(), opacity: real(0, 1) },
     layer2Color: r() < 0.5 ? null : color(),
+    change: r() < 0.5 ? DESIGN_DEFAULTS.change : { dir: pick(['down', 'up', 'across'] as const), to: real(0.2, 0.8) },
   };
 }
 
@@ -129,6 +130,7 @@ const FULL: Design = {
   sections: true,
   fill: { mode: 'alternate', color: '#c3eaec', opacity: 0.55 }, // the longest the slider gives
   layer2Color: '#e07a5f',
+  change: { dir: 'across', to: 0.55 }, // the longest the slider gives
 };
 
 function assertValid(d: Design, label: string): void {
@@ -162,6 +164,7 @@ function assertValid(d: Design, label: string): void {
   assert.equal(typeof d.variants, 'boolean', label);
   assert.equal(typeof d.layer2, 'boolean', label);
   assert.equal(typeof d.fade, 'boolean', label);
+  assert.ok(['none', 'down', 'up', 'across'].includes(d.change.dir) && inRange(d.change.to, 0.2, 0.8), label);
   const l = d.layer2Settings;
   assert.ok(inRange(l.x, 0, 100) && inRange(l.y, 0, 100) && inRange(l.rotate, -180, 180), label);
   assert.ok(inRange(l.scale, 0.5, 3) && inRange(l.opacity, 0.1, 1) && inRange(l.depth, 0.25, 4), label);
@@ -200,8 +203,9 @@ test('a design with every field non-default stays short', () => {
   for (const f of Object.keys(DESIGN_DEFAULTS) as (keyof Design)[]) assert.notEqual(FULL[f], DESIGN_DEFAULTS[f], f);
   const s = encodeDesign(FULL);
   // 177 before the variants key, + '&v=1', + '&l2=1&fd=1', + '&l2s=100_100_-180_2.95_0.55_3.85' (32), + '&px=1' (5),
-  // + '&vo=6_6_1_h_1_0.55_0.55_0.45_3' (30), + '&sx=1' (5), + '&fi=a_c3eaec_0.55' (17), + '&l2c=e07a5f' (11)
-  assert.ok(s.length <= 292, `${s.length}`);
+  // + '&vo=6_6_1_h_1_0.55_0.55_0.45_3' (30), + '&sx=1' (5), + '&fi=a_c3eaec_0.55' (17), + '&l2c=e07a5f' (11),
+  // + '&ch=a_0.55' (10)
+  assert.ok(s.length <= 302, `${s.length}`);
   assert.deepEqual(decodeDesign(s), FULL);
 });
 
@@ -302,6 +306,7 @@ test('variants: round trip, absent means false, old links decode as before', () 
     sections: false,
     fill: DESIGN_DEFAULTS.fill,
     layer2Color: null,
+    change: DESIGN_DEFAULTS.change,
   };
   assert.deepEqual(decodeDesign(old), oldDesign);
   assert.equal(encodeDesign(oldDesign), old);
@@ -327,6 +332,28 @@ test('layer2 and fade: round trip, absent means false, old links decode as befor
   assert.equal(old.layer2, false);
   assert.equal(old.fade, false);
   assert.equal(encodeDesign(old), 'k=brick&s=7&v=1');
+});
+
+test('change: one key last, round trip, old links decode to none, malformed gives default', () => {
+  const d = {
+    ...DESIGN_DEFAULTS,
+    kind: 'brick',
+    seed: 7,
+    fill: { mode: 'closed', color: '#112233', opacity: 0.5 },
+    change: { dir: 'down', to: 0.4 },
+  } as const;
+  const q = encodeDesign(d);
+  assert.ok(q.endsWith('&ch=d_0.4'), q);
+  assert.deepEqual(decodeDesign(q), d);
+  for (const dir of ['up', 'across'] as const) {
+    const one = { ...DESIGN_DEFAULTS, change: { dir, to: 0.7 } };
+    assert.deepEqual(decodeDesign(encodeDesign(one)), one);
+  }
+  assert.equal(encodeDesign({ ...d, change: { dir: 'none', to: 0.6 } }), q.replace('&ch=d_0.4', ''));
+  assert.deepEqual(decodeDesign('k=brick&s=7').change, { dir: 'none', to: 0.4 });
+  assert.deepEqual(decodeDesign('ch=u_9').change, { dir: 'up', to: 0.8 });
+  for (const bad of ['x_0.4', 'd', 'd_', 'd_abc', 'd_0.4_1'])
+    assert.deepEqual(decodeDesign(`ch=${bad}`).change, DESIGN_DEFAULTS.change, bad);
 });
 
 test('second-layer settings: one key last, round trip, clamped, malformed gives defaults, old links unchanged', () => {
@@ -384,7 +411,11 @@ test('variant options: one vo key, round trip of 30 random sets, absent means de
   assert.deepEqual(decodeDesign('vo=6_4_0_h_0_0_0_0_3').variantOptions, third);
   assert.equal(decodeDesign('vo=6_6_1_h_1_0.5_0.3_0').variantOptions.shift, 2);
   // Appended last: older keys come first.
-  assert.ok(encodeDesign({ ...FULL, layer2Color: null }).endsWith('&px=1&vo=6_6_1_h_1_0.55_0.55_0.45_3&sx=1&fi=a_c3eaec_0.55'));
+  assert.ok(
+    encodeDesign({ ...FULL, layer2Color: null, change: DESIGN_DEFAULTS.change }).endsWith(
+      '&px=1&vo=6_6_1_h_1_0.55_0.55_0.45_3&sx=1&fi=a_c3eaec_0.55',
+    ),
+  );
 });
 
 test('variant options: numbers are clamped, malformed values and unsupported pairs give the defaults', () => {
@@ -425,9 +456,13 @@ test('sections: key sx last, round-trips, absent means false, old links unchange
   assert.equal(decodeDesign('sx=0').sections, false);
   assert.equal(decodeDesign('').sections, false);
   assert.equal(decodeDesign('k=fern&px=1&vo=6_6_1_h_1_0.55_0.55_0.45').sections, false);
-  assert.ok(encodeDesign({ ...FULL, fill: DESIGN_DEFAULTS.fill, layer2Color: null, sections: true }).endsWith('&sx=1'));
+  assert.ok(
+    encodeDesign({ ...FULL, fill: DESIGN_DEFAULTS.fill, layer2Color: null, change: DESIGN_DEFAULTS.change, sections: true }).endsWith(
+      '&sx=1',
+    ),
+  );
   assert.deepEqual(decodeDesign(encodeDesign({ ...FULL, sections: false })), { ...FULL, sections: false });
-  const noFill = { ...FULL, fill: DESIGN_DEFAULTS.fill, layer2Color: null };
+  const noFill = { ...FULL, fill: DESIGN_DEFAULTS.fill, layer2Color: null, change: DESIGN_DEFAULTS.change };
   assert.equal(encodeDesign({ ...noFill, sections: false }) + '&sx=1', encodeDesign({ ...noFill, sections: true }));
 });
 
@@ -440,7 +475,7 @@ test('fill: key fi last, compact, round-trips, omitted when off, malformed gives
   for (const bad of ['x_abcdef_1', 'c_abcde_1', 'c_abcdef_', 'c_abcdef_NaN', 'c_abcdef', 'c_abcdef_1_2', ''])
     assert.deepEqual(decodeDesign(`fi=${bad}`).fill, DESIGN_DEFAULTS.fill, bad);
   assert.deepEqual(decodeDesign('k=fern&sx=1').fill, DESIGN_DEFAULTS.fill);
-  assert.ok(encodeDesign(FULL).endsWith('&sx=1&fi=a_c3eaec_0.55&l2c=e07a5f'));
+  assert.ok(encodeDesign(FULL).endsWith('&sx=1&fi=a_c3eaec_0.55&l2c=e07a5f&ch=a_0.55'));
   assert.deepEqual(decodeDesign(encodeDesign(FULL)).fill, FULL.fill);
 });
 
@@ -450,7 +485,7 @@ test('the second layer color: l2c only when on, last, round trip; an old hash de
   const s = encodeDesign(on);
   assert.ok(s.endsWith('l2c=e07a5f'), s);
   assert.deepEqual(decodeDesign(s), on);
-  assert.ok(!encodeDesign({ ...on, layer2Color: null }).includes('l2c'));
+  assert.ok(!encodeDesign({ ...on, layer2Color: null, change: DESIGN_DEFAULTS.change }).includes('l2c'));
   assert.equal(decodeDesign('k=koch&l2=1&fi=c_c3eaec_1').layer2Color, null);
   assert.equal(decodeDesign('l2=1&l2c=zzz').layer2Color, null);
 });

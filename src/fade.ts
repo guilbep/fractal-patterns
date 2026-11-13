@@ -12,11 +12,12 @@ export function fadeSizes(tileSize: number): [number, number] {
 }
 
 // Declaration lines for the pattern layer, without indent.
-export function fadeMask(tileSize: number): string[] {
+// With `extra` (a Slow change gradient), it is a third mask layer over the whole element, intersected with the other two.
+export function fadeMask(tileSize: number, extra?: string): string[] {
   const [a, b] = fadeSizes(tileSize);
   const g = (at: string) => `radial-gradient(circle at ${at}, rgb(0 0 0 / 1), rgb(0 0 0 / ${ALPHA_MIN}))`;
-  const image = `${g('50% 50%')}, ${g('30% 70%')}`;
-  const size = `${a}px ${a}px, ${b}px ${b}px`;
+  const image = `${g('50% 50%')}, ${g('30% 70%')}${extra ? `, ${extra}` : ''}`;
+  const size = `${a}px ${a}px, ${b}px ${b}px${extra ? ', 100% 100%' : ''}`;
   return [
     `-webkit-mask-image: ${image};`,
     `mask-image: ${image};`,
@@ -25,4 +26,17 @@ export function fadeMask(tileSize: number): string[] {
     '-webkit-mask-composite: source-in;',
     'mask-composite: intersect;',
   ];
+}
+
+// Slow change across the page: full strength at one end, `to` alpha at the other, over the whole element.
+// Like the fade it only lowers alpha, so the worst case for text stays the full-strength end.
+export type ChangeDir = 'none' | 'down' | 'up' | 'across';
+export const CHANGE_DIRS: readonly ChangeDir[] = ['none', 'down', 'up', 'across'];
+export const CHANGE_MIN = 0.2;
+export const CHANGE_MAX = 0.8;
+const TOWARD = { down: 'to bottom', up: 'to top', across: 'to right' } as const;
+
+export function changeMask(dir: Exclude<ChangeDir, 'none'>, to: number): string {
+  const a = Math.min(CHANGE_MAX, Math.max(CHANGE_MIN, to));
+  return `linear-gradient(${TOWARD[dir]}, rgb(0 0 0 / 1), rgb(0 0 0 / ${a}))`;
 }

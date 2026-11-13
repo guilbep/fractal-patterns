@@ -255,6 +255,28 @@ test('fade: mask lines when on, byte-identical to before when off', () => {
   assert.ok(both.includes('.fp-pattern::before, .fp-pattern::after {\n  -webkit-mask-image'));
 });
 
+test('change: off is byte-identical; on adds one mask block, alone or merged with the fade', () => {
+  assert.equal(css({}, { change: { dir: 'none', to: 0.4 } }), css());
+  assert.equal(css({}, { fade: true, change: { dir: 'none', to: 0.4 } }), css({}, { fade: true }));
+  const g = 'linear-gradient(to bottom, rgb(0 0 0 / 1), rgb(0 0 0 / 0.4))';
+  const on = css({}, { change: { dir: 'down', to: 0.4 } });
+  assert.ok(on.includes(`.fp-pattern::before {\n  -webkit-mask-image: ${g};\n  mask-image: ${g};\n}`));
+  const two = css({}, { change: { dir: 'down', to: 0.4 }, second: { svg, tileSize: 193 } });
+  assert.ok(two.includes(`.fp-pattern::before, .fp-pattern::after {\n  -webkit-mask-image: ${g};`));
+  const both = css({}, { fade: true, change: { dir: 'down', to: 0.4 } });
+  assert.equal(both.split('mask-image:').length - 1, 2); // one block, not two that would override each other
+  assert.ok(both.includes(`, ${g};`) && both.includes(', 100% 100%;') && both.includes('mask-composite: intersect;'));
+  assert.ok(!on.includes('@media'));
+});
+
+test('change: the mask only lowers alpha, so the contrast inputs (colors, tile, plate) are the same as with it off', () => {
+  // The worst case for text is the full-strength end, which is the unmasked pattern: removing the mask block gives the export without it.
+  const off = css();
+  const on = css({}, { change: { dir: 'across', to: 0.2 } });
+  const block = /\n\n\/\* Slow change[^]*?\n\}/;
+  assert.equal(on.replace(block, ''), off);
+});
+
 // Copied from exportCss before the second-layer settings existed: with every setting at its default, nothing changes.
 const L2_INPUT = {
   ...base,

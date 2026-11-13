@@ -6,6 +6,8 @@ import { linkedPalette } from '@/palettes.ts'; // STUDIO-PAL
 import { DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design } from '@/share.ts';
 import {
   applyPalette,
+  change,
+  changeTo,
   fade,
   fill,
   lastFix,
@@ -58,6 +60,7 @@ export function snapshot(): Design {
     sections: sections.value,
     fill: { ...fill },
     layer2Color: layer2Own.value ? layer2Color.value : null,
+    change: { dir: change.value, to: changeTo.value },
   };
 }
 
@@ -78,6 +81,8 @@ export function applyDesign(d: Design): void {
   variants.value = d.variants;
   layer2.value = d.layer2;
   fade.value = d.fade;
+  change.value = d.change.dir;
+  changeTo.value = d.change.to;
   Object.assign(layer2Settings, d.layer2Settings);
   parallax.value = d.parallax;
   Object.assign(variantOptions, d.variantOptions);

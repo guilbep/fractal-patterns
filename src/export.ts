@@ -1,6 +1,6 @@
 // One pasteable export: the .fp-pattern class with custom properties, the optional plate, usage, and a tile-switching script.
 import { cssPlate, svgToDataUri } from './css.ts';
-import { fadeMask } from './fade.ts';
+import { changeMask, fadeMask, type ChangeDir } from './fade.ts';
 import { repeatDistance, type Layer2Settings } from './layers.ts';
 import { motionLayer, parallaxBlock, scaledSize, type Motion } from './motion.ts';
 
@@ -22,6 +22,9 @@ export interface ExportInput {
   // A second layer, its size coprime with tileSize, with its own offset, extra rotation, opacity, and depth (see motionLayer).
   readonly second?: { readonly svg: string; readonly tileSize: number; readonly tileHeight?: number } & Partial<Layer2Settings>;
   readonly fade?: boolean; // a soft mask over the pattern layer(s)
+  // Slow change across the page: a linear-gradient mask from full strength to `to` alpha. It only lowers the
+  // pattern's alpha, so the worst case for text stays the full-strength end and the contrast check needs no change.
+  readonly change?: { readonly dir: ChangeDir; readonly to: number };
   readonly parallax?: boolean; // the two layers move at different speeds on scroll; needs `second`
   readonly sections?: boolean; // helper classes fp-a, fp-b, fp-c that turn the pattern per section
 }
@@ -43,6 +46,8 @@ export function exportCss(i: ExportInput): string {
   // A rectangular tile adds its height as --fp-size-y (and --fp-size-2-y); a square tile writes no extra line.
   const rect = i.tileHeight !== undefined && i.tileHeight !== i.tileSize;
   const rect2 = i.second?.tileHeight !== undefined && i.second.tileHeight !== i.second.tileSize;
+  const layers = `.fp-pattern::before${i.second ? ', .fp-pattern::after' : ''} {`;
+  const change = i.change && i.change.dir !== 'none' ? changeMask(i.change.dir, i.change.to) : undefined;
   return [
     `/* ${safe(i.appName)}: ${safe(i.label)}. Tile ${i.tileSize}px. */`,
     '.fp-pattern {',
@@ -79,11 +84,21 @@ export function exportCss(i: ExportInput): string {
       ? [
           '',
           '/* Soft fade: a large, soft light and dark variation that dims the pattern in places, so the grid is harder to see. */',
-          `.fp-pattern::before${i.second ? ', .fp-pattern::after' : ''} {`,
-          ...fadeMask(Number(size)).map((l) => `  ${l}`),
+          ...(change ? ['/* Slow change: the pattern fades slowly from one end of the element to the other. */'] : []),
+          layers,
+          ...fadeMask(Number(size), change).map((l) => `  ${l}`),
           '}',
         ]
-      : []),
+      : change
+        ? [
+            '',
+            '/* Slow change: the pattern fades slowly from one end of the element to the other. */',
+            layers,
+            `  -webkit-mask-image: ${change};`,
+            `  mask-image: ${change};`,
+            '}',
+          ]
+        : []),
     ...(plated ? ['', cssPlate(i.background, i.plate)] : []),
     ...(i.second && i.parallax
       ? [

@@ -6,6 +6,7 @@ import { MOTION_NONE, type Motion } from './motion.ts';
 import { shiftsFor } from './supertile.ts';
 import { VARIANT_DEFAULTS, type VariantOptions } from './variants.ts';
 import type { FillStyle } from './fills.ts';
+import { CHANGE_MAX, CHANGE_MIN, type ChangeDir } from './fade.ts';
 
 export interface Design extends Motion {
   readonly kind: Kind;
@@ -38,6 +39,7 @@ export interface Design extends Motion {
   readonly sections: boolean; // export-only helper classes that turn the pattern per section
   readonly fill: FillStyle; // closed shapes filled with a second color
   readonly layer2Color: string | null; // the second layer's own color; null = the pattern color
+  readonly change: { readonly dir: ChangeDir; readonly to: number }; // Slow change across the page
 }
 // Not in the URL: pinned patchwork cells (a per-session tweak), the palette name (the roles carry the colors),
 // and the image source (the pixels never leave the browser).
@@ -76,6 +78,7 @@ export const DESIGN_DEFAULTS: Design = {
   sections: false,
   fill: { mode: 'none', color: '#c3eaec', opacity: 1 },
   layer2Color: null,
+  change: { dir: 'none', to: 0.4 },
 };
 
 // Field to short key. The insertion order is the order of the encoded string.
@@ -115,7 +118,8 @@ const KEYS: Readonly<Record<keyof Design, string>> = {
   variantOptions: 'vo',
   sections: 'sx',
   fill: 'fi',
-  layer2Color: 'l2c', // keep new keys last: older links stay valid
+  layer2Color: 'l2c',
+  change: 'ch', // keep new keys last: older links stay valid
 };
 const FIELDS = Object.keys(KEYS) as (keyof Design)[];
 
@@ -207,12 +211,28 @@ function decodeFill(s: string): FillStyle {
   return { mode, color: `#${c.toLowerCase()}`, opacity: Math.min(1, Math.max(0, n)) + 0 };
 }
 
+// Slow change in one value, dir_to (dir as d, u, or a); empty when none.
+const CHANGE_CODES = { down: 'd', up: 'u', across: 'a' } as const;
+const encodeChange = (c: Design['change']): string => (c.dir === 'none' ? '' : `${CHANGE_CODES[c.dir]}_${c.to}`);
+function decodeChange(s: string): Design['change'] {
+  const [m, t = ''] = s.split('_');
+  const dir = (Object.keys(CHANGE_CODES) as (keyof typeof CHANGE_CODES)[]).find((k) => CHANGE_CODES[k] === m);
+  const n = Number(t);
+  if (s.split('_').length !== 2 || !dir || t.trim() === '' || !Number.isFinite(n)) return DESIGN_DEFAULTS.change;
+  return { dir, to: Math.min(CHANGE_MAX, Math.max(CHANGE_MIN, n)) };
+}
+
 export function encodeDesign(d: Design): string {
   const pairs: [string, string][] = [];
   for (const f of FIELDS) {
     if (f === 'layer2Settings') {
       const l2 = encodeL2(d.layer2Settings);
       if (l2) pairs.push([KEYS[f], l2]);
+      continue;
+    }
+    if (f === 'change') {
+      const ch = encodeChange(d.change);
+      if (ch) pairs.push([KEYS[f], ch]);
       continue;
     }
     if (f === 'fill') {
@@ -291,6 +311,7 @@ export function decodeDesign(query: string): Design {
     sections: bool('sections'),
     fill: decodeFill(get('fill')),
     layer2Color: /^[0-9a-f]{6}$/i.test(get('layer2Color')) ? `#${get('layer2Color').toLowerCase()}` : null,
+    change: decodeChange(get('change')),
   };
 }
 
@@ -302,6 +323,8 @@ export function sameDesign(a: Design, b: Design): boolean {
         ? encodeVO(a[f]) === encodeVO(b[f])
         : f === 'fill'
           ? encodeFill(a[f]) === encodeFill(b[f])
-          : a[f] === b[f],
+          : f === 'change'
+            ? encodeChange(a[f]) === encodeChange(b[f])
+            : a[f] === b[f],
   );
 }

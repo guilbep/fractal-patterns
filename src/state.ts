@@ -29,6 +29,7 @@ import { VARIANT_DEFAULTS, variantTile, variantsActive, type VariantOptions } fr
 import { LAYER2_DEFAULTS, layerSpots, type Layer2Settings } from '@/layers.ts';
 import { fillScene, splitClosed, type FillStyle } from '@/fills.ts';
 import { sceneToSvg } from '@/scene.ts';
+import type { ChangeDir } from '@/fade.ts';
 import { LAYOUT_EXAMPLES, randomLayout, randomRepetition } from '@/random-design.ts';
 
 export const MAX_SEED = 0xffffffff;
@@ -423,6 +424,9 @@ export function resetLayer2(): void {
   Object.assign(layer2Settings, LAYER2_DEFAULTS);
 }
 export const fade = ref(false);
+// Slow change across the page: a mask that only lowers alpha, so the contrast check (full strength) needs no change.
+export const change = ref<ChangeDir>('none');
+export const changeTo = ref(0.4);
 // Parallax on scroll for the two layers; has an effect only with layer2.
 export const parallax = ref(false);
 // Different angle per section: export-only helper classes; the preview does not change.
@@ -669,6 +673,8 @@ export function reset(): void {
   layer2Own.value = false;
   resetLayer2();
   fade.value = false;
+  change.value = 'none';
+  changeTo.value = 0.4;
   parallax.value = false;
   sections.value = false;
 }

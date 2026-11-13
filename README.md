@@ -136,6 +136,8 @@ Parallax on scroll is an option of the second layer. On scroll, the two layers m
 
 Soft fade adds two large radial gradient masks with coprime sizes over the pattern. They dim the pattern unevenly, so the grid is harder to see. It is CSS only, with no extra image. A mask only lowers the alpha, so the text contrast never gets worse.
 
+Slow change across the page adds one linear gradient mask over the whole element, so the pattern goes from full strength at one end (top, bottom, or left) to a fainter strength, 20% to 80%, at the other end. With Soft fade on, the export puts the three gradients in one mask with `mask-composite: intersect`, and with a second layer it masks both layers. A mask only lowers the alpha, so the worst case for the text is the full-strength end and the contrast check does not change.
+
 Different angle per section adds three helper classes to the CSS: `fp-a`, `fp-b` and `fp-c`. Each turns the pattern by a different angle (137, 95 and 52 degrees). Put them next to `fp-pattern` on successive sections of a page. The preview does not change.
 
 ### From image
@@ -306,6 +308,7 @@ The hash writes only the values that differ from the default. The key `fi` holds
 | `fd` | Soft fade, `1` or `0` | `0` |
 | `sx` | Different angle per section, `1` or `0` | `0` |
 | `l2c` | Own color of the second layer, without `#`; written only when it is on | absent (the pattern color) |
+| `ch` | Slow change across the page, `direction_faintEnd` with direction `d` (top to bottom), `u` (bottom to top), or `a` (left to right) and the faint end from `0.2` to `0.8`, e.g. `d_0.4`; written only when it is on | absent (none) |
 
 The page reads the hash as untrusted input. A missing or broken value takes its default, and a number outside its range is clamped. The older keys keep their meaning, so older links still work.
 

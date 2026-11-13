@@ -17,6 +17,8 @@ import {
   spacing,
   traced,
   variantsOn,
+  change,
+  changeTo,
   fade,
   layer2,
   layer2Color,
@@ -75,6 +77,7 @@ const exportInput = computed<ExportInput>(() => ({
       }
     : {}),
   fade: fade.value,
+  change: { dir: change.value, to: changeTo.value },
   parallax: layer2.value && parallax.value,
   sections: sections.value,
 }));

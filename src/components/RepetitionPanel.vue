@@ -9,6 +9,8 @@ import { imageOptions, optionsFor } from '@/repetition.ts';
 import { canVary, imageSuperTileSvg, shiftsFor, superTileSvg } from '@/supertile.ts';
 import {
   curvesOn,
+  change,
+  changeTo,
   fade,
   imageCells,
   imageVariants,
@@ -216,6 +218,21 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
 
     <label class="radio"><input id="fade" v-model="fade" type="checkbox" aria-describedby="fade-hint"> Soft fade</label>
     <p id="fade-hint" class="hint-text">A soft light and dark variation over the pattern. CSS only, no extra image.</p>
+
+    <div class="field">
+      <label for="change">Slow change across the page</label>
+      <select id="change" v-model="change">
+        <option value="none">None</option>
+        <option value="down">Top to bottom</option>
+        <option value="up">Bottom to top</option>
+        <option value="across">Left to right</option>
+      </select>
+    </div>
+    <div v-if="change !== 'none'" class="field">
+      <label for="change-to">Faint end <output for="change-to">{{ Math.round(changeTo * 100) }}%</output></label>
+      <input id="change-to" v-model.number="changeTo" type="range" min="0.2" max="0.8" step="0.05" aria-describedby="change-hint">
+      <p id="change-hint" class="hint-text">The pattern keeps full strength at one end and fades to this strength at the other end. CSS only, no extra image. The preview shows it over the height of the preview.</p>
+    </div>
 
     <label class="radio"><input id="sections" v-model="sections" type="checkbox" aria-describedby="sections-hint"> Different angle per section</label>
     <p id="sections-hint" class="hint-text">Adds three helper classes to the CSS, fp-a, fp-b, and fp-c, that turn the pattern by a different angle. Put them on successive sections of a page. The preview does not change.</p>

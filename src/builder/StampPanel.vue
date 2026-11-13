@@ -69,6 +69,8 @@ async function onFiles(e: Event): Promise<void> {
 
 <template>
   <section class="panel" aria-labelledby="stamps-h">
+    <!-- The page heading, as App.vue has one; the site header shows the name already. -->
+    <h1 class="visually-hidden">Pattern Builder</h1>
     <h2 id="stamps-h">Shapes</h2>
 
     <h3>In this tile</h3>
@@ -80,61 +82,36 @@ async function onFiles(e: Event): Promise<void> {
       </button>
     </div>
 
-    <h3>Studio drawings</h3>
-    <div class="stamp-grid">
-      <button v-for="(s, i) in studio" :key="i" type="button" class="stamp-btn" :aria-label="s.name" :title="s.name" @click="place([useStamp(s)])">
-        <svg :viewBox="`0 0 ${s.box} ${s.box}`" aria-hidden="true">
-          <path v-for="(p, j) in s.parts" :key="j" :d="p.d" :fill="p.paint === 'fill' ? p.color : 'none'" :fill-rule="p.evenodd ? 'evenodd' : undefined" :stroke="p.paint === 'stroke' ? p.color : 'none'" :stroke-width="p.paint === 'stroke' ? s.box / 25 : undefined" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-      </button>
-    </div>
-    <button type="button" class="more" @click="seed++">Other drawings</button>
+    <details class="group">
+      <summary>Studio drawings</summary>
+      <div class="stamp-grid">
+        <button v-for="(s, i) in studio" :key="i" type="button" class="stamp-btn" :aria-label="s.name" :title="s.name" @click="place([useStamp(s)])">
+          <svg :viewBox="`0 0 ${s.box} ${s.box}`" aria-hidden="true">
+            <path v-for="(p, j) in s.parts" :key="j" :d="p.d" :fill="p.paint === 'fill' ? p.color : 'none'" :fill-rule="p.evenodd ? 'evenodd' : undefined" :stroke="p.paint === 'stroke' ? p.color : 'none'" :stroke-width="p.paint === 'stroke' ? s.box / 25 : undefined" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
+      <button type="button" class="btn group-end" @click="seed++">Other drawings</button>
+    </details>
 
-    <h3>Your own files</h3>
-    <label class="file">
-      Add SVG files or an image
-      <input type="file" multiple accept="image/*,.svg" @change="onFiles" />
-    </label>
-    <p class="status" role="status">{{ status }}</p>
+    <details class="group" open>
+      <summary>Your own files</summary>
+      <div class="field">
+        <label for="stamp-files">Add SVG files or an image</label>
+        <input id="stamp-files" class="file-input" type="file" multiple accept="image/*,.svg" @change="onFiles" />
+      </div>
+      <p class="hint-text status" role="status">{{ status }}</p>
+    </details>
   </section>
 </template>
 
 <style scoped>
 h3 {
-  margin: 0.75rem 0 0.4rem;
-  font-size: 0.85rem;
-}
-.stamp-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-.stamp-btn svg {
-  display: block;
-  width: 40px;
-  height: 40px;
-}
-.more {
-  margin-top: 0.4rem;
-}
-.file {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  max-width: 100%;
-}
-.file input {
-  max-width: 100%;
-}
-.stamp-btn:focus-visible,
-.more:focus-visible,
-.file input:focus-visible {
-  outline: 2px solid currentColor;
-  outline-offset: 2px;
+  margin: 0 0 var(--s1);
+  font-size: 1rem;
 }
 .status {
   min-height: 1.2em;
-  margin: 0.4rem 0 0;
   overflow-wrap: anywhere;
 }
 </style>

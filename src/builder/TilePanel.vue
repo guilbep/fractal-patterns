@@ -135,8 +135,10 @@ function another(): void {
       </div>
       <div class="field">
         <label for="tile-bg">Background</label>
-        <input id="tile-bg" type="color" :value="design.background ?? lastBg" :disabled="design.background === null" @input="setBackground(val($event), false)" @change="setBackground(val($event), true)">
-        <label class="radio"><input type="checkbox" :checked="design.background === null" @change="set({ ...design, background: ($event.target as HTMLInputElement).checked ? null : lastBg }, true)"> No background</label>
+        <div class="bg-row">
+          <input id="tile-bg" type="color" :value="design.background ?? lastBg" :disabled="design.background === null" @input="setBackground(val($event), false)" @change="setBackground(val($event), true)">
+          <label class="radio"><input type="checkbox" :checked="design.background === null" @change="set({ ...design, background: ($event.target as HTMLInputElement).checked ? null : lastBg }, true)"> No background</label>
+        </div>
       </div>
       <div class="field">
         <label for="tile-line">Line width <output for="tile-line">{{ design.strokeWidth }}</output></label>
@@ -144,7 +146,8 @@ function another(): void {
       </div>
     </div>
 
-    <h3 id="fill-h">Fill the tile</h3>
+    <details class="group">
+    <summary>Fill the tile with a grid</summary>
     <!-- Every change event inside commits the live fill; the watch on the choice has already previewed it. -->
     <div class="fill" @change="settle">
       <div class="fields">
@@ -159,8 +162,12 @@ function another(): void {
       </div>
       <fieldset>
         <legend>Shapes to use</legend>
-        <div class="shapes">
+        <div class="check-grid">
           <label v-for="(s, i) in design.stamps" :key="i" class="radio"><input v-model="opts.stampIndices" type="checkbox" :value="i"> {{ s.name }}</label>
+        </div>
+        <div class="presets">
+          <button type="button" class="btn" @click="opts.stampIndices = design.stamps.map((_, i) => i); settle()">All</button>
+          <button type="button" class="btn" @click="opts.stampIndices = []; settle()">None</button>
         </div>
       </fieldset>
       <div class="fields">
@@ -207,35 +214,21 @@ function another(): void {
     </div>
     <button type="button" class="btn primary" aria-describedby="fill-hint" :disabled="opts.stampIndices.length === 0" @click="fillNow">Fill the tile</button>
     <p id="fill-hint" class="hint-text">This replaces every shape on the tile. Undo brings them back.</p>
+    </details>
   </section>
 </template>
 
 <style scoped>
-h3 {
-  margin: var(--s3, 1rem) 0 var(--s1, 0.25rem);
-  font-size: 1rem;
-}
-.presets,
-.shapes {
+.presets {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s1, 0.25rem);
-  margin: var(--s1, 0.25rem) 0;
+  gap: var(--s2);
+  margin: 0 0 var(--s3);
 }
-.fill,
-.fill fieldset,
-.field {
-  min-width: 0;
-}
-.fill input[type='range'],
-.fill select,
-.field input[type='number'] {
-  max-width: 100%;
-}
-.btn:focus-visible,
-input:focus-visible,
-select:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+.bg-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3);
 }
 </style>

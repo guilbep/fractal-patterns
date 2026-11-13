@@ -101,6 +101,8 @@ function duplicate(): void {
       <div class="actions">
         <button type="button" class="btn" @click="duplicate">Duplicate</button>
         <button type="button" class="btn" @click="act(removeItem)">Delete</button>
+      </div>
+      <div class="actions" role="group" aria-label="Order">
         <button type="button" class="btn" :disabled="atTop" @click="act((d, id) => reorder(d, id, 'front'))">To front</button>
         <button type="button" class="btn" :disabled="atTop" @click="act((d, id) => reorder(d, id, 'up'))">Forward</button>
         <button type="button" class="btn" :disabled="atBottom" @click="act((d, id) => reorder(d, id, 'down'))">Backward</button>
@@ -111,21 +113,20 @@ function duplicate(): void {
 </template>
 
 <style scoped>
-.item-panel {
-  min-width: 0;
-}
 .colors,
 .swatches,
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
+  gap: var(--s2);
+  margin-top: var(--s3);
+}
+.actions + .actions {
+  margin-top: var(--s2);
 }
 .color-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  display: grid;
+  gap: var(--s1);
 }
 .colors .muted {
   flex-basis: 100%;
@@ -135,13 +136,8 @@ function duplicate(): void {
   width: 1.75rem;
   height: 1.75rem;
   padding: 0;
-  border: 1px solid currentColor;
-  border-radius: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   cursor: pointer;
-}
-.swatch:focus-visible,
-.item-panel input:focus-visible {
-  outline: 2px solid currentColor;
-  outline-offset: 2px;
 }
 </style>

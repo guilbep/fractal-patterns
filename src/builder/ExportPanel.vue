@@ -51,18 +51,15 @@ async function openDesign(e: Event): Promise<void> {
   <section class="panel" aria-labelledby="export-h">
     <h2 id="export-h">Export</h2>
     <p class="export-stats"><SizeBadge :svg="svg" /></p>
-    <ExportActions :svg="svg" :css="css" file-name="pattern-builder">
-      <button type="button" class="btn" @click="downloadDesign">Download design (.json)</button>
-    </ExportActions>
-    <div class="field">
-      <label for="open-design">Open a design file</label>
-      <input id="open-design" type="file" accept=".json,application/json" @change="openDesign">
-    </div>
-    <p class="copy-status" role="status" aria-live="polite">{{ openStatus }}</p>
+    <ExportActions :svg="svg" :css="css" file-name="pattern-builder" />
+    <details class="group">
+      <summary>CSS and design file</summary>
+      <button type="button" class="btn group-end" @click="downloadDesign">Download design (.json)</button>
+      <div class="field">
+        <label for="open-design">Open a design file</label>
+        <input id="open-design" class="file-input" type="file" accept=".json,application/json" @change="openDesign">
+      </div>
+      <p class="copy-status" role="status" aria-live="polite">{{ openStatus }}</p>
+    </details>
   </section>
 </template>
-
-<style scoped>
-.export-stats { display: flex; flex-wrap: wrap; gap: var(--s2); }
-#open-design { max-inline-size: 100%; }
-</style>

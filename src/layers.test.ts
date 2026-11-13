@@ -21,8 +21,8 @@ test('gcd', () => {
   assert.equal(gcd(120, 193), 1);
 });
 
-test('secondSize from 40 to 240: larger, coprime, near size * PHI', () => {
-  for (let s = 40; s <= 240; s++) {
+test('secondSize from 40 to 320: larger, coprime, near size * PHI', () => {
+  for (let s = 40; s <= 320; s++) {
     const t = secondSize(s);
     assert.ok(t > s, `${s} -> ${t}`);
     assert.equal(gcd(s, t), 1, `${s} -> ${t}`);

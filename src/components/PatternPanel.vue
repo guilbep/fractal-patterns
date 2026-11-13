@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
-import { FAMILIES, FAMILY_LABELS, KINDS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH, tileAspect, type Kind } from '@/fractal.ts';
+import { FAMILIES, FAMILY_LABELS, KINDS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH, tileAspect, tileHeight, type Kind } from '@/fractal.ts';
+import { SIZE_MAX, SIZE_MIN, SIZE_PRESETS, markedPreset } from '@/sizes.ts';
 import { LIB_TABS, kindsForTab, parseLibTab, tabForKind, type LibTab } from '@/library.ts';
-import { MAX_SEED, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, squareKind, usingImage, usingPatchwork, imageShuffles } from '@/state.ts';
+import { MAX_SEED, aspect, tileSize, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, squareKind, usingImage, usingPatchwork, imageShuffles } from '@/state.ts';
 import '@/css/library.css';
+import '@/css/sizes.css';
 
 // Patchwork cells are square: rectangular kinds are not offered.
 const squareKinds = KINDS.filter((k) => tileAspect(k) === 1);
@@ -105,6 +107,18 @@ const galleryVars = computed(() => ({ '--lib-bg': roles.background, '--lib-fg': 
 
     <div class="fields">
       <div class="field">
+        <fieldset class="size-presets" role="radiogroup" aria-label="Tile size, px">
+          <legend>Tile size presets</legend>
+          <label v-for="p in SIZE_PRESETS" :key="p"><input type="radio" name="size-preset" :value="p" :checked="markedPreset(params.size) === p" @change="params.size = p"><span>{{ p }}<span class="visually-hidden"> px</span></span></label>
+        </fieldset>
+        <label for="size">Tile size <output for="size">{{ params.size }} px</output></label>
+        <input id="size" v-model.number="params.size" type="range" :min="SIZE_MIN" :max="SIZE_MAX" step="4">
+        <p v-if="tileSize !== params.size" id="size-real">Exported tile: {{ tileSize }} by {{ tileHeight(tileSize, aspect) }} px</p>
+      </div>
+    </div>
+
+    <div class="fields">
+      <div class="field">
         <label for="seed">Seed</label>
         <div class="seed-row">
           <input id="seed" :disabled="usingImage" type="number" min="0" :max="MAX_SEED" step="1" :value="params.seed" @input="setSeed(($event.target as HTMLInputElement).value)" @change="($event.target as HTMLInputElement).value = String(params.seed)">
@@ -117,10 +131,6 @@ const galleryVars = computed(() => ({ '--lib-bg': roles.background, '--lib-fg': 
       <div class="field">
         <label for="depth">Depth <output for="depth">{{ Math.min(params.depth, depthMax) }} of {{ depthMax }}</output></label>
         <input id="depth" :disabled="usingImage" v-model.number="params.depth" type="range" min="1" :max="depthMax" step="1">
-      </div>
-      <div class="field">
-        <label for="size">Tile size <output for="size">{{ params.size }} px</output></label>
-        <input id="size" v-model.number="params.size" type="range" min="40" max="240" step="4">
       </div>
       <div class="field">
         <label for="stroke">Stroke width <output for="stroke">{{ params.strokeWidth }} px</output></label>

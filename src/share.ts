@@ -278,7 +278,7 @@ export function decodeDesign(query: string): Design {
     kind,
     seed: num('seed', 0, 0xffffffff, true),
     depth: Math.min(num('depth', 1, MAX_DEPTH[kind], true), MAX_DEPTH[kind]), // the default 8 is too deep for some kinds
-    size: num('size', 40, 240),
+    size: num('size', 40, 320),
     strokeWidth: num('strokeWidth', 0.5, 6),
     precision: num('precision', 0, 3, true),
     background: color('background'),

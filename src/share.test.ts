@@ -28,7 +28,7 @@ function randomDesign(r: () => number): Design {
     kind,
     seed: int(0, 0xffffffff),
     depth: int(1, MAX_DEPTH[kind]),
-    size: real(40, 240),
+    size: real(40, 320),
     strokeWidth: real(0.5, 6),
     precision: int(0, 3),
     background: color(),
@@ -139,7 +139,7 @@ function assertValid(d: Design, label: string): void {
   assert.ok(KINDS.includes(d.kind), label);
   assert.ok(Number.isInteger(d.seed) && inRange(d.seed, 0, 0xffffffff), label);
   assert.ok(Number.isInteger(d.depth) && inRange(d.depth, 1, MAX_DEPTH[d.kind]), label);
-  assert.ok(inRange(d.size, 40, 240), label);
+  assert.ok(inRange(d.size, 40, 320), label);
   assert.ok(inRange(d.strokeWidth, 0.5, 6), label);
   assert.ok(Number.isInteger(d.precision) && inRange(d.precision, 0, 3), label);
   for (const c of [d.background, d.pattern, d.text]) assert.match(c, /^#[0-9a-f]{6}$/, label);

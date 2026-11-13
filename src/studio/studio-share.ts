@@ -1,7 +1,7 @@
 // The studio design as a compact URL hash query: s seed, r repeat, d density, z tile size, st stems,
 // t theme (f floral, s sea, o orchard), f families bit mask (bit i: the theme's i-th family), pn palette name,
 // pc random palette colors (see linkedPalette), lg large tile (1: span 2), ba balance automatically (1 or 0, always written; missing in a non-empty hash: a link from
-// before the key, so false; an empty hash: a fresh page, so the default true). The old index key p is read, never written. Only values that differ from the defaults are written.
+// before the key, so false; an empty hash: a fresh page, so the default true), gr ground layer (1 or 0, the same rule as ba). The old index key p is read, never written. Only values that differ from the defaults are written.
 import { PALETTES, linkedPalette, paletteParam, type Palette } from '../palettes.ts';
 import { composeColors, themeFamilies, type ComposeOptions, type Theme, type ThemeFamily } from './compose.ts';
 import type { Repeat } from './model.ts';
@@ -29,6 +29,8 @@ export interface StudioDesign {
   large: boolean;
   /** Compose again when the tiled result tracks, and keep the best (compose `balance`). */
   balance: boolean;
+  /** A quiet layer of small foliage behind the plants (compose `ground`). */
+  ground: boolean;
 }
 
 export const DEFAULT_DESIGN: Readonly<StudioDesign> = {
@@ -42,6 +44,7 @@ export const DEFAULT_DESIGN: Readonly<StudioDesign> = {
   families: [...MOTIF_FAMILIES],
   large: false,
   balance: true,
+  ground: true,
 };
 
 const mask = (t: Theme, fs: readonly ThemeFamily[]): number => ids(t).reduce((m, f, i) => (fs.includes(f) ? m | (1 << i) : m), 0);
@@ -62,6 +65,7 @@ export function encodeStudio(d: StudioDesign): string {
   if (d.palette.name !== D.palette.name) q.set(...paletteParam(d.palette));
   if (d.large) q.set('lg', '1');
   q.set('ba', d.balance ? '1' : '0'); // always written: see the header
+  q.set('gr', d.ground ? '1' : '0'); // always written, as ba
   return q.toString();
 }
 
@@ -98,6 +102,7 @@ export function decodeStudio(hash: string): StudioDesign {
     families: families.length > 0 ? families : ids(theme),
     large: q.get('lg') === '1',
     balance: q.has('ba') ? q.get('ba') !== '0' : fresh && D.balance,
+    ground: q.has('gr') ? q.get('gr') !== '0' : fresh && D.ground,
   };
 }
 
@@ -118,6 +123,7 @@ export function designOptions(d: StudioDesign): ComposeOptions {
     colors: composeColors(d.palette.colors),
     stems: d.stems,
     balance: d.balance,
+    ground: d.ground,
     ...(d.large ? { span: 2 as const } : {}),
   };
 }

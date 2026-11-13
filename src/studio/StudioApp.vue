@@ -395,6 +395,8 @@ onBeforeUnmount(() => sizes.disconnect());
             <p v-if="studioTracking(studio)" id="tracking" class="hint-text" :title="`${studioTries(studio) ? `Best of ${studioTries(studio)} tries. ` : ''}Worst part: ${balance(studioTracking(studio)!).worst}`">Balance: {{ balance(studioTracking(studio)!).label }}</p>
             <label class="radio"><input id="balance" v-model="design.balance" type="checkbox" aria-describedby="balance-hint"> Balance automatically</label>
             <p id="balance-hint" class="hint-text">Composes again when the wallpaper has a dense strip or a large empty area, and keeps the best of up to six tries. Not used with Large tile.</p>
+            <label class="radio"><input id="ground" v-model="design.ground" type="checkbox" aria-describedby="ground-hint"> Ground layer</label>
+            <p id="ground-hint" class="hint-text">A quiet layer of small foliage behind the plants, in the soft color of the palette. It adds depth and fills empty areas.</p>
           </div>
           <div class="field">
             <label for="theme">Theme</label>

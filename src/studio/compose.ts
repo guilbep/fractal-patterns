@@ -5,6 +5,7 @@
 import type { Cubic } from '../curvefit.ts';
 import { safePathData } from '../motifgrid.ts';
 import { mulberry32, type Pt } from '../patterns/util.ts';
+import { groundLayer, groundMotifs } from './ground.ts';
 import type { Placement, Repeat, Studio, StudioLayer, StudioMotif } from './model.ts';
 import { INK_MAX_LENGTH, layerColors, studioBytes } from './model.ts';
 import { trackingInput, trackingScore, type Tracking } from './tracking.ts';
@@ -41,6 +42,8 @@ export interface ComposeOptions {
     readonly bloom: string;
     readonly detail: string;
     readonly stem: string;
+    /** The ground layer's color (the palette's soft color); default a mix of background and leaf. */
+    readonly ground?: string;
   };
   readonly stems: boolean;
   /** A motif of the person's own (a cropped trace): one shape per color, back to front, filled or (a line drawing)
@@ -62,6 +65,9 @@ export interface ComposeOptions {
   /** Default false (one attempt). True: when the tiled result has a dense strip or a large hole, up to 6 attempts with
    * derived seeds (span 1 only) and keep the best. */
   readonly balance?: boolean;
+  /** Default false. True: a quiet layer of tiny foliage under everything (ground.ts), in colors.ground; it is not part of
+   * the spacing rules nor of the balance measure. */
+  readonly ground?: boolean;
 }
 
 /** Smallest circle around the bounds' center that holds the bounds, and its offset from the box center. */
@@ -982,9 +988,40 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     tries++;
     if (t.score < bestT.score) [best, bestT, helped] = [p, t, true];
   }
+  if (o.ground) best = withGround(best, o, span);
   tracked.set(best.studio, bestT);
   if (helped) triesOf.set(best.studio, tries);
   return { ...best, tracking: bestT };
+}
+
+/** The ground motifs appended after the plants' (their ids in the SVG stay the same) and the ground as the first layer. */
+function withGround(p: Omit<ComposeParts, 'tracking'>, o: ComposeOptions, span: 1 | 2): Omit<ComposeParts, 'tracking'> {
+  const s = p.studio;
+  const theme = o.theme && THEME_TABLE[o.theme] ? o.theme : 'floral';
+  const placements = groundLayer({ seed: o.seed, width: o.width, height: o.height, span, theme, first: s.motifs.length });
+  const color = o.colors.ground ?? mixHex(o.colors.background, o.colors.leaf);
+  return {
+    ...p,
+    studio: {
+      ...s,
+      motifs: [...s.motifs, ...groundMotifs(theme)],
+      layers: [{ color, opacity: 1, strokeWidth: 0, placements }, ...s.layers],
+    },
+  };
+}
+
+/** The halfway color of two #rrggbb colors (the first when either is not #rrggbb). */
+function mixHex(a: string, b: string): string {
+  const ok = /^#[0-9a-fA-F]{6}$/;
+  if (!ok.test(a) || !ok.test(b)) return a;
+  const c = (s: string, i: number) => parseInt(s.slice(i, i + 2), 16);
+  return `#${[1, 3, 5]
+    .map((i) =>
+      Math.round((c(a, i) + c(b, i)) / 2)
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
 }
 
 export function compose(o: ComposeOptions): Studio {
@@ -1003,8 +1040,8 @@ export function studioTracking(s: Studio): Tracking | null {
 
 /** Roles from a 5-color palette (paper, ink, stroke, accent, soft). */
 export function composeColors(palette: readonly string[]): ComposeOptions['colors'] {
-  const [paper = '#ffffff', ink = '#000000', stroke = '#808080', accent = '#808080'] = palette;
-  return { background: paper, leaf: stroke, bloom: accent, detail: ink, stem: stroke };
+  const [paper = '#ffffff', ink = '#000000', stroke = '#808080', accent = '#808080', soft] = palette;
+  return { background: paper, leaf: stroke, bloom: accent, detail: ink, stem: stroke, ground: soft ?? mixHex(paper, stroke) };
 }
 
 export function composeSummary(s: Studio): { bytes: number; instances: number; motifs: number; plates: number } {

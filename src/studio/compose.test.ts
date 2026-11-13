@@ -143,8 +143,8 @@ test('bytes, straight repeat: worst over seeds 1..8', () => {
 
 test('composeColors maps the five roles', () => {
   const p = PALETTES.find((x) => x.name === 'Lagoon')!;
-  const [paper, ink, stroke, accent] = p.colors;
-  assert.deepEqual(composeColors(p.colors), { background: paper, leaf: stroke, bloom: accent, detail: ink, stem: stroke });
+  const [paper, ink, stroke, accent, soft] = p.colors;
+  assert.deepEqual(composeColors(p.colors), { background: paper, leaf: stroke, bloom: accent, detail: ink, stem: stroke, ground: soft });
 });
 
 test('coverage of the real motif circles at density 0.5', () => {
@@ -386,7 +386,7 @@ test('compose without a custom motif: a stable SVG (sha-256 prefixes)', () => {
   const want: Record<number, string> = { 1: 'd7b9370805fdf712', 2: '2620a0060c527b2a', 3: '6e3f8e4b0570a829' };
   for (const seed of [1, 2, 3]) {
     // balance: false pins one attempt; a fresh page now turns balance on, which changes seed 3 to 51f62e39d354b846.
-    const svg = studioSvg(compose({ ...designOptions(decodeStudio('')), seed, balance: false }));
+    const svg = studioSvg(compose({ ...designOptions(decodeStudio('')), seed, balance: false, ground: false }));
     assert.equal(createHash('sha256').update(svg).digest('hex').slice(0, 16), want[seed], `seed ${seed}`);
   }
 });

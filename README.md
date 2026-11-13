@@ -370,6 +370,8 @@ The Wallpaper Studio is a second page, `studio.html`. It makes original wallpape
 
 A tracking test (`src/studio/tracking.ts`) measures the tile as it tiles: the weight of the motifs in vertical, horizontal and diagonal strips, and the largest empty disc. The Design panel shows the result under the seed as "Balance: good", "fair" or "uneven". The checkbox Balance automatically (on for a fresh page) composes again with derived seeds when the tile has a dense strip or a large empty area, and keeps the best of up to six tries; the line's tooltip then says "Best of N tries". It is not used with Large tile, where one try already takes about 320 ms. A link made before this checkbox has no `ba` key and opens with it off, so it keeps its picture.
 
+The ground layer is a quiet pattern of tiny foliage under the plants, in the palette's soft color. It sits on a jittered grid of 6 by 6 cells per unit tile, one motif per cell with a seeded offset, angle and size, so it covers evenly and wraps on every repeat. It takes no part in the spacing rules or the balance measure, and the Ground layer checkbox in the Design panel turns it on (the default for a fresh page).
+
 In the Orchard theme each plant (a stem with its branches) carries one kind of fruit, as a tree does. The plants are dealt the enabled fruit in turn, from a seeded shuffle, so several plants show several kinds. Leaves, blossom and the cherries that float in the gaps are shared by all plants.
 
 The page builds a tile in these steps:
@@ -462,6 +464,7 @@ The studio has the same palettes as the pattern tool. The palette strip in the t
 | `pc` | A random palette: its five colors (paper, ink, stroke, accent, soft) as 6-digit hex, joined with a dot. Read when `pn` is absent or unknown | none |
 | `lg` | Large tile, `1` when on (written only when on) | off |
 | `ba` | Balance automatically, `1` or `0`, always written. A link without it was made before the key and opens with it off; a page with no design in the address opens with it on | on |
+| `gr` | Ground layer, `1` or `0`, always written after `ba`. A link without it is from before the key and has no ground; an empty or palette-only address is a fresh page and has the ground on. |
 
 Links made before the palette names used `p`, an index into the old 24 palettes. The page still reads it and opens the nearest palette by base hue (a best match), but never writes it.
 

@@ -56,6 +56,8 @@ In this order:
 
 Built: item 1, the test `src/studio/tracking.ts`. Over 3 themes, 4 repeats and seeds 1 to 30, a search over 6 seeds lowers the share of tiles over the limit from 25.3% to 10.3%; the search runs when the studio's Balance automatically checkbox is on (the default for a fresh page; links made before the `ba` key keep it off).
 
+Built: item 2, the ground layer `src/studio/ground.ts`: one tiny motif (about 5% of the tile side) per cell of a 6 by 6 jittered grid, in the palette's soft color. Measured at seed 7, density 0.4, 300 px: it adds about 3.6 to 3.7 kB of SVG (+460 to 510 bytes gzipped) per tile at span 1 and 13.2 kB (+1.5 kB gzipped) at span 2; compose time does not change measurably.
+
 Already built: a "Large tile" option. One tile is twice as wide and high and holds about 3.5 times the plants.
 
 ## Rights

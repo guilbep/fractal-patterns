@@ -118,7 +118,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 </script>
 
 <template>
-  <SiteHeader current="patterns" patterns-href="./index.html" :studio-href="studioHref" tagline="Seeded fractal tiles for CSS backgrounds, with contrast you can trust." />
+  <SiteHeader v-model:shortcut="shortcutOn" current="patterns" patterns-href="./index.html" :studio-href="studioHref" tagline="Seeded fractal tiles for CSS backgrounds, with contrast you can trust." />
 
   <div ref="bar" class="toolbar" role="toolbar" aria-label="Design actions">
     <div class="bar-row">
@@ -174,7 +174,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <div v-show="tab === 'pattern'" id="panel-pattern" class="tabpanel" role="tabpanel" aria-labelledby="tab-pattern">
         <PatternPanel />
         <div class="shortcut-line">
-          <label class="radio"><input v-model="shortcutOn" type="checkbox"> Keyboard shortcuts: R shuffles, F shows the pattern full screen</label>
           <span class="muted hint">{{ usingImage ? 'Shuffle applies to math patterns only.' : '' }}<template v-if="!usingImage && shortcutOn">Or click the pattern, or press <kbd>R</kbd>.</template><template v-else-if="!usingImage">Or click the pattern.</template></span>
         </div>
       </div>

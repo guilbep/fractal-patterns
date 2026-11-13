@@ -333,7 +333,7 @@ useBarHeight(bar);
 </script>
 
 <template>
-  <SiteHeader current="studio" :patterns-href="toolHref" studio-href="./studio.html" tagline="Original botanical wallpapers from a seed. Every motif is generated here; nothing is copied." />
+  <SiteHeader v-model:shortcut="shortcutOn" current="studio" :patterns-href="toolHref" studio-href="./studio.html" tagline="Original botanical wallpapers from a seed. Every motif is generated here; nothing is copied." />
 
   <div ref="bar" class="toolbar" role="toolbar" aria-label="Wallpaper actions">
     <div class="bar-row">
@@ -417,7 +417,6 @@ useBarHeight(bar);
           <p id="large-hint" class="hint-text">Composes one tile of twice the width and height, with about four times the plants. The picture comes back four times less often. About three times the bytes.</p>
           <label class="radio"><input id="stems" v-model="design.stems" type="checkbox"> Show stems</label>
         </div>
-        <label class="radio shortcut-switch"><input id="shortcuts" v-model="shortcutOn" type="checkbox"> Keyboard shortcuts: R shuffles, F shows the wallpaper full screen</label>
       </section>
 
       <section class="panel" aria-labelledby="repeat-h">

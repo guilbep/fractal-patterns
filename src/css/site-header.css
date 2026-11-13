@@ -59,6 +59,7 @@
   color: var(--accent-ink);
 }
 .tool-switch a:focus-visible,
+.keys-btn:focus-visible,
 .repo-link:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -71,8 +72,24 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.repo-link {
+.keys-btn {
+  flex-shrink: 0;
+  min-width: 24px;
+  min-height: 24px;
   margin-inline-start: auto;
+  padding: 0 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--sunk);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.keys-btn:hover {
+  background: var(--surface);
+}
+.repo-link {
   color: var(--muted);
   text-decoration: none;
   white-space: nowrap;
@@ -82,8 +99,12 @@
   text-decoration: underline;
 }
 @media (pointer: coarse) {
-  .tool-switch a {
+  .tool-switch a,
+  .keys-btn {
     min-height: 44px;
+  }
+  .keys-btn {
+    min-width: 44px;
   }
 }
 @media (max-width: 799.98px) {
@@ -121,4 +142,41 @@
   .repo-link {
     display: none;
   }
+}
+/* The key panel (src/key-help.ts): a modal dialog with a two-column key table. */
+.key-help {
+  max-width: min(32rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  padding: var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.key-help::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+.key-help h2 {
+  margin: 0 0 var(--s2);
+  font-size: 1.125rem;
+}
+.key-help table {
+  width: 100%;
+  margin-bottom: var(--s3);
+  border-collapse: collapse;
+}
+.key-help th,
+.key-help td {
+  padding: 0.25rem 0.5rem 0.25rem 0;
+  border-top: 1px solid var(--line);
+  text-align: start;
+  vertical-align: top;
+}
+.key-help th {
+  font-weight: 400;
+  white-space: nowrap;
+}
+.key-help .key-help-close {
+  margin: var(--s3) 0 0;
+  text-align: end;
 }

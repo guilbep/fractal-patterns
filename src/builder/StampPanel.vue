@@ -2,6 +2,7 @@
 // The shapes library: the stamps of the design, the studio's generated drawings, and a person's own files.
 // Untrusted files reach the page only as path data rebuilt from numbers (stampFromSvg, stampFromShapes), bound with :d.
 import { computed, ref } from 'vue';
+import UiFileDrop from '@/components/UiFileDrop.vue';
 import { readImage } from '@/image-file.ts';
 import { isSvgFile } from '@/studio/own-motif.ts';
 import { addItem } from './design.ts';
@@ -84,10 +85,7 @@ async function stampFromFile(file: File): Promise<Stamp | null> {
   return stampFromShapes(c.shapes, c.box, file.name);
 }
 
-async function onFiles(e: Event): Promise<void> {
-  const input = e.target as HTMLInputElement;
-  const files = [...(input.files ?? [])];
-  input.value = ''; // the same files can be chosen again
+async function onFiles(files: File[]): Promise<void> {
   if (!files.length) return;
   status.value = 'Loading…';
   svgFailed = false;
@@ -170,10 +168,7 @@ async function onFiles(e: Event): Promise<void> {
 
     <details class="group" open>
       <summary>Your own files</summary>
-      <div class="field">
-        <label for="stamp-files">Add SVG files or an image</label>
-        <input id="stamp-files" class="file-input" type="file" multiple accept="image/*,.svg" @change="onFiles" />
-      </div>
+      <UiFileDrop id="stamp-files" label="Add SVG files or an image" accept="image/*,.svg" multiple @files="onFiles" />
       <p class="hint-text status" role="status">{{ status }}</p>
     </details>
   </section>

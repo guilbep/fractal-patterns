@@ -7,6 +7,7 @@ import { isTyping, readShortcut, shortcutFor, toggleFullscreen, writeShortcut } 
 import { svgToDataUri } from '@/css.ts';
 import SponsorBanner from '@/components/SponsorBanner.vue';
 import SizeBadge from '@/components/SizeBadge.vue';
+import UiFileDrop from '@/components/UiFileDrop.vue';
 import { copyText } from '@/clipboard.ts';
 import { decodeImage, sample } from '@/image-file.ts';
 import { rawSize } from '@/co2.ts';
@@ -152,10 +153,7 @@ async function readImage(file: File): Promise<void> {
     image.close();
   }
 }
-async function onOwnFile(e: Event): Promise<void> {
-  const input = e.target as HTMLInputElement;
-  const file = input.files?.[0];
-  input.value = ''; // the same file can be picked again
+async function onOwnFile(file: File | undefined): Promise<void> {
   if (!file) return;
   ownError.value = '';
   const svgFile = isSvgFile(file.name, file.type);
@@ -416,10 +414,8 @@ useBarHeight(bar);
           <li>Your image stays in your browser. Nothing is uploaded.</li>
         </ul>
         <div class="fields">
-          <div class="field">
-            <label for="own-file">Image</label>
-            <input id="own-file" type="file" accept="image/*,.svg" @change="onOwnFile">
-          </div>
+          <!-- The privacy note above already says the same, so the zone's own line is hidden here. -->
+          <UiFileDrop id="own-file" label="Image" accept="image/*,.svg" hide-privacy @files="(f) => onOwnFile(f[0])" />
           <button id="own-sample" type="button" class="btn" @click="useSample">Try a sample flower</button>
         </div>
         <p class="error" role="alert">{{ ownError }}</p>

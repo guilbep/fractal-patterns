@@ -157,3 +157,30 @@
     transition: none;
   }
 }
+
+/* File drop: a dashed zone with a visible button; the native input inside is visually hidden. */
+.ui-file-drop {
+  position: relative;
+  display: grid;
+  justify-items: start;
+  gap: var(--s2);
+  min-width: 0;
+  padding: var(--s3);
+  margin-bottom: var(--s2);
+  border: 2px dashed var(--line);
+  border-radius: var(--radius-card);
+  background: var(--sunk);
+}
+.ui-file-drop.dragging {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+.ui-file-drop-label {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.ui-file-drop-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}

@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { DETECTOR_LABELS, TRACE_GROUPS } from '@/detectors.ts';
 import { MAX_EXTRA_IMAGES, RESOLUTIONS, activeSample, addImages, extraImages, removeExtraImage, curveBytes, image, loadImage, loadSample, rawBytes, removeImage, source, spacing, trace, traced, usingImage } from '@/state.ts';
+import UiFileDrop from './UiFileDrop.vue';
 import { SAMPLES, SAMPLE_LABELS, sampleImage, type Sample } from '@/samples.ts';
 
 const painted = new WeakSet<Element>();
@@ -15,7 +16,6 @@ function paint(el: unknown, id: Sample): void {
 
 const contours = computed(() => trace.detector === 'isolines');
 const error = ref('');
-const dragging = ref(false);
 
 async function take(file: File | undefined): Promise<void> {
   if (!file) return;
@@ -27,11 +27,6 @@ async function take(file: File | undefined): Promise<void> {
   }
 }
 
-function onPick(e: Event): void {
-  const input = e.target as HTMLInputElement;
-  void take(input.files?.[0]);
-  input.value = ''; // the same file can be picked again
-}
 
 async function onPickMore(e: Event): Promise<void> {
   const input = e.target as HTMLInputElement;
@@ -43,11 +38,6 @@ async function onPickMore(e: Event): Promise<void> {
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'The image could not be loaded.';
   }
-}
-
-function onDrop(e: DragEvent): void {
-  dragging.value = false;
-  void take(e.dataTransfer?.files[0]);
 }
 </script>
 
@@ -71,11 +61,8 @@ function onDrop(e: DragEvent): void {
       <p class="muted">These examples are drawn by the app. They are not photos, and nothing is downloaded.</p>
     </fieldset>
 
-    <!-- The label is the drop zone; the native file input inside it gives the keyboard path. -->
-    <label class="drop" :class="{ dragging }" @dragover.prevent="dragging = true" @dragleave="dragging = false" @drop.prevent="onDrop">
-      <span class="drop-title">Choose an image or drop it here</span>
-      <input type="file" accept="image/*" @change="onPick">
-    </label>
+    <!-- Only the first image is taken, from the picker or from a drop. -->
+    <UiFileDrop label="Choose an image or drop it here" accept="image/*" @files="(f) => take(f[0])" />
     <p class="error" role="alert">{{ error }}</p>
 
     <fieldset v-if="image" class="more-images">

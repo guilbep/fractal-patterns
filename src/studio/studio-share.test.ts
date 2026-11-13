@@ -24,14 +24,15 @@ test('50 seeded random designs survive a round trip', () => {
       theme,
       families,
       large: i % 3 === 0,
+      balance: i % 2 === 0,
     };
     assert.deepEqual(decodeStudio(encodeStudio(d)), d);
     assert.deepEqual(decodeStudio(`#${encodeStudio(d)}`), d);
   }
 });
 
-test('the defaults encode to an empty string and decode from one', () => {
-  assert.equal(encodeStudio({ ...DEFAULT_DESIGN, families: [...DEFAULT_DESIGN.families] }), '');
+test('the defaults encode to ba=1 only, and an empty hash (a fresh page) decodes to them', () => {
+  assert.equal(encodeStudio({ ...DEFAULT_DESIGN, families: [...DEFAULT_DESIGN.families] }), 'ba=1');
   assert.deepEqual(decodeStudio(''), DEFAULT_DESIGN);
   assert.deepEqual(decodeStudio('#'), DEFAULT_DESIGN);
 });
@@ -45,7 +46,7 @@ test('malformed input gives the defaults', () => {
     assert.equal(d.size, DEFAULT_DESIGN.size, h);
     assert.deepEqual(d.families, DEFAULT_DESIGN.families, h);
   }
-  assert.deepEqual(decodeStudio('s=abc&p=x&r=&d=NaN&z=Infinity&f=zz'), DEFAULT_DESIGN);
+  assert.deepEqual(decodeStudio('s=abc&p=x&r=&d=NaN&z=Infinity&f=zz'), { ...DEFAULT_DESIGN, balance: false });
 });
 
 test('out-of-range values are clamped', () => {
@@ -79,15 +80,15 @@ test('theme: round trip, absent is floral, unknown falls back to floral, old lin
     assert.ok(encodeStudio(two).includes('f=5'), id);
     assert.deepEqual(decodeStudio(encodeStudio(two)), two, id);
   }
-  assert.equal(encodeStudio({ ...DEFAULT_DESIGN, theme: 'sea', families: themeFamilies('sea').map((f) => f.id) }), 't=s');
+  assert.equal(encodeStudio({ ...DEFAULT_DESIGN, theme: 'sea', families: themeFamilies('sea').map((f) => f.id) }), 't=s&ba=1');
   assert.equal(decodeStudio('s=3').theme, 'floral');
   assert.equal(decodeStudio('t=o&f=1').families.join(), 'pear');
-  for (const h of ['t=x', 't=', 't=floral', 't=S']) assert.deepEqual(decodeStudio(h), DEFAULT_DESIGN, h);
+  for (const h of ['t=x', 't=', 't=floral', 't=S']) assert.deepEqual(decodeStudio(h), { ...DEFAULT_DESIGN, balance: false }, h);
   // An old link decodes as before.
   const old = decodeStudio('s=7&r=1&f=5');
   assert.equal(old.theme, 'floral');
   assert.deepEqual(old.families, [MOTIF_FAMILIES[0], MOTIF_FAMILIES[2]]);
-  assert.equal(encodeStudio(old), 's=7&r=1&f=5');
+  assert.equal(encodeStudio(old), 's=7&r=1&f=5&ba=0');
   // Only the theme changed: a different string.
   const base = decodeStudio('s=7&f=5');
   assert.notEqual(encodeStudio({ ...base, theme: 'orchard' }), encodeStudio(base));
@@ -97,14 +98,14 @@ test('palette: round trip by name, random through pc, old p index, unknown name,
   for (const p of PALETTES) {
     const d = { ...DEFAULT_DESIGN, palette: p };
     const h = encodeStudio(d);
-    assert.ok(p === DEFAULT_DESIGN.palette ? h === '' : h === `pn=${encodeURIComponent(p.name).replace(/%20/g, '+')}`, h);
+    assert.ok(p === DEFAULT_DESIGN.palette ? h === 'ba=1' : h === `pn=${encodeURIComponent(p.name).replace(/%20/g, '+')}&ba=1`, h);
     assert.deepEqual(decodeStudio(h).palette, p);
   }
   const rnd = mulberry32(7);
   for (let i = 0; i < 20; i++) {
     const r = rollPalette(rnd);
     const h = encodeStudio({ ...DEFAULT_DESIGN, palette: r });
-    assert.match(h, /^pc=[0-9a-f]{6}(\.[0-9a-f]{6}){4}$/);
+    assert.match(h, /^pc=[0-9a-f]{6}(\.[0-9a-f]{6}){4}&ba=1$/);
     assert.deepEqual(decodeStudio(h).palette, r);
     assert.ok(!/(^|&)p=/.test(h), h);
   }
@@ -120,11 +121,26 @@ test('palette: round trip by name, random through pc, old p index, unknown name,
 test('large tile: lg=1 only when on, written last, round trip; old links decode to off; doubles the compose size', () => {
   const d: StudioDesign = { ...DEFAULT_DESIGN, families: [...DEFAULT_DESIGN.families], seed: 7, large: true };
   const h = encodeStudio(d);
-  assert.ok(h.endsWith('lg=1'), h);
+  assert.ok(h.endsWith('lg=1&ba=1'), h);
   assert.deepEqual(decodeStudio(h), d);
   assert.ok(!encodeStudio({ ...d, large: false }).includes('lg'));
   assert.equal(decodeStudio('s=7&r=1&d=0.6').large, false);
   const o = designOptions(d);
   assert.deepEqual([o.width, o.height, o.span], [2 * d.size, 2 * d.size, 2]);
   assert.equal('span' in designOptions({ ...d, large: false }), false);
+});
+
+test('balance: ba=1 and ba=0 round trip, a link without ba (made before the key) is off, a fresh page is on', () => {
+  for (const balance of [true, false]) {
+    const d: StudioDesign = { ...DEFAULT_DESIGN, seed: 9, balance };
+    const h = encodeStudio(d);
+    assert.ok(h.endsWith(`ba=${balance ? 1 : 0}`), h);
+    assert.deepEqual(decodeStudio(h), d);
+    assert.equal(designOptions(d).balance, balance);
+  }
+  assert.equal(decodeStudio('s=9&r=3').balance, false);
+  assert.equal(decodeStudio('lg=1').balance, false);
+  assert.equal(decodeStudio('').balance, true);
+  assert.equal(decodeStudio('#').balance, true);
+  assert.equal(DEFAULT_DESIGN.balance, true);
 });

@@ -14,6 +14,8 @@ import {
   latticeDistance,
   motifRadius,
   themeFamilies,
+  THEMES,
+  TRACKING_LIMIT,
   type ComposeOptions,
 } from './compose.ts';
 import type { Pt } from '../patterns/util.ts';
@@ -383,7 +385,8 @@ test('a hero moved back from the tip sits on its cut stem, with no bare stem bey
 test('compose without a custom motif: a stable SVG (sha-256 prefixes)', () => {
   const want: Record<number, string> = { 1: 'd7b9370805fdf712', 2: '2620a0060c527b2a', 3: '6e3f8e4b0570a829' };
   for (const seed of [1, 2, 3]) {
-    const svg = studioSvg(compose({ ...designOptions(decodeStudio('')), seed }));
+    // balance: false pins one attempt; a fresh page now turns balance on, which changes seed 3 to 51f62e39d354b846.
+    const svg = studioSvg(compose({ ...designOptions(decodeStudio('')), seed, balance: false }));
     assert.equal(createHash('sha256').update(svg).digest('hex').slice(0, 16), want[seed], `seed ${seed}`);
   }
 });
@@ -842,4 +845,31 @@ test('span 2 (large tile): nothing touches, stems apart, vines closed, about fou
       if (repeat !== 'mirror') assert.equal(p.plants.filter((pl) => pl.vine).length, 2, `${at} vines`);
     }
   assert.ok(two >= 3 * one, `plants ${one} at span 1, ${two} at span 2`);
+});
+
+const themeOpt = (theme: ComposeOptions['theme'] & string, seed: number, repeat: Repeat, balance: boolean) =>
+  opt(seed, { repeat, theme, families: themeFamilies(theme).map((f) => f.id), balance });
+
+test('balance: the share over TRACKING_LIMIT drops to at most 60 percent (3 themes x 4 repeats x seeds 1-12, span 1; 1-30 took 26 s)', () => {
+  let [off, on, n] = [0, 0, 0];
+  for (const { id } of THEMES)
+    for (const repeat of REPEATS)
+      for (let seed = 1; seed <= 12; seed++) {
+        n++;
+        if (composeParts(themeOpt(id, seed, repeat, false)).tracking.score > TRACKING_LIMIT) off++;
+        if (composeParts(themeOpt(id, seed, repeat, true)).tracking.score > TRACKING_LIMIT) on++;
+      }
+  console.log(`balance share over the limit: off ${((100 * off) / n).toFixed(1)} %, on ${((100 * on) / n).toFixed(1)} % (${n})`);
+  assert.ok(on <= 0.6 * off, `off ${off}, on ${on} of ${n}`);
+});
+
+test('balance: nothing touches (seeds 1-8, 4 repeats), deterministic, span 2 unchanged', () => {
+  for (const repeat of REPEATS)
+    for (const seed of SEEDS) assertGap(composeParts(opt(seed, { repeat, balance: true })), repeat, `balance ${repeat} ${seed}`);
+  for (const seed of SEEDS)
+    assert.equal(studioSvg(compose(opt(seed, { balance: true }))), studioSvg(compose(opt(seed, { balance: true }))));
+  for (const seed of [1, 2]) {
+    const big = (balance: boolean) => studioSvg(compose(opt(seed, { width: 600, height: 600, span: 2, balance })));
+    assert.equal(big(true), big(false), `span 2 seed ${seed}`);
+  }
 });

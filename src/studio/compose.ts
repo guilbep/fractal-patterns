@@ -59,6 +59,9 @@ export interface ComposeOptions {
   /** 1 (default) or 2: width and height hold span x span unit tiles of side min(width, height) / span; motif sizes and
    * distances follow the unit, counts that scale with area (plants, twigs, filler) are multiplied by span x span. */
   readonly span?: 1 | 2;
+  /** Default false (one attempt). True: when the tiled result has a dense strip or a large hole, up to 6 attempts with
+   * derived seeds (span 1 only) and keep the best. */
+  readonly balance?: boolean;
 }
 
 /** Smallest circle around the bounds' center that holds the bounds, and its offset from the box center. */
@@ -957,30 +960,40 @@ export function composeOnce(o: ComposeOptions): Omit<ComposeParts, 'tracking'> {
 /** Compositions scoring above this go through the search: the 75th percentile of the measured first-attempt score (3 themes x 4
  * repeats x seeds 1-30, density 0.5, span 1), so about the worst quarter gets more attempts. */
 export const TRACKING_LIMIT = 4.7;
-/** Attempts in all (the first is the seed itself). Span 2: one (no search), as one attempt already costs about 320 ms. */
-// ponytail: search off (1 attempt) until the owner decides on the pinned seed 3 hash; measured: 6 halves the bad share.
-const ATTEMPTS = { 1: 1, 2: 1 } as const;
+/** Attempts in all with `balance` (the first is the seed itself). Span 2: one (no search), as one attempt already costs
+ * about 320 ms. Without `balance`, always one. */
+const ATTEMPTS = { 1: 6, 2: 1 } as const;
 const tracked = new WeakMap<Studio, Tracking>();
+const triesOf = new WeakMap<Studio, number>();
 
-/** Composes with the seed; when the tiled result tracks (score above TRACKING_LIMIT), composes again with seeds derived
- * from (seed, k) and keeps the best, so the result stays a pure function of the options. */
+/** Composes with the seed. With `balance`, when the tiled result tracks (score above TRACKING_LIMIT), composes again with
+ * seeds derived from (seed, k) and keeps the best, so the result stays a pure function of the options. */
 export function composeParts(o: ComposeOptions): ComposeParts {
   const span = o.span === 2 ? 2 : 1;
   const score = (p: Omit<ComposeParts, 'tracking'>) => trackingScore(trackingInput(p), o.repeat, o.width, o.height, span);
   let best = composeOnce(o);
   let bestT = score(best);
-  for (let k = 1; k < ATTEMPTS[span] && bestT.score > TRACKING_LIMIT; k++) {
+  let tries = 1;
+  let helped = false;
+  for (let k = 1; o.balance && k < ATTEMPTS[span] && bestT.score > TRACKING_LIMIT; k++) {
     const seed = (Math.imul(o.seed ^ Math.imul(k, 0x9e3779b9), 0x85ebca6b) ^ (o.seed >>> 13)) >>> 1;
     const p = composeOnce({ ...o, seed });
     const t = score(p);
-    if (t.score < bestT.score) [best, bestT] = [p, t];
+    tries++;
+    if (t.score < bestT.score) [best, bestT, helped] = [p, t, true];
   }
   tracked.set(best.studio, bestT);
+  if (helped) triesOf.set(best.studio, tries);
   return { ...best, tracking: bestT };
 }
 
 export function compose(o: ComposeOptions): Studio {
   return composeParts(o).studio;
+}
+
+/** The attempts made when the search ran and kept a later one (null when the first attempt was kept). */
+export function studioTries(s: Studio): number | null {
+  return triesOf.get(s) ?? null;
 }
 
 /** The tracking measure of a studio that compose returned (null for any other). */

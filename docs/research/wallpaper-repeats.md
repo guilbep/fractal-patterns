@@ -54,7 +54,7 @@ In this order:
 3. Spot placement for the small filler motifs, with different angles.
 4. Two or three sizes for each motif family.
 
-Built: item 1, the test `src/studio/tracking.ts`. Over 3 themes, 4 repeats and seeds 1 to 30, a search over 6 seeds lowers the share of tiles over the limit from 25.3% to 10.3%; the search is off until a pinned design is approved.
+Built: item 1, the test `src/studio/tracking.ts`. Over 3 themes, 4 repeats and seeds 1 to 30, a search over 6 seeds lowers the share of tiles over the limit from 25.3% to 10.3%; the search runs when the studio's Balance automatically checkbox is on (the default for a fresh page; links made before the `ba` key keep it off).
 
 Already built: a "Large tile" option. One tile is twice as wide and high and holds about 3.5 times the plants.
 

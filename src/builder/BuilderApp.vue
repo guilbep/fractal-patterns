@@ -7,6 +7,7 @@ import SponsorBanner from '@/components/SponsorBanner.vue';
 import { isTyping } from '@/shortcuts.ts';
 import { copyText } from '@/clipboard.ts';
 import SizeBadge from '@/components/SizeBadge.vue';
+import ToolIcon from '@/components/ToolIcon.vue';
 import { canRedo, canUndo, commit, redo, resetDesign, selectedId, svg, undo } from './store.ts';
 import { css } from './builder-css.ts';
 import { EXAMPLE_LIST } from './example-list.ts';
@@ -27,6 +28,15 @@ async function copyCss(): Promise<void> {
   copyStatus.value = (await copyText(css.value)) ? 'Copied.' : 'Copy failed: select the text and copy it by hand.';
   clearTimeout(copyTimer);
   copyTimer = setTimeout(() => (copyStatus.value = ''), 2000);
+}
+
+// "Use it…": the Export card for now. A later phase replaces it.
+function useIt(): void {
+  const card = document.getElementById('export-h')?.closest('section');
+  if (!card) return;
+  card.tabIndex = -1;
+  card.scrollIntoView({ block: 'start' });
+  card.focus({ preventScroll: true });
 }
 
 // The example designs load on demand: "Falling leaves" needs the studio's motif generators.
@@ -63,28 +73,28 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   <SiteHeader current="builder" patterns-href="./index.html" studio-href="./studio.html" tagline="Place your own shapes on a repeating tile" />
 
   <div ref="bar" class="toolbar" role="toolbar" aria-label="Builder actions">
-    <div class="bar-row">
-      <button type="button" class="btn secondary" :disabled="!canUndo" aria-keyshortcuts="Control+Z Meta+Z" @click="undo">Undo</button>
-      <button type="button" class="btn secondary" :disabled="!canRedo" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" @click="redo">Redo</button>
+    <div class="bar-make">
+      <button type="button" class="btn secondary tool-btn" :disabled="!canUndo" aria-label="Undo" title="Undo (Ctrl/Cmd+Z)" aria-keyshortcuts="Control+Z Meta+Z" @click="undo"><ToolIcon name="undo" /></button>
+      <button type="button" class="btn secondary tool-btn" :disabled="!canRedo" aria-label="Redo" title="Redo (Ctrl/Cmd+Shift+Z)" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" @click="redo"><ToolIcon name="redo" /></button>
+      <span class="bar-sep" aria-hidden="true"></span>
       <button type="button" class="btn secondary" @click="resetDesign">Start again</button>
-      <label for="examples" class="visually-hidden">Examples</label>
+      <label for="examples" class="bar-label">Example</label>
       <select id="examples" class="examples" @change="openExample">
         <option value="" disabled selected>Open an example</option>
         <option v-for="x in EXAMPLE_LIST" :key="x.id" :value="x.id">{{ x.label }}</option>
       </select>
     </div>
     <div class="bar-stats">
-      <span class="bar-sep join" aria-hidden="true"></span>
       <SizeBadge :svg="svg" />
     </div>
-    <div class="bar-row">
-      <span class="bar-sep join" aria-hidden="true"></span>
+    <div class="bar-out">
+      <!-- Raw SVG bytes, the same file as the Export card's Blob download. Not on the canvas toolbar: it moves into "Use it" next phase. -->
+      <a class="btn quiet" :href="`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`" download="pattern-builder.svg" title="Download SVG"><ToolIcon name="download" /><span class="out-label">Download SVG</span></a>
       <button type="button" class="btn secondary" @click="copyCss">Copy CSS</button>
-      <!-- Raw SVG bytes, the same file as the Export card's Blob download. -->
-      <a class="btn secondary" :href="`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`" download="pattern-builder.svg">Download SVG</a>
+      <button type="button" class="btn use-it" @click="useIt">Use it…</button>
     </div>
     <span class="visually-hidden" role="status" aria-live="polite">{{ copyStatus }}</span>
-    <!-- ponytail: hidden while empty, so the empty live region takes no row in the toolbar grid. -->
+    <!-- ponytail: hidden while empty, so the empty live region takes no row in the toolbar. -->
     <p :class="exampleError ? 'muted example-error' : 'visually-hidden'" role="status">{{ exampleError }}</p>
   </div>
 
@@ -108,6 +118,22 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 <style scoped>
 .examples {
   max-width: 100%;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+.bar-label {
+  font-size: 14px;
+  color: var(--muted);
+}
+.example-error {
+  flex-basis: 100%;
 }
 .example-error {
   margin: 0;

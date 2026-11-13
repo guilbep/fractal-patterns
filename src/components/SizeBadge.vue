@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The size badge, one wording on every page: [grade] 2.85 KB gz · ≈ 0.6 mg CO₂. The details sit in a tooltip
+// The size badge, one wording on every page: [grade] 2.8 kB · 0.6 mg CO₂ (compressed size). The details sit in a tooltip
 // on hover and keyboard focus; Esc hides it (WCAG 1.4.13).
 // - svg: Studio and Builder; the component gzips the SVG itself and knows the raw size.
 // - gzip + breakdown: Patterns; the page knows the compressed size and passes the size lines.
@@ -38,7 +38,7 @@ const lines = computed(() => {
   return [...out, ...(props.breakdown ?? [])];
 });
 const label = computed(() =>
-  text.value.grade ? `Weight grade ${text.value.grade}, ${text.value.size.slice(0, -6)} kilobytes compressed, ${text.value.co2}` : text.value.size,
+  text.value.grade ? `Weight grade ${text.value.grade}, ${text.value.size.slice(0, -3)} kilobytes compressed, ${text.value.co2}` : text.value.size,
 );
 const tipId = useId();
 const tipOff = ref(false);
@@ -47,10 +47,9 @@ const tipOff = ref(false);
 <template>
   <span class="stat size-badge" :class="{ 'tip-off': tipOff }" tabindex="0" :aria-describedby="tipId" @keydown.esc="tipOff = true" @focus="tipOff = false" @mouseenter="tipOff = false">
     <span aria-hidden="true" class="size-text">
-      <span v-if="text.grade" class="grade-chip" :class="gradeBand(text.grade)">{{ text.grade }}</span>
-      <span v-if="text.grade" class="num">{{ text.size.slice(0, -6) }} <span class="size-unit">KB<span class="size-gz"> gz</span></span></span>
-      <span v-else>{{ text.size }}</span>
-      <span v-if="text.co2" class="num">· {{ text.co2 }}</span>
+      <!-- The chip keeps its place while compressing, so the text does not move when the grade arrives (CLS 0). -->
+      <span class="grade-chip" :class="text.grade ? gradeBand(text.grade) : 'pending'">{{ text.grade }}</span>
+      <span class="num">{{ text.size }}<template v-if="text.co2"> · {{ text.co2 }}</template></span>
     </span>
     <span class="visually-hidden">{{ label }}</span>
     <span :id="tipId" class="size-tip" role="tooltip"><span v-for="line in lines" :key="line" class="size-line">{{ line }}</span></span>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue';
 import { useBarHeight } from '@/bar-height.ts';
 import ShortcutHint from '@/components/ShortcutHint.vue';
 import SiteHeader from '@/components/SiteHeader.vue';
@@ -7,6 +7,7 @@ import { isTyping, readShortcut, shortcutFor, toggleFullscreen, writeShortcut } 
 import { svgToDataUri } from '@/css.ts';
 import SponsorBanner from '@/components/SponsorBanner.vue';
 import SizeBadge from '@/components/SizeBadge.vue';
+import ToolIcon from '@/components/ToolIcon.vue';
 import UiFileDrop from '@/components/UiFileDrop.vue';
 import UiSegmented from '@/components/UiSegmented.vue';
 import { copyText } from '@/clipboard.ts';
@@ -352,6 +353,14 @@ const THEME_THUMBS: Record<Theme, string> = {
     '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36"><rect width="36" height="36" fill="#F3EEDC"/><circle cx="12" cy="14" r="6" fill="#B8432F"/><path d="M12 8C14 4 18 3 20 4C18 7 15 8 12 8Z" fill="#5E7B5A"/><circle cx="28" cy="30" r="4" fill="#E0A82E"/></svg>',
   )}")`,
 };
+// "Use it…": the export area for now (the CSS rule to copy by hand, next to Copy CSS and Download SVG). A later phase replaces it.
+async function useIt(): Promise<void> {
+  showCss.value = true;
+  await nextTick();
+  const out = document.getElementById('css-out');
+  out?.scrollIntoView({ block: 'center' });
+  out?.focus();
+}
 
 // Sticky offset under the toolbar, as in the pattern tool.
 const bar = ref<HTMLElement | null>(null);
@@ -366,20 +375,22 @@ useBarHeight(head, '--head-h');
   <SiteHeader v-model:shortcut="shortcutOn" current="studio" :patterns-href="toolHref" studio-href="./studio.html" tagline="Original botanical wallpapers from a seed. Every motif is generated here; nothing is copied." />
 
   <div ref="bar" class="toolbar" role="toolbar" aria-label="Wallpaper actions">
-    <div class="bar-row">
-    <button type="button" class="btn primary" @click="shuffle">Shuffle</button>
-    <button type="button" class="btn" :disabled="!canUndo" aria-keyshortcuts="Control+Z Meta+Z" @click="undo">Undo</button>
-    <button type="button" class="btn" :disabled="!canRedo" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" @click="redo">Redo</button>
-    <span class="bar-sep" aria-hidden="true"></span>
+    <div class="bar-make">
+      <button type="button" class="btn primary" @click="shuffle"><ToolIcon name="shuffle" />Shuffle</button>
+      <button type="button" class="btn secondary tool-btn" :disabled="!canUndo" aria-label="Undo" title="Undo (Ctrl/Cmd+Z)" aria-keyshortcuts="Control+Z Meta+Z" @click="undo"><ToolIcon name="undo" /></button>
+      <button type="button" class="btn secondary tool-btn" :disabled="!canRedo" aria-label="Redo" title="Redo (Ctrl/Cmd+Shift+Z)" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" @click="redo"><ToolIcon name="redo" /></button>
+      <span class="bar-sep" aria-hidden="true"></span>
+      <PaletteStrip :colors="design.palette.colors" :name="design.palette.name" @previous="stepPal(-1)" @next="stepPal(1)" @random="rollPal" />
+      <button type="button" class="btn quiet tool-btn" aria-label="Full screen" title="Full screen (F)" :aria-keyshortcuts="shortcutOn ? 'F' : undefined" @click="fullscreen"><ToolIcon name="fullscreen" /></button>
     </div>
     <div class="bar-stats">
-    <PaletteStrip :colors="design.palette.colors" :name="design.palette.name" @previous="stepPal(-1)" @next="stepPal(1)" @random="rollPal" />
-    <button type="button" class="icon-btn" aria-label="Full screen" title="Full screen (F)" :aria-keyshortcuts="shortcutOn ? 'F' : undefined" @click="fullscreen"><span aria-hidden="true">⛶</span></button>
-    <span class="bar-sep" aria-hidden="true"></span>
-    <SizeBadge :svg="svg" />
-    <span class="bar-sep" aria-hidden="true"></span>
-    <button type="button" class="btn" @click="copyCss">{{ copyStatus === 'Copied' ? 'Copied' : 'Copy CSS' }}</button>
-    <a class="btn" :href="uri" :download="fileName">Download SVG</a>
+      <SizeBadge :svg="svg" />
+    </div>
+    <div class="bar-out">
+      <!-- ponytail: Download SVG is not on the canvas toolbar; it moves into "Use it" next phase. -->
+      <a class="btn quiet" title="Download SVG" :href="uri" :download="fileName"><ToolIcon name="download" /><span class="out-label">Download SVG</span></a>
+      <button type="button" class="btn secondary" @click="copyCss">{{ copyStatus === 'Copied' ? 'Copied' : 'Copy CSS' }}</button>
+      <button type="button" class="btn use-it" @click="useIt">Use it…</button>
     </div>
     <span class="visually-hidden" role="status" aria-live="polite">{{ copyStatus }}</span>
   </div>

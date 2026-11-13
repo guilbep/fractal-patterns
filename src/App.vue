@@ -11,6 +11,7 @@ import { SAMPLE_LABELS } from '@/samples.ts';
 import { activeSample, contrast, palette, layer2, variantsOn, fileName, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, randomPattern, ratioText, reseed, reset, svgHref, trace, traced, usingImage, imageShuffles } from '@/state.ts';
 import { exportGzipBytes, exportText, gzipped, sizeBreakdown } from '@/state-export.ts';
 import SizeBadge from '@/components/SizeBadge.vue';
+import ToolIcon from '@/components/ToolIcon.vue';
 import ColorPanel from '@/components/ColorPanel.vue';
 import VisionPanel from '@/components/VisionPanel.vue';
 import PatternPanel from '@/components/PatternPanel.vue';
@@ -87,6 +88,12 @@ function onTabKey(e: KeyboardEvent): void {
   tab.value = t.id;
   void nextTick(() => document.getElementById(`tab-${t.id}`)?.focus());
 }
+// "Use it…": the Export tab for now (a later phase gives it its own sheet).
+async function useIt(): Promise<void> {
+  tab.value = 'export';
+  await nextTick();
+  document.getElementById('tab-export')?.focus();
+}
 async function toDepth(): Promise<void> {
   tab.value = 'pattern';
   await nextTick();
@@ -121,30 +128,30 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   <SiteHeader v-model:shortcut="shortcutOn" current="patterns" patterns-href="./index.html" :studio-href="studioHref" tagline="Seeded fractal tiles for CSS backgrounds, with contrast you can trust." />
 
   <div ref="bar" class="toolbar" role="toolbar" aria-label="Design actions">
-    <div class="bar-row">
-    <button type="button" class="btn primary" :disabled="usingImage && !imageShuffles" @click="reseed">Shuffle</button>
-    <button type="button" class="btn secondary" @click="randomPattern">Random pattern</button>
-    <button type="button" class="btn secondary" :disabled="!canUndo" aria-keyshortcuts="Control+Z Meta+Z" @click="undo">Undo</button>
-    <button type="button" class="btn secondary" :disabled="!canRedo" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" @click="redo">Redo</button>
-    <button type="button" class="btn secondary" @click="reset">Reset</button>
+    <div class="bar-make">
+      <button type="button" class="btn primary" :disabled="usingImage && !imageShuffles" @click="reseed"><ToolIcon name="shuffle" />Shuffle</button>
+      <button type="button" class="btn secondary" @click="randomPattern">Random pattern</button>
+      <button type="button" class="btn secondary tool-btn" :disabled="!canUndo" aria-label="Undo" title="Undo (Ctrl/Cmd+Z)" aria-keyshortcuts="Control+Z Meta+Z" @click="undo"><ToolIcon name="undo" /></button>
+      <button type="button" class="btn secondary tool-btn" :disabled="!canRedo" aria-label="Redo" title="Redo (Ctrl/Cmd+Shift+Z)" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" @click="redo"><ToolIcon name="redo" /></button>
+      <button type="button" class="btn secondary tool-btn" aria-label="Reset" title="Reset" @click="reset"><ToolIcon name="reset" /></button>
+      <span class="bar-sep" aria-hidden="true"></span>
+      <PaletteStrip />
+      <button type="button" class="btn quiet tool-btn" aria-label="Full screen" title="Full screen (F)" :aria-keyshortcuts="shortcutOn ? 'F' : undefined" @click="fullscreen"><ToolIcon name="fullscreen" /></button>
     </div>
     <div class="bar-stats">
-    <span class="bar-sep join" aria-hidden="true"></span>
-    <PaletteStrip />
-    <button type="button" class="icon-btn" aria-label="Full screen" title="Full screen (F)" :aria-keyshortcuts="shortcutOn ? 'F' : undefined" @click="fullscreen"><span aria-hidden="true">⛶</span></button>
-    <span class="bar-sep" aria-hidden="true"></span>
-    <span class="stat" :class="contrast.normal !== 'fail' ? 'ok' : 'bad'">
-      <span aria-hidden="true">{{ contrast.normal !== 'fail' ? '✓' : '✗' }}</span>
-      <span class="stat-long">Contrast {{ ratioText(contrast.worst) }}:1 {{ contrast.normal !== 'fail' ? 'AA pass' : 'AA fail' }}</span>
-      <span class="stat-short" aria-hidden="true">{{ ratioText(contrast.worst) }}:1 AA</span>
-    </span>
-    <SizeBadge :gzip="gzipped === 'unknown' ? 'unknown' : exportGzipBytes" :breakdown="sizeBreakdown" />
+      <span class="bar-chip" :class="contrast.normal !== 'fail' ? 'ok' : 'bad'">
+        <span aria-hidden="true">{{ contrast.normal !== 'fail' ? '✓' : '✕' }}</span>
+        <span class="stat-long">Contrast {{ ratioText(contrast.worst) }}:1 {{ contrast.normal !== 'fail' ? 'AA pass' : 'AA fail' }}</span>
+        <span class="stat-short" aria-hidden="true">{{ ratioText(contrast.worst) }}:1 · {{ contrast.normal !== 'fail' ? 'AA' : 'fails AA' }}</span>
+      </span>
+      <SizeBadge :gzip="gzipped === 'unknown' ? 'unknown' : exportGzipBytes" :breakdown="sizeBreakdown" />
     </div>
-    <div class="bar-row">
-    <span class="bar-sep join" aria-hidden="true"></span>
-    <button type="button" class="btn secondary" @click="copyCss">Copy CSS</button>
-    <button type="button" class="btn secondary" @click="copyLink">Copy link</button>
-    <a class="btn secondary" :href="svgHref" :download="fileName">Download SVG</a>
+    <div class="bar-out">
+      <!-- Copy link stays here for good (owner, REDESIGN-SPEC §2). Download SVG moves into "Use it" next phase. -->
+      <button type="button" class="btn quiet" title="Copy link" @click="copyLink"><ToolIcon name="link" /><span class="out-label">Copy link</span></button>
+      <a class="btn quiet" title="Download SVG" :href="svgHref" :download="fileName"><ToolIcon name="download" /><span class="out-label">Download SVG</span></a>
+      <button type="button" class="btn secondary" @click="copyCss">Copy CSS</button>
+      <button type="button" class="btn use-it" @click="useIt">Use it…</button>
     </div>
     <span class="visually-hidden" role="status" aria-live="polite">{{ copyStatus }}</span>
   </div>

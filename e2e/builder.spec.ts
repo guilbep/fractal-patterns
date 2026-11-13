@@ -154,7 +154,7 @@ test('Half-drop changes the stage viewBox', async ({ page }) => {
 test('an example changes the background, and Undo restores it', async ({ page }) => {
   await startAgain(page);
   const bg = (await stored(page))!.background;
-  await page.getByLabel('Examples').selectOption({ label: 'Scales' });
+  await page.getByLabel('Example', { exact: true }).selectOption({ label: 'Scales' });
   await expect.poll(async () => (await stored(page))!.background).not.toBe(bg);
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect.poll(async () => (await stored(page))!.background).toBe(bg);

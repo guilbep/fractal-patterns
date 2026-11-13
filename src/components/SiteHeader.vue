@@ -28,18 +28,17 @@ function openKeys(e: MouseEvent): void {
 
 // The marks are the static files that scripts/make-logo.ts writes from src/logo.ts (logo.test.ts pins them).
 // Importing logo.ts here would pull every pattern generator into the Studio and the Builder.
+// The tool switch has no icons on the design canvas: words only.
 const LOGO_URI = './favicon.svg';
-const STUDIO_URI = './favicon-studio.svg';
-const BUILDER_URI = './favicon-builder.svg';
 </script>
 
 <template>
   <header class="site-header">
     <p class="brand"><img class="logo" :src="LOGO_URI" alt="" width="28" height="28"><span class="brand-name">{{ APP_NAME }}</span></p>
     <nav aria-label="Tools" class="tool-switch">
-      <a :href="patternsHref" :aria-current="current === 'patterns' ? 'page' : undefined" @click="current === 'patterns' && $event.preventDefault()"><img :src="LOGO_URI" alt="" aria-hidden="true" width="20" height="20">Patterns</a>
-      <a :href="studioHref" :aria-current="current === 'studio' ? 'page' : undefined" @click="current === 'studio' && $event.preventDefault()"><img :src="STUDIO_URI" alt="" aria-hidden="true" width="20" height="20"><span class="label-long">Wallpaper </span>Studio</a>
-      <a :href="builderHref" :aria-current="current === 'builder' ? 'page' : undefined" @click="current === 'builder' && $event.preventDefault()"><img :src="BUILDER_URI" alt="" aria-hidden="true" width="20" height="20">Builder</a>
+      <a :href="patternsHref" :aria-current="current === 'patterns' ? 'page' : undefined" @click="current === 'patterns' && $event.preventDefault()">Patterns</a>
+      <a :href="studioHref" :aria-current="current === 'studio' ? 'page' : undefined" @click="current === 'studio' && $event.preventDefault()"><span class="label-long">Wallpaper&nbsp;</span>Studio</a>
+      <a :href="builderHref" :aria-current="current === 'builder' ? 'page' : undefined" @click="current === 'builder' && $event.preventDefault()">Builder</a>
     </nav>
     <p class="tagline">{{ tagline }}</p>
     <button type="button" class="keys-btn" aria-label="Keyboard shortcuts" aria-haspopup="dialog" :aria-expanded="keysOpen" @click="openKeys">?</button>

@@ -2,19 +2,24 @@
 .palette-strip {
   display: inline-flex;
   align-items: center;
-  gap: var(--s1);
-  font-size: 0.875rem;
+  gap: 2px;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 2px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 13px;
   min-width: 0;
 }
 .palette-strip .swatches {
   display: inline-flex;
-  border: 1px solid var(--line);
-  border-radius: 0.25rem;
+  border-radius: 3px;
   overflow: hidden;
 }
 .palette-strip .swatch {
-  width: 1rem;
-  height: 1.5rem;
+  width: 14px;
+  height: 16px;
 }
 .palette-strip .palette-name {
   max-width: 10rem;
@@ -54,20 +59,34 @@
 }
 @media (max-width: 599.98px) {
   .palette-strip .swatch {
-    width: 0.75rem;
+    width: 10px;
   }
 }
 /* The palette strip reuses class names of the Colors tab: undo what does not fit a one-line strip. */
 .palette-strip .swatches {
-  block-size: 1.5rem;
+  block-size: 16px;
   outline: none;
 }
 .palette-strip .palette-name {
   display: inline;
-  padding: 0;
+  padding: 0 6px;
 }
+/* Inside the one bordered group the buttons are bare 30 px squares (design canvas). */
 .palette-strip .icon-btn {
-  min-width: 1.75rem;
+  width: 30px;
+  height: 30px;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 16px;
+}
+.palette-strip .icon-btn:hover {
+  background: var(--sunk);
+}
+.palette-strip .dice {
+  display: inline-grid;
 }
 .icon-btn {
   -webkit-user-select: none;

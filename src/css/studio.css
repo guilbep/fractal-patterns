@@ -30,26 +30,6 @@
   border-radius: var(--radius);
 }
 
-/* The palette strip leads the stats row, as in the pattern tool. On a phone the row wraps and never widens the page. */
-.toolbar > .bar-stats {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s1);
-  min-width: 0;
-}
-/* Below the one-line toolbar, a separator at the end of a row or of a wrapped line only adds a stray line. */
-@media (max-width: 63.99rem) {
-  .toolbar > .bar-row > .bar-sep:last-child {
-    display: none;
-  }
-}
-@media (max-width: 40rem) {
-  .toolbar > .bar-stats > .bar-sep {
-    display: none;
-  }
-}
-
 /* Preview: the wallpaper edge to edge, two chips bottom left, full screen bottom right (design board values). */
 .stage {
   border-color: var(--hairline);

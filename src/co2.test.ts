@@ -149,9 +149,8 @@ test('weightGrade boundaries', async () => {
 
 test('badgeText: one wording for the size badge on every page', () => {
   const t = badgeText(2917);
-  assert.equal(t.size, `${formatKb(2917)} KB gz`);
-  assert.equal(t.size, '2.85 KB gz');
-  assert.equal(t.co2, formatFootprint(2917).split(' / ')[0]);
+  assert.equal(t.size, '2.8 kB');
+  assert.equal(`≈ ${t.co2}`, formatFootprint(2917).split(' / ')[0]);
   assert.equal(t.grade, weightGrade(2917).grade);
   assert.equal(t.grade, 'B');
   assert.deepEqual(badgeText(null), { grade: null, size: 'compressing', co2: '' });

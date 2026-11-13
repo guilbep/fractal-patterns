@@ -1,4 +1,4 @@
-/* Page shell: palette strip in the toolbar, the "on" mark on a tab. */
+/* Page shell: the contrast chip text, the "on" mark on a tab. */
 
 /* The "on" mark on the Repetition tab. */
 .tab-on > [aria-hidden='true'] {
@@ -11,48 +11,16 @@
   background: currentColor;
 }
 
-/* Toolbar: the stats (palette, contrast, CO2) are one unit. It shares row one when everything fits,
-   else it forms row two as a whole. Compact padding keeps two rows under 96 px at 1280 px. */
-.site-header + .toolbar {
-  row-gap: var(--s1);
-  padding-block: var(--s1);
-}
-.toolbar > .bar-stats {
-  flex-wrap: nowrap;
-  min-width: 0;
-}
-.bar-stats .stat {
+/* The contrast chip shows the canvas's short form ("14.1:1 · AA"); the long sentence is for screen readers. */
+.stat-long {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
   white-space: nowrap;
 }
-.stat-short {
-  display: none;
-}
-@media (max-width: 599.98px) {
-  /* Phones: one stats row, short contrast text; the long one stays for screen readers. */
-  .stat-short {
-    display: inline;
-  }
-  .stat-long {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-  .bar-stats .stat {
-    padding-inline: var(--s1);
-  }
-  /* The grade chip adds about 2 characters; "gz" goes, the tooltip and the accessible name still say compressed. */
-  .size-gz {
-    display: none;
-  }
-}
 @media (min-width: 64rem) {
-  .toolbar > .bar-stats {
-    display: flex;
-    flex: none;
-  }
   /* The preview stays in view under the toolbar while the controls scroll. */
   .layout > .stage {
     position: sticky;
@@ -89,20 +57,5 @@
 @media (prefers-reduced-motion: no-preference) {
   .btn:active {
     transform: scale(0.96);
-  }
-}
-
-/* Narrow phones (under 400 px): the stats row holds the strip, the full screen button and three badges.
-   The size badge keeps its grade and number and drops its unit. The tooltip and the accessible name keep it. */
-@media (max-width: 399.98px) {
-  .size-unit {
-    display: none;
-  }
-  .bar-stats {
-    gap: 0.25rem;
-  }
-  /* Without the unit the final text is about 13.7em: reserve that, not the 16.5em of the other pages. */
-  .toolbar .size-badge {
-    min-width: 14em;
   }
 }

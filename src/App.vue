@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { APP_NAME } from '@/app-name.ts';
+import { traceName } from '@/detectors.ts';
 import ShortcutHint from '@/components/ShortcutHint.vue';
 import SiteHeader from '@/components/SiteHeader.vue';
 import { isTyping, readShortcut, shortcutFor, toggleFullscreen, writeShortcut } from '@/shortcuts.ts';
 import { KIND_LABELS } from '@/fractal.ts';
-import { DETECTOR_LABELS } from '@/detectors.ts';
 import { SAMPLE_LABELS } from '@/samples.ts';
 import { activeSample, contrast, palette, layer2, variantsOn, fileName, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, randomPattern, ratioText, reseed, reset, svgHref, trace, traced, usingImage } from '@/state.ts';
 import { exportGzipBytes, exportText, footprint, gzipped, sizeBreakdown } from '@/state-export.ts';
@@ -172,7 +172,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <div class="hero-text" :class="{ 'hero-plate': plateMode === 'plate' }" :style="plateMode === 'plate' ? plateStyle : undefined">
         <h1>{{ APP_NAME }}</h1>
         <p :class="{ 'hero-plate': plateMode === 'split' }" :style="plateMode === 'split' ? plateStyle : undefined">
-          <template v-if="usingImage">Pattern: traced from {{ activeSample ? `the example ${SAMPLE_LABELS[activeSample]}` : 'your image' }}, {{ DETECTOR_LABELS[trace.detector] }} edges, {{ traced?.length ?? 0 }} lines.</template><template v-else-if="usingPatchwork">Pattern: patchwork {{ patch.cells }} by {{ patch.cells }}, seed {{ params.seed }}.</template><template v-else>Pattern: {{ KIND_LABELS[params.kind] }}, seed {{ params.seed }}.</template> This text uses your text color and text plate settings, so what you read here is what your visitors will read.
+          <template v-if="usingImage">Pattern: traced from {{ activeSample ? `the example ${SAMPLE_LABELS[activeSample]}` : 'your image' }}, {{ traceName(trace.detector) }}, {{ traced?.length ?? 0 }} lines.</template><template v-else-if="usingPatchwork">Pattern: patchwork {{ patch.cells }} by {{ patch.cells }}, seed {{ params.seed }}.</template><template v-else>Pattern: {{ KIND_LABELS[params.kind] }}, seed {{ params.seed }}.</template> This text uses your text color and text plate settings, so what you read here is what your visitors will read.
         </p>
       </div>
     </div>

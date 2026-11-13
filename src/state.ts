@@ -397,14 +397,14 @@ export function previews(kinds: readonly Kind[]): { kind: Kind; mask: string }[]
 }
 
 // The stroke opacities the page shows, for the badge and the Fix button alike.
-const spots = computed(() => {
+export const spots = computed(() => {
   const layers = layer2.value ? 2 : 1;
   const strength = layer2Settings.opacity;
   return (o: number) => layerSpots(o, layers, strength);
 });
 
 // The roles the text is checked against: with the fill when it shows on the tile.
-const checkedRoles = computed(() => ({
+export const checkedRoles = computed(() => ({
   ...roles,
   fill: fillOn.value && closedShapes.value > 0 ? fill.color : null,
   fillOpacity: fill.opacity,

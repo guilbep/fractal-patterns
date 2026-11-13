@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { blend, contrastRatio, parseHex, toHex } from './contrast.ts';
 import { patternContrast, worstTextContrast, type Roles } from './pairing.ts';
 import { mulberry32 } from './patterns/util.ts';
+import { layerSpots } from './layers.ts';
 import {
   CVD_LABELS,
   CVD_MATRICES,
@@ -164,4 +165,28 @@ test('source hygiene', () => {
   assert.doesNotMatch(src, /node:/i);
   assert.doesNotMatch(src, /document/i);
   assert.doesNotMatch(src, /apca/i);
+});
+
+test('cvdReport counts the crossings of two layers and an own second color, like the main check', () => {
+  const r: Roles = { background: '#ffffff', pattern: '#888888', text: '#333333' };
+  const o = 0.6;
+  const p = 0.5;
+  const two = (x: number) => layerSpots(x, 2, p);
+  for (const type of ['protan', 'deutan', 'tritan'] as const) {
+    const s = { background: simulate(r.background, type), pattern: simulate(r.pattern, type), text: simulate(r.text, type) };
+    // Same color: the crossing carries the strokes at the highest spot, darker than one stroke.
+    const crossing = blend(s.pattern, s.background, Math.max(...two(o)));
+    const one = cvdReport(r, o).find((c) => c.type === type)!.text;
+    const withTwo = cvdReport(r, o, null, 0, two).find((c) => c.type === type)!.text;
+    assert.ok(Math.abs(withTwo - contrastRatio(s.text, crossing)) < 1e-9);
+    assert.ok(withTwo < one);
+    // Own second color close to the text: the worst surface is that color over the first stroke.
+    const color = '#3a3a3a';
+    const sc = simulate(color, type);
+    const rep = cvdReport({ ...r, second: { color, strength: p } }, o).find((c) => c.type === type)!;
+    assert.equal(rep.second, sc);
+    const expected = contrastRatio(s.text, blend(sc, blend(s.pattern, s.background, o), o * p));
+    assert.ok(Math.abs(rep.text - expected) < 1e-9);
+    assert.ok(rep.text < one);
+  }
 });

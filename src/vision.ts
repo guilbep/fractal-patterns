@@ -1,5 +1,5 @@
 import { blend, parseHex, relativeLuminance, toHex } from './contrast.ts';
-import { PATTERN_VISIBLE_MIN, patternContrast, worstTextContrast, type Roles } from './pairing.ts';
+import { PATTERN_VISIBLE_MIN, patternContrast, textWorst, type FilledRoles, type Roles, type Spots } from './pairing.ts';
 
 // True when the text is darker than one surface and lighter than the other:
 // strokes then cross the letters with reversed polarity, which the ratio alone does not show.
@@ -80,25 +80,31 @@ export interface CvdResult {
   readonly pattern: number;
   // The simulated fill color, null without a fill.
   readonly fill: string | null;
+  // The simulated second layer color, null without one.
+  readonly second: string | null;
 }
 
-export function cvdReport(r: Roles, opacity: number, fill?: Fill | null): CvdResult[] {
+// The worst text value comes from textWorst, the same surface list as the main check, on simulated colors.
+// `r.second` (own second layer color) and `spots` (crossings of two layers) ride along as in state.ts.
+export function cvdReport(r: FilledRoles, opacity: number, fill?: Fill | null, plate = 0, spots?: Spots): CvdResult[] {
   return CVD_TYPES.map((type) => {
     const roles = simulateRoles(r, type);
-    const f = fill ? { color: simulate(fill.color, type), opacity: fill.opacity } : null;
-    const text = worstTextContrast(roles, opacity);
+    const f = fill ? simulate(fill.color, type) : null;
+    const s = r.second ? { color: simulate(r.second.color, type), strength: r.second.strength } : null;
+    const all = { ...roles, fill: f, fillOpacity: fill?.opacity ?? 1, second: s };
     return {
       type,
       roles,
-      text: f ? Math.min(text, worstTextContrast(onFill(roles, f), opacity)) : text,
+      text: textWorst(all, opacity, plate, spots),
       pattern: patternContrast(roles, opacity),
-      fill: f?.color ?? null,
+      fill: f,
+      second: s?.color ?? null,
     };
   });
 }
 
-export function cvdWorstText(r: Roles, opacity: number, fill?: Fill | null): number {
-  return Math.min(...cvdReport(r, opacity, fill).map((c) => c.text));
+export function cvdWorstText(r: FilledRoles, opacity: number, fill?: Fill | null, plate = 0, spots?: Spots): number {
+  return Math.min(...cvdReport(r, opacity, fill, plate, spots).map((c) => c.text));
 }
 
 // CIE L* (0 to 100) from the WCAG relative luminance Y.

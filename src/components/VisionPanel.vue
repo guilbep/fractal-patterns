@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { blend } from '@/contrast.ts';
-import { contrast, fill, opacity, plateMode, plateOpacity, ratioText, roles } from '@/state.ts';
+import { checkedRoles, contrast, fill, opacity, plateMode, plateOpacity, ratioText, roles, spots } from '@/state.ts';
 import { CVD_LABELS, betweenSurfaces, cvdReport, effectiveOpacity, lightnessDiff, type LightnessDiff } from '@/vision.ts';
 
 // The paragraph sits on the plate in 'plate' and 'split', the heading only in 'plate'.
@@ -37,7 +37,13 @@ const SWATCHES = [
   { key: 'pattern', label: 'Pattern' },
   { key: 'text', label: 'Text' },
 ] as const;
-const cvd = computed(() => cvdReport(roles, paraOpacity.value, shownFill.value).map((c) => ({ ...c, pass: c.text >= 4.5 })));
+// The paragraph surface of the main check: the plate unless 'direct', the second layer and its crossings.
+const cvd = computed(() =>
+  cvdReport(checkedRoles.value, opacity.value, shownFill.value, plateMode.value === 'direct' ? 0 : plateOpacity.value, spots.value).map((c) => ({
+    ...c,
+    pass: c.text >= 4.5,
+  })),
+);
 </script>
 
 <template>
@@ -81,6 +87,10 @@ const cvd = computed(() => cvdReport(roles, paraOpacity.value, shownFill.value).
           <span v-if="c.fill" class="cvd-swatch">
             <span class="chip" role="img" :aria-label="`Fill ${c.fill}`" :title="`Fill ${c.fill}`" :style="{ backgroundColor: c.fill }"></span>
             <code aria-hidden="true">{{ c.fill }}</code>
+          </span>
+          <span v-if="c.second" class="cvd-swatch">
+            <span class="chip" role="img" :aria-label="`Second layer ${c.second}`" :title="`Second layer ${c.second}`" :style="{ backgroundColor: c.second }"></span>
+            <code aria-hidden="true">{{ c.second }}</code>
           </span>
         </span>
         <span class="badge" :class="c.pass ? 'pass' : 'fail'">

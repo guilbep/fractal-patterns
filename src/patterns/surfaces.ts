@@ -596,3 +596,159 @@ export function waves(rnd: Rng, depth: number, size: number): Poly[] {
   }
   return wrap(out, size);
 }
+
+// Compatible versions of the dot, hatch and curve kinds (fixed layout per depth). The lines
+// still cross the tile border where the fixed lattice puts them; the seed only breaks them.
+
+// Seeded interior breaks: after wrap() every piece runs from border to border (or is closed), so
+// a gap cut between 30 and 70 percent of a piece's length lies strictly inside the tile.
+function interiorGaps(polys: Poly[], rnd: Rng, size: number, pGap: number): Poly[] {
+  const out: Poly[] = [];
+  for (const poly of polys) {
+    const cum = [0];
+    for (let i = 1; i < poly.length; i++) cum.push(cum[i - 1]! + Math.hypot(poly[i]![0] - poly[i - 1]![0], poly[i]![1] - poly[i - 1]![1]));
+    const L = cum[cum.length - 1]!;
+    if (L < size / 4 || rnd() >= pGap) {
+      out.push(poly);
+      continue;
+    }
+    const a = (0.3 + 0.25 * rnd()) * L;
+    const b = a + (0.06 + 0.09 * rnd()) * L;
+    const at = (d: number): Pt => {
+      const i = Math.max(
+        1,
+        cum.findIndex((c) => c >= d),
+      );
+      const t = (d - cum[i - 1]!) / (cum[i]! - cum[i - 1]! || 1);
+      const [p, q] = [poly[i - 1]!, poly[i]!];
+      return [p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])];
+    };
+    out.push([...poly.filter((_, i) => cum[i]! < a), at(a)], [at(b), ...poly.filter((_, i) => cum[i]! > b)]);
+  }
+  return out;
+}
+
+// Dot grid: n = 2 depth + 2 square rows of n dots of radius 0.2 cell, 10 segments; no dot reaches
+// the border. Seed, where the shape stays strictly inside: larger rings, crosses, missing dots.
+export function dotsCompat(rnd: Rng, depth: number, size: number): Poly[] {
+  const n = 2 * depth + 2;
+  const c = size / n;
+  const r = 0.2 * c;
+  const seg = 10;
+  const pAlt = 0.12 + 0.15 * rnd();
+  const ok = inside(size);
+  const circle = (x: number, y: number, rad: number): Poly =>
+    Array.from({ length: seg + 1 }, (_, i): Pt => [
+      x + rad * Math.cos((TAU * (i % seg)) / seg),
+      y + rad * Math.sin((TAU * (i % seg)) / seg),
+    ]);
+  const out: Poly[] = [];
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      const x = j * c + (3 * c) / 4;
+      const y = i * c + c / 2;
+      const ring = circle(x, y, 1.6 * r);
+      if (!ok(...ring) || rnd() >= pAlt) out.push(circle(x, y, r));
+      else {
+        const u = rnd();
+        if (u < 1 / 3) out.push(ring);
+        else if (u < 2 / 3)
+          out.push(
+            [
+              [x - 1.5 * r, y],
+              [x + 1.5 * r, y],
+            ],
+            [
+              [x, y - 1.5 * r],
+              [x, y + 1.5 * r],
+            ],
+          );
+      }
+    }
+  }
+  return wrap(out, size);
+}
+
+// Parallel hatch at 45 degrees, n lines (even) evenly spaced, fixed phase. Seed: interior breaks.
+export function hatchCompat(rnd: Rng, depth: number, size: number): Poly[] {
+  const d: Pt = [1, 1];
+  const n = 2 * Math.max(1, Math.round((1.5 * depth) / Math.SQRT2));
+  const step = size / n;
+  const out: Poly[] = [];
+  for (let i = 0; i < n; i++) torusLine(out, 0.3 * step + i * step, 0.55 * size, d, size, 1, 1, () => true);
+  return interiorGaps(wrap(out, size), rnd, size, 0.2 + 0.3 * rnd());
+}
+
+// Crosshatch: the 45 and 135 degree families, evenly spaced, fixed phase. Seed: interior breaks.
+export function crosshatchCompat(rnd: Rng, depth: number, size: number): Poly[] {
+  const out: Poly[] = [];
+  const n = Math.max(1, Math.round((2 * depth) / Math.SQRT2));
+  const step = size / n;
+  for (const d of [SLOPES[0]!, SLOPES[1]!])
+    for (let l = 0; l < n; l++) torusLine(out, 0.3 * step + l * step, 0.55 * size, d, size, 1, 1, () => true);
+  return interiorGaps(wrap(out, size), rnd, size, 0.2 + 0.3 * rnd());
+}
+
+// Zigzag: n = 2 depth + 2 horizontal rows of n chevrons, amplitude 0.375 of a row, no shifted
+// rows. Seed: interior breaks.
+export function zigzagCompat(rnd: Rng, depth: number, size: number): Poly[] {
+  const n = 2 * depth + 2;
+  const h = size / n;
+  const amp = 0.375 * h;
+  const w = size / n;
+  const out: Poly[] = [];
+  for (let i = 0; i < n; i++)
+    out.push(Array.from({ length: 2 * n + 1 }, (_, j): Pt => [0.25 * w + (j * w) / 2, (i + 0.5) * h + (j % 2 ? amp : -amp)]));
+  return interiorGaps(wrap(out, size), rnd, size, 0.25 + 0.35 * rnd());
+}
+
+// Fish scales: the free layout with one arc per scale, scales opening downwards. Seed, strictly
+// inside the tile: a second concentric arc and an extra inner arc per scale.
+export function scalesCompat(rnd: Rng, depth: number, size: number): Poly[] {
+  const pTwo = 0.15 + 0.25 * rnd();
+  const pInner = 0.1 + 0.2 * rnd();
+  const ok = inside(size);
+  const m = depth + 2;
+  const w = size / m;
+  const r = w / 2;
+  const arc = (cx: number, cy: number, rad: number): Poly => {
+    const k = Math.max(4, Math.ceil((Math.PI * rad) / 2));
+    return Array.from({ length: k + 1 }, (_, t): Pt => [cx + rad * Math.cos((Math.PI * t) / k), cy + rad * Math.sin((Math.PI * t) / k)]);
+  };
+  const out: Poly[] = [];
+  for (let i = 0; i < 2 * m; i++) {
+    for (let j = 0; j < m; j++) {
+      const cx = (j + 0.2 + (i % 2) / 2) * w;
+      const cy = (i + 1 / 3) * r;
+      out.push(arc(cx, cy, r));
+      for (const [s, p] of [
+        [0.65, pTwo],
+        [0.35, pInner],
+      ] as const) {
+        const a = arc(cx, cy, s * r);
+        if (ok(...a) && rnd() < p) out.push(a);
+      }
+    }
+  }
+  return wrap(out, size);
+}
+
+// Waves: n = depth + 2 rows of sine curves, amplitude 0.2 of a row, k = 2 + depth / 2 periods,
+// the phase steps by 1 / n of a turn per row, fixed start. Seed: interior breaks.
+export function wavesCompat(rnd: Rng, depth: number, size: number): Poly[] {
+  const n = depth + 2;
+  const h = size / n;
+  const amp = 0.2 * h;
+  const k = 2 + Math.floor(depth / 2);
+  const s = 0.37 * size;
+  const out: Poly[] = [];
+  for (let i = 0; i < n; i++) {
+    const y0 = (i + 0.4) * h;
+    const pts = Array.from({ length: 4 * size + 1 }, (_, t): Pt => {
+      const x = s + t / 4;
+      return [x, y0 + amp * Math.sin((TAU * k * (x - s)) / size + (i * TAU) / n)];
+    });
+    out.push(thin(pts, 2));
+  }
+  return interiorGaps(wrap(out, size), rnd, size, 0.3 + 0.4 * rnd());
+}

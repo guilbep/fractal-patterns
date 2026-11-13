@@ -51,28 +51,34 @@ test('variantSeeds: 4 distinct unsigned 32-bit ints, deterministic, first is the
   }
 });
 
-test('VARIANT_KINDS: the 16 kinds, all known', () => {
+test('VARIANT_KINDS: the 22 kinds, all known', () => {
   assert.deepEqual([...VARIANT_KINDS].sort(), [
     'basket',
     'brick',
     'carpet',
+    'crosshatch',
+    'dots',
     'fold',
+    'hatch',
     'herringbone',
     'hex',
     'htree',
     'koch',
     'nested',
     'quadtree',
+    'scales',
     'sierpinski',
     'stack',
     'stitch',
     'tree',
     'trinet',
+    'waves',
     'whirl',
+    'zigzag',
   ]);
   assert.equal(canVary('tree'), true);
   assert.equal(canVary('herringbone'), true);
-  assert.equal(canVary('dots'), false);
+  assert.equal(canVary('maze'), false);
   for (const k of VARIANT_KINDS) assert.ok((KINDS as readonly string[]).includes(k), k);
 });
 
@@ -226,12 +232,26 @@ test('boundary signatures agree for every VARIANT_KINDS kind, seeds 1..8 pairwis
 
 test('the free layouts break the boundary agreement, so the super tile needs compat', () => {
   const failing = Object.keys(boundaryFailures(VARIANT_KINDS.filter(hasCompat), false));
-  // Measured: every one of the 7 kinds fails in free mode.
-  assert.deepEqual(failing, ['brick', 'stack', 'herringbone', 'basket', 'hex', 'trinet', 'nested']);
+  // Measured: every one of the 13 kinds fails in free mode.
+  assert.deepEqual(failing, [
+    'brick',
+    'stack',
+    'herringbone',
+    'basket',
+    'hex',
+    'trinet',
+    'nested',
+    'dots',
+    'hatch',
+    'crosshatch',
+    'zigzag',
+    'scales',
+    'waves',
+  ]);
 });
 
 test('superTileSvg throws RangeError for a kind that cannot vary', () => {
-  assert.throws(() => superTileSvg({ ...base, kind: 'dots' }), RangeError);
+  assert.throws(() => superTileSvg({ ...base, kind: 'maze' }), RangeError);
 });
 
 test('superTileBytes: tree at depth 6 is much smaller than the expanded picture', () => {

@@ -9,8 +9,11 @@ import {
   brick,
   brickCompat,
   crosshatch,
+  crosshatchCompat,
   dots,
+  dotsCompat,
   hatch,
+  hatchCompat,
   herringbone,
   herringboneCompat,
   hex,
@@ -18,12 +21,15 @@ import {
   nested,
   nestedCompat,
   scales,
+  scalesCompat,
   stack,
   stackCompat,
   trinet,
   trinetCompat,
   waves,
+  wavesCompat,
   zigzag,
+  zigzagCompat,
 } from './patterns/surfaces.ts';
 import { THEME_AIR_MAX_DEPTH, chain, feathers } from './patterns/themes-air.ts';
 import { THEME_CRAFT_MAX_DEPTH, knot, roof } from './patterns/themes-craft.ts';
@@ -240,6 +246,12 @@ const COMPAT: Partial<Record<Kind, Generator>> = {
   hex: hexCompat,
   trinet: trinetCompat,
   nested: nestedCompat,
+  dots: dotsCompat,
+  hatch: hatchCompat,
+  crosshatch: crosshatchCompat,
+  zigzag: zigzagCompat,
+  scales: scalesCompat,
+  waves: wavesCompat,
 };
 export const hasCompat = (kind: Kind): boolean => kind in COMPAT;
 

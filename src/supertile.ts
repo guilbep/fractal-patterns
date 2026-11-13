@@ -22,6 +22,12 @@ export const VARIANT_KINDS: readonly Kind[] = [
   'hex',
   'trinet',
   'nested',
+  'dots',
+  'hatch',
+  'crosshatch',
+  'zigzag',
+  'scales',
+  'waves',
 ];
 export const canVary = (kind: Kind): boolean => VARIANT_KINDS.includes(kind);
 
@@ -50,7 +56,7 @@ export const ORIENTATIONS: readonly ((x: number, y: number, s: number) => string
 
 // Measured (src/repetition.ts measureOrientationKinds, pinned by its test): kinds whose boundary is
 // the same on all 4 edges and symmetric along the edge, so any cell may be turned or flipped.
-const ORIENTATION_KINDS: readonly Kind[] = ['carpet', 'tree', 'fold', 'htree', 'stitch', 'whirl', 'koch'];
+const ORIENTATION_KINDS: readonly Kind[] = ['carpet', 'tree', 'fold', 'htree', 'stitch', 'whirl', 'koch', 'dots'];
 export const orientationKinds = (): readonly Kind[] => ORIENTATION_KINDS;
 
 export interface SuperTileOptions {
@@ -79,7 +85,7 @@ export const MIN_MARGIN = 0.5;
 export const MARGIN_KINDS: readonly Kind[] = ['carpet', 'tree', 'fold', 'htree', 'stitch', 'whirl'];
 // Measured (src/repetition.ts measureDepthMixKinds, pinned by its test): ORIENTATION_KINDS kinds whose
 // boundary signature is the same at depth d and d - 1, for every d from 2 to MAX_DEPTH, seeds 1..4.
-export const DEPTH_MIX_KINDS: readonly Kind[] = ['carpet', 'tree', 'fold', 'htree', 'stitch', 'whirl'];
+export const DEPTH_MIX_KINDS: readonly Kind[] = ['carpet', 'tree', 'fold', 'htree', 'stitch', 'whirl', 'dots'];
 
 type Geo = readonly (readonly Pt[])[];
 const marginOf = (geos: readonly Geo[], size: number): number => {

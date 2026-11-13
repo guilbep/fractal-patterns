@@ -8,7 +8,7 @@ const on = { variants: true, kind: 'tree', layout: 'single', usingImage: false }
 
 test('variantsActive: switch on, a kind that can vary, single pattern mode', () => {
   for (const kind of VARIANT_KINDS) assert.equal(variantsActive({ ...on, kind }), true, kind);
-  assert.equal(variantsActive({ ...on, kind: 'dots' }), false);
+  assert.equal(variantsActive({ ...on, kind: 'maze' }), false);
   assert.equal(variantsActive({ ...on, layout: 'patchwork' }), false);
   assert.equal(variantsActive({ ...on, usingImage: true }), false);
   assert.equal(variantsActive({ ...on, variants: false }), false);

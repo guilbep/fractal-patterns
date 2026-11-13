@@ -685,7 +685,21 @@ const PINS: Readonly<Record<PatternParams['kind'], readonly (readonly [number, n
 };
 
 // The compatible layouts (compat: true) of the kinds that have one.
-const COMPAT_KINDS = ['brick', 'stack', 'herringbone', 'basket', 'hex', 'trinet', 'nested'] as const;
+const COMPAT_KINDS = [
+  'brick',
+  'stack',
+  'herringbone',
+  'basket',
+  'hex',
+  'trinet',
+  'nested',
+  'dots',
+  'hatch',
+  'crosshatch',
+  'zigzag',
+  'scales',
+  'waves',
+] as const;
 const COMPAT_PINS: Readonly<Record<(typeof COMPAT_KINDS)[number], readonly (readonly [number, number])[]>> = {
   brick: [
     [686, 3427296643],
@@ -729,6 +743,42 @@ const COMPAT_PINS: Readonly<Record<(typeof COMPAT_KINDS)[number], readonly (read
     [763, 2190743378],
     [1282, 331006696],
   ],
+  dots: [
+    [2340, 1969592252],
+    [4812, 3000417399],
+    [2518, 3175677618],
+    [5087, 3106738823],
+  ],
+  hatch: [
+    [366, 3534590877],
+    [714, 1281789923],
+    [334, 1231837353],
+    [645, 742082639],
+  ],
+  crosshatch: [
+    [480, 1007328028],
+    [1447, 3022140174],
+    [456, 450283004],
+    [1329, 3451301590],
+  ],
+  zigzag: [
+    [788, 1849915116],
+    [2247, 1646188712],
+    [763, 3088037166],
+    [2233, 2628249272],
+  ],
+  scales: [
+    [8607, 1131577521],
+    [10635, 3156495738],
+    [8084, 2125152061],
+    [9552, 2262713401],
+  ],
+  waves: [
+    [2188, 3819052422],
+    [3828, 7829247],
+    [2191, 1537119429],
+    [3850, 2525545503],
+  ],
 };
 
 test('every kind is pinned', () => {
@@ -745,9 +795,9 @@ test('every kind is pinned', () => {
   for (const kind of COMPAT_KINDS) assert.deepEqual(pins(kind, true), COMPAT_PINS[kind], `${kind} compat`);
 });
 
-test('hasCompat holds for exactly the seven compatible kinds; for the others compat changes nothing', () => {
+test('hasCompat holds for exactly the compatible kinds; for the others compat changes nothing', () => {
   assert.deepEqual(KINDS.filter(hasCompat), [...COMPAT_KINDS]);
-  for (const kind of ['tree', 'dots'] as const)
+  for (const kind of ['tree', 'maze'] as const)
     for (const depth of [1, 2, 3]) assert.equal(generate(params(kind, { depth, compat: true })), generate(params(kind, { depth })), kind);
 });
 
@@ -770,6 +820,12 @@ test('distinct outputs over seeds 1..12 at depth 2, free and compatible', () => 
     ['hex', 12, 12],
     ['trinet', 12, 12],
     ['nested', 12, 5],
+    ['dots', 12, 12],
+    ['hatch', 12, 12],
+    ['crosshatch', 12, 12],
+    ['zigzag', 12, 12],
+    ['scales', 12, 12],
+    ['waves', 12, 12],
   ]);
 });
 

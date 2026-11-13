@@ -46,6 +46,10 @@ const TIERS: readonly (readonly MotifFamily[])[] = [
 ];
 const VARIANTS = 2; // ponytail: 2 per tier keeps 2 x 2 + 2 x 2 + 2 + 1 stem motif = 11 motifs.
 const BLOOMS: readonly MotifFamily[] = ['flower', 'bud', 'berry'];
+// A branch's stem may come closer than the stem distance to its host within this share of the side.
+const JUNCTION = 0.16;
+// The hero's largest radius, as a share of the side (0.12 x 1.1).
+const HERO_MAX = 0.132;
 const num = (v: number) => String(Math.round(v * 10) / 10);
 
 export interface ComposeParts {
@@ -61,13 +65,22 @@ export interface ComposeParts {
   readonly fillerMargin: number;
   /** Stems keep this distance from the stems of other plants. */
   readonly stemDistance: number;
+  /** A branch's stem may come closer than stemDistance to its host within this distance of its start. */
+  readonly junction: number;
 }
 
 export interface Plant {
   /** 129 samples of the main stem in tile units (not wrapped: the stem may cross tile edges). */
   readonly stem: readonly Pt[];
-  readonly tip: Placement;
-  /** Support motifs along the stem; side -1 or 1; stalk null when the base sits on the stem itself. */
+  /** The hero, or null when it found no free place even at 0.6 of its size. */
+  readonly tip: Placement | null;
+  /** The hero's stalk when the hero ends a side branch (vine), else null (the hero sits at the stem's tip). */
+  readonly tipStalk: readonly [Pt, Pt] | null;
+  /** A vine's stem is closed on the repeat: it ends at its start plus one lattice vector. */
+  readonly vine: boolean;
+  /** Index of the plant whose stem this one starts on, or null (vine, mirror root). */
+  readonly host: number | null;
+  /** Support motifs along the stem; side -1 or 1; stalk null for supports (on the stem), a stalk for the side branch's end. */
   readonly attached: readonly { readonly placement: Placement; readonly side: number; readonly stalk: readonly [Pt, Pt] | null }[];
 }
 
@@ -184,30 +197,78 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   // The stem motif's box, centered on the tile, holds stems that cross the tile edges.
   const box = Math.ceil(Math.max(w, h) + 2.6 * side);
   const shift: Pt = [(box - w) / 2, (box - h) / 2];
-  type Built = Plant & { circles: { c: Pt; r: number; v: Variant; p: Placement }[]; path: string; tipCircle: { c: Pt; r: number } };
-  const grow = (start: Pt, r: () => number, index: number): Built => {
-    // Main stem: integrate the calm flow in 6 steps, with a gentle per-plant bend; 3 cubic segments.
-    const len = side * (repeat === 'mirror' ? 0.6 + 0.15 * r() : 0.6 + 0.5 * r());
+  const gap = (2 * side) / 300;
+  const half = (0.005 * side) / 2;
+  const minStalk = 0.04 * side;
+  type Circle = { c: Pt; r: number; v: Variant; p: Placement };
+  type Knot = { p: Pt; a: number };
+  const flowAt = (q: Pt) => (flowAngle(mod(q[0], w), mod(q[1], h), w, h, o.seed, true) * Math.PI) / 180;
+  const step = (q: Pt, a: number, l: number): Pt => [q[0] + Math.cos(a) * l, q[1] + Math.sin(a) * l];
+
+  // Root (mirror): integrate the calm flow in 6 steps with a gentle per-plant bend.
+  const rootKnots = (start: Pt, r: () => number): Knot[] => {
+    const len = side * (0.6 + 0.15 * r());
     const bend = ((r() * 2 - 1) * Math.PI) / 5;
-    const flip = r() < 0.5;
-    let p: Pt = start;
-    const knots: { p: Pt; a: number }[] = [];
-    for (let i = 0; i <= 6; i++) {
-      const a = (flowAngle(mod(p[0], w), mod(p[1], h), w, h, o.seed, true) * Math.PI) / 180 + bend * (i / 6 - 0.5);
-      knots.push({ p, a });
-      p = [p[0] + (Math.cos(a) * len) / 6, p[1] + (Math.sin(a) * len) / 6];
+    const ks: Knot[] = [];
+    for (let i = 0, p = start; i <= 6; i++) {
+      const a = flowAt(p) + bend * (i / 6 - 0.5);
+      ks.push({ p, a });
+      p = step(p, a, len / 6);
     }
+    return ks;
+  };
+  // Vine: integrate the flow across one period along the lattice vector nearest the flow's direction;
+  // the last third (one cubic from knot 4) bends the end onto start + that vector with the start's direction.
+  const vineKnots = (start: Pt): Knot[] => {
+    const a0 = flowAt(start);
+    const [u, v] = lattice(repeat, w, h);
+    const cands = [u, v, [u[0] - v[0], u[1] - v[1]], [u[0] + v[0], u[1] + v[1]]].flatMap((c): Pt[] => [
+      [c[0]!, c[1]!],
+      [-c[0]!, -c[1]!],
+    ]);
+    const L = cands.reduce((b, c) => (Math.cos(Math.atan2(c[1], c[0]) - a0) > Math.cos(Math.atan2(b[1], b[0]) - a0) ? c : b));
+    const len = Math.hypot(L[0], L[1]);
+    const ks: Knot[] = [];
+    for (let i = 0, p = start; i < 6; i++) {
+      const a = flowAt(p);
+      ks.push({ p, a });
+      p = step(p, a, len / 6);
+    }
+    ks.push({ p: [start[0] + L[0], start[1] + L[1]], a: a0 });
+    return ks;
+  };
+  // Branch: leaves the host at `dev` on side `sg`, then curves back toward the flow.
+  const branchKnots = (start: Pt, hostA: number, sg: number, dev: number, len: number): Knot[] => {
+    const ks: Knot[] = [{ p: start, a: hostA + sg * dev }];
+    for (let i = 1, p = step(start, hostA + sg * dev, len / 6); i <= 6; i++) {
+      const a = flowAt(p) + sg * dev * (1 - (0.75 * i) / 6);
+      ks.push({ p, a });
+      p = step(p, a, len / 6);
+    }
+    return ks;
+  };
+
+  // A stem through 7 knots: 3 cubics, sampled 129 times, with its point and direction at u in [0, 1].
+  type Stem = {
+    stem: Pt[];
+    segs: Cubic[];
+    at: (u: number) => Knot;
+    vine: boolean;
+    host: number | null;
+    r: () => number;
+    flip: boolean;
+    sA: number;
+    hero: Knot;
+    tipStalk: [Pt, Pt] | null;
+    zone: Circle[];
+  };
+  const stemOf = (knots: Knot[], vine: boolean, host: number | null, seed: number, idx: number): Stem => {
     const segs = [0, 2, 4].map((i): Cubic => {
       const [k0, k1] = [knots[i]!, knots[i + 2]!];
       const l = Math.hypot(k1.p[0] - k0.p[0], k1.p[1] - k0.p[1]) / 3;
-      return [
-        k0.p,
-        [k0.p[0] + Math.cos(k0.a) * l, k0.p[1] + Math.sin(k0.a) * l],
-        [k1.p[0] - Math.cos(k1.a) * l, k1.p[1] - Math.sin(k1.a) * l],
-        k1.p,
-      ];
+      return [k0.p, step(k0.p, k0.a, l), step(k1.p, k1.a, -l), k1.p];
     });
-    const at = (u: number): { p: Pt; a: number } => {
+    const at = (u: number): Knot => {
       const s = Math.min(2, Math.floor(u * 3));
       const c = segs[s]!;
       const t = u * 3 - s;
@@ -220,76 +281,162 @@ export function composeParts(o: ComposeOptions): ComposeParts {
       );
       return { p: pt, a: Math.atan2(dt[1]!, dt[0]!) };
     };
-    const stem = Array.from({ length: 129 }, (_, i) => at(i / 128).p);
-    // Tip: the hero, pointing along the stem's end direction.
-    const end = at(1);
+    // The hero's base: the tip, or (vine, which has no tip) the end of a side stalk. Chosen here so that
+    // phase 1 keeps the hero's area (its largest circle, either flip) free of other stems.
+    const r = mulberry32(seed + 1);
+    const flip = r() < 0.5;
+    const sA = r() < 0.5 ? -1 : 1;
+    let hero = at(1);
+    let tipStalk: [Pt, Pt] | null = null;
+    if (vine) {
+      const q = at(0.2 + 0.6 * r());
+      const a = q.a + (-sA * 45 * Math.PI) / 180;
+      hero = { p: step(q.p, a, 0.12 * side), a };
+      tipStalk = [q.p, hero.p];
+    }
+    const hv = variants[0]![idx % VARIANTS]!;
+    const zone = [false, true].map((fl) => {
+      const pl = put(hv, hero.p, hero.a, 0.6 * HERO_MAX * side, fl);
+      return { ...realCircle(hv, pl), v: hv, p: pl };
+    });
+    return { stem: Array.from({ length: 129 }, (_, i) => at(i / 128).p), segs, at, vine, host, r, flip, sA, hero, tipStalk, zone };
+  };
+
+  // Phase 1, stems only. The first stem (two at high density) is a vine through the repeat; every other
+  // stem branches off an existing one, a vine first, so the tile reads as one growth. Mirror: one root
+  // stem instead. Only stem rules apply: a start on the host, distance between stems outside a short
+  // junction zone, and (mirror) the tile margin.
+  const stems: Stem[] = [];
+  const want = Math.round(2 + 3 * density);
+  const vines = repeat === 'mirror' ? 0 : density > 0.7 ? 2 : 1;
+  const stemDistance0 = 0.16 * side;
+  const junction = JUNCTION * side;
+  let stemDistance = stemDistance0;
+  let s0 = 1;
+  for (let tries = 0; stems.length < want && tries < 240; tries++) {
+    if (tries > 0 && tries % 60 === 0) stemDistance *= 0.8;
+    const s = Math.floor(rnd() * 2 ** 32);
+    const idx = stems.length;
+    let st: Stem;
+    let host: number | null = null;
+    if (repeat === 'mirror' && idx === 0) {
+      const r0 = mulberry32(s);
+      const first = stemOf(rootKnots([rnd() * w, rnd() * h], r0), false, null, s, idx).stem;
+      // Mirror: center the stem's bounds in the tile, then grow it again from there.
+      const xs = first.map((q) => q[0]);
+      const ys = first.map((q) => q[1]);
+      const [sx, sy] = [w / 2 - (Math.min(...xs) + Math.max(...xs)) / 2, h / 2 - (Math.min(...ys) + Math.max(...ys)) / 2];
+      const start: Pt = [first[0]![0] + sx + (rnd() - 0.5) * 0.3 * w, first[0]![1] + sy + (rnd() - 0.5) * 0.3 * h];
+      st = stemOf(rootKnots(start, mulberry32(s)), false, null, s, idx);
+    } else if (idx < vines && tries < 120) {
+      st = stemOf(vineKnots([rnd() * w, rnd() * h]), true, null, s, idx);
+    } else {
+      if (stems.length === 0) continue;
+      const vineIdx = stems.flatMap((q, i) => (q.vine ? [i] : []));
+      host = vineIdx.length > 0 && rnd() < 0.6 ? vineIdx[Math.floor(rnd() * vineIdx.length)]! : Math.floor(rnd() * stems.length);
+      const hs = stems[host]!.stem;
+      if (idx === 1 || (idx === vines && vines > 0)) s0 = rnd() < 0.5 ? -1 : 1;
+      const sg = idx % 2 === 0 ? s0 : -s0;
+      const dev = ((30 + 30 * rnd()) * Math.PI) / 180;
+      // A junction between 20 and 80 percent of the host.
+      const k = 26 + Math.floor(rnd() * 77);
+      const hostA = Math.atan2(hs[k + 1]![1] - hs[k - 1]![1], hs[k + 1]![0] - hs[k - 1]![0]);
+      const len = side * (repeat === 'mirror' ? 0.35 + 0.15 * rnd() : 0.5 + 0.3 * rnd());
+      st = stemOf(branchKnots(hs[k]!, hostA, sg, dev, len), false, host, s, idx);
+    }
+    if (!st.stem.every((q) => inside(q, 0))) continue;
+    // Stems keep their distance, except a branch near its junction with its host.
+    const st0 = st.stem[0]!;
+    const sparse = st.stem.filter((_, i) => i % 8 === 0);
+    const near = (j: number, b: Pt) => j === host && Math.hypot(b[0] - st0[0], b[1] - st0[1]) < junction;
+    if (stems.some((q, j) => q.stem.some((a, i) => i % 8 === 0 && sparse.some((b) => !near(j, b) && dist(a, b) < stemDistance)))) continue;
+    // Each hero's area stays free of the other stems (and of the other heroes' areas).
+    const free = (z: readonly Circle[], line: readonly Pt[]) => z.every((c) => line.every((q) => dist(c.c, q) >= c.r + half + gap));
+    if (!stems.every((q) => free(q.zone, st.stem) && free(st.zone, q.stem))) continue;
+    if (stems.some((q) => q.zone.some((a) => st.zone.some((b) => dist(a.c, b.c) < a.r + b.r + gap)))) continue;
+    stems.push(st);
+  }
+
+  // Phase 2, motifs: every plant's hero first, then plant by plant the supports and a side branch. A motif that would come
+  // closer than the gap to another plant's stem or placed motif shrinks, then moves along its stem, then drops.
+  type Built = Plant & { circles: Circle[]; path: string };
+  const plants: Built[] = [];
+  const placed: Circle[][] = stems.map(() => []);
+  const clearOf = (self: number, c: Pt, r: number) =>
+    inside(c, r) &&
+    stems.every((q, j) => j === self || q.stem.every((s) => dist(c, s) >= r + half + gap)) &&
+    placed.every((q, j) => j === self || q.every((k) => dist(c, k.c) >= r + k.r + gap));
+  // The hero: at the tip, or (vine, which has no tip) at the end of a side stalk; shrunk to 0.6 before it is lost.
+  const tips = stems.map(({ r, flip, hero: hb }, index): Placement | null => {
     const hv = variants[0]![index % VARIANTS]!;
-    const tip = put(hv, end.p, end.a, 0.12 * side * (0.9 + 0.2 * r()), flip);
-    const tipCircle = realCircle(hv, tip);
-    // Support motifs at alternating sides, pointing away from the stem toward the tip, smaller toward the tip.
+    const hr = 0.12 * side * (0.9 + 0.2 * r());
+    for (const k of [1, 0.9, 0.8, 0.7, 0.6]) {
+      const pl = put(hv, hb.p, hb.a, hr * k, flip);
+      const c = realCircle(hv, pl);
+      if (!clearOf(index, c.c, c.r)) continue;
+      placed[index]!.push({ ...c, v: hv, p: pl });
+      return pl;
+    }
+    return null;
+  });
+  stems.forEach(({ stem, segs, at, vine, host, r, sA, tipStalk: ts }, index) => {
+    const circles = placed[index]!;
+    const tip = tips[index]!;
+    const tipStalk = tip ? ts : null;
+    const stalks: [Pt, Pt][] = tipStalk ? [tipStalk] : [];
+    // Support motifs at alternating sides, on the stem, pointing away from it, smaller toward the tip.
     const n = 3 + Math.floor(r() * (1 + 3 * density));
-    const s0 = r() < 0.5 ? -1 : 1;
     const attached: Built['attached'][number][] = [];
-    const circles: Built['circles'] = [{ ...tipCircle, v: hv, p: tip }];
-    const stalks: [Pt, Pt][] = [];
     for (let i = 0; i < n; i++) {
       const u = 0.15 + (0.7 * (i + 0.3 + 0.4 * r())) / n;
-      const q = at(u);
-      const sideSign = i % 2 === 0 ? s0 : -s0;
-      const a = q.a + (sideSign * (40 + 25 * r()) * Math.PI) / 180;
-      const stalkLen = r() < 0.5 ? 0 : 0.03 * side;
-      const base: Pt = [q.p[0] + Math.cos(a) * stalkLen, q.p[1] + Math.sin(a) * stalkLen];
+      const sideSign = i % 2 === 0 ? sA : -sA;
+      const turn = (sideSign * (40 + 25 * r()) * Math.PI) / 180;
       const v = variants[1]![i % VARIANTS]!;
-      const pl = put(v, base, a, 0.075 * side * (1 - (0.4 * i) / n), r() < 0.5);
-      const stalk: [Pt, Pt] | null = stalkLen > 0 ? [q.p, base] : null;
-      if (stalk) stalks.push(stalk);
-      attached.push({ placement: pl, side: sideSign, stalk });
-      circles.push({ ...realCircle(v, pl), v, p: pl });
+      const rr = 0.075 * side * (1 - (0.4 * i) / n);
+      const fl = r() < 0.5;
+      // ponytail: full size, 0.8, then 0.8 at 3 next positions along the stem (5% apart) on the same side.
+      for (const [du, k] of [
+        [0, 1],
+        [0, 0.8],
+        [0.05, 0.8],
+        [0.1, 0.8],
+        [0.15, 0.8],
+      ] as const) {
+        if (u + du > 0.97) break;
+        const q = at(u + du);
+        const pl = put(v, q.p, q.a + turn, rr * k, fl);
+        const c = realCircle(v, pl);
+        if (!clearOf(index, c.c, c.r)) continue;
+        attached.push({ placement: pl, side: sideSign, stalk: null });
+        circles.push({ ...c, v, p: pl });
+        break;
+      }
     }
     // One short side branch ending in a small motif (bud or berries), opposite the nearest support.
     if (r() < 0.3 + 0.5 * density) {
       const q = at(0.5 + 0.1 * r());
-      const sideSign = n % 2 === 0 ? s0 : -s0;
+      const sideSign = n % 2 === 0 ? sA : -sA;
       const a = q.a + (sideSign * 50 * Math.PI) / 180;
-      const base: Pt = [q.p[0] + Math.cos(a) * 0.1 * side, q.p[1] + Math.sin(a) * 0.1 * side];
+      const b = step(q.p, a, 0.1 * side);
       const v = variants[2]![index % VARIANTS]!;
-      const pl = put(v, base, a, 0.04 * side, r() < 0.5);
-      stalks.push([q.p, base]);
-      attached.push({ placement: pl, side: sideSign, stalk: [q.p, base] });
-      circles.push({ ...realCircle(v, pl), v, p: pl });
+      const pl = put(v, b, a, 0.04 * side, r() < 0.5);
+      const c = realCircle(v, pl);
+      if (clearOf(index, c.c, c.r)) {
+        stalks.push([q.p, b]);
+        attached.push({ placement: pl, side: sideSign, stalk: [q.p, b] });
+        circles.push({ ...c, v, p: pl });
+      }
     }
     const f = (q: Pt) => `${num(q[0] + shift[0])} ${num(q[1] + shift[1])}`;
     const path =
       `M${f(segs[0]![0])}` +
       segs.map((c) => `C${f(c[1])} ${f(c[2])} ${f(c[3])}`).join('') +
-      stalks.map(([a, b]) => `M${f(a)}L${f(b)}`).join('');
-    return { stem, tip, attached, circles, path, tipCircle };
-  };
-  const plants: Built[] = [];
-  const want = Math.round(2 + 3 * density);
-  const stemDistance0 = 0.16 * side;
-  let stemDistance = stemDistance0;
-  for (let tries = 0; plants.length < want && tries < 240; tries++) {
-    if (tries > 0 && tries % 60 === 0) stemDistance *= 0.8;
-    const s = Math.floor(rnd() * 2 ** 32);
-    let pl = grow([rnd() * w, rnd() * h], mulberry32(s), plants.length);
-    if (repeat === 'mirror') {
-      // Mirror: center the plant's bounds in the tile, then grow it again from there.
-      const xs = [...pl.stem.map((q) => q[0]), ...pl.circles.flatMap((c) => [c.c[0] - c.r, c.c[0] + c.r])];
-      const ys = [...pl.stem.map((q) => q[1]), ...pl.circles.flatMap((c) => [c.c[1] - c.r, c.c[1] + c.r])];
-      const [sx, sy] = [w / 2 - (Math.min(...xs) + Math.max(...xs)) / 2, h / 2 - (Math.min(...ys) + Math.max(...ys)) / 2];
-      pl = grow(
-        [pl.stem[0]![0] + sx + (rnd() - 0.5) * 0.3 * w, pl.stem[0]![1] + sy + (rnd() - 0.5) * 0.3 * h],
-        mulberry32(s),
-        plants.length,
-      );
-    }
-    if (!pl.stem.every((q) => inside(q, 0)) || !pl.circles.every((c) => inside(c.c, c.r))) continue;
-    const sparse = pl.stem.filter((_, i) => i % 8 === 0);
-    if (plants.some((q) => q.stem.some((a, i) => i % 8 === 0 && sparse.some((b) => dist(a, b) < stemDistance)))) continue;
-    if (plants.some((q) => dist(q.tipCircle.c, pl.tipCircle.c) < q.tipCircle.r + pl.tipCircle.r + 2)) continue;
-    plants.push(pl);
-  }
+      stalks
+        .filter(([a, b]) => Math.hypot(b[0] - a[0], b[1] - a[1]) >= minStalk)
+        .map(([a, b]) => `M${f(a)}L${f(b)}`)
+        .join('');
+    plants.push({ stem, tip, tipStalk, attached, circles, path, vine, host });
+  });
 
   // Filler: small motifs only in the larger gaps, clear of every motif circle and, by a margin, of every stem.
   const fillerMargin = 0.03 * side;
@@ -345,19 +492,21 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   if (o.stems && plants.length > 0) {
     // All stems in one stroke motif in tile units, shifted into a box large enough for stems that cross the edges.
     motifs.push({ d: plants.map((pl) => pl.path).join(''), box, paint: 'stroke' });
-    add(o.colors.stem, Math.max(1.5, side / 150), [{ motif: motifs.length - 1, x: w / 2, y: h / 2, scale: 1, rotate: 0, flip: false }]);
+    // Non-scaling stroke: the width is in pixels at tile scale 1; 0.5% of the side reads lighter than the motifs.
+    add(o.colors.stem, round(2 * half, 100), [{ motif: motifs.length - 1, x: w / 2, y: h / 2, scale: 1, rotate: 0, flip: false }]);
   }
   add(o.colors.leaf, 1, leaf);
   add(o.colors.bloom, 1, bloom);
   add(o.colors.detail, 1, detail);
   return {
     studio: { width: w, height: h, background: o.colors.background, repeat, motifs, layers: out },
-    heroes: plants.map((pl) => pl.tip),
+    heroes: plants.flatMap((pl) => (pl.tip ? [pl.tip] : [])),
     families,
-    plants: plants.map(({ stem, tip, attached }) => ({ stem, tip, attached })),
+    plants: plants.map(({ stem, tip, tipStalk, vine, host, attached }) => ({ stem, tip, tipStalk, vine, host, attached })),
     filler: filler.map((f) => f.p),
     fillerMargin,
     stemDistance,
+    junction,
   };
 }
 

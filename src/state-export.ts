@@ -1,6 +1,6 @@
 // What the page copies: the complete CSS, and an optional script that switches the tile. Reads state.ts only.
 import { computed, ref, shallowRef, watch } from 'vue';
-import { APP_NAME } from '@/app-name.ts';
+import { APP_NAME, SITE_URL } from '@/app-name.ts';
 import { formatFootprint, gzipSize, sizeLines } from '@/co2.ts';
 import { exportCss, exportJs, exportParallax, type ExportInput } from '@/export.ts';
 import { KIND_LABELS, extraPath, geometry, tileHeight } from '@/fractal.ts';
@@ -54,6 +54,7 @@ export const exportLabel = computed(() =>
 );
 
 const exportInput = computed<ExportInput>(() => ({
+  source: SITE_URL,
   svg: svg.value,
   tileSize: tileSize.value,
   ...(aspect.value !== 1 ? { tileHeight: tileHeight(tileSize.value, aspect.value) } : {}),

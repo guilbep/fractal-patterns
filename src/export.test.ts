@@ -744,3 +744,11 @@ test('second layer color: off keeps the pattern color in both tiles; on draws ti
     assert.equal(on.split('--fp-tile').length, off.split('--fp-tile').length, kind);
   }
 });
+
+test('the first comment names the tool address when a source is given, and only then', () => {
+  const plain = exportCss(base).split('\n')[0]!;
+  assert.ok(!plain.includes('Made with'));
+  const first = exportCss({ ...base, source: 'https://patterns.pierreguilbert.com/' }).split('\n')[0]!;
+  assert.ok(first.endsWith('Made with https://patterns.pierreguilbert.com/ */'), first);
+  assert.equal(exportCss({ ...base, source: 'x*/y' }).split('*/').length, exportCss(base).split('*/').length);
+});

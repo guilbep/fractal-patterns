@@ -17,6 +17,7 @@ export interface ExportInput {
     readonly blur: number;
   };
   readonly motion: Motion;
+  readonly source?: string; // the address of the tool, written into the first comment so the CSS says where it came from
   readonly label: string; // how to make the tile again, e.g. "Herringbone, seed 123, depth 3"
   readonly appName: string;
   // A second layer, its size coprime with tileSize, with its own offset, extra rotation, opacity, and depth (see motionLayer).
@@ -49,7 +50,7 @@ export function exportCss(i: ExportInput): string {
   const layers = `.fp-pattern::before${i.second ? ', .fp-pattern::after' : ''} {`;
   const change = i.change && i.change.dir !== 'none' ? changeMask(i.change.dir, i.change.to) : undefined;
   return [
-    `/* ${safe(i.appName)}: ${safe(i.label)}. Tile ${i.tileSize}px. */`,
+    `/* ${safe(i.appName)}: ${safe(i.label)}. Tile ${i.tileSize}px.${i.source ? ` Made with ${safe(i.source)}` : ''} */`,
     '.fp-pattern {',
     `  --fp-bg: ${i.background};`,
     `  --fp-ink: ${i.text};`,

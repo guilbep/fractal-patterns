@@ -19,9 +19,9 @@ import { edges, toGray, type Detector } from '@/trace.ts';
 import { vectorize } from '@/vectorize.ts';
 import { curveTileSvg } from '@/smoothtrace.ts';
 import { sampleImage, type Sample } from '@/samples.ts';
-import { PALETTES, type Palette } from '@/palettes.ts';
+import { PALETTES, makePalette, paletteRoles, randomPaletteSpec, type Palette } from '@/palettes.ts';
 import { blend, contrastRatio, textLevel } from '@/contrast.ts';
-import { fixWithFill, patternContrast, patternInvisible, pickRoles, plateContrast, swapRoles, worstAt, type Roles } from '@/pairing.ts';
+import { fixWithFill, patternContrast, patternInvisible, plateContrast, swapRoles, worstAt, type Roles } from '@/pairing.ts';
 import { cssPlate, svgToDataUri } from '@/css.ts';
 import { rawSize } from '@/co2.ts';
 import { MOTION_NONE, type Motion } from '@/motion.ts';
@@ -37,7 +37,7 @@ function randomSeed(): number {
   return crypto.getRandomValues(new Uint32Array(1))[0] ?? 0;
 }
 
-const DEFAULT_PALETTE = PALETTES.find((p) => p.name === 'Lagoon, mono') ?? PALETTES[0]!;
+const DEFAULT_PALETTE = PALETTES.find((p) => p.name === 'Lagoon') ?? PALETTES[0]!;
 const INITIAL_SEED = randomSeed();
 const DEFAULTS = { kind: 'tree' as Kind, depth: 8, size: 120, strokeWidth: 2, precision: 1, opacity: 0.6 };
 const PLATE_DEFAULTS = { plateMode: 'split' as PlateMode, plateOpacity: 0.85, plateRadius: 12, plateBlur: 0 };
@@ -53,7 +53,7 @@ export const params = reactive({
   strokeWidth: DEFAULTS.strokeWidth,
   precision: DEFAULTS.precision,
 });
-export const roles = reactive<{ -readonly [K in keyof Roles]: string }>({ ...pickRoles(DEFAULT_PALETTE.colors) });
+export const roles = reactive<{ -readonly [K in keyof Roles]: string }>({ ...paletteRoles(DEFAULT_PALETTE.colors) });
 export const opacity = ref(DEFAULTS.opacity);
 export const paletteName = ref<string | null>(DEFAULT_PALETTE.name);
 export const plateMode = ref<PlateMode>(PLATE_DEFAULTS.plateMode);
@@ -67,7 +67,11 @@ export const fill = reactive<{ -readonly [K in keyof FillStyle]: FillStyle[K] }>
   color: softOf(DEFAULT_PALETTE),
   opacity: 1,
 });
-export const palette = computed(() => PALETTES.find((p) => p.name === paletteName.value) ?? null);
+// The last random palette, kept so the fill color and the off-palette note work while it is selected.
+const randomColors = ref<Palette | null>(null);
+export const palette = computed(
+  () => PALETTES.find((p) => p.name === paletteName.value) ?? (randomColors.value?.name === paletteName.value ? randomColors.value : null),
+);
 
 // Result of the last Fix click, shown until the colors change by another action.
 // `heading` is set in 'split' mode only, where the fix covers both the paragraph and the heading.
@@ -440,7 +444,13 @@ export function applyPalette(p: Palette): void {
   lastFix.value = null;
   paletteName.value = p.name;
   fill.color = softOf(p);
-  setRoles(pickRoles(p.colors));
+  setRoles(paletteRoles(p.colors));
+}
+
+export function randomPalette(): void {
+  const p = makePalette(randomPaletteSpec(Math.random));
+  randomColors.value = p;
+  applyPalette(p);
 }
 
 export function swap(): void {

@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { PALETTES } from '@/palettes.ts';
+import { DARK_NAMES, PALETTES } from '@/palettes.ts';
+import '@/css/palettes.css';
 import { largeTarget } from '@/pairing.ts';
-import { applyFix, applyPalette, closedShapes, contrast, fill, fillAvailable, lastFix, offPalette, opacity, paletteName, plateBlur, plateMode, plateOpacity, plateRadius, ratioText, swap, type PlateMode } from '@/state.ts';
+import { applyFix, applyPalette, randomPalette, closedShapes, contrast, fill, fillAvailable, lastFix, offPalette, opacity, paletteName, plateBlur, plateMode, plateOpacity, plateRadius, ratioText, swap, type PlateMode } from '@/state.ts';
 import RoleInput from './RoleInput.vue';
 
+const PALETTE_GROUPS = [
+  { title: 'Light', list: PALETTES.filter((p) => !DARK_NAMES.has(p.name)) },
+  { title: 'Dark', list: PALETTES.filter((p) => DARK_NAMES.has(p.name)) },
+];
 const offPaletteText = computed(() => new Intl.ListFormat('en', { type: 'conjunction' }).format(offPalette.value));
 
 const badges = computed(() => [
@@ -147,18 +152,22 @@ const fixes = computed(() => [
     </div>
 
     <h3 id="palettes-h">Start from a palette</h3>
-    <p class="muted">Picking one assigns the strongest pair to background and text. The app generates the palettes by rule from a hue and a harmony scheme in the OKLCH color space.</p>
-    <ul class="palettes" aria-labelledby="palettes-h">
-      <li v-for="p in PALETTES" :key="p.name">
-        <button type="button" class="palette" :aria-pressed="paletteName === p.name" @click="applyPalette(p)">
-          <span class="swatches" aria-hidden="true">
-            <span v-for="c in p.colors" :key="c" :style="{ backgroundColor: c }"></span>
-          </span>
-          <span class="palette-name">
-            <span v-if="paletteName === p.name" class="selected-mark" aria-hidden="true">✓</span>{{ p.name }}
-          </span>
-        </button>
-      </li>
-    </ul>
+    <p class="muted">Picking one assigns the strongest pair to background and text, or on a dark palette the dark paper to the background. The palettes follow studies of color preference: close hues, cool grounds, saturated figures on calm grounds.</p>
+    <button type="button" class="random-palette" @click="randomPalette">Random palette</button>
+    <template v-for="g in PALETTE_GROUPS" :key="g.title">
+      <h4 :id="`palettes-${g.title}`" class="palette-group">{{ g.title }}</h4>
+      <ul class="palettes" :aria-labelledby="`palettes-${g.title}`">
+        <li v-for="p in g.list" :key="p.name">
+          <button type="button" class="palette" :aria-pressed="paletteName === p.name" @click="applyPalette(p)">
+            <span class="swatches" aria-hidden="true">
+              <span v-for="c in p.colors" :key="c" :style="{ backgroundColor: c }"></span>
+            </span>
+            <span class="palette-name">
+              <span v-if="paletteName === p.name" class="selected-mark" aria-hidden="true">✓</span>{{ p.name }}
+            </span>
+          </button>
+        </li>
+      </ul>
+    </template>
   </section>
 </template>

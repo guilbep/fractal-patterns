@@ -140,7 +140,7 @@ test('bytes, straight repeat: worst over seeds 1..8', () => {
 });
 
 test('composeColors maps the five roles', () => {
-  const p = PALETTES.find((x) => x.name === 'Lagoon, mono')!;
+  const p = PALETTES.find((x) => x.name === 'Lagoon')!;
   const [paper, ink, stroke, accent] = p.colors;
   assert.deepEqual(composeColors(p.colors), { background: paper, leaf: stroke, bloom: accent, detail: ink, stem: stroke });
 });
@@ -376,9 +376,10 @@ test('a hero moved back from the tip sits on its cut stem, with no bare stem bey
 });
 
 // Re-taken in ticket X5, which changes the default output on purpose (supports by stem length, twigs and filler in the
-// gaps); before: 1 50c3cf6b0a7cfbdd, 2 72807e354740a5b9, 3 4ad9cae4b492718d.
+// gaps); before: 1 50c3cf6b0a7cfbdd, 2 72807e354740a5b9, 3 4ad9cae4b492718d. Re-taken in ticket PAL-B (new default palette colors);
+// before: 1 9a32925dfbd09bd4, 2 318012a4be4b4f84, 3 ebe59920fda6e956.
 test('compose without a custom motif: a stable SVG (sha-256 prefixes)', () => {
-  const want: Record<number, string> = { 1: '9a32925dfbd09bd4', 2: '318012a4be4b4f84', 3: 'ebe59920fda6e956' };
+  const want: Record<number, string> = { 1: 'd7b9370805fdf712', 2: '2620a0060c527b2a', 3: '6e3f8e4b0570a829' };
   for (const seed of [1, 2, 3]) {
     const svg = studioSvg(compose({ ...designOptions(decodeStudio('')), seed }));
     assert.equal(createHash('sha256').update(svg).digest('hex').slice(0, 16), want[seed], `seed ${seed}`);

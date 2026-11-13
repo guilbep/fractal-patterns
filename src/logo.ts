@@ -18,7 +18,7 @@ export function logoSvg(o: LogoOptions): string {
   return svg.replace('>', `>${rect}`);
 }
 
-const LAGOON = (PALETTES.find((p) => p.name === 'Lagoon, mono') ?? PALETTES[0]!).colors;
+const LAGOON = (PALETTES.find((p) => p.name === 'Lagoon') ?? PALETTES[0]!).colors;
 
 // Chosen from `npm run logo -- candidates`: see scripts/make-logo.ts.
 export const LOGO_DEFAULT: LogoOptions = { kind: 'whirl', seed: 1, background: LAGOON[0]!, color: LAGOON[1]! };

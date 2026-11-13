@@ -41,3 +41,20 @@ export function hexToOklch(hex: string): [number, number, number] {
   const h = (Math.atan2(B, A) * 180) / Math.PI;
   return [L, Math.hypot(A, B), h < 0 ? h + 360 : h];
 }
+
+// True when the OKLCH color is inside sRGB without clipping.
+export function inGamut(l: number, c: number, hDeg: number): boolean {
+  const h = (hDeg * Math.PI) / 180;
+  return oklabToLinear(l, c * Math.cos(h), c * Math.sin(h)).every((v) => v >= -EPS && v <= 1 + EPS);
+}
+
+// The highest in-gamut chroma at this lightness and hue, by bisection.
+export function maxChroma(l: number, hDeg: number): number {
+  let [lo, hi] = [0, 0.4];
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2;
+    if (inGamut(l, mid, hDeg)) lo = mid;
+    else hi = mid;
+  }
+  return lo;
+}

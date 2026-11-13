@@ -153,7 +153,14 @@ A traced tile repeats without a seam only with Mirror or with a source image tha
 
 ### Colors
 
-The page has 24 palettes. The app generates them by rule from a hue and a harmony scheme in the OKLCH color space. OKLCH describes a color by its lightness, chroma and hue, in steps that look even to the eye. The six hues are Brick, Ochre, Moss, Lagoon, Indigo and Plum. The four schemes are mono, analogous, complement and triad. The default palette is Lagoon, mono.
+The page has 24 palettes: 16 light and 8 dark. The app generates them by rule in the OKLCH color space. OKLCH describes a color by its lightness, chroma and hue, in steps that look even to the eye. Each palette has five colors: paper, ink, stroke, accent and soft. The default palette is Lagoon. The "Random palette" button draws a new palette inside the same rules.
+
+The rules follow two studies of color preference:
+
+- Schloss and Palmer (2011), "Aesthetic response to color combinations: preference, harmony, and similarity", Attention, Perception and Psychophysics 73, 551-571, https://pmc.ncbi.nlm.nih.gov/articles/PMC3037488/ . People prefer pairs of close hues, pairs with more lightness contrast, cool pairs, and a warm figure on a cool ground. They like saturated figures and dislike saturated grounds.
+- Palmer and Schloss (2010), "An ecological valence theory of human color preference", PNAS 107, 8877-8882, https://pmc.ncbi.nlm.nih.gov/articles/PMC2889342/ . Blue and cyan are the most liked hues. Dark yellow (olive) and dark orange (brown) are the least liked.
+
+So the stroke and soft colors share the base hue. The accent is 35 degrees from the base, or warm (hue 40) on a cool base. Paper and soft have low chroma. The accent has the highest chroma the screen can show at its lightness, up to 0.19, and the stroke 60 percent of that. Hues 60 to 115 move to amber (50) or green (130), so no palette has olive or brown. Most bases are blue or cyan. The exact numbers are our own choice from these findings, not values from the papers. On a dark palette the dark paper is the background and the stroke is the pattern.
 
 The tile uses three color roles:
 
@@ -569,7 +576,7 @@ Export, colors and the rest:
 | `src/alt-export.ts` | When the canvas script and the paint worklet can draw the design, and why not. |
 | `src/motifgrid.ts` | The motif grid. The page uses only its helpers. |
 | `src/custom.ts` | The custom motif engine, not yet in the page. |
-| `src/palettes.ts` | The 24 generated palettes. |
+| `src/palettes.ts` | The 24 generated palettes and the random palette rules. |
 | `src/oklch.ts` | OKLCH to hex conversion. |
 | `src/contrast.ts` | WCAG luminance, contrast ratio, color blend and levels. |
 | `src/pairing.ts` | Role choice, worst-case ratio, plate ratio and contrast fixes. |

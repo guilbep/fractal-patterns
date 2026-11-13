@@ -390,7 +390,8 @@ function onKey(e: KeyboardEvent): void {
       <circle v-if="handle" class="handle" data-handle :cx="handle.cx" :cy="handle.cy" :r="handle.r" />
     </svg>
     <p class="visually-hidden" aria-live="polite">{{ spoken }}</p>
-    <p class="stage-hint">Keys: N and P choose a shape, arrows move the selection. Shift-click adds a shape; drag on empty space to select an area. Drag to move. Drag the round handle to turn and resize. Shapes that cross an edge come back on the other side. With Snap on, hold Alt to drag freely.</p>
+    <p class="stage-hint stage-hint-short">Drag to move. Shapes that cross an edge come back on the other side.</p>
+    <p class="stage-hint stage-hint-long">Keys: N and P choose a shape, arrows move the selection. Shift-click adds a shape; drag on empty space to select an area. Drag to move. Drag the round handle to turn and resize. Shapes that cross an edge come back on the other side. With Snap on, hold Alt to drag freely.</p>
   </div>
 </template>
 
@@ -477,5 +478,17 @@ function onKey(e: KeyboardEvent): void {
   margin: 0.5rem 0 0;
   padding-inline: var(--s3);
   font-size: 0.875rem;
+}
+/* ponytail: the phone stage has a fixed height, so it shows one short line; the full key list needs the wide layout. */
+.stage-hint-long {
+  display: none;
+}
+@media (min-width: 64rem) {
+  .stage-hint-short {
+    display: none;
+  }
+  .stage-hint-long {
+    display: block;
+  }
 }
 </style>

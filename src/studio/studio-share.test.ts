@@ -144,3 +144,9 @@ test('balance: ba=1 and ba=0 round trip, a link without ba (made before the key)
   assert.equal(decodeStudio('#').balance, true);
   assert.equal(DEFAULT_DESIGN.balance, true);
 });
+
+test('a link that carries only a palette is a fresh visit: balance is on', () => {
+  assert.equal(decodeStudio('#pn=Night').balance, true);
+  assert.equal(decodeStudio('#pc=eefaf8.072522.5ea098.0088a6.c1ece6').balance, true);
+  assert.equal(decodeStudio('#pn=Night&s=7').balance, false);
+});

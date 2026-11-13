@@ -69,7 +69,9 @@ export function encodeStudio(d: StudioDesign): string {
 export function decodeStudio(hash: string): StudioDesign {
   const q = new URLSearchParams(hash.replace(/^#/, ''));
   const D = DEFAULT_DESIGN;
-  const fresh = q.size === 0;
+  // A fresh page has no design in the address. The link from the pattern tool carries only a palette (pn or pc):
+  // that is a fresh visit too, not a link that was saved before the balance option existed.
+  const fresh = [...q.keys()].every((k) => k === 'pn' || k === 'pc');
   const num = (k: string): number | null => {
     const raw = q.get(k);
     if (raw === null || raw.trim() === '') return null;

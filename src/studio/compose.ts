@@ -70,7 +70,8 @@ export interface ComposeParts {
 }
 
 export interface Plant {
-  /** 129 samples of the main stem in tile units (not wrapped: the stem may cross tile edges). */
+  /** Samples of the main stem in tile units, 129 over the full stem, cut where a moved hero or the last support ends it
+   * (not wrapped: the stem may cross tile edges). */
   readonly stem: readonly Pt[];
   /** The hero, or null when it found no free place even at 0.6 of its size. */
   readonly tip: Placement | null;
@@ -259,6 +260,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     flip: boolean;
     sA: number;
     hero: Knot;
+    heroU: number;
     tipStalk: [Pt, Pt] | null;
     zone: Circle[];
   };
@@ -287,9 +289,11 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     const flip = r() < 0.5;
     const sA = r() < 0.5 ? -1 : 1;
     let hero = at(1);
+    let heroU = 1;
     let tipStalk: [Pt, Pt] | null = null;
     if (vine) {
-      const q = at(0.2 + 0.6 * r());
+      heroU = 0.2 + 0.6 * r();
+      const q = at(heroU);
       const a = q.a + (-sA * 45 * Math.PI) / 180;
       hero = { p: step(q.p, a, 0.12 * side), a };
       tipStalk = [q.p, hero.p];
@@ -299,7 +303,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
       const pl = put(hv, hero.p, hero.a, 0.6 * HERO_MAX * side, fl);
       return { ...realCircle(hv, pl), v: hv, p: pl };
     });
-    return { stem: Array.from({ length: 129 }, (_, i) => at(i / 128).p), segs, at, vine, host, r, flip, sA, hero, tipStalk, zone };
+    return { stem: Array.from({ length: 129 }, (_, i) => at(i / 128).p), segs, at, vine, host, r, flip, sA, hero, heroU, tipStalk, zone };
   };
 
   // Phase 1, stems only. The first stem (two at high density) is a vine through the repeat; every other
@@ -313,12 +317,15 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   const junction = JUNCTION * side;
   let stemDistance = stemDistance0;
   let s0 = 1;
+  // A host stem may not be cut before its last branch's junction (as u in [0, 1]).
+  const minU: number[] = [];
   for (let tries = 0; stems.length < want && tries < 240; tries++) {
     if (tries > 0 && tries % 60 === 0) stemDistance *= 0.8;
     const s = Math.floor(rnd() * 2 ** 32);
     const idx = stems.length;
     let st: Stem;
     let host: number | null = null;
+    let ju = 0;
     if (repeat === 'mirror' && idx === 0) {
       const r0 = mulberry32(s);
       const first = stemOf(rootKnots([rnd() * w, rnd() * h], r0), false, null, s, idx).stem;
@@ -340,6 +347,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
       const dev = ((30 + 30 * rnd()) * Math.PI) / 180;
       // A junction between 20 and 80 percent of the host.
       const k = 26 + Math.floor(rnd() * 77);
+      ju = k / 128;
       const hostA = Math.atan2(hs[k + 1]![1] - hs[k - 1]![1], hs[k + 1]![0] - hs[k - 1]![0]);
       const len = side * (repeat === 'mirror' ? 0.35 + 0.15 * rnd() : 0.5 + 0.3 * rnd());
       st = stemOf(branchKnots(hs[k]!, hostA, sg, dev, len), false, host, s, idx);
@@ -355,6 +363,8 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     if (!stems.every((q) => free(q.zone, st.stem) && free(st.zone, q.stem))) continue;
     if (stems.some((q) => q.zone.some((a) => st.zone.some((b) => dist(a.c, b.c) < a.r + b.r + gap)))) continue;
     stems.push(st);
+    minU.push(0);
+    if (host !== null) minU[host] = Math.max(minU[host]!, ju);
   }
 
   // Phase 2, motifs: every plant's hero first, then plant by plant the supports and a side branch. A motif that would come
@@ -366,29 +376,72 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     inside(c, r) &&
     stems.every((q, j) => j === self || q.stem.every((s) => dist(c, s) >= r + half + gap)) &&
     placed.every((q, j) => j === self || q.every((k) => dist(c, k.c) >= r + k.r + gap));
-  // The hero: at the tip, or (vine, which has no tip) at the end of a side stalk; shrunk to 0.6 before it is lost.
-  const tips = stems.map(({ r, flip, hero: hb }, index): Placement | null => {
+  // The hero: at the tip, or (vine, which has no tip) at the end of a side stalk; shrunk to 0.6 before it moves.
+  // Then back along the stem (the stem is cut at its base), or for the vine its stalk moves along the loop and sides.
+  const ends = stems.map(() => 1);
+  const tipStalks = stems.map((st) => st.tipStalk);
+  const tips = stems.map(({ r, flip, hero: hb, heroU, at, vine, sA }, index): Placement | null => {
     const hv = variants[0]![index % VARIANTS]!;
     const hr = 0.12 * side * (0.9 + 0.2 * r());
-    for (const k of [1, 0.9, 0.8, 0.7, 0.6]) {
-      const pl = put(hv, hb.p, hb.a, hr * k, flip);
-      const c = realCircle(hv, pl);
-      if (!clearOf(index, c.c, c.r)) continue;
-      placed[index]!.push({ ...c, v: hv, p: pl });
+    const tryAt = (q: Knot, ks: readonly number[]): Placement | null => {
+      for (const k of ks) {
+        const pl = put(hv, q.p, q.a, hr * k, flip);
+        const c = realCircle(hv, pl);
+        if (!clearOf(index, c.c, c.r)) continue;
+        placed[index]!.push({ ...c, v: hv, p: pl });
+        return pl;
+      }
+      return null;
+    };
+    const first = tryAt(hb, [1, 0.9, 0.8, 0.7, 0.6]);
+    if (first) return first;
+    const ks = [1, 0.85, 0.7];
+    if (vine) {
+      for (let j = 0; j < 10; j++)
+        for (const sg of [sA, -sA]) {
+          if (j === 0 && sg === sA) continue;
+          const q = at(mod(heroU + 0.1 * j, 1));
+          const a = q.a + (-sg * 45 * Math.PI) / 180;
+          const b = step(q.p, a, 0.12 * side);
+          const pl = tryAt({ p: b, a }, ks);
+          if (!pl) continue;
+          tipStalks[index] = [q.p, b];
+          return pl;
+        }
+      return null;
+    }
+    for (let i = 1; 1 - 0.06 * i >= Math.max(0.55, minU[index]!) - 1e-9; i++) {
+      const u = 1 - 0.06 * i;
+      const pl = tryAt(at(u), ks);
+      if (!pl) continue;
+      ends[index] = u;
       return pl;
     }
     return null;
   });
-  stems.forEach(({ stem, segs, at, vine, host, r, sA, tipStalk: ts }, index) => {
+  // The first part, up to u, of a stem's three cubics (de Casteljau split).
+  const cutSegs = (segs: readonly Cubic[], u: number): Cubic[] => {
+    const s = Math.min(2, Math.floor(u * 3));
+    const t = u * 3 - s;
+    if (t < 1e-9) return segs.slice(0, s);
+    const [c0, c1, c2, c3] = segs[s]!;
+    const lerp = (a: Pt, b: Pt): Pt => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    const [p01, p12, p23] = [lerp(c0, c1), lerp(c1, c2), lerp(c2, c3)];
+    const [p012, p123] = [lerp(p01, p12), lerp(p12, p23)];
+    return [...segs.slice(0, s), [c0, p01, p012, lerp(p012, p123)]];
+  };
+  stems.forEach(({ stem: full, segs: fullSegs, at, vine, host, r, sA }, index) => {
     const circles = placed[index]!;
     const tip = tips[index]!;
-    const tipStalk = tip ? ts : null;
+    const tipStalk = tip ? tipStalks[index]! : null;
+    let end = ends[index]!;
+    let lastU = minU[index]!;
     const stalks: [Pt, Pt][] = tipStalk ? [tipStalk] : [];
     // Support motifs at alternating sides, on the stem, pointing away from it, smaller toward the tip.
     const n = 3 + Math.floor(r() * (1 + 3 * density));
     const attached: Built['attached'][number][] = [];
     for (let i = 0; i < n; i++) {
-      const u = 0.15 + (0.7 * (i + 0.3 + 0.4 * r())) / n;
+      const u = (0.15 + (0.7 * (i + 0.3 + 0.4 * r())) / n) * end;
       const sideSign = i % 2 === 0 ? sA : -sA;
       const turn = (sideSign * (40 + 25 * r()) * Math.PI) / 180;
       const v = variants[1]![i % VARIANTS]!;
@@ -402,19 +455,21 @@ export function composeParts(o: ComposeOptions): ComposeParts {
         [0.1, 0.8],
         [0.15, 0.8],
       ] as const) {
-        if (u + du > 0.97) break;
+        if (u + du > end - 0.03) break;
         const q = at(u + du);
         const pl = put(v, q.p, q.a + turn, rr * k, fl);
         const c = realCircle(v, pl);
         if (!clearOf(index, c.c, c.r)) continue;
         attached.push({ placement: pl, side: sideSign, stalk: null });
         circles.push({ ...c, v, p: pl });
+        lastU = Math.max(lastU, u + du);
         break;
       }
     }
     // One short side branch ending in a small motif (bud or berries), opposite the nearest support.
     if (r() < 0.3 + 0.5 * density) {
-      const q = at(0.5 + 0.1 * r());
+      const qu = (0.5 + 0.1 * r()) * end;
+      const q = at(qu);
       const sideSign = n % 2 === 0 ? sA : -sA;
       const a = q.a + (sideSign * 50 * Math.PI) / 180;
       const b = step(q.p, a, 0.1 * side);
@@ -422,11 +477,16 @@ export function composeParts(o: ComposeOptions): ComposeParts {
       const pl = put(v, b, a, 0.04 * side, r() < 0.5);
       const c = realCircle(v, pl);
       if (clearOf(index, c.c, c.r)) {
+        lastU = Math.max(lastU, qu);
         stalks.push([q.p, b]);
         attached.push({ placement: pl, side: sideSign, stalk: [q.p, b] });
         circles.push({ ...c, v, p: pl });
       }
     }
+    // No hero: the stem ends just beyond its last support (or branch junction), not bare.
+    if (!tip && !vine && attached.length > 0) end = Math.min(1, lastU + 0.02);
+    const stem = end < 1 ? full.slice(0, Math.ceil(end * 128 - 1e-9) + 1) : full;
+    const segs = end < 1 ? cutSegs(fullSegs, end) : fullSegs;
     const f = (q: Pt) => `${num(q[0] + shift[0])} ${num(q[1] + shift[1])}`;
     const path =
       `M${f(segs[0]![0])}` +

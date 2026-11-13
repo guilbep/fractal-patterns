@@ -95,9 +95,9 @@ test('stems: none when off; one stroke layer in the stem color, all stems in one
 
 test('bytes, straight repeat: worst over seeds 1..8', () => {
   const worst = (density: number) => Math.max(...SEEDS.map((seed) => composeSummary(compose(opt(seed, { density }))).bytes));
-  // Measured worst (vine, two phases): 9504 at 0.2, 11483 at 0.5, 12981 at 0.9.
+  // Measured worst (heroes moved back along cut stems): 9504 at 0.2, 11587 at 0.5, 12981 at 0.9.
   assert.ok(worst(0.2) <= 10000);
-  assert.ok(worst(0.5) <= 11500);
+  assert.ok(worst(0.5) <= 12000);
   assert.ok(worst(0.9) <= 13000);
 });
 
@@ -136,6 +136,7 @@ test('plants: tip and alternating supports registered on their stems, stems apar
   let twoSupports = 0;
   let bothSides = 0;
   let heroes = 0;
+  let endsInMotif = 0;
   for (const repeat of REPEATS) {
     for (const seed of SEEDS) {
       const at = `${repeat} ${seed}`;
@@ -154,6 +155,10 @@ test('plants: tip and alternating supports registered on their stems, stems apar
         if (pl.attached.filter((a) => a.stalk === null).length >= 2) twoSupports++;
         if (new Set(pl.attached.map((a) => Math.sign(a.side))).size === 2) bothSides++;
         if (pl.tip) heroes++;
+        // The stem ends in a motif: a vine (closed, no end) with its hero, else a hero or support base within 3% of the side.
+        const end = pl.stem[pl.stem.length - 1]!;
+        const bases = [...(pl.tip && !pl.tipStalk ? [pl.tip] : []), ...pl.attached.filter((a) => !a.stalk).map((a) => a.placement)];
+        if (pl.vine ? pl.tip : bases.some((b) => Math.hypot(base(b)[0] - end[0], base(b)[1] - end[1]) <= 9)) endsInMotif++;
         for (const a of pl.attached) {
           const d = a.stalk ? segDistance(base(a.placement), a.stalk[0], a.stalk[1]) : onStem(base(a.placement));
           assert.ok(d <= 1.5, `${at} attached ${d}`);
@@ -182,10 +187,12 @@ test('plants: tip and alternating supports registered on their stems, stems apar
       }
     }
   }
-  // Measured over 4 repeats x 8 seeds (117 plants): 0.940 with 2 supports, 0.923 on both sides, 0.786 with a hero.
+  // Measured over 4 repeats x 8 seeds (117 plants): 0.923 with 2 supports, 0.889 on both sides (was 0.923: supports
+  // now share a cut stem with a moved hero), 0.932 with a hero, 0.983 ending in a motif.
   assert.ok(twoSupports / total >= 0.9, `supports ${twoSupports / total}`);
-  assert.ok(bothSides / total >= 0.9, `sides ${bothSides / total}`);
-  assert.ok(heroes / total >= 0.75, `heroes ${heroes / total}`);
+  assert.ok(bothSides / total >= 0.85, `sides ${bothSides / total}`);
+  assert.ok(heroes / total >= 0.9, `heroes ${heroes / total}`);
+  assert.ok(endsInMotif / total >= 0.95, `ends ${endsInMotif / total}`);
 });
 
 test('direction variety: leaf-like rotations span more than 90 degrees', () => {
@@ -304,4 +311,22 @@ test("no touching: motif circles keep a gap from other plants' circles and stems
 test('stem stroke: about 0.5 percent of the shorter side', () => {
   const s = compose(opt(1));
   assert.ok(s.layers.some((l) => l.color === colors.stem && l.strokeWidth === 1.5));
+});
+
+test('a hero moved back from the tip sits on its cut stem, with no bare stem beyond it', () => {
+  let moved = 0;
+  for (const repeat of REPEATS)
+    for (const seed of SEEDS)
+      for (const pl of composeParts(opt(seed, { repeat })).plants) {
+        if (!pl.tip || pl.vine) continue;
+        const at = `${repeat} ${seed}`;
+        const b = base(pl.tip);
+        const onStem = Math.min(...pl.stem.slice(1).map((q, i) => segDistance(b, pl.stem[i]!, q)));
+        assert.ok(onStem <= 1.5, `${at} base ${onStem}`);
+        const d = pl.stem.map((q) => Math.hypot(q[0] - b[0], q[1] - b[1]));
+        const i = d.indexOf(Math.min(...d));
+        for (const e of d.slice(i)) assert.ok(e <= 9, `${at} bare ${e}`);
+        if (pl.stem.length < 129) moved++;
+      }
+  assert.ok(moved > 0);
 });

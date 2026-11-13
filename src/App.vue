@@ -7,8 +7,10 @@ import ShortcutHint from '@/components/ShortcutHint.vue';
 import SiteHeader from '@/components/SiteHeader.vue';
 import { isTyping, readShortcut, shortcutFor, toggleFullscreen, writeShortcut } from '@/shortcuts.ts';
 import { KIND_LABELS, tileHeight } from '@/fractal.ts';
+import UseIt from '@/components/UseIt.vue';
+import { DESTINATIONS, type Destination } from '@/use-it.ts';
 import { SAMPLE_LABELS } from '@/samples.ts';
-import { activeSample, contrast, palette, layer2, variantsOn, fileName, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, randomPattern, ratioShort, ratioText, reseed, reset, svgHref, trace, traced, usingImage, imageShuffles, tileSize, aspect, variantOptions } from '@/state.ts';
+import { activeSample, contrast, palette, layer2, variantsOn, fileName, motionPaused, params, patch, roles, svg, usingPatchwork, plateMode, plateStyle, randomPattern, ratioShort, ratioText, reseed, reset, svgHref, trace, traced, usingImage, imageShuffles, tileSize, aspect, variantOptions } from '@/state.ts';
 import { exportGzipBytes, exportText, gzipped, sizeBreakdown } from '@/state-export.ts';
 import SizeBadge from '@/components/SizeBadge.vue';
 import ToolIcon from '@/components/ToolIcon.vue';
@@ -62,7 +64,7 @@ async function copyWithStatus(text: string, done: string, failed: string): Promi
   copyTimer = setTimeout(() => (copyStatus.value = ''), 2500);
 }
 const copyLink = () => copyWithStatus(shareUrl(), 'Link copied', 'Could not copy the link. Copy it from the address bar.');
-const copyCss = () => copyWithStatus(exportText.value, 'Copied', 'Copy failed. Copy the CSS from the Export tab.');
+const copyCss = () => copyWithStatus(exportText.value, 'Copied', 'Copy failed. Copy the CSS from the Use it tab.');
 
 // Tabs (WAI-ARIA tabs pattern, automatic activation). All panels stay mounted, except Repetition (v-if: its previews cost nothing while closed).
 const TABS: readonly { id: TabId; label: string }[] = [
@@ -71,7 +73,7 @@ const TABS: readonly { id: TabId; label: string }[] = [
   { id: 'layout', label: 'Layout' },
   { id: 'colors', label: 'Colors' },
   { id: 'image', label: 'Image' },
-  { id: 'export', label: 'Export' },
+  { id: 'use', label: 'Use it' },
 ];
 const TAB_KEY = 'fp-tab';
 function readTab(): TabId {
@@ -100,12 +102,29 @@ function onTabKey(e: KeyboardEvent): void {
   tab.value = t.id;
   void nextTick(() => document.getElementById(`tab-${t.id}`)?.focus());
 }
-// "Use it…": the Export tab for now (a later phase gives it its own sheet).
 async function useIt(): Promise<void> {
-  tab.value = 'export';
+  tab.value = 'use';
   await nextTick();
-  document.getElementById('tab-export')?.focus();
+  document.getElementById('tab-use')?.focus();
 }
+// The Use it destination: "Website background" (today's export content) first, then the last choice, for the session only.
+const USE_KEY = 'fp-use';
+function readUse(): Destination['id'] {
+  try {
+    return DESTINATIONS.find((d) => d.id === sessionStorage.getItem(USE_KEY))?.id ?? 'web';
+  } catch {
+    return 'web';
+  }
+}
+const useInitial = readUse();
+function writeUse(id: Destination['id']): void {
+  try {
+    sessionStorage.setItem(USE_KEY, id);
+  } catch {
+    /* storage blocked: the choice resets on reload */
+  }
+}
+const tileH = computed(() => tileHeight(tileSize.value, aspect.value));
 async function toDepth(): Promise<void> {
   tab.value = 'pattern';
   await nextTick();
@@ -162,9 +181,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <SizeBadge :gzip="gzipped === 'unknown' ? 'unknown' : exportGzipBytes" :breakdown="sizeBreakdown" />
     </div>
     <div class="bar-out">
-      <!-- Copy link stays here for good (owner, REDESIGN-SPEC §2). Download SVG moves into "Use it" next phase. -->
+      <!-- Copy link stays here for good (owner, REDESIGN-SPEC §2). Download SVG lives in "Use it". -->
       <button type="button" class="btn quiet" title="Copy link" @click="copyLink"><ToolIcon name="link" /><span class="out-label">Copy link</span></button>
-      <a class="btn quiet" title="Download SVG" :href="svgHref" :download="fileName"><ToolIcon name="download" /><span class="out-label">Download SVG</span></a>
       <button type="button" class="btn secondary" @click="copyCss">Copy CSS</button>
       <button type="button" class="btn use-it" @click="useIt">Use it…</button>
     </div>
@@ -175,7 +193,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     <!-- ponytail: pointer shortcut only; the Shuffle button is the keyboard path. -->
     <!-- The hero uses the exported .fp-pattern class itself, so what you see is what you copy. -->
     <component :is="'style'">{{ exportText }}</component>
-    <div ref="stage" class="stage">
+    <div ref="stage" class="stage" :class="{ 'stage-use': tab === 'use' }">
     <ShortcutHint :on="shortcutOn" />
     <!-- A fast second click must shuffle again, not select the sample text. A drag still selects it. -->
     <div class="hero fp-pattern" :class="{ 'fp-paused': motionPaused }" :style="tileVars" @click="reseed" @mousedown="$event.detail > 1 && $event.preventDefault()">
@@ -195,6 +213,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <button type="button" class="hero-btn" aria-label="Show the text" title="Show the text" :aria-pressed="textOn" @click="textOn = !textOn"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 4h10M8 4v9" /></svg></button>
       <button type="button" class="hero-btn" aria-label="Full screen" title="Full screen (F)" :aria-keyshortcuts="shortcutOn ? 'F' : undefined" @click="fullscreen"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" /></svg></button>
     </div>
+    <!-- Use it draws its device preview here; the hero stays underneath (hidden), so contrast and full screen keep working. -->
+    <div v-show="tab === 'use'" id="use-preview" class="use-stage"></div>
     </div>
 
     <div class="controls">
@@ -222,8 +242,21 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <div v-show="tab === 'image'" id="panel-image" class="tabpanel" role="tabpanel" aria-labelledby="tab-image">
         <ImagePanel v-if="imageOpened" />
       </div>
-      <div v-show="tab === 'export'" id="panel-export" class="tabpanel" role="tabpanel" aria-labelledby="tab-export">
-        <OutputPanel @depth="toDepth" />
+      <div v-show="tab === 'use'" id="panel-use" class="tabpanel" role="tabpanel" aria-labelledby="tab-use">
+        <UseIt
+          :svg="svg"
+          :tile-width="tileSize"
+          :tile-height="tileH"
+          :background="roles.background"
+          :base-name="fileName.replace(/\.svg$/, '')"
+          :svg-href="svgHref"
+          :svg-file-name="fileName"
+          :initial="useInitial"
+          preview-target="#use-preview"
+          @destination="writeUse"
+        >
+          <template #web><OutputPanel @depth="toDepth" /></template>
+        </UseIt>
       </div>
     </div>
   </main>

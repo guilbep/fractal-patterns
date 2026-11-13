@@ -16,8 +16,9 @@ test('eight destinations in table order, unique labels, short how-to lines', () 
   );
   assert.equal(new Set(DESTINATIONS.map((d) => d.label)).size, 8);
   for (const d of DESTINATIONS) {
+    // 30, not 25: the owner's mockup copy for the phone line has 27 words.
     const words = d.howTo.trim().split(/\s+/).filter(Boolean).length;
-    assert.ok(words > 0 && words <= 25, `${d.id}: ${words} words`);
+    assert.ok(words > 0 && words <= 30, `${d.id}: ${words} words`);
   }
 });
 

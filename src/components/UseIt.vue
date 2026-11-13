@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // "Use it": what the tile is for, at which size, and the file to get. Shared by the three pages.
-import { computed, reactive, ref, useId } from 'vue';
+import { computed, reactive, ref, useId, watch } from 'vue';
 import UiSwitch from './UiSwitch.vue';
 import UseItPreview from './UseItPreview.vue';
 import { DESTINATIONS, pngFileName, resolvePreset, type Destination } from '@/use-it.ts';
@@ -17,10 +17,14 @@ const props = withDefaults(
     svgHref: string;
     svgFileName: string;
     initial?: Destination['id'];
+    /** A CSS selector: when set, the preview is drawn there (Teleport) and the steps take one column. */
+    previewTarget?: string;
   }>(),
   { initial: 'web' },
 );
 defineSlots<{ web(props: { preset: string }): unknown }>();
+// The page may remember the choice (the panel itself stores nothing).
+const emit = defineEmits<{ destination: [id: Destination['id']] }>();
 
 const uid = useId();
 // Read once: the screen does not change while the panel is open in a way that matters here.
@@ -28,6 +32,7 @@ const screenSize = { width: screen.width, height: screen.height, dpr: devicePixe
 const coarse = matchMedia('(pointer: coarse)').matches;
 
 const destId = ref<Destination['id']>(props.initial);
+watch(destId, (id) => emit('destination', id));
 const dest = computed(() => DESTINATIONS.find((d) => d.id === destId.value) ?? DESTINATIONS[0]!);
 const presetIds = reactive<Record<string, string>>(Object.fromEntries(DESTINATIONS.map((d) => [d.id, d.presets[0]!.id])));
 const custom = reactive({ width: 1920, height: 1080 });
@@ -86,10 +91,11 @@ async function downloadPng() {
 </script>
 
 <template>
-  <section class="use-it" :aria-labelledby="`${uid}-h`">
+  <section class="use-it-panel" :class="{ 'use-it-solo': previewTarget }" :aria-labelledby="`${uid}-h`">
     <h2 :id="`${uid}-h`" class="visually-hidden">Use it</h2>
+    <Teleport defer :to="previewTarget || 'body'" :disabled="!previewTarget">
     <UseItPreview
-      class="use-it-left"
+      :class="{ 'use-it-left': !previewTarget }"
       :svg="svg"
       :tile-width="tileWidth"
       :tile-height="tileHeight"
@@ -102,6 +108,7 @@ async function downloadPng() {
       :preset-label="preset.label"
       :output="chosen.output"
     />
+    </Teleport>
 
     <div class="use-it-steps">
       <fieldset class="use-it-step">

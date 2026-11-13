@@ -28,7 +28,8 @@ export const DESTINATIONS: readonly Destination[] = [
     id: 'phone',
     label: 'Phone wallpaper',
     hint: 'Lock and home screen',
-    howTo: 'Save the image, then open Settings, Wallpaper, Add New Wallpaper, and choose it from Photos.',
+    howTo:
+      'On iPhone: save the PNG to Photos, then Settings › Wallpaper › Add New Wallpaper › Photos. The PNG is made in your browser; nothing is uploaded.',
     clockOption: true,
     presets: [
       { id: 'this-phone', label: 'This phone (detected)', detect: 'phone', output: 'png' },

@@ -184,20 +184,24 @@
   font-size: 0.9375rem;
 }
 
-/* Use it panel: preview left, steps right; one column on narrow screens, preview on top. */
-.use-it {
+/* Use it panel (not .use-it: that is the toolbar button's class): preview left, steps right; one column on narrow screens, preview on top. */
+.use-it-panel {
   display: grid;
   gap: var(--s4);
   align-items: start;
 }
 @media (min-width: 48rem) {
-  .use-it {
+  .use-it-panel {
     grid-template-columns: minmax(16rem, 1fr) minmax(0, 1.25fr);
   }
   .use-it-left {
     position: sticky;
     top: var(--s3);
   }
+}
+/* The preview is drawn elsewhere (the page's stage): the steps take the whole width. */
+.use-it-panel.use-it-solo {
+  grid-template-columns: minmax(0, 1fr);
 }
 .use-it-steps {
   display: grid;
@@ -259,7 +263,7 @@
 /* Step 2: two columns of radio rows, the size right-aligned in mono; the chosen row has a 2 px ink border. */
 .use-it-presets {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(max(16rem, calc(50% - var(--s2))), 1fr));
   gap: var(--s2);
 }
 .use-it-preset {

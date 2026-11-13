@@ -2,7 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { migrateTab, stepPalette } from './shell.ts';
 
-test('migrateTab keeps known tabs and moves motion to layout', () => {
+test('migrateTab keeps known tabs, moves motion to layout and export to use', () => {
+  assert.equal(migrateTab('export'), 'use');
+  assert.equal(migrateTab('use'), 'use');
   assert.equal(migrateTab('colors'), 'colors');
   assert.equal(migrateTab('repetition'), 'repetition');
   assert.equal(migrateTab('motion'), 'layout');

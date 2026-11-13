@@ -10,6 +10,8 @@ import SizeBadge from '@/components/SizeBadge.vue';
 import ToolIcon from '@/components/ToolIcon.vue';
 import UiFileDrop from '@/components/UiFileDrop.vue';
 import UiSegmented from '@/components/UiSegmented.vue';
+import UseIt from '@/components/UseIt.vue';
+import { DESTINATIONS, type Destination } from '@/use-it.ts';
 import { copyText } from '@/clipboard.ts';
 import { decodeImage, sample } from '@/image-file.ts';
 import { rawSize } from '@/co2.ts';
@@ -353,13 +355,41 @@ const THEME_THUMBS: Record<Theme, string> = {
     '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36"><rect width="36" height="36" fill="#F3EEDC"/><circle cx="12" cy="14" r="6" fill="#B8432F"/><path d="M12 8C14 4 18 3 20 4C18 7 15 8 12 8Z" fill="#5E7B5A"/><circle cx="28" cy="30" r="4" fill="#E0A82E"/></svg>',
   )}")`,
 };
-// "Use it…": the export area for now (the CSS rule to copy by hand, next to Copy CSS and Download SVG). A later phase replaces it.
+// "Use it…": the device preview takes the stage and the Use it panel the controls column; the design stays mounted, hidden.
+// Not stored and not in the link. The panel mounts on first open and stays, so its choices survive "Back to the design".
+const useOpen = ref(false);
+const useOpened = ref(false);
+const useBtn = ref<HTMLButtonElement | null>(null);
 async function useIt(): Promise<void> {
-  showCss.value = true;
+  useOpen.value = useOpened.value = true;
   await nextTick();
-  const out = document.getElementById('css-out');
-  out?.scrollIntoView({ block: 'center' });
-  out?.focus();
+  // The step heading is a legend inside the shared panel: made focusable here so focus lands on "1 · What is it for?".
+  const h = document.querySelector<HTMLElement>('.studio-use .use-it-panel legend');
+  if (h) {
+    h.tabIndex = -1;
+    h.focus();
+  }
+}
+function closeUse(): void {
+  useOpen.value = false;
+  useBtn.value?.focus();
+}
+// The last destination, for the session only; "Website background" (the Studio's export) first.
+const USE_KEY = 'fp-use-studio';
+function readUse(): Destination['id'] {
+  try {
+    return DESTINATIONS.find((d) => d.id === sessionStorage.getItem(USE_KEY))?.id ?? 'web';
+  } catch {
+    return 'web';
+  }
+}
+const useInitial = readUse();
+function writeUse(id: Destination['id']): void {
+  try {
+    sessionStorage.setItem(USE_KEY, id);
+  } catch {
+    /* storage blocked: the choice resets on reload */
+  }
 }
 
 // Sticky offset under the toolbar, as in the pattern tool.
@@ -386,16 +416,14 @@ useBarHeight(head, '--head-h');
       <SizeBadge :svg="svg" />
     </div>
     <div class="bar-out">
-      <!-- ponytail: Download SVG is not on the canvas toolbar; it moves into "Use it" next phase. -->
-      <a class="btn quiet" title="Download SVG" :href="uri" :download="fileName"><ToolIcon name="download" /><span class="out-label">Download SVG</span></a>
       <button type="button" class="btn secondary" @click="copyCss">{{ copyStatus === 'Copied' ? 'Copied' : 'Copy CSS' }}</button>
-      <button type="button" class="btn use-it" @click="useIt">Use it…</button>
+      <button ref="useBtn" type="button" class="btn use-it" @click="useIt">Use it…</button>
     </div>
     <span class="visually-hidden" role="status" aria-live="polite">{{ copyStatus }}</span>
   </div>
 
   <main class="layout">
-    <div ref="stage" class="stage">
+    <div ref="stage" class="stage" :class="{ 'stage-use': useOpen }">
       <ShortcutHint :on="shortcutOn" />
       <div id="wall" class="wall" role="img" :aria-label="`Wallpaper preview, ${REPEAT_INFO.find(([r]) => r === design.repeat)?.[1]} repeat, seed ${design.seed}`" :style="wallStyle"></div>
       <div class="wall-chips">
@@ -405,15 +433,46 @@ useBarHeight(head, '--head-h');
       <button type="button" class="wall-full" aria-label="Full screen" title="Full screen (F)" :aria-keyshortcuts="shortcutOn ? 'F' : undefined" @click="fullscreen">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" /></svg>
       </button>
+      <!-- Use it draws its device preview here; the wallpaper stays underneath (hidden), so full screen keeps working. -->
+      <div v-show="useOpen" id="use-preview" class="use-stage" @keydown.esc="closeUse"></div>
     </div>
 
     <div class="controls studio-controls">
+      <div v-if="useOpened" v-show="useOpen" class="studio-use" @keydown.esc="closeUse">
+        <button type="button" class="btn quiet use-back" @click="closeUse"><span aria-hidden="true">‹&nbsp;</span>Back to the design</button>
+        <UseIt
+          :svg="svg"
+          :tile-width="cell.width"
+          :tile-height="cell.height"
+          :background="studio.background ?? null"
+          :base-name="fileName.replace(/\.svg$/, '')"
+          :svg-href="uri"
+          :svg-file-name="fileName"
+          :initial="useInitial"
+          preview-target="#use-preview"
+          @destination="writeUse"
+        >
+          <template #web>
+            <div class="use-web">
+              <div class="use-web-actions">
+                <button type="button" class="btn primary" @click="copyCss">{{ copyStatus === 'Copied' ? 'Copied' : 'Copy CSS' }}</button>
+                <a class="btn" :href="uri" :download="fileName">Download SVG</a>
+              </div>
+              <!-- The toolbar's live region announces the status; this line only shows it. -->
+              <p v-if="copyStatus" class="use-it-note">{{ copyStatus }}</p>
+              <label for="use-css-out">CSS rule</label>
+              <textarea id="use-css-out" class="code" readonly rows="6" :value="css" @focus="($event.target as HTMLTextAreaElement).select()"></textarea>
+            </div>
+          </template>
+        </UseIt>
+      </div>
       <section v-if="showCss" class="panel" aria-labelledby="css-h">
         <h2 id="css-h">CSS</h2>
         <label for="css-out" class="visually-hidden">CSS rule</label>
         <textarea id="css-out" class="code" readonly rows="4" :value="css" @focus="($event.target as HTMLTextAreaElement).select()"></textarea>
       </section>
 
+      <div v-show="!useOpen" class="studio-design">
       <section class="s-card design-card" aria-label="Design">
         <fieldset class="span-2 theme-field" :aria-describedby="THEME_HINTS[design.theme] ? 'theme-hint' : undefined">
           <legend class="s-label">Theme</legend>
@@ -589,6 +648,7 @@ useBarHeight(head, '--head-h');
       </details>
 
       <p id="summary" class="summary muted">{{ summary.instances }} placements, {{ summary.motifs }} motif definitions, {{ summary.plates }} colors (plates).<template v-if="ownResult"> Your motif: {{ ownResult.count }}.</template></p>
+      </div>
     </div>
   </main>
   <footer class="site-footer">

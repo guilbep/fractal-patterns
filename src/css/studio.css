@@ -306,3 +306,39 @@
     bottom: auto;
   }
 }
+
+/* Use it: the design controls stay mounted, hidden; their wrapper adds no box, so the column's grid is unchanged. */
+.studio-design {
+  display: contents;
+}
+.studio-use {
+  display: grid;
+  gap: var(--s3);
+  align-content: start;
+  min-width: 0;
+}
+.use-back {
+  justify-self: start;
+}
+.use-web {
+  display: grid;
+  gap: var(--s2);
+  min-width: 0;
+}
+.use-web-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+.use-web .code {
+  inline-size: 100%;
+  font-family: var(--mono);
+  font-size: 13px;
+  resize: vertical;
+}
+/* On a narrow screen the stage is short: the device preview gets room to read. */
+@media (max-width: 63.99rem) {
+  .stage.stage-use {
+    min-height: 28rem;
+  }
+}

@@ -198,7 +198,7 @@ test('keyboard selects shapes', async ({ page }) => {
 test('snap places a dragged shape on the grid', async ({ page }) => {
   await startAgain(page);
   await page.getByLabel('Snap').check();
-  await expect(page.getByLabel('Grid')).toHaveValue('8');
+  await expect(page.getByRole('radio', { name: '8' })).toBeChecked();
   const s = await pickShape(page);
   const x0 = (await stored(page))!.items.find((it) => it.id === s.id)!.x;
   const dx = 47 * s.perUnit;

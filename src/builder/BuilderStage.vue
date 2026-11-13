@@ -7,10 +7,13 @@ import { duplicateMany, moveBy, moveMany, owners, removeMany, reorderMany, toStu
 import { commit, design, preview, select, selectAll, selected, selectedId, selectedIds, toggleSelect } from './store.ts';
 import type { Design, Item } from './types.ts';
 import { cellOrder, handleTransform, hitStroke, itemsInRect, snapPoint, stepSelection, viewBox } from './stage.ts';
+import UiSegmented from '@/components/UiSegmented.vue';
+import UiSwitch from '@/components/UiSwitch.vue';
 
 // Snap to grid: a stage setting, not part of the design or of undo.
 const SNAP_KEY = 'fp-builder-snap-v1';
 const GRIDS = [4, 8, 12, 16];
+const GRID_OPTIONS = GRIDS.map((g) => ({ value: g, label: String(g) }));
 function loadSnap(): { on: boolean; parts: number } {
   try {
     const v = JSON.parse(localStorage.getItem(SNAP_KEY) ?? 'null');
@@ -318,10 +321,8 @@ function onKey(e: KeyboardEvent): void {
 <template>
   <div class="stage-editor">
     <div class="snap-bar">
-      <label><input v-model="snapOn" type="checkbox" /> Snap</label>
-      <label>Grid <select v-model.number="parts" :disabled="!snapOn">
-        <option v-for="g in GRIDS" :key="g" :value="g">{{ g }}</option>
-      </select></label>
+      <UiSwitch v-model="snapOn" label="Snap" />
+      <UiSegmented v-model="parts" label="Grid" :options="GRID_OPTIONS" :disabled="!snapOn" />
     </div>
     <svg
       ref="svgEl"
@@ -463,11 +464,20 @@ function onKey(e: KeyboardEvent): void {
   cursor: grab;
 }
 .snap-bar {
+  align-self: stretch;
   display: flex;
-  gap: var(--s3);
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s4);
   align-items: center;
-  margin: 0 0 0.5rem;
+  margin: 0 0 var(--s2);
+  padding-inline: var(--s3);
   font-size: 0.875rem;
+}
+/* One row: the Grid label beside its options, not above them. */
+.snap-bar :deep(.ui-segmented) {
+  grid-auto-flow: column;
+  align-items: center;
+  gap: var(--s2);
 }
 .grid-dot {
   fill: rgba(0, 0, 0, 0.35);

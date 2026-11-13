@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { handleTransform, viewBox } from './stage.ts';
+import { handleTransform, hitStroke, viewBox } from './stage.ts';
 
 const near = (a: number, b: number): void => assert.ok(Math.abs(a - b) < 1e-9, `${a} != ${b}`);
 
@@ -34,4 +34,11 @@ test('handleTransform clamps the scale', () => {
 test('viewBox', () => {
   assert.equal(viewBox(240, 240), '-120 -120 480 480');
   assert.equal(viewBox(400, 200), '-200 -100 800 400');
+});
+
+test('hitStroke keeps a line at least minPixels wide on the screen', () => {
+  near(hitStroke(3, 0.5), 7);
+  near(hitStroke(10, 0.5), 10);
+  near(hitStroke(3, 1, 20), 20);
+  near(hitStroke(0, 0.9), 12.6);
 });

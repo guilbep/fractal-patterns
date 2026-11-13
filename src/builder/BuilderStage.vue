@@ -1,24 +1,41 @@
 <script setup lang="ts">
 // The tile editor: the real repeat in SVG DOM, with select, drag (wrapping across
 // the tile edges), one turn-and-resize handle, and keyboard control.
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { instanceMatrix, repeatCell, studioInstances } from '@/studio/model.ts';
 import { duplicateItem, moveBy, owners, removeItem, reorder, toStudio, updateItem } from './design.ts';
 import { commit, design, preview, selected, selectedId } from './store.ts';
 import type { Design } from './types.ts';
-import { handleTransform, viewBox } from './stage.ts';
+import { handleTransform, hitStroke, viewBox } from './stage.ts';
 
 const svgEl = ref<SVGSVGElement | null>(null);
+const svgPixels = ref(0);
+
+// The builder page sets no --bar-h, so the stage measures the sticky toolbar itself, as StudioApp does.
+const sizes = new ResizeObserver(() => {
+  const bar = document.querySelector<HTMLElement>('.toolbar');
+  document.documentElement.style.setProperty('--bar-h', `${bar?.offsetHeight ?? 0}px`);
+  svgPixels.value = svgEl.value?.clientWidth ?? 0;
+});
+onMounted(() => {
+  const bar = document.querySelector('.toolbar');
+  if (bar) sizes.observe(bar);
+  if (svgEl.value) sizes.observe(svgEl.value);
+});
+onBeforeUnmount(() => sizes.disconnect());
 
 const studio = computed(() => toStudio(design.value, false));
 const cell = computed(() => repeatCell(studio.value));
+/** Tile units per screen pixel, for the hit area of line shapes. */
+const unitsPerPixel = computed(() => (svgPixels.value ? (2 * cell.value.width) / svgPixels.value : 1));
 const box = computed(() => viewBox(cell.value.width, cell.value.height));
 const instances = computed(() => studioInstances(studio.value));
 const ownerIds = computed(() => owners(design.value).map((k) => design.value.items[k]?.id ?? -1));
 
 const motifs = computed(() => [...new Set(instances.value.map((i) => i.motif))].map((m) => ({ m, ...studio.value.motifs[m]! })));
 
-// ponytail: every item is drawn 9 times as real DOM nodes, fine up to about 300 items;
+// ponytail: every item is drawn 9 times as real DOM nodes (18 for a line shape, which adds a
+// wide invisible hit line under each copy), fine up to about 150 items;
 // the upgrade path is one <use> of a cell group plus geometric hit testing.
 const drawn = computed(() => {
   const s = studio.value;
@@ -31,6 +48,7 @@ const drawn = computed(() => {
         const layer = s.layers[i.layer]!;
         const [a, b, c, d, e, f] = instanceMatrix(i, m.box);
         const stroke = m.paint === 'stroke';
+        const sx = Math.abs(i.sx || 1);
         out.push({
           key: `${ox},${oy},${k}`,
           href: `#bs-m${i.motif}`,
@@ -39,12 +57,15 @@ const drawn = computed(() => {
           fill: stroke ? 'none' : layer.color,
           stroke: stroke ? layer.color : undefined,
           // The matrix scales the stroke too: divide so the line is strokeWidth tile units wide.
-          strokeWidth: stroke ? design.value.strokeWidth / Math.abs(i.sx || 1) : undefined,
+          strokeWidth: stroke ? design.value.strokeWidth / sx : undefined,
+          hitWidth: stroke ? hitStroke(design.value.strokeWidth, unitsPerPixel.value) / sx : undefined,
           opacity: layer.opacity,
         });
       }
   return out;
 });
+
+const sizeStyle = computed(() => ({ '--rw': cell.value.width, '--rh': cell.value.height }));
 
 const veil = computed(() => {
   const { width: w, height: h } = cell.value;
@@ -185,6 +206,8 @@ function onKey(e: KeyboardEvent): void {
       xmlns="http://www.w3.org/2000/svg"
       :viewBox="box"
       preserveAspectRatio="xMidYMid meet"
+      overflow="hidden"
+      :style="sizeStyle"
       tabindex="0"
       role="application"
       aria-label="Tile editor. Arrow keys move the selected shape."
@@ -198,19 +221,31 @@ function onKey(e: KeyboardEvent): void {
         <path v-for="m in motifs" :id="`bs-m${m.m}`" :key="m.m" :d="m.d" :fill-rule="m.evenodd ? 'evenodd' : undefined" />
       </defs>
       <rect v-if="design.background" :x="-cell.width / 2" :y="-cell.height / 2" :width="2 * cell.width" :height="2 * cell.height" :fill="design.background" />
-      <use
-        v-for="u in drawn"
-        :key="u.key"
-        :href="u.href"
-        :transform="u.transform"
-        :data-item="u.item"
-        :fill="u.fill"
-        :stroke="u.stroke"
-        :stroke-width="u.strokeWidth"
-        :stroke-linecap="u.stroke ? 'round' : undefined"
-        :stroke-linejoin="u.stroke ? 'round' : undefined"
-        :opacity="u.opacity"
-      />
+      <template v-for="u in drawn" :key="u.key">
+        <use
+          v-if="u.hitWidth"
+          :href="u.href"
+          :transform="u.transform"
+          :data-item="u.item"
+          fill="none"
+          stroke="transparent"
+          :stroke-width="u.hitWidth"
+          stroke-linecap="round"
+          pointer-events="stroke"
+        />
+        <use
+          :href="u.href"
+          :transform="u.transform"
+          :data-item="u.item"
+          :fill="u.fill"
+          :stroke="u.stroke"
+          :stroke-width="u.strokeWidth"
+          :stroke-linecap="u.stroke ? 'round' : undefined"
+          :stroke-linejoin="u.stroke ? 'round' : undefined"
+          :opacity="u.opacity"
+          :pointer-events="u.stroke ? 'all' : undefined"
+        />
+      </template>
       <path class="veil" :d="veil" fill-rule="evenodd" />
       <rect class="cell-edge" x="0" y="0" :width="cell.width" :height="cell.height" />
       <rect
@@ -231,15 +266,28 @@ function onKey(e: KeyboardEvent): void {
 
 <style scoped>
 .stage-editor {
+  /* The room the svg may take: the sticky stage minus the hint line. */
+  --max-h: calc(min(var(--stage-h), 100dvh - var(--bar-h, 0px)) - 4.5rem);
   flex: 1;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  min-width: 0;
   min-height: 0;
 }
+@media (min-width: 64rem) {
+  .stage-editor {
+    --max-h: calc(100dvh - var(--bar-h, 0px) - 3.5rem);
+  }
+}
+/* Exactly the viewBox: its ratio, as wide as the column unless the height limit is reached. */
 .tile-editor {
-  flex: 1;
-  width: 100%;
-  min-height: 20rem;
+  flex: none;
+  aspect-ratio: var(--rw) / var(--rh);
+  width: min(100%, var(--max-h) * var(--rw) / var(--rh));
+  height: auto;
+  max-height: var(--max-h);
+  overflow: hidden;
   touch-action: none;
   user-select: none;
   cursor: default;
@@ -277,6 +325,7 @@ function onKey(e: KeyboardEvent): void {
   cursor: grab;
 }
 .stage-hint {
+  align-self: stretch;
   margin: 0.5rem 0 0;
   font-size: 0.875rem;
 }

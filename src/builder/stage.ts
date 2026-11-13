@@ -30,3 +30,8 @@ export function handleTransform(
 export function viewBox(cellWidth: number, cellHeight: number): string {
   return `${-cellWidth / 2} ${-cellHeight / 2} ${2 * cellWidth} ${2 * cellHeight}`;
 }
+
+/** The stroke width of an invisible hit line: the drawn width, or `minPixels` on the screen if that is wider. */
+export function hitStroke(strokeWidth: number, unitsPerPixel: number, minPixels = 14): number {
+  return Math.max(strokeWidth, minPixels * unitsPerPixel);
+}

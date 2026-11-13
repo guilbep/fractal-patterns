@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { APP_NAME } from '@/app-name.ts';
 import { LOGO_DEFAULT, logoSvg } from '@/logo.ts';
 import { svgToDataUri } from '@/css.ts';
 import { KIND_LABELS } from '@/fractal.ts';
 import { DETECTOR_LABELS } from '@/detectors.ts';
 import { SAMPLE_LABELS } from '@/samples.ts';
-import { activeSample, contrast, layer2, variantsOn, fileName, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, randomPattern, ratioText, reseed, reset, svgHref, trace, traced, usingImage } from '@/state.ts';
+import { activeSample, contrast, palette, layer2, variantsOn, fileName, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, randomPattern, ratioText, reseed, reset, svgHref, trace, traced, usingImage } from '@/state.ts';
 import { exportText, footprint, gzipped } from '@/state-export.ts';
 import ColorPanel from '@/components/ColorPanel.vue';
 import VisionPanel from '@/components/VisionPanel.vue';
@@ -16,7 +16,8 @@ import SpacingPanel from '@/components/SpacingPanel.vue';
 import MotionPanel from '@/components/MotionPanel.vue';
 import RepetitionPanel from '@/components/RepetitionPanel.vue';
 import { canRedo, canUndo, redo, shareUrl, undo } from '@/state-share.ts';
-import PaletteStrip from '@/components/PaletteStrip.vue';
+import PaletteStrip from '@/components/PatternPaletteStrip.vue';
+import { paletteParam } from '@/palettes.ts';
 import { migrateTab, type TabId } from '@/shell.ts';
 import '@/css/shell.css';
 import SponsorBanner from '@/components/SponsorBanner.vue';
@@ -25,6 +26,8 @@ import SponsorBanner from '@/components/SponsorBanner.vue';
 const ImagePanel = defineAsyncComponent(() => import('@/components/ImagePanel.vue'));
 
 const LOGO_URI = svgToDataUri(logoSvg(LOGO_DEFAULT));
+// The studio opens with the same palette (custom colors: no palette to pass).
+const studioHref = computed(() => (palette.value ? `./studio.html#${new URLSearchParams([paletteParam(palette.value)])}` : './studio.html'));
 
 // WCAG 2.1.4: a single-key shortcut needs an off switch. The choice survives a reload.
 const SHORTCUT_KEY = 'fp-shortcut';
@@ -145,7 +148,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   <header class="site-header shell-header">
     <p class="brand"><img class="logo" :src="LOGO_URI" alt="" width="28" height="28">{{ APP_NAME }}</p>
     <p class="tagline">Seeded fractal tiles for CSS backgrounds, with contrast you can trust.</p>
-    <p><a href="./studio.html">Wallpaper Studio</a></p>
+    <p><a :href="studioHref">Wallpaper Studio</a></p>
   </header>
 
   <div ref="bar" class="toolbar" role="toolbar" aria-label="Design actions">

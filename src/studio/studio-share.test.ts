@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mulberry32 } from '../patterns/util.ts';
-import { PALETTES } from '../palettes.ts';
+import { PALETTES, rollPalette } from '../palettes.ts';
 import { compose, THEMES, themeFamilies } from './compose.ts';
 import { studioSvg } from './model.ts';
 import { MOTIF_FAMILIES } from './motifs.ts';
@@ -16,7 +16,7 @@ test('50 seeded random designs survive a round trip', () => {
     if (families.length === 0) families = [all[i % all.length]!];
     const d: StudioDesign = {
       seed: Math.floor(rnd() * MAX_SEED),
-      palette: Math.floor(rnd() * PALETTES.length),
+      palette: i % 5 === 0 ? rollPalette(rnd) : PALETTES[Math.floor(rnd() * PALETTES.length)]!,
       repeat: REPEATS[Math.floor(rnd() * REPEATS.length)]!,
       density: Math.round(rnd() * 100) / 100,
       size: 200 + 20 * Math.floor(rnd() * 16),
@@ -50,14 +50,14 @@ test('malformed input gives the defaults', () => {
 test('out-of-range values are clamped', () => {
   const d = decodeStudio('s=-5&p=999&r=9&d=3&z=9000&f=9999');
   assert.equal(d.seed, 0);
-  assert.equal(d.palette, PALETTES.length - 1);
+  assert.equal(d.palette.name, 'Lilac'); // old index clamped to 23: Plum, best match Lilac
   assert.equal(d.repeat, 'mirror');
   assert.equal(d.density, 1);
   assert.equal(d.size, 500);
   assert.deepEqual(d.families, [...MOTIF_FAMILIES]);
   const e = decodeStudio('s=99999999999&p=-1&r=-1&d=-1&z=1&f=-3');
   assert.equal(e.seed, MAX_SEED);
-  assert.equal(e.palette, 0);
+  assert.equal(e.palette.name, 'Brick'); // old index clamped to 0: Brick
   assert.equal(e.repeat, 'straight');
   assert.equal(e.density, 0);
   assert.equal(e.size, 200);
@@ -90,4 +90,28 @@ test('theme: round trip, absent is floral, unknown falls back to floral, old lin
   // Only the theme changed: a different string.
   const base = decodeStudio('s=7&f=5');
   assert.notEqual(encodeStudio({ ...base, theme: 'orchard' }), encodeStudio(base));
+});
+
+test('palette: round trip by name, random through pc, old p index, unknown name, never p=', () => {
+  for (const p of PALETTES) {
+    const d = { ...DEFAULT_DESIGN, palette: p };
+    const h = encodeStudio(d);
+    assert.ok(p === DEFAULT_DESIGN.palette ? h === '' : h === `pn=${encodeURIComponent(p.name).replace(/%20/g, '+')}`, h);
+    assert.deepEqual(decodeStudio(h).palette, p);
+  }
+  const rnd = mulberry32(7);
+  for (let i = 0; i < 20; i++) {
+    const r = rollPalette(rnd);
+    const h = encodeStudio({ ...DEFAULT_DESIGN, palette: r });
+    assert.match(h, /^pc=[0-9a-f]{6}(\.[0-9a-f]{6}){4}$/);
+    assert.deepEqual(decodeStudio(h).palette, r);
+    assert.ok(!/(^|&)p=/.test(h), h);
+  }
+  // Old links: p indexed six hues by four schemes, mapped to the nearest palette by base hue.
+  const old = ['Brick', 'Clay', 'Fern', 'Lagoon', 'Slate', 'Lilac'];
+  for (let i = 0; i < 24; i++) assert.equal(decodeStudio(`p=${i}`).palette.name, old[Math.floor(i / 4)], String(i));
+  assert.equal(decodeStudio('pn=Nope').palette, DEFAULT_DESIGN.palette);
+  assert.equal(decodeStudio('pc=12.34').palette, DEFAULT_DESIGN.palette);
+  assert.equal(decodeStudio('pn=Plum&pc=000000.111111.222222.333333.444444&p=0').palette.name, 'Plum');
+  assert.equal(decodeStudio('pn=Nope&pc=000000.111111.222222.333333.444444').palette.colors[4], '#444444');
 });

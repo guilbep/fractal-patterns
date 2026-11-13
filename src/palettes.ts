@@ -118,3 +118,20 @@ export function randomPaletteSpec(rnd: () => number): PaletteSpec {
   const accent: AccentMode = isCool(hue) && rnd() < 0.5 ? 'warm' : 'near';
   return spec('Random', hue, accent, dark);
 }
+
+// One random palette, the same path for the pattern tool and the studio.
+export const rollPalette = (rnd: () => number = Math.random): Palette => makePalette(randomPaletteSpec(rnd));
+
+// The palette in a link, shared by both pages: `pn` a curated palette by name, `pc` five 6-digit hex colors joined
+// with a dot (a random palette). `pn` wins when it names a palette; else `pc` when it holds five valid colors.
+export function paletteParam(p: Palette): [key: 'pn' | 'pc', value: string] {
+  return PALETTES.some((x) => x.name === p.name) ? ['pn', p.name] : ['pc', p.colors.map((c) => c.replace('#', '')).join('.')];
+}
+export function linkedPalette(q: URLSearchParams): Palette | null {
+  const named = PALETTES.find((p) => p.name === q.get('pn'));
+  if (named) return named;
+  const hex = (q.get('pc') ?? '').split('.');
+  return hex.length === 5 && hex.every((h) => /^[0-9a-f]{6}$/i.test(h))
+    ? { name: 'Random', colors: hex.map((h) => `#${h.toLowerCase()}`) }
+    : null;
+}

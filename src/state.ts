@@ -17,7 +17,7 @@ import { mirrorTile, withGap, zoomWrap } from '@/spacing.ts';
 import type { Pt } from '@/patterns/util.ts';
 import type { Detector } from '@/detectors.ts';
 import { sampleImage, type Sample } from '@/samples.ts';
-import { PALETTES, makePalette, paletteRoles, randomPaletteSpec, type Palette } from '@/palettes.ts';
+import { PALETTES, paletteRoles, rollPalette, type Palette } from '@/palettes.ts';
 import { apcaWorst } from '@/apca.ts';
 import { blend, contrastRatio, textLevel } from '@/contrast.ts';
 import { fixWithFill, patternContrast, patternInvisible, plateContrast, swapRoles, worstAt, type Roles } from '@/pairing.ts';
@@ -468,7 +468,7 @@ export function applyPalette(p: Palette): void {
 }
 
 export function randomPalette(): void {
-  const p = makePalette(randomPaletteSpec(Math.random));
+  const p = rollPalette();
   randomColors.value = p;
   applyPalette(p);
 }

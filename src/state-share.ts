@@ -2,8 +2,10 @@
 import { computed, ref, watch } from 'vue';
 import { FAMILIES } from '@/fractal.ts';
 import { createHistory } from '@/history.ts';
+import { linkedPalette } from '@/palettes.ts'; // STUDIO-PAL
 import { DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design } from '@/share.ts';
 import {
+  applyPalette,
   fade,
   fill,
   lastFix,
@@ -141,7 +143,13 @@ export function initShare(): void {
   const hasWindow = typeof window !== 'undefined' && !!window.location;
   // A design string always holds '='; a bare anchor such as #depth is not a design.
   const isDesign = (h: string) => h.includes('=');
-  if (hasWindow && isDesign(window.location.hash)) applyDesign(decodeDesign(window.location.hash));
+  // STUDIO-PAL: a hash with only pn or pc is a palette, not a design.
+  if (hasWindow && isDesign(window.location.hash) && !/^#?p[nc]=[^&]*$/.test(window.location.hash))
+    applyDesign(decodeDesign(window.location.hash));
+  // --- STUDIO-PAL: a palette from the Wallpaper Studio link (pn name, pc random colors) wins over the hash colors.
+  const linked = hasWindow ? linkedPalette(new URLSearchParams(window.location.hash.slice(1))) : null;
+  if (linked) applyPalette(linked);
+  // --- end STUDIO-PAL
   history = createHistory(snapshot(), 50, sameDesign);
   writeUrl(snapshot()); // a reload keeps the first random seed, and a hostile hash is replaced by its clean form
   // ponytail: one entry per 300 ms pause, so a slider drag is one step.

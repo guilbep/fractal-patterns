@@ -411,16 +411,21 @@ The panel shows two notices:
 
 The page keeps the design in the URL hash. The link does not carry your own motif.
 
+The studio has the same palettes as the pattern tool. The palette strip in the toolbar shows the five colors and the name, with previous, next and a random palette. The Palette select in the Design panel groups the palettes as Light and Dark; a random palette shows as "Random". The "Pattern tool" link in the header opens the pattern tool with the same palette, and the "Wallpaper Studio" link of the pattern tool does the same in the other direction (keys `pn` and `pc` in the hash).
+
 | Key | Meaning | Default |
 | --- | --- | --- |
 | `s` | Seed | `1` |
-| `p` | Palette index, from 0 | `0` |
 | `r` | Repeat: `0` Straight, `1` Half-drop, `2` Brick, `3` Mirror | `0` |
 | `d` | Density, 0 to 1 | `0.4` |
 | `z` | Tile size in px, 200 to 500 | `300` |
 | `st` | Stems behind the large motifs, `1` or `0` | `1` |
 | `t` | Theme: `f` Floral, `s` Sea, `o` Orchard | `f` |
 | `f` | Motif families, a bit mask in the order of the theme's families, as in the table above | all |
+| `pn` | Palette name, for example `Fern` | `Lagoon` |
+| `pc` | A random palette: its five colors (paper, ink, stroke, accent, soft) as 6-digit hex, joined with a dot. Read when `pn` is absent or unknown | none |
+
+Links made before the palette names used `p`, an index into the old 24 palettes. The page still reads it and opens the nearest palette by base hue (a best match), but never writes it.
 
 ## Building blocks not yet in the page
 

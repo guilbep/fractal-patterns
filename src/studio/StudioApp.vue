@@ -4,7 +4,9 @@ import { LOGO_DEFAULT, logoSvg } from '@/logo.ts';
 import { svgToDataUri } from '@/css.ts';
 import SponsorBanner from '@/components/SponsorBanner.vue';
 import { formatFootprint, gzipSize, rawSize } from '@/co2.ts';
-import { PALETTES } from '@/palettes.ts';
+import { DARK_NAMES, PALETTES, paletteParam, rollPalette } from '@/palettes.ts';
+import { stepPalette } from '@/shell.ts';
+import PaletteStrip from '@/components/PaletteStrip.vue';
 import { safePathData } from '@/motifgrid.ts';
 import { DETECTOR_LABELS, DETECTORS, type Detector } from '@/trace.ts';
 import { cropToSubject, sampleFlower, traceColors, type Rgba } from './colortrace.ts';
@@ -257,6 +259,25 @@ function setTheme(t: Theme): void {
 function shuffle(): void {
   design.seed = Math.floor(Math.random() * MAX_SEED);
 }
+// The same palette controls as the pattern tool: previous, next, random, and the grouped select.
+const PALETTE_GROUPS = [
+  { label: 'Light', palettes: PALETTES.filter((p) => !DARK_NAMES.has(p.name)) },
+  { label: 'Dark', palettes: PALETTES.filter((p) => DARK_NAMES.has(p.name)) },
+];
+const isRandom = computed(() => !PALETTES.some((p) => p.name === design.palette.name));
+function stepPal(dir: 1 | -1): void {
+  const i = PALETTES.findIndex((p) => p.name === design.palette.name);
+  design.palette = PALETTES[stepPalette(i, dir, PALETTES.length)]!;
+}
+let lastRandom = isRandom.value ? design.palette : null; // "Random" in the select goes back to it
+function rollPal(): void {
+  design.palette = lastRandom = rollPalette();
+}
+function pickPalette(name: string): void {
+  design.palette = PALETTES.find((p) => p.name === name) ?? lastRandom ?? design.palette;
+}
+// The pattern tool opens with the same palette.
+const toolHref = computed(() => `./index.html#${new URLSearchParams([paletteParam(design.palette)])}`);
 function setSeed(v: string): void {
   const n = Math.round(Number(v));
   if (v.trim() !== '' && Number.isFinite(n)) design.seed = Math.min(MAX_SEED, Math.max(0, n));
@@ -290,7 +311,7 @@ onBeforeUnmount(() => sizes.disconnect());
   <header class="site-header">
     <p class="brand"><img class="logo" :src="LOGO_URI" alt="" width="28" height="28">Wallpaper Studio</p>
     <p class="tagline">Original botanical wallpapers from a seed. Every motif is generated here; nothing is copied.</p>
-    <p><a href="./index.html">Pattern tool</a></p>
+    <p><a :href="toolHref">Pattern tool</a></p>
   </header>
 
   <div ref="bar" class="toolbar" role="toolbar" aria-label="Wallpaper actions">
@@ -299,6 +320,8 @@ onBeforeUnmount(() => sizes.disconnect());
     <span class="bar-sep" aria-hidden="true"></span>
     <a class="btn" :href="uri" :download="fileName">Download SVG</a>
     <button type="button" class="btn" @click="copyCss">{{ copyStatus === 'Copied' ? 'Copied' : 'Copy CSS' }}</button>
+    <span class="bar-sep" aria-hidden="true"></span>
+    <PaletteStrip :colors="design.palette.colors" :name="design.palette.name" @previous="stepPal(-1)" @next="stepPal(1)" @random="rollPal" />
     </div>
     <div class="bar-stats">
     <span id="svg-size" class="stat">{{ sizeText }}</span>
@@ -338,8 +361,11 @@ onBeforeUnmount(() => sizes.disconnect());
           </div>
           <div class="field">
             <label for="palette">Palette</label>
-            <select id="palette" v-model.number="design.palette">
-              <option v-for="(p, i) in PALETTES" :key="p.name" :value="i">{{ p.name }}</option>
+            <select id="palette" :value="design.palette.name" @change="pickPalette(($event.target as HTMLSelectElement).value)">
+              <option v-if="isRandom" value="Random">Random</option>
+              <optgroup v-for="g in PALETTE_GROUPS" :key="g.label" :label="g.label">
+                <option v-for="p in g.palettes" :key="p.name" :value="p.name">{{ p.name }}</option>
+              </optgroup>
             </select>
           </div>
           <div class="field">

@@ -24,7 +24,8 @@ function readLibTab(): LibTab {
     return parseLibTab(null, params.kind);
   }
 }
-const libTab = ref<LibTab>(readLibTab());
+// A link may open on a kind outside the stored tab: the tab follows it from the start.
+const libTab = ref<LibTab>(tabForKind(readLibTab(), params.kind));
 watch(libTab, (t) => {
   try {
     sessionStorage.setItem(LIB_KEY, t);
@@ -51,6 +52,11 @@ function onLibKey(e: KeyboardEvent): void {
 const groups = computed(() => {
   const items = previews(kindsForTab(libTab.value));
   return FAMILIES.map((family) => ({ family, items: items.filter((p) => KIND_FAMILY[p.kind] === family) })).filter((g) => g.items.length);
+});
+// The Patchwork details open by themselves when patchwork turns on, and never close by themselves.
+const patchOpen = ref(layout.value === 'patchwork');
+watch(layout, (l) => {
+  if (l === 'patchwork') patchOpen.value = true;
 });
 const galleryVars = computed(() => ({ '--lib-bg': roles.background, '--lib-fg': roles.pattern, '--lib-opacity': String(opacity.value) }));
 </script>
@@ -105,7 +111,7 @@ const galleryVars = computed(() => ({ '--lib-bg': roles.background, '--lib-fg': 
       </div>
     </div>
 
-    <details class="lib-patchwork" :open="layout === 'patchwork'">
+    <details class="lib-patchwork" :open="patchOpen" @toggle="patchOpen = ($event.target as HTMLDetailsElement).open">
       <summary>Patchwork</summary>
       <fieldset class="radios">
         <legend>Layout</legend>

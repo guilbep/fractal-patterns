@@ -15,6 +15,7 @@ const REPEATS: readonly (readonly [BuilderRepeat, string, string])[] = [
   ['straight', 'Straight', 'The tile repeats side by side in a plain grid.'],
   ['half-drop', 'Half-drop', 'Each column drops by half a tile.'],
   ['brick', 'Brick', 'Each row shifts by half a tile, like brickwork.'],
+  ['mirror', 'Mirror', 'Every other tile is a mirror image, across and down. The repeating block is twice as wide and twice as tall.'],
 ];
 const PRESETS = [120, 240, 480] as const;
 const repeatHint = computed(() => REPEATS.find(([r]) => r === design.value.repeat)?.[2] ?? '');

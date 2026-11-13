@@ -45,7 +45,13 @@ const unitsPerPixel = computed(() => (svgPixels.value ? (2 * cell.value.width) /
 const box = computed(() => viewBox(cell.value.width, cell.value.height));
 const tagged = computed(() => passInstances(studio.value));
 const instances = computed(() => tagged.value.map((p) => p.i));
-const ownerIds = computed(() => owners(design.value).map((k) => design.value.items[k]?.id ?? -1));
+const ownerIdx = computed(() => owners(design.value));
+const ownerIds = computed(() => ownerIdx.value.map((k) => design.value.items[k]?.id ?? -1));
+/** Which mirror copy an instance is: flipped in x (against the item's own flip) and in y. */
+function mirrorOf(i: { layer: number; sx: number; sy: number }): { fx: boolean; fy: boolean } {
+  const it = design.value.items[ownerIdx.value[i.layer] ?? -1];
+  return { fx: i.sx < 0 !== (it?.flip ?? false), fy: i.sy < 0 };
+}
 
 const motifs = computed(() => [...new Set(instances.value.map((i) => i.motif))].map((m) => ({ m, ...studio.value.motifs[m]! })));
 
@@ -67,7 +73,10 @@ const drawn = computed(() => {
         const [a, b, c, d, e, f] = instanceMatrix(i, m.box);
         const stroke = m.paint === 'stroke';
         const sx = Math.abs(i.sx || 1);
+        const { fx, fy } = mirrorOf(i);
         out.push({
+          fx: fx ? 1 : 0,
+          fy: fy ? 1 : 0,
           key: `${ox},${oy},${k}`,
           href: `#bs-m${i.motif}`,
           item: ownerIds.value[i.layer],
@@ -101,9 +110,10 @@ const veil = computed(() => {
   return `M${-w / 2} ${-h / 2}h${2 * w}v${2 * h}h${-2 * w}z M0 0h${w}v${h}H0z`;
 });
 
-/** The selected items' outlines: their instances inside or touching the central cell. */
+/** The selected items' outlines: every copy in the visible area, the central cell first (the handle sits on the first). */
 const outlines = computed(() => {
   const { width: w, height: h } = cell.value;
+  const offsets = [[0, 0], ...cellOrder().filter(([a, b]) => a || b)];
   return selectedIds.value.flatMap((id) => {
     const it = design.value.items.find((t) => t.id === id);
     const st = it && design.value.stamps[it.stamp];
@@ -111,9 +121,12 @@ const outlines = computed(() => {
     const side = it.scale * st.box;
     const r = (side * Math.SQRT2) / 2;
     const layer = ownerIds.value.indexOf(it.id);
-    return instances.value
-      .filter((i) => i.layer === layer && i.x + r >= 0 && i.x - r <= w && i.y + r >= 0 && i.y - r <= h)
-      .map((i) => ({ x: i.x, y: i.y, side, rotate: i.rotate }));
+    return offsets.flatMap(([ox, oy]) =>
+      instances.value
+        .filter((i) => i.layer === layer)
+        .map((i) => ({ x: i.x + ox! * w, y: i.y + oy! * h, side, rotate: i.rotate, ...mirrorOf(i) }))
+        .filter((o) => o.x + r >= -w / 2 && o.x - r <= 1.5 * w && o.y + r >= -h / 2 && o.y - r <= 1.5 * h),
+    );
   });
 });
 
@@ -127,6 +140,8 @@ const handle = computed(() => {
     cx: o.x + Math.cos(t) * q + Math.sin(t) * q,
     cy: o.y + Math.sin(t) * q - Math.cos(t) * q,
     center: [o.x, o.y] as [number, number],
+    // A copy flipped in one axis turns the other way.
+    mirrored: o.fx !== o.fy,
     r: Math.max(cell.value.width, cell.value.height) * 0.02,
   };
 });
@@ -147,6 +162,9 @@ type Drag = {
   changed: boolean;
   /** move: the items that move together; marquee: the selection to add to. */
   ids: number[];
+  /** -1 on an axis where the grabbed copy is a mirror image: the item moves (or turns) the other way. */
+  mx: number;
+  my: number;
 };
 let drag: Drag | null = null;
 /** The marquee rectangle while it is drawn, in tile units. */
@@ -158,7 +176,8 @@ function onDown(e: PointerEvent): void {
   const start = toSvg(e);
   const startDesign = design.value;
   if (target.closest('[data-handle]') && selected.value && handle.value) {
-    drag = { kind: 'turn', id: selected.value.id, start, startDesign, center: handle.value.center, changed: false, ids: [] };
+    const mx = handle.value.mirrored ? -1 : 1;
+    drag = { kind: 'turn', id: selected.value.id, start, startDesign, center: handle.value.center, changed: false, ids: [], mx, my: 1 };
   } else {
     const hit = target.closest('[data-item]');
     const id = hit ? Number(hit.getAttribute('data-item')) : NaN;
@@ -166,7 +185,7 @@ function onDown(e: PointerEvent): void {
     if (!Number.isFinite(id) || id < 0) {
       // Empty space: a marquee; Shift adds to the selection.
       if (!add) select(null);
-      drag = { kind: 'marquee', id: -1, start, startDesign, center: start, changed: false, ids: add ? [...selectedIds.value] : [] };
+      drag = { kind: 'marquee', id: -1, start, startDesign, center: start, changed: false, ids: add ? [...selectedIds.value] : [], mx: 1, my: 1 };
     } else if (add) {
       toggleSelect(id);
       svgEl.value?.focus();
@@ -174,7 +193,8 @@ function onDown(e: PointerEvent): void {
       return;
     } else {
       if (!selectedIds.value.includes(id)) select(id);
-      drag = { kind: 'move', id, start, startDesign, center: start, changed: false, ids: [...selectedIds.value] };
+      const m = (a: string): number => (hit?.getAttribute(a) === '1' ? -1 : 1);
+      drag = { kind: 'move', id, start, startDesign, center: start, changed: false, ids: [...selectedIds.value], mx: m('data-fx'), my: m('data-fy') };
     }
   }
   svgEl.value?.setPointerCapture(e.pointerId);
@@ -186,8 +206,9 @@ function onMove(e: PointerEvent): void {
   if (!drag) return;
   const now = toSvg(e);
   if (drag.kind === 'move') {
-    const dx = now[0] - drag.start[0];
-    const dy = now[1] - drag.start[1];
+    // On a mirrored copy the item moves the other way, so the copy under the pointer follows it.
+    const dx = drag.mx * (now[0] - drag.start[0]);
+    const dy = drag.my * (now[1] - drag.start[1]);
     drag.changed = Math.hypot(dx, dy) > 0.5;
     const d = drag.startDesign;
     const it = d.items.find((t) => t.id === drag!.id);
@@ -203,7 +224,10 @@ function onMove(e: PointerEvent): void {
   } else {
     const it = drag.startDesign.items.find((t) => t.id === drag!.id);
     if (!it) return;
-    const next = handleTransform(drag.center, drag.start, now, it.rotate, it.scale, snapOn.value || e.shiftKey ? 15 : 0);
+    // On a mirrored copy, reflect the pointer across the center: the turn goes the other way, the size is the same.
+    const [cx] = drag.center;
+    const flip = (p: [number, number]): [number, number] => (drag!.mx < 0 ? [2 * cx - p[0], p[1]] : p);
+    const next = handleTransform(drag.center, flip(drag.start), flip(now), it.rotate, it.scale, snapOn.value || e.shiftKey ? 15 : 0);
     drag.changed = next.rotate !== it.rotate || next.scale !== it.scale;
     preview(updateItem(drag.startDesign, drag.id, next));
   }
@@ -214,8 +238,7 @@ function onUp(e: PointerEvent): void {
   if (drag.kind === 'marquee') {
     const m = marquee.value;
     const d = design.value;
-    // ponytail: wraps by the design size, exact for straight repeats; half-drop and brick neighbors are offset.
-    const found = m ? itemsInRect(d.items, { x0: m.x, y0: m.y, x1: m.x + m.width, y1: m.y + m.height }, d.width, d.height) : [];
+    const found = m ? itemsInRect(d.items, { x0: m.x, y0: m.y, x1: m.x + m.width, y1: m.y + m.height }, d.width, d.height, d.repeat) : [];
     selectedIds.value = [...drag.ids, ...found.filter((id) => !drag!.ids.includes(id))];
     marquee.value = null;
   } else if (drag.changed) commit(design.value);
@@ -327,6 +350,8 @@ function onKey(e: KeyboardEvent): void {
           :href="u.href"
           :transform="u.transform"
           :data-item="u.item"
+          :data-fx="u.fx"
+          :data-fy="u.fy"
           fill="none"
           stroke="transparent"
           :stroke-width="u.hitWidth"
@@ -337,6 +362,8 @@ function onKey(e: KeyboardEvent): void {
           :href="u.href"
           :transform="u.transform"
           :data-item="u.item"
+          :data-fx="u.fx"
+          :data-fy="u.fy"
           :fill="u.fill"
           :stroke="u.stroke"
           :stroke-width="u.strokeWidth"

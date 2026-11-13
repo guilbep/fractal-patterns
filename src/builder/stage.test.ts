@@ -77,3 +77,12 @@ test('itemsInRect finds centers in the rectangle, wrapped centers too', () => {
   assert.deepEqual(itemsInRect(items, { x0: 180, y0: 40, x1: 220, y1: 60 }, 200, 200), [3]);
   assert.deepEqual(itemsInRect(items, { x0: -20, y0: 40, x1: 20, y1: 60 }, 200, 200), [3]);
 });
+
+test('itemsInRect with a repeat: mirror and half-drop copies', () => {
+  const items = [{ id: 1, x: 50, y: 50 }];
+  assert.deepEqual(itemsInRect(items, { x0: 340, y0: 40, x1: 360, y1: 60 }, 200, 200, 'mirror'), [1]);
+  assert.deepEqual(itemsInRect(items, { x0: 140, y0: 40, x1: 160, y1: 60 }, 200, 200, 'mirror'), []);
+  assert.deepEqual(itemsInRect(items, { x0: 340, y0: 40, x1: 360, y1: 60 }, 200, 200, 'straight'), []);
+  assert.deepEqual(itemsInRect(items, { x0: 240, y0: 140, x1: 260, y1: 160 }, 200, 200, 'half-drop'), [1]);
+  assert.deepEqual(itemsInRect(items, { x0: 140, y0: 240, x1: 160, y1: 260 }, 200, 200, 'brick'), [1]);
+});

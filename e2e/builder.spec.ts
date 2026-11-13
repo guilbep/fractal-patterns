@@ -233,3 +233,35 @@ test('multi-select moves a group', async ({ page }) => {
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect.poll(async () => (await stored(page))!.items.map((it) => it.x)).toEqual(before);
 });
+
+test('mirror repeat drags a mirrored copy', async ({ page }) => {
+  await startAgain(page);
+  await page.getByLabel('Repeat').selectOption({ label: 'Mirror' });
+  await expect(stage(page)).toHaveAttribute('viewBox', '-240 -240 960 960');
+  // A copy flipped in x only, on top at its own center, inside the stage.
+  const s = await page.evaluate(() => {
+    const svg = document.querySelector<SVGSVGElement>('svg.tile-editor')!;
+    const box = svg.getBoundingClientRect();
+    for (const el of svg.querySelectorAll<SVGUseElement>('use[data-item][data-fx="1"][data-fy="0"]')) {
+      if (el.getAttribute('fill') === 'none') continue;
+      const r = el.getBoundingClientRect();
+      const x = r.x + r.width / 2;
+      const y = r.y + r.height / 2;
+      if (x < box.left || x > box.right || y < box.top || y > box.bottom) continue;
+      if (document.elementFromPoint(x, y) === el) return { id: Number(el.getAttribute('data-item')), x, y, perUnit: svg.getScreenCTM()!.a };
+    }
+    throw new Error('no mirrored shape on top at its own center');
+  });
+  const x0 = (await stored(page))!.items.find((it) => it.id === s.id)!.x;
+  const dx = 20 * s.perUnit;
+  await page.mouse.move(s.x, s.y);
+  await page.mouse.down();
+  await page.mouse.move(s.x + dx, s.y, { steps: 5 });
+  await page.mouse.up();
+  await expect.poll(async () => (await stored(page))!.items.find((it) => it.id === s.id)!.x).not.toBe(x0);
+  const x = (await stored(page))!.items.find((it) => it.id === s.id)!.x;
+  const mod = (v: number, m: number) => ((v % m) + m) % m;
+  // The item moved left by about 20, modulo the tile width.
+  const off = mod(x - (x0 - 20), WIDTH);
+  expect(Math.min(off, WIDTH - off)).toBeLessThan(1.5);
+});

@@ -1,4 +1,5 @@
 // Pure math of the builder stage: the view box and the turn-and-resize handle.
+import { repeatCell, type Repeat } from '../studio/model.ts';
 
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
 const mod = (a: number, m: number): number => ((a % m) + m) % m;
@@ -57,7 +58,8 @@ export function cellOrder(): [number, number][] {
 }
 
 /**
- * The ids of the items whose center, in any of the 9 cells (the center plus a cell offset),
+ * The ids of the items whose center, in any repeat copy of the 9 cells around and in the center cell
+ * (the repeat's cell: 2w x h for half-drop, w x 2h for brick, 2w x 2h for mirror),
  * lies inside the rectangle with corners (x0, y0) and (x1, y1), in tile units.
  */
 export function itemsInRect(
@@ -65,15 +67,21 @@ export function itemsInRect(
   rect: { x0: number; y0: number; x1: number; y1: number },
   width: number,
   height: number,
+  repeat: Repeat = 'straight',
 ): number[] {
   const [l, r] = [Math.min(rect.x0, rect.x1), Math.max(rect.x0, rect.x1)];
   const [t, b] = [Math.min(rect.y0, rect.y1), Math.max(rect.y0, rect.y1)];
+  const cell = repeatCell({ width, height, repeat, background: null, motifs: [], layers: [] });
   return items
     .filter((it) =>
-      cellOrder().some(([ox, oy]) => {
-        const x = it.x + ox * width;
-        const y = it.y + oy * height;
-        return x >= l && x <= r && y >= t && y <= b;
+      cell.copies.some((c) => {
+        const cx = mod(c.dx + (c.flipX ? width - it.x : it.x), cell.width);
+        const cy = mod(c.dy + (c.flipY ? height - it.y : it.y), cell.height);
+        return cellOrder().some(([ox, oy]) => {
+          const x = cx + ox * cell.width;
+          const y = cy + oy * cell.height;
+          return x >= l && x <= r && y >= t && y <= b;
+        });
       }),
     )
     .map((it) => it.id);

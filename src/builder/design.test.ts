@@ -106,6 +106,14 @@ test('designSvg', () => {
   assert.ok(s.includes('stroke-width="2"'));
 });
 
+test('mirror repeat: parsed and drawn as four copies', () => {
+  const json = (v: unknown): unknown => JSON.parse(JSON.stringify(v));
+  assert.equal(parseDesign(json(one(50, 50, 'mirror')))?.repeat, 'mirror');
+  const m = designSvg(one(50, 50, 'mirror'));
+  assert.ok(m.startsWith('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"'), m);
+  assert.equal(count(m, '<use '), 4);
+});
+
 test('updateItem wraps, clamps and reduces', () => {
   const it = updateItem(fixture, 1, {
     x: -10,
@@ -180,7 +188,7 @@ test('operations are pure; an unknown id returns the same object', () => {
 test('parseDesign', () => {
   const json = (v: unknown): unknown => JSON.parse(JSON.stringify(v));
   assert.deepEqual(parseDesign(json(fixture)), fixture);
-  for (const bad of [null, 42, {}, { ...fixture, width: 5 }, { ...fixture, repeat: 'mirror' }])
+  for (const bad of [null, 42, {}, { ...fixture, width: 5 }, { ...fixture, repeat: 'zigzag' }])
     assert.equal(parseDesign(json(bad)), null, JSON.stringify(bad)?.slice(0, 40));
   // Unsafe path data rejects the whole design.
   assert.equal(

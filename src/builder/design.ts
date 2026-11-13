@@ -293,7 +293,7 @@ export function parseDesign(value: unknown): Design | null {
   const { width, height, background, repeat, strokeWidth } = value;
   if (!fin(width) || !fin(height) || width < 16 || width > 2000 || height < 16 || height > 2000) return null;
   if (background !== null && (typeof background !== 'string' || !COLOR.test(background))) return null;
-  if (repeat !== 'straight' && repeat !== 'half-drop' && repeat !== 'brick') return null;
+  if (repeat !== 'straight' && repeat !== 'half-drop' && repeat !== 'brick' && repeat !== 'mirror') return null;
   if (!fin(strokeWidth) || strokeWidth < 0 || strokeWidth > 50) return null;
   if (value.stamps.length > 200 || value.items.length > 2000) return null;
   const stamps = value.stamps.map(parseStamp);

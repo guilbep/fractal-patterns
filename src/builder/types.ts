@@ -37,8 +37,8 @@ export interface Item {
   readonly colors: readonly string[];
 }
 
-/** The repeats the builder offers: the ones that are plain translations of the tile. */
-export type BuilderRepeat = Exclude<Repeat, 'mirror'>;
+/** The repeats the builder offers: all of the studio's. */
+export type BuilderRepeat = Repeat;
 
 /** A whole design. Items are in drawing order: the last one is on top. */
 export interface Design {

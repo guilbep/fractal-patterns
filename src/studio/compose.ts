@@ -868,15 +868,20 @@ export function composeOnce(o: ComposeOptions): Omit<ComposeParts, 'tracking'> {
     return true;
   };
   const cap = Math.round((2 + 6 * density) * area);
-  // Variety: filler on a sateen spot layout (docs/research/wallpaper-repeats.md), N x N cells, one spot per row and
+  // Variety: filler on a sateen spot layout (docs/research/wallpaper-repeats.md), N x N cells (N = 7, 14 at span 2;
+  // 6 has no sateen step, only diagonals), one spot per row and
   // column, spot i in column i and row s x i mod N; one seeded shift, a jitter in each cell's middle half, the same
   // checks as the gap loop. It runs before the twigs, while the gaps are open; a blocked spot tries up to 11 more
   // seeded positions in the middle 80 percent of its own cell, and is dropped only when all fail. Angles: 6 steps of
   // 60 degrees plus one offset, dealt shuffled.
+  // The sparse pass below reuses the spot grid and the dealt angles.
+  const spotN = 7 * span;
+  let angles: number[] = [];
+  let k = 0;
   if (o.variety) {
     const sr = mulberry32(o.seed ^ 0x3c6ef372);
-    const n = 5 * span;
-    const s = span === 2 ? 3 : 2;
+    const n = spotN;
+    const s = span === 2 ? 5 : 3;
     const shuffle = <T>(a: T[]): T[] => {
       for (let i = a.length - 1; i > 0; i--) {
         const j = Math.floor(sr() * (i + 1));
@@ -889,8 +894,7 @@ export function composeOnce(o: ComposeOptions): Omit<ComposeParts, 'tracking'> {
     const at = ([cx, cy]: Pt, lo: number, span: number): Pt => [((cx + lo + span * sr()) * w) / n, ((cy + lo + span * sr()) * h) / n];
     const spots = cells.map((cell) => ({ cell, c: at(cell, 0.25, 0.5) }));
     const off = sr() * 60;
-    const angles = shuffle([0, 60, 120, 180, 240, 300].map((a) => Math.round(a + off) % 360));
-    let k = 0;
+    angles = shuffle([0, 60, 120, 180, 240, 300].map((a) => Math.round(a + off) % 360));
     for (const { cell, c } of shuffle(spots)) {
       if (filler.length >= cap) break;
       for (let tries = 0, p = c; tries < 12; tries++, p = at(cell, 0.1, 0.8)) {
@@ -918,17 +922,28 @@ export function composeOnce(o: ComposeOptions): Omit<ComposeParts, 'tracking'> {
   // Then sparse filler in the larger gaps that are left.
   const occupied = [...plants.flatMap((pl) => pl.circles.map((c) => ({ c: c.c, r: c.r }))), ...filler.map((f) => realCircle(f.v, f.p))];
   const stemPts = lines().flatMap((line) => line.filter((_, i) => i % 2 === 0));
-  for (let n = 0, want2 = o.variety ? 0 : filler.length + Math.round(8 * density * area); n < want2 * 4 && filler.length < want2; n++) {
+  // Variety: a sparse filler must take a free row and column of the spot grid and stay 0.8 of a cell from every filler.
+  const cellOf = (q: Pt): Pt => [Math.floor(((((q[0] % w) + w) % w) / w) * spotN), Math.floor(((((q[1] % h) + h) % h) / h) * spotN)];
+  const spotFree = (c: Pt) => {
+    const [cx, cy] = cellOf(c);
+    return filler.every((f) => {
+      const x = realCircle(f.v, f.p).c;
+      const [fx, fy] = cellOf(x);
+      return fx !== cx && fy !== cy && dist(c, x) >= (0.8 * w) / spotN;
+    });
+  };
+  const want2 = filler.length + Math.round(8 * density * area);
+  for (let n = 0; n < want2 * 4 && filler.length < want2 && !(o.variety && filler.length >= spotN); n++) {
     let best: { p: Pt; clear: number } | null = null;
     for (let k = 0; k < 16; k++) {
       const c: Pt = [rnd() * w, rnd() * h];
-      if (!inside(c, fr)) continue;
+      if (!inside(c, fr) || (o.variety && !spotFree(c))) continue;
       const clear = Math.min(...occupied.map((q) => dist(c, q.c) - q.r - fr), ...stemPts.map((q) => dist(c, q) - fr - fillerMargin));
       if (clear > (best?.clear ?? 4)) best = { p: c, clear };
     }
     if (!best) continue;
     const v = variants[2]![filler.length % VARIANTS]!;
-    const p = fillerAt(best.p, v);
+    const p = o.variety ? fillerAt(best.p, v, angles[k++ % angles.length]) : fillerAt(best.p, v);
     filler.push({ v, p });
     occupied.push(realCircle(v, p));
   }

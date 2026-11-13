@@ -887,7 +887,7 @@ test('variety: nothing touches, filler clear of stems, one filler per spot row a
       for (const f of p.filler) {
         const c = circle(p.studio, f);
         for (const q of stemPts) assert.ok(latticeDistance([c.x, c.y], q, repeat, 300, 300) >= c.r + p.fillerMargin, `${at} filler`);
-        const [col, row] = [Math.floor((c.x / 300) * 5), Math.floor((c.y / 300) * 5)];
+        const [col, row] = [Math.floor((c.x / 300) * 7), Math.floor((c.y / 300) * 7)];
         assert.ok(!cols.has(col) && !rows.has(row), `${at} spot ${col} ${row}`);
         cols.add(col);
         rows.add(row);
@@ -899,13 +899,12 @@ test('variety: nothing touches, filler clear of stems, one filler per spot row a
 });
 
 test('variety keeps a share of the filler count, per theme', () => {
-  // Measured over seeds 1 to 12: on / off = floral 2.00 / 5.50, sea 2.50 / 7.25, orchard 2.33 / 6.33 (34 to 37 percent).
-  // The 60 percent goal is not reached: the spots use the gap loop's strict checks, the sparse pass (off) does not.
+  // Measured over seeds 1 to 12: on / off = floral 3.75 / 5.50, sea 5.00 / 7.25, orchard 4.08 / 6.33 (64 to 69 percent).
   const mean = (theme: 'floral' | 'sea' | 'orchard', variety: boolean) =>
     Array.from({ length: 12 }, (_, i) => composeParts(opt(i + 1, { theme, variety })).filler.length).reduce((a, b) => a + b) / 12;
   for (const theme of ['floral', 'sea', 'orchard'] as const) {
     const [off, on] = [mean(theme, false), mean(theme, true)];
-    assert.ok(on >= 0.3 * off, `${theme} on ${on} off ${off}`);
+    assert.ok(on >= 0.6 * off, `${theme} on ${on} off ${off}`);
   }
 });
 

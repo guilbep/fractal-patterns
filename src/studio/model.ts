@@ -102,7 +102,7 @@ export function wrapOffsets(
 const mod = (a: number, m: number): number => ((a % m) + m) % m;
 
 /** Each instance with its pass: -1, 0 or 1 is the sign of its vertical wrap offset under overlap 'down', else 0. */
-function passInstances(s: Studio): { i: Instance; pass: number }[] {
+export function passInstances(s: Studio): { i: Instance; pass: number }[] {
   const cell = repeatCell(s);
   const down = s.overlap === 'down';
   const out: { i: Instance; pass: number }[] = [];

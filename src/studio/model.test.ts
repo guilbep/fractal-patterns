@@ -4,6 +4,7 @@ import { mulberry32 } from '../patterns/util.ts';
 import {
   instanceMatrix,
   layerColors,
+  passInstances,
   repeatCell,
   studioBytes,
   studioInstances,
@@ -242,5 +243,24 @@ test("overlap 'down' keeps the pass order across layers in studioSvg", () => {
       ['#0000ff', 'translate(40 85)'],
       ['#ff0000', 'translate(40 95)'],
     ],
+  );
+});
+
+test("passInstances tags the wrap copies with their pass under overlap 'down'", () => {
+  const s: Studio = {
+    ...base,
+    height: 100,
+    overlap: 'down',
+    motifs: [{ d: 'M0 0h20v20H0z', box: 20, paint: 'fill' }],
+    layers: [{ color: '#000000', opacity: 1, strokeWidth: 1, placements: [place(0, 50, 5), place(0, 50, 50), place(0, 50, 95)] }],
+  };
+  const t = passInstances(s);
+  assert.deepEqual(
+    t.map((p) => p.pass),
+    [-1, 0, 0, 0, 1],
+  );
+  assert.deepEqual(
+    t.map((p) => p.i.y),
+    [-5, 5, 50, 95, 105],
   );
 });

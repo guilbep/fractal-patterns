@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { handleTransform, hitStroke, stepSelection, viewBox } from './stage.ts';
+import { cellOrder, handleTransform, hitStroke, snapPoint, stepSelection, viewBox } from './stage.ts';
 
 const near = (a: number, b: number): void => assert.ok(Math.abs(a - b) < 1e-9, `${a} != ${b}`);
 
@@ -52,4 +52,17 @@ test('stepSelection steps through the ids and wraps around', () => {
   assert.equal(stepSelection([5, 7, 9], 42, 1), 5);
   assert.equal(stepSelection([], null, 1), null);
   assert.equal(stepSelection([4], 4, 1), 4);
+});
+
+test('snapPoint rounds to the grid and wraps into the tile', () => {
+  assert.deepEqual(snapPoint(31, 44, 240, 240, 8), [30, 30]);
+  assert.deepEqual(snapPoint(239, 1, 240, 240, 8), [0, 0]);
+  assert.deepEqual(snapPoint(-14, 50, 240, 120, 4), [0, 60]);
+  assert.deepEqual(snapPoint(45, 45, 240, 240, 8), [60, 60]);
+});
+
+test('cellOrder draws the row above first', () => {
+  const rows = cellOrder().map(([, oy]) => oy);
+  assert.deepEqual(rows, [-1, -1, -1, 0, 0, 0, 1, 1, 1]);
+  assert.equal(new Set(cellOrder().map((c) => c.join())).size, 9);
 });

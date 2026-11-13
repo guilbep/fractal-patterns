@@ -1,12 +1,34 @@
 <script setup lang="ts">
 // The tile editor: the real repeat in SVG DOM, with select, drag (wrapping across
 // the tile edges), one turn-and-resize handle, and keyboard control.
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { instanceMatrix, repeatCell, studioInstances } from '@/studio/model.ts';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { instanceMatrix, passInstances, repeatCell } from '@/studio/model.ts';
 import { duplicateItem, moveBy, owners, removeItem, reorder, toStudio, updateItem } from './design.ts';
 import { commit, design, preview, selected, selectedId } from './store.ts';
 import type { Design } from './types.ts';
-import { handleTransform, hitStroke, stepSelection, viewBox } from './stage.ts';
+import { cellOrder, handleTransform, hitStroke, snapPoint, stepSelection, viewBox } from './stage.ts';
+
+// Snap to grid: a stage setting, not part of the design or of undo.
+const SNAP_KEY = 'fp-builder-snap-v1';
+const GRIDS = [4, 8, 12, 16];
+function loadSnap(): { on: boolean; parts: number } {
+  try {
+    const v = JSON.parse(localStorage.getItem(SNAP_KEY) ?? 'null');
+    return { on: v?.on === true, parts: GRIDS.includes(v?.parts) ? v.parts : 8 };
+  } catch {
+    return { on: false, parts: 8 };
+  }
+}
+const saved = loadSnap();
+const snapOn = ref(saved.on);
+const parts = ref(saved.parts);
+watch([snapOn, parts], () => {
+  try {
+    localStorage.setItem(SNAP_KEY, JSON.stringify({ on: snapOn.value, parts: parts.value }));
+  } catch {
+    // ponytail: no storage, the setting lasts for this page only.
+  }
+});
 
 const svgEl = ref<SVGSVGElement | null>(null);
 const svgPixels = ref(0);
@@ -21,7 +43,8 @@ const cell = computed(() => repeatCell(studio.value));
 /** Tile units per screen pixel, for the hit area of line shapes. */
 const unitsPerPixel = computed(() => (svgPixels.value ? (2 * cell.value.width) / svgPixels.value : 1));
 const box = computed(() => viewBox(cell.value.width, cell.value.height));
-const instances = computed(() => studioInstances(studio.value));
+const tagged = computed(() => passInstances(studio.value));
+const instances = computed(() => tagged.value.map((p) => p.i));
 const ownerIds = computed(() => owners(design.value).map((k) => design.value.items[k]?.id ?? -1));
 
 const motifs = computed(() => [...new Set(instances.value.map((i) => i.motif))].map((m) => ({ m, ...studio.value.motifs[m]! })));
@@ -33,9 +56,12 @@ const drawn = computed(() => {
   const s = studio.value;
   const { width: cw, height: ch } = cell.value;
   const out = [];
-  for (const oy of [-1, 0, 1])
-    for (const ox of [-1, 0, 1])
-      for (const [k, i] of instances.value.entries()) {
+  // The pass is the outermost loop, as in the export, then the rows top to bottom: a row covers the row above.
+  const passes = s.overlap === 'down' ? [-1, 0, 1] : [0];
+  for (const pass of passes)
+    for (const [ox, oy] of cellOrder())
+      for (const [k, { i, pass: p }] of tagged.value.entries()) {
+        if (p !== pass) continue;
         const m = s.motifs[i.motif]!;
         const layer = s.layers[i.layer]!;
         const [a, b, c, d, e, f] = instanceMatrix(i, m.box);
@@ -54,6 +80,17 @@ const drawn = computed(() => {
           opacity: layer.opacity,
         });
       }
+  return out;
+});
+
+/** The grid points inside the central cell, in tile steps, while snap is on. */
+const dots = computed(() => {
+  if (!snapOn.value) return [];
+  const sx = design.value.width / parts.value;
+  const sy = design.value.height / parts.value;
+  const { width: w, height: h } = cell.value;
+  const out: [number, number][] = [];
+  for (let x = 0; x < w - 1e-9; x += sx) for (let y = 0; y < h - 1e-9; y += sy) out.push([x, y]);
   return out;
 });
 
@@ -131,11 +168,17 @@ function onMove(e: PointerEvent): void {
     const dx = now[0] - drag.start[0];
     const dy = now[1] - drag.start[1];
     drag.changed = Math.hypot(dx, dy) > 0.5;
-    preview(moveBy(drag.startDesign, drag.id, dx, dy));
+    const d = drag.startDesign;
+    const it = d.items.find((t) => t.id === drag!.id);
+    if (!it) return;
+    // The unsnapped target, wrapped by updateItem, then snapped (snapPoint wraps again).
+    const moved = moveBy(d, it.id, dx, dy).items.find((t) => t.id === it.id)!;
+    const [x, y] = snapOn.value && !e.altKey ? snapPoint(moved.x, moved.y, d.width, d.height, parts.value) : [moved.x, moved.y];
+    preview(updateItem(d, it.id, { x, y }));
   } else {
     const it = drag.startDesign.items.find((t) => t.id === drag!.id);
     if (!it) return;
-    const next = handleTransform(drag.center, drag.start, now, it.rotate, it.scale, e.shiftKey ? 15 : 0);
+    const next = handleTransform(drag.center, drag.start, now, it.rotate, it.scale, snapOn.value || e.shiftKey ? 15 : 0);
     drag.changed = next.rotate !== it.rotate || next.scale !== it.scale;
     preview(updateItem(drag.startDesign, drag.id, next));
   }
@@ -169,13 +212,15 @@ function onKey(e: KeyboardEvent): void {
   if (!it) return;
   const d = design.value;
   const step = e.shiftKey ? 10 : 1;
+  const sx = snapOn.value ? (step * d.width) / parts.value : step;
+  const sy = snapOn.value ? (step * d.height) / parts.value : step;
   const turn = (by: number): Design => updateItem(d, it.id, { rotate: it.rotate + by });
   const size = (by: number): Design => updateItem(d, it.id, { scale: it.scale * by });
   const actions: Record<string, () => Design | null> = {
-    ArrowLeft: () => moveBy(d, it.id, -step, 0),
-    ArrowRight: () => moveBy(d, it.id, step, 0),
-    ArrowUp: () => moveBy(d, it.id, 0, -step),
-    ArrowDown: () => moveBy(d, it.id, 0, step),
+    ArrowLeft: () => moveBy(d, it.id, -sx, 0),
+    ArrowRight: () => moveBy(d, it.id, sx, 0),
+    ArrowUp: () => moveBy(d, it.id, 0, -sy),
+    ArrowDown: () => moveBy(d, it.id, 0, sy),
     Delete: () => removeItem(d, it.id),
     Backspace: () => removeItem(d, it.id),
     d: () => duplicateItem(d, it.id),
@@ -207,6 +252,12 @@ function onKey(e: KeyboardEvent): void {
 
 <template>
   <div class="stage-editor">
+    <div class="snap-bar">
+      <label><input v-model="snapOn" type="checkbox" /> Snap</label>
+      <label>Grid <select v-model.number="parts" :disabled="!snapOn">
+        <option v-for="g in GRIDS" :key="g" :value="g">{{ g }}</option>
+      </select></label>
+    </div>
     <svg
       ref="svgEl"
       class="tile-editor"
@@ -254,6 +305,7 @@ function onKey(e: KeyboardEvent): void {
         />
       </template>
       <path class="veil" :d="veil" fill-rule="evenodd" />
+      <circle v-for="([x, y], k) in dots" :key="`g${k}`" class="grid-dot" :cx="x" :cy="y" :r="Math.max(cell.width, cell.height) * 0.004" />
       <rect class="cell-edge" x="0" y="0" :width="cell.width" :height="cell.height" />
       <rect
         v-for="(o, k) in outlines"
@@ -268,14 +320,14 @@ function onKey(e: KeyboardEvent): void {
       <circle v-if="handle" class="handle" data-handle :cx="handle.cx" :cy="handle.cy" :r="handle.r" />
     </svg>
     <p class="visually-hidden" aria-live="polite">{{ spoken }}</p>
-    <p class="stage-hint">Keys: N and P choose a shape, arrows move it. Drag to move. Drag the round handle to turn and resize. Shapes that cross an edge come back on the other side.</p>
+    <p class="stage-hint">Keys: N and P choose a shape, arrows move it. Drag to move. Drag the round handle to turn and resize. Shapes that cross an edge come back on the other side. With Snap on, hold Alt to drag freely.</p>
   </div>
 </template>
 
 <style scoped>
 .stage-editor {
-  /* The room the svg may take: the sticky stage minus the hint line. */
-  --max-h: calc(min(var(--stage-h), 100dvh - var(--bar-h, 0px)) - 4.5rem);
+  /* The room the svg may take: the sticky stage minus the snap bar and the hint line. */
+  --max-h: calc(min(var(--stage-h), 100dvh - var(--bar-h, 0px)) - 6.5rem);
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -285,7 +337,7 @@ function onKey(e: KeyboardEvent): void {
 }
 @media (min-width: 64rem) {
   .stage-editor {
-    --max-h: calc(100dvh - var(--bar-h, 0px) - 3.5rem);
+    --max-h: calc(100dvh - var(--bar-h, 0px) - 5.5rem);
   }
 }
 /* Exactly the viewBox: its ratio, as wide as the column unless the height limit is reached. */
@@ -331,6 +383,17 @@ function onKey(e: KeyboardEvent): void {
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
   cursor: grab;
+}
+.snap-bar {
+  display: flex;
+  gap: var(--s3);
+  align-items: center;
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+}
+.grid-dot {
+  fill: rgba(0, 0, 0, 0.35);
+  pointer-events: none;
 }
 .stage-hint {
   align-self: stretch;

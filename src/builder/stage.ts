@@ -43,3 +43,15 @@ export function stepSelection(ids: readonly number[], current: number | null, st
   if (k < 0) return ids[step === 1 ? 0 : ids.length - 1]!;
   return ids[mod(k + step, ids.length)]!;
 }
+
+/** The nearest grid point (the tile split into `parts` on each side), wrapped into [0, width) x [0, height). */
+export function snapPoint(x: number, y: number, width: number, height: number, parts: number): [number, number] {
+  const sx = width / parts;
+  const sy = height / parts;
+  return [mod(Math.round(x / sx) * sx, width), mod(Math.round(y / sy) * sy, height)];
+}
+
+/** The 8 neighbor cells and the center as [ox, oy]: a row above is drawn before the row below. */
+export function cellOrder(): [number, number][] {
+  return [-1, 0, 1].flatMap((oy) => [-1, 0, 1].map((ox): [number, number] => [ox, oy]));
+}

@@ -15,7 +15,8 @@ const stored = (page: Page): Promise<Stored | null> =>
 const itemCount = async (page: Page): Promise<number> => (await stored(page))?.items.length ?? -1;
 const stage = (page: Page) => page.getByRole('application', { name: /Tile editor/ });
 /** Distinct shapes drawn on the stage. */
-const stageCount = (page: Page): Promise<number> => page.evaluate(() => new Set([...document.querySelectorAll('svg.tile-editor [data-item]')].map((e) => e.getAttribute('data-item'))).size);
+const stageCount = (page: Page): Promise<number> =>
+  page.evaluate(() => new Set([...document.querySelectorAll('svg.tile-editor [data-item]')].map((e) => e.getAttribute('data-item'))).size);
 const panel = (page: Page) => page.getByRole('region', { name: 'Selected shape' });
 
 /** A filled shape that is the top element at its own center, inside the stage's central tile. */
@@ -192,4 +193,28 @@ test('keyboard selects shapes', async ({ page }) => {
   await page.keyboard.press('p');
   await expect(live).toHaveText(/shape 16 of 16$/);
   expect(await page.evaluate((key) => localStorage.getItem(key), KEY)).toBe(before);
+});
+
+test('snap places a dragged shape on the grid', async ({ page }) => {
+  await startAgain(page);
+  await page.getByLabel('Snap').check();
+  await expect(page.getByLabel('Grid')).toHaveValue('8');
+  const s = await pickShape(page);
+  const x0 = (await stored(page))!.items.find((it) => it.id === s.id)!.x;
+  const dx = 47 * s.perUnit;
+  await page.mouse.move(s.x, s.y);
+  await page.mouse.down();
+  await page.mouse.move(s.x + dx, s.y, { steps: 5 });
+  await page.mouse.up();
+  await expect.poll(async () => (await stored(page))!.items.find((it) => it.id === s.id)!.x).not.toBe(x0);
+  const it = (await stored(page))!.items.find((t) => t.id === s.id) as unknown as { x: number; y: number };
+  for (const v of [it.x, it.y]) {
+    expect(Math.abs(v / 30 - Math.round(v / 30))).toBeLessThan(1e-6);
+    expect(v).toBeGreaterThanOrEqual(0);
+    expect(v).toBeLessThan(WIDTH);
+  }
+  await page.getByLabel('Snap').uncheck();
+  await page.reload();
+  await expect(stage(page)).toBeVisible();
+  await expect(page.getByLabel('Snap')).not.toBeChecked();
 });

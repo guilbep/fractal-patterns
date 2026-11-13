@@ -254,6 +254,8 @@ const families = computed(() => themeFamilies(design.theme));
 // A new theme starts with all six of its families on.
 function setTheme(t: Theme): void {
   design.theme = t;
+  // Sea animals on a vine read as tied to a rope: the sea theme starts without stems. The layout is the same.
+  design.stems = t !== 'sea';
   design.families = families.value.map((f) => f.id);
 }
 
@@ -392,7 +394,7 @@ onBeforeUnmount(() => sizes.disconnect());
             <input id="zoom" v-model.number="zoom" type="range" min="50" max="200" step="10">
           </div>
         </div>
-        <label class="radio"><input id="stems" v-model="design.stems" type="checkbox"> Stems behind the large motifs</label>
+        <label class="radio"><input id="stems" v-model="design.stems" type="checkbox"> Show stems</label>
         <label class="radio shortcut-switch"><input id="shortcuts" v-model="shortcutOn" type="checkbox"> Keyboard shortcuts: R shuffles, F shows the wallpaper full screen</label>
       </section>
 

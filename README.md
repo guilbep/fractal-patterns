@@ -363,7 +363,7 @@ The controls:
 - Density: 0 to 100%.
 - Tile size: 200 to 500 px in steps of 20.
 - Preview zoom: 50 to 200%. It changes only the preview.
-- Stems behind the large motifs.
+- Show stems. The sea theme starts without stems, and the layout stays the same.
 - Repeat: Straight, Half-drop, Brick or Mirror.
 - Motif families: the six families of the theme. At least one stays on.
 
@@ -427,7 +427,7 @@ The studio has the same palettes as the pattern tool. The palette strip in the t
 | `r` | Repeat: `0` Straight, `1` Half-drop, `2` Brick, `3` Mirror | `0` |
 | `d` | Density, 0 to 1 | `0.4` |
 | `z` | Tile size in px, 200 to 500 | `300` |
-| `st` | Stems behind the large motifs, `1` or `0` | `1` |
+| `st` | Show stems, `1` or `0` | `1` |
 | `t` | Theme: `f` Floral, `s` Sea, `o` Orchard | `f` |
 | `f` | Motif families, a bit mask in the order of the theme's families, as in the table above | all |
 | `pn` | Palette name, for example `Fern` | `Lagoon` |

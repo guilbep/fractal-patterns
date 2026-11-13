@@ -56,3 +56,33 @@ test('ownShapes per method', () => {
   const color = ownShapes({ method: 'color', shapes: [{ color: '#abcdef', d: 'M0 0h1v1z', area: 1 }], box: 100 });
   assert.deepEqual(color, { shapes: [{ color: '#abcdef', d: 'M0 0h1v1z' }], box: 100 });
 });
+
+test('pickMethod: a picture in several colors goes to Color shapes, one-color line art goes to Ink', async () => {
+  const { sampleFlower } = await import('./colortrace.ts');
+  const { inkMask } = await import('./inktrace.ts');
+  const { inkSpread, INK_SPREAD_MAX } = await import('./own-motif.ts');
+  // The built-in sample flower: pink petals, a yellow heart, a green stem, on white.
+  const flower = sampleFlower(400);
+  const fm = inkMask(flower, {});
+  const fs = inkSpread(flower.data, fm.mask);
+  assert.ok(fs > INK_SPREAD_MAX, `the flower's colors are spread out: ${fs.toFixed(3)}`);
+  assert.equal(pickMethod({ ...fm, spread: fs }), 'color');
+  // Line art: dark green strokes with soft edges on white.
+  const W = 200;
+  const data = new Uint8ClampedArray(W * W * 4).fill(255);
+  for (let y = 0; y < W; y++)
+    for (let x = 0; x < W; x++) {
+      const d = Math.abs(Math.hypot(x - 100, y - 100) - 60);
+      const a = Math.max(0, Math.min(1, 3 - d)); // a ring about 5 px thick with a one pixel soft edge
+      const i = 4 * (y * W + x);
+      data[i] = 255 + (20 - 255) * a;
+      data[i + 1] = 255 + (60 - 255) * a;
+      data[i + 2] = 255 + (20 - 255) * a;
+    }
+  const art = { width: W, height: W, data };
+  const am = inkMask(art, {});
+  const as = inkSpread(art.data, am.mask);
+  assert.ok(as < INK_SPREAD_MAX, `line art is one color: ${as.toFixed(3)}`);
+  assert.equal(pickMethod({ ...am, spread: as }), 'ink');
+  assert.equal(inkSpread(art.data, new Uint8Array(W * W)), 0);
+});

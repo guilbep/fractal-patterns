@@ -9,7 +9,7 @@ import { DETECTOR_LABELS, DETECTORS, type Detector } from '@/trace.ts';
 import { cropToSubject, sampleFlower, traceColors, type Rgba } from './colortrace.ts';
 import { inkMask, traceInk } from './inktrace.ts';
 import { cropLines, traceLines } from './linetrace.ts';
-import { defaultsFor, inkColor, isSvgFile, ownShapes, pickMethod, type OwnMethod, type OwnShape } from './own-motif.ts';
+import { defaultsFor, inkColor, inkSpread, isSvgFile, ownShapes, pickMethod, type OwnMethod, type OwnShape } from './own-motif.ts';
 import { importSvg, type SvgImport } from './svg-import.ts';
 import { compose, composeSummary, THEMES, themeFamilies, type Theme } from './compose.ts';
 import { INK_MAX_LENGTH, repeatCell, studioSvg, type Repeat } from './model.ts';
@@ -64,7 +64,7 @@ function setOwnImage(small: Rgba, large: Rgba): void {
   ownLarge.value = large;
   const ink = inkMask(large, {});
   own.inkColor = inkColor(large.data, ink.mask);
-  own.method = pickMethod(ink);
+  own.method = pickMethod({ ...ink, spread: inkSpread(large.data, ink.mask) });
   Object.assign(own, defaultsFor(own.method));
 }
 function removeOwn(): void {

@@ -12,8 +12,31 @@ export type OwnMethod = 'color' | 'ink' | 'lines';
 export type OwnShape = CustomShape & { readonly evenodd?: boolean };
 
 /** One-color line art (clear contrast, ink on under 35 % of the pixels) goes to Ink; anything else to Color shapes. */
-export function pickMethod(i: { contrast: number; coverage: number }): OwnMethod {
-  return i.contrast >= 0.35 && i.coverage < 0.35 ? 'ink' : 'color';
+export function pickMethod(i: { contrast: number; coverage: number; spread?: number }): OwnMethod {
+  // Line art is one color: its ink pixels lie close to their mean color. A color picture on white also has high
+  // contrast and little "ink", but its ink pixels differ from each other, so it goes to Color shapes.
+  return i.contrast >= 0.35 && i.coverage < 0.35 && (i.spread ?? 0) < INK_SPREAD_MAX ? 'ink' : 'color';
+}
+
+export const INK_SPREAD_MAX = 0.16;
+
+/** How far the ink pixels lie from their mean color: the root mean square RGB distance, from 0 to 1. */
+export function inkSpread(pixels: ArrayLike<number>, mask: ArrayLike<number>): number {
+  const sum = [0, 0, 0];
+  let n = 0;
+  for (let i = 0; i < mask.length; i++) {
+    if (!mask[i]) continue;
+    for (let c = 0; c < 3; c++) sum[c]! += pixels[4 * i + c]!;
+    n++;
+  }
+  if (n === 0) return 0;
+  const mean = sum.map((v) => v / n);
+  let d = 0;
+  for (let i = 0; i < mask.length; i++) {
+    if (!mask[i]) continue;
+    for (let c = 0; c < 3; c++) d += (pixels[4 * i + c]! - mean[c]!) ** 2;
+  }
+  return Math.sqrt(d / n / 3) / 255;
 }
 
 export function defaultsFor(method: OwnMethod): { scale: number; anchor: 'base' | 'center'; detail: number } {

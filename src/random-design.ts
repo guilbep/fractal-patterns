@@ -4,7 +4,7 @@ import type { Layer2Settings } from './layers.ts';
 import type { Motion } from './motion.ts';
 import { MOTION_NONE } from './motion.ts';
 import { optionsFor } from './repetition.ts';
-import { canVary } from './supertile.ts';
+import { canVary, shiftsFor } from './supertile.ts';
 import { STRENGTHS, VARIANT_DEFAULTS, type VariantOptions } from './variants.ts';
 
 type Rnd = () => number;
@@ -30,12 +30,14 @@ export function randomRepetition(kind: Kind, rnd: Rnd): RandomRepetition {
   if (variants) {
     const ok = optionsFor(kind);
     const { cells, count } = pick(rnd, STRENGTHS.slice(0, 3));
+    const drop = ok.drop ? pick(rnd, ['none', 'half-drop', 'brick'] as const) : 'none';
     variantOptions = {
       ...variantOptions,
       cells,
       count,
       orient: ok.orient && rnd() < 0.5,
-      drop: ok.drop ? pick(rnd, ['none', 'half-drop', 'brick'] as const) : 'none',
+      drop,
+      shift: drop === 'none' ? 2 : pick(rnd, shiftsFor(cells)),
       jitter: ok.jitter && rnd() < 0.5 ? between(rnd, 0.2, 0.6, 0.01) : 0,
       weights: ok.weights && rnd() < 0.5 ? between(rnd, 0.2, 0.5, 0.01) : 0,
     };

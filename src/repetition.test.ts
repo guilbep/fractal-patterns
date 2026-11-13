@@ -20,6 +20,7 @@ import {
   MARGIN_KINDS,
   ORIENTATIONS,
   orientationKinds,
+  shiftsFor,
   superTileSvg,
   VARIANT_KINDS,
   variantSeeds,
@@ -328,6 +329,59 @@ test('drop: half-cell offsets, wrapped copies, invariant under a shift by the ti
     const inside = new Set(raw.filter(([x, y]) => x >= 0 && x < 240 && y >= 0 && y < 240).map(([x, y]) => key(x, y)));
     assert.deepEqual([...pts].sort(), [...inside].sort(), drop);
   }
+});
+
+test('shift 1/3 on a 6 by 6 half-drop: columns 0, 1/3, 2/3 of a cell, wrapped copies, invariant under a shift by the tile size', () => {
+  const o: SuperTileOptions = { ...base, depth: 3, cells: 6, count: 4, drop: 'half-drop', shift: 3 };
+  const T = 360;
+  const uses = usesOf(superTileSvg(o));
+  const offset = (t: string): number[] => (/translate\(([-\d.]+) ([-\d.]+)\)/.exec(t)?.slice(1) ?? ['0', '0']).map(Number);
+  const at = uses.map(([, t]) => offset(t) as [number, number]);
+  for (const [c, dy] of [
+    [1, 20],
+    [2, 40],
+    [3, 0],
+    [4, 20],
+    [5, 40],
+  ] as const) {
+    assert.ok(
+      at.some(([x, y]) => x === c * 60 && Math.abs(y - dy) < 1e-9),
+      `column ${c} at ${dy}`,
+    );
+    if (dy)
+      assert.ok(
+        at.some(([x, y]) => x === c * 60 && Math.abs(y - (300 + dy - T)) < 1e-9),
+        `column ${c} wrapped`,
+      );
+  }
+  assert.equal(uses.length, 36 + 4, '4 shifted columns cross the bottom edge');
+  const geos = geosOf(o, [3, 3, 3, 3]);
+  const key = (x: number, y: number) => `${(((x % T) + T) % T).toFixed(3)},${(((y % T) + T) % T).toFixed(3)}`;
+  const pts = new Set<string>();
+  const raw: Pt[] = [];
+  for (const [v, t] of uses)
+    for (const poly of placed(geos[v]!, t, 0, 0))
+      for (const p of poly) {
+        raw.push(p);
+        pts.add(key(p[0], p[1]));
+      }
+  const inside = new Set(raw.filter(([x, y]) => x >= 0 && x < T && y >= 0 && y < T).map(([x, y]) => key(x, y)));
+  assert.deepEqual([...pts].sort(), [...inside].sort());
+});
+
+test('shift 1/2 gives the same bytes as no shift for 3 kinds, both offsets; a shift the grid does not allow falls back to 1/2', () => {
+  for (const kind of ['tree', 'carpet', 'whirl'] as const)
+    for (const drop of ['half-drop', 'brick'] as const) {
+      const o: SuperTileOptions = { ...base, kind, depth: 3, cells: 4, drop };
+      assert.equal(superTileSvg({ ...o, shift: 2 }), superTileSvg(o), `${kind} ${drop}`);
+      assert.equal(superTileSvg({ ...o, shift: 3 }), superTileSvg(o), `${kind} ${drop} 1/3 on 4 by 4`);
+    }
+});
+
+test('shiftsFor: q divides the grid size', () => {
+  assert.deepEqual(shiftsFor(2), [2]);
+  assert.deepEqual(shiftsFor(4), [2, 4]);
+  assert.deepEqual(shiftsFor(6), [2, 3]);
 });
 
 test('all options combined on tree: deterministic, one line, sized by repetitionBytes', () => {

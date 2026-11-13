@@ -86,11 +86,12 @@ function randomVO(r: () => number): VariantOptions {
     jitter: pct(100),
     weights: pct(100),
     skip: pct(50),
+    shift: (cells === 6 ? [2, 3] : cells === 4 ? [2, 4] : [2])[Math.floor(r() * 2) % (cells === 2 ? 1 : 2)] as 2 | 3 | 4,
   };
 }
 
 // Every field non-default, with values the sliders produce (whole or half steps).
-// ponytail: the worst case (longest kind, max seed, x.5 everywhere) encodes to 210 characters (184 before the patchwork keys).
+// ponytail: the worst case (longest kind, max seed, x.5 everywhere) encodes to 212 characters (184 before the patchwork keys).
 const FULL: Design = {
   kind: 'koch',
   seed: 123456789,
@@ -124,7 +125,7 @@ const FULL: Design = {
   fade: true,
   layer2Settings: { x: 100, y: 100, rotate: -180, scale: 2.95, opacity: 0.55, depth: 3.85 }, // the longest the sliders give
   parallax: true,
-  variantOptions: { cells: 6, count: 6, orient: true, drop: 'half-drop', depths: true, jitter: 0.55, weights: 0.55, skip: 0.45 }, // the longest the sliders give
+  variantOptions: { cells: 6, count: 6, orient: true, drop: 'half-drop', depths: true, jitter: 0.55, weights: 0.55, skip: 0.45, shift: 3 }, // the longest the sliders give
   sections: true,
   fill: { mode: 'alternate', color: '#c3eaec', opacity: 0.55 }, // the longest the slider gives
   layer2Color: '#e07a5f',
@@ -199,7 +200,7 @@ test('a design with every field non-default stays short', () => {
   for (const f of Object.keys(DESIGN_DEFAULTS) as (keyof Design)[]) assert.notEqual(FULL[f], DESIGN_DEFAULTS[f], f);
   const s = encodeDesign(FULL);
   // 177 before the variants key, + '&v=1', + '&l2=1&fd=1', + '&l2s=100_100_-180_2.95_0.55_3.85' (32), + '&px=1' (5),
-  // + '&vo=6_6_1_h_1_0.55_0.55_0.45' (28), + '&sx=1' (5), + '&fi=a_c3eaec_0.55' (17), + '&l2c=e07a5f' (11)
+  // + '&vo=6_6_1_h_1_0.55_0.55_0.45_3' (30), + '&sx=1' (5), + '&fi=a_c3eaec_0.55' (17), + '&l2c=e07a5f' (11)
   assert.ok(s.length <= 292, `${s.length}`);
   assert.deepEqual(decodeDesign(s), FULL);
 });
@@ -377,8 +378,13 @@ test('variant options: one vo key, round trip of 30 random sets, absent means de
     'vo=6_6_1_h_1_0.5_0.3_0',
   );
   assert.deepEqual(decodeDesign('v=1').variantOptions, VARIANT_DEFAULTS);
+  // The shift is appended only when it is not one half: an old 8-part value decodes to 1/2.
+  const third = { ...VARIANT_DEFAULTS, cells: 6, count: 4, drop: 'half-drop', shift: 3 } as const;
+  assert.equal(encodeDesign({ ...DESIGN_DEFAULTS, variantOptions: third }), 'vo=6_4_0_h_0_0_0_0_3');
+  assert.deepEqual(decodeDesign('vo=6_4_0_h_0_0_0_0_3').variantOptions, third);
+  assert.equal(decodeDesign('vo=6_6_1_h_1_0.5_0.3_0').variantOptions.shift, 2);
   // Appended last: older keys come first.
-  assert.ok(encodeDesign({ ...FULL, layer2Color: null }).endsWith('&px=1&vo=6_6_1_h_1_0.55_0.55_0.45&sx=1&fi=a_c3eaec_0.55'));
+  assert.ok(encodeDesign({ ...FULL, layer2Color: null }).endsWith('&px=1&vo=6_6_1_h_1_0.55_0.55_0.45_3&sx=1&fi=a_c3eaec_0.55'));
 });
 
 test('variant options: numbers are clamped, malformed values and unsupported pairs give the defaults', () => {
@@ -399,6 +405,10 @@ test('variant options: numbers are clamped, malformed values and unsupported pai
     '4_4_2_n_0_0_0_0',
     '4_4_0_n_0_0_0',
     '4_4_0_n_0_0_0_0_0',
+    '4_4_0_h_0_0_0_0_3',
+    '2_2_0_h_0_0_0_0_4',
+    '6_6_0_h_0_0_0_0_5',
+    '4_4_0_h_0_0_0_0_4_0',
     '4_4_0_n_0_a_0_0',
     '4_4_0_n_0__0_0',
     '4_4_0_n_0_Infinity_0_0',

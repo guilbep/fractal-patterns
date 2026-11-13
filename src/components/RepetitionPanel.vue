@@ -6,7 +6,7 @@ import { hasCompat } from '@/fractal.ts';
 import { repeatDistance, scaledSecondSize } from '@/layers.ts';
 import { previewOptions } from '@/repetition-previews.ts';
 import { imageOptions, optionsFor } from '@/repetition.ts';
-import { canVary, imageSuperTileSvg, superTileSvg } from '@/supertile.ts';
+import { canVary, imageSuperTileSvg, shiftsFor, superTileSvg } from '@/supertile.ts';
 import {
   curvesOn,
   fade,
@@ -59,6 +59,13 @@ const cards = computed(() => (variantsOn.value ? previewOptions({ ...variantOpti
 const pics = computed(() => new Map(cards.value.map((c) => [c.id, picture(c.options)])));
 const example = (id: string) => cards.value.find((c) => c.id === id)?.example;
 const group = (g: string) => cards.value.filter((c) => c.group === g);
+// A grid size that does not allow the current shift falls back to one half.
+watch(
+  () => variantOptions.cells,
+  (n) => {
+    if (!shiftsFor(n).includes(variantOptions.shift)) variantOptions.shift = 2;
+  },
+);
 const panelVars = computed(() => ({ '--rp-fg': roles.pattern, '--rp-bg': roles.background }));
 
 const size2 = computed(() => scaledSecondSize(tileSize.value, layer2Settings.scale));
@@ -112,6 +119,16 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
           <label v-for="c in group('drop')" :key="c.id" class="rep-card">
             <span class="rep-pic" aria-hidden="true"><span :style="{ '--pic': pics.get(c.id) }"></span></span>
             <span><input v-model="variantOptions.drop" type="radio" name="v-drop" :value="c.options.drop"> {{ c.label }}</span>
+          </label>
+        </div>
+      </fieldset>
+      <fieldset v-if="group('shift').length" id="v-shift" aria-describedby="v-shift-hint">
+        <legend>Shift by</legend>
+        <p id="v-shift-hint" class="hint-text">A third or a quarter of a cell hides the grid faster: the columns line up again only after 3 or 4.</p>
+        <div class="rep-cards">
+          <label v-for="c in group('shift')" :key="c.id" class="rep-card">
+            <span class="rep-pic" aria-hidden="true"><span :style="{ '--pic': pics.get(c.id) }"></span></span>
+            <span><input v-model="variantOptions.shift" type="radio" name="v-shift" :value="c.options.shift"> {{ c.label }}</span>
           </label>
         </div>
       </fieldset>

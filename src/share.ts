@@ -3,6 +3,7 @@
 import { FAMILIES, KINDS, MAX_DEPTH, type Kind } from './fractal.ts';
 import { LAYER2_DEFAULTS, type Layer2Settings } from './layers.ts';
 import { MOTION_NONE, type Motion } from './motion.ts';
+import { shiftsFor } from './supertile.ts';
 import { VARIANT_DEFAULTS, type VariantOptions } from './variants.ts';
 import type { FillStyle } from './fills.ts';
 
@@ -144,21 +145,39 @@ function decodeL2(s: string): Layer2Settings {
   return out;
 }
 
-// The variant options in one value, cells_count_orient_drop_depths_jitter_weights_skip (drop as n, h, or b);
-// empty when all are default.
+// The variant options in one value, cells_count_orient_drop_depths_jitter_weights_skip (drop as n, h, or b),
+// then _shift (3 or 4) only when it is not 2, so old links decode unchanged; empty when all are default.
 const DROPS = { none: 'n', 'half-drop': 'h', brick: 'b' } as const;
 const PAIRS = ['2_2', '4_4', '6_4', '6_6'];
 const encodeVO = (v: VariantOptions): string =>
   (Object.keys(VARIANT_DEFAULTS) as (keyof VariantOptions)[]).every((k) => v[k] === VARIANT_DEFAULTS[k])
     ? ''
-    : [v.cells, v.count, v.orient ? 1 : 0, DROPS[v.drop], v.depths ? 1 : 0, v.jitter, v.weights, v.skip].join('_');
-// Eight parts, a supported (cells, count) pair, and finite numbers clamped to their range; anything else gives the defaults.
+    : [
+        v.cells,
+        v.count,
+        v.orient ? 1 : 0,
+        DROPS[v.drop],
+        v.depths ? 1 : 0,
+        v.jitter,
+        v.weights,
+        v.skip,
+        ...(v.shift === 2 ? [] : [v.shift]),
+      ].join('_');
+// Eight parts (nine with a shift that the grid allows), a supported (cells, count) pair, and finite numbers clamped to their range; anything else gives the defaults.
 function decodeVO(s: string): VariantOptions {
   const [c = '', n = '', o, dr, de, ...rest] = s.split('_');
   const nums = rest.map((p) => (p.trim() === '' ? NaN : Number(p)));
+  const shift = nums.length === 4 ? nums.pop()! : 2;
   const drop = (Object.keys(DROPS) as (keyof typeof DROPS)[]).find((k) => DROPS[k] === dr);
   const bits = [o, de].map((b) => (b === '1' ? true : b === '0' ? false : undefined));
-  if (!PAIRS.includes(`${c}_${n}`) || drop === undefined || bits.includes(undefined) || nums.length !== 3 || !nums.every(Number.isFinite))
+  if (
+    !PAIRS.includes(`${c}_${n}`) ||
+    drop === undefined ||
+    bits.includes(undefined) ||
+    nums.length !== 3 ||
+    !nums.every(Number.isFinite) ||
+    !(shiftsFor(Number(c)) as number[]).includes(shift)
+  )
     return VARIANT_DEFAULTS;
   const clamp = (x: number, hi: number) => Math.min(hi, Math.max(0, x)) + 0;
   return {
@@ -170,6 +189,7 @@ function decodeVO(s: string): VariantOptions {
     jitter: clamp(nums[0]!, 1),
     weights: clamp(nums[1]!, 1),
     skip: clamp(nums[2]!, 0.5),
+    shift: shift as 2 | 3 | 4,
   };
 }
 

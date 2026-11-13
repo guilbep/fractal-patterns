@@ -116,6 +116,7 @@ Reduce repetition puts several seeded variants of the kind into one larger tile.
 | Turn and flip each cell | Turns or mirrors each cell, at no extra path. | Carpet, Tree, Folded curve, Koch lattice, H-tree, Curve stitching, Whirl, Dot grid |
 | Empty cells | Leaves up to 50% of the cells empty. | Carpet, Tree, Folded curve, Koch lattice, H-tree, Curve stitching, Whirl, Dot grid |
 | Offset | None, Half-drop or Brick: shifts every second column or row by half a cell. | Carpet, Tree, Folded curve, H-tree, Curve stitching, Whirl |
+| Shift by | With an offset, how far each column (or row) moves: one half, one third or one quarter of a cell. A third or a quarter hides the grid faster, because the columns line up again only after 3 or 4 columns; it is offered only when the grid size is a multiple of 3 (6 by 6) or 4 (4 by 4). | As Offset |
 | Mix two depths | Draws half of the variants one depth lower. | Carpet, Tree, Folded curve, H-tree, Curve stitching, Whirl, Dot grid |
 | Shift and scale | A small shift and size change per cell. | Carpet, Tree, Folded curve, H-tree, Curve stitching, Whirl |
 
@@ -294,7 +295,7 @@ The hash writes only the values that differ from the default. The key `fi` holds
 | Key | Meaning | Default |
 | --- | --- | --- |
 | `v` | Reduce repetition, `1` or `0` | `0` |
-| `vo` | Options of Reduce repetition: cells, count, turn and flip, offset (`n`, `h` or `b`), mix of depths, shift and scale, line weight, empty cells, joined by `_` | 4 cells, 4 variants, all options off |
+| `vo` | Options of Reduce repetition: cells, count, turn and flip, offset (`n`, `h` or `b`), mix of depths, shift and scale, line weight, empty cells, joined by `_`, then the shift (`3` or `4`, for one third or one quarter) only when it is not one half | 4 cells, 4 variants, all options off |
 | `l2` | Second layer, `1` or `0` | `0` |
 | `l2s` | Second layer settings: shift right, shift down, turn, size, strength, depth, joined by `_` | `0_0_0_1_1_1` |
 | `px` | Parallax on scroll, `1` or `0` | `0` |

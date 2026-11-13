@@ -19,6 +19,7 @@ export interface VariantOptions {
   readonly count: 2 | 4 | 6;
   readonly orient: boolean;
   readonly drop: 'none' | 'half-drop' | 'brick';
+  readonly shift: 2 | 3 | 4; // offset of 1/shift cell, only values from shiftsFor(cells)
   readonly depths: boolean;
   readonly jitter: number; // 0..1
   readonly weights: number; // 0..1
@@ -29,6 +30,7 @@ export const VARIANT_DEFAULTS: VariantOptions = {
   count: 4,
   orient: false,
   drop: 'none',
+  shift: 2,
   depths: false,
   jitter: 0,
   weights: 0,

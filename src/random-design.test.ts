@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { KINDS } from './fractal.ts';
 import { LAYOUT_EXAMPLES, randomLayout, randomRepetition } from './random-design.ts';
 import { optionsFor } from './repetition.ts';
-import { canVary } from './supertile.ts';
+import { canVary, shiftsFor } from './supertile.ts';
 import { STRENGTHS, VARIANT_DEFAULTS } from './variants.ts';
 
 // mulberry32: a small seeded generator for repeatable draws.
@@ -42,6 +42,8 @@ test('randomRepetition: 200 draws per kind stay in range and never set forbidden
       assert.ok(o.weights === 0 || (o.weights >= 0.2 && o.weights <= 0.5));
       if (!ok.orient) assert.equal(o.orient, false);
       if (!ok.drop) assert.equal(o.drop, 'none');
+      assert.ok(shiftsFor(o.cells).includes(o.shift), `shift ${o.shift} on ${o.cells}`);
+      if (o.drop === 'none') assert.equal(o.shift, 2);
       if (!ok.jitter) assert.equal(o.jitter, 0);
       if (!ok.weights) assert.equal(o.weights, 0);
       assert.equal(r.layer2, r.layer2Settings !== null);

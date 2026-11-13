@@ -2,9 +2,10 @@
 // one choice applied on top. Pure.
 import type { Kind } from './fractal.ts';
 import { imageOptions, optionsFor } from './repetition.ts';
+import { shiftsFor } from './supertile.ts';
 import { STRENGTHS, type VariantOptions } from './variants.ts';
 
-export type CardGroup = 'strength' | 'orient' | 'depths' | 'drop' | 'jitter' | 'weights' | 'skip';
+export type CardGroup = 'strength' | 'orient' | 'depths' | 'drop' | 'shift' | 'jitter' | 'weights' | 'skip';
 export interface PreviewCard {
   readonly id: string;
   readonly group: CardGroup;
@@ -19,11 +20,13 @@ export const GROUP_FIELDS: Record<CardGroup, readonly (keyof VariantOptions)[]> 
   orient: ['orient'],
   depths: ['depths'],
   drop: ['drop'],
+  shift: ['shift'],
   jitter: ['jitter'],
   weights: ['weights'],
   skip: ['skip'],
 };
 
+export const SHIFT_LABELS = { 2: 'One half', 3: 'One third', 4: 'One quarter' } as const;
 const DROPS = [
   { drop: 'none', label: 'None' },
   { drop: 'half-drop', label: 'Half-drop' },
@@ -38,7 +41,7 @@ const SLIDERS = [
   ['skip', 'Empty cells'],
 ] as const;
 
-// At most 12 cards: 4 strengths, 2 toggles, 3 offsets, 3 sliders (each at its current value, or its example value at 0).
+// At most 14 cards: 4 strengths, 2 toggles, 3 offsets, 2 shifts (only with an offset and a grid that allows more than one), 3 sliders (each at its current value, or its example value at 0).
 // `kind` null is a traced image: Strength is the grid size only, one card per cell count.
 export function previewOptions(current: VariantOptions, kind: Kind | null): PreviewCard[] {
   const a = kind === null ? imageOptions(true) : optionsFor(kind);
@@ -54,6 +57,9 @@ export function previewOptions(current: VariantOptions, kind: Kind | null): Prev
   if (a.depths) cards.push({ id: 'depths', group: 'depths', label: 'Mix two depths', options: { ...current, depths: true } });
   if (a.drop)
     for (const d of DROPS) cards.push({ id: `drop-${d.drop}`, group: 'drop', label: d.label, options: { ...current, drop: d.drop } });
+  const shifts = shiftsFor(current.cells);
+  if (a.drop && current.drop !== 'none' && shifts.length > 1)
+    for (const q of shifts) cards.push({ id: `shift-${q}`, group: 'shift', label: SHIFT_LABELS[q], options: { ...current, shift: q } });
   for (const [key, label] of SLIDERS)
     if (a[key]) {
       const example = current[key] === 0;

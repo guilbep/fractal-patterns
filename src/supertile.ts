@@ -77,7 +77,11 @@ export interface SuperTileOptions {
   readonly jitter?: number; // 0..1: seeded scale and shift inside the cell margin, MARGIN_KINDS only
   readonly depths?: boolean; // half of the variants at depth - 1, DEPTH_MIX_KINDS only
   readonly drop?: 'none' | 'half-drop' | 'brick'; // MARGIN_KINDS only
+  readonly shift?: 2 | 3 | 4; // the offset is 1/shift of a cell per column (or row), default 2 (half)
 }
+
+// The shifts 1/q whose offsets repeat within the grid: q divides cells. 2/5 needs a 5 or 10 grid, none is offered.
+export const shiftsFor = (cells: number): (2 | 3 | 4)[] => ([2, 3, 4] as const).filter((q) => cells % q === 0);
 
 // Measured (src/repetition.ts measureMarginKinds, pinned by its test): kinds whose geometry stays at
 // least MIN_MARGIN px inside the cell for seeds 1..4 at depth 2 and MAX_DEPTH, size 60.
@@ -133,7 +137,19 @@ export const safeColor = (c: string): string => (/^#[0-9a-fA-F]{6}$/.test(c) ? c
 // The grid options shared by a math kind and a traced image.
 export type GridOptions = Pick<
   SuperTileOptions,
-  'seed' | 'size' | 'strokeWidth' | 'precision' | 'color' | 'opacity' | 'orient' | 'cells' | 'jitter' | 'weights' | 'skip' | 'drop'
+  | 'seed'
+  | 'size'
+  | 'strokeWidth'
+  | 'precision'
+  | 'color'
+  | 'opacity'
+  | 'orient'
+  | 'cells'
+  | 'jitter'
+  | 'weights'
+  | 'skip'
+  | 'drop'
+  | 'shift'
 >;
 // What fills the cells: one geometry per variant in a cell of edge o.size, the variant of each cell,
 // and which per-cell options apply. `shift` allows jitter and offset inside `margin`.
@@ -197,6 +213,7 @@ function grid(o: GridOptions, src: CellSource) {
   const margin = src.margin;
   const shake = src.shift && jitter > 0;
   const shift = src.shift ? drop : 'none';
+  const q = shiftsFor(n).includes(o.shift ?? 2) ? (o.shift ?? 2) : 2;
   const skip = Math.min(0.5, Math.max(0, o.skip ?? 0));
   const empty = skip > 0 && src.skip ? emptyCells(n, skip, o.seed) : new Set<number>();
   const weights = Math.min(1, Math.max(0, o.weights ?? 0));
@@ -240,8 +257,9 @@ function grid(o: GridOptions, src: CellSource) {
         if (sw !== o.strokeWidth) w += ` stroke-width="${sw}"`;
         if (so !== o.opacity && so <= o.opacity) w += ` stroke-opacity="${so}"`;
       }
-      const x0 = c * S + (shift === 'brick' && r % 2 === 1 ? S / 2 : 0);
-      const y0 = r * S + (shift === 'half-drop' && c % 2 === 1 ? S / 2 : 0);
+      // Column c (row r for brick) moves by (c mod q) / q of a cell; q = 2 gives the half-cell offset.
+      const x0 = c * S + (shift === 'brick' && r % q !== 0 ? ((r % q) * S) / q : 0);
+      const y0 = r * S + (shift === 'half-drop' && c % q !== 0 ? ((c % q) * S) / q : 0);
       // A shifted cell that crosses the super tile edge is drawn again one period back.
       const places: [number, number][] = [[x0, y0]];
       if (x0 + S > T) places.push([x0 - T, y0]);

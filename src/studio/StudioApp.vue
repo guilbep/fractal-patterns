@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue';
 import ShortcutHint from '@/components/ShortcutHint.vue';
+import SiteHeader from '@/components/SiteHeader.vue';
 import { isTyping, readShortcut, shortcutFor, toggleFullscreen, writeShortcut } from '@/shortcuts.ts';
-import { LOGO_DEFAULT, logoSvg } from '@/logo.ts';
 import { svgToDataUri } from '@/css.ts';
 import SponsorBanner from '@/components/SponsorBanner.vue';
 import { formatFootprint, gzipSize, rawSize } from '@/co2.ts';
@@ -20,7 +20,6 @@ import { compose, composeSummary, THEMES, themeFamilies, type Theme } from './co
 import { INK_MAX_LENGTH, repeatCell, studioSvg, type Repeat } from './model.ts';
 import { decodeStudio, designOptions, encodeStudio, MAX_SEED, SIZE_MAX, SIZE_MIN, SIZE_STEP } from './studio-share.ts';
 
-const LOGO_URI = svgToDataUri(logoSvg(LOGO_DEFAULT));
 const REPEAT_INFO: readonly (readonly [Repeat, string, string])[] = [
   ['straight', 'Straight', 'The tile repeats side by side in a plain grid.'],
   ['half-drop', 'Half-drop', 'Each column drops by half a tile.'],
@@ -323,11 +322,7 @@ onBeforeUnmount(() => sizes.disconnect());
 </script>
 
 <template>
-  <header class="site-header">
-    <p class="brand"><img class="logo" :src="LOGO_URI" alt="" width="28" height="28">Wallpaper Studio</p>
-    <p class="tagline">Original botanical wallpapers from a seed. Every motif is generated here; nothing is copied.</p>
-    <p><a :href="toolHref">Pattern tool</a></p>
-  </header>
+  <SiteHeader current="studio" :patterns-href="toolHref" studio-href="./studio.html" tagline="Original botanical wallpapers from a seed. Every motif is generated here; nothing is copied." />
 
   <div ref="bar" class="toolbar" role="toolbar" aria-label="Wallpaper actions">
     <div class="bar-row">

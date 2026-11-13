@@ -1,7 +1,7 @@
-// Writes public/favicon.svg from LOGO_DEFAULT, or with `candidates` a contact sheet to pick the mark from
+// Writes public/favicon.svg and public/favicon-studio.svg from LOGO_DEFAULT, or with `candidates` a contact sheet to pick the mark from
 // (to the path given as the next argument, or ./candidates.svg).
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { LOGO_DEFAULT, logoSvg } from '../src/logo.ts';
+import { LOGO_DEFAULT, logoSvg, studioLogoSvg } from '../src/logo.ts';
 import type { Kind } from '../src/fractal.ts';
 
 const KINDS: Kind[] = ['p4', 'p4m', 'p4g', 'cmm', 'pmm', 'whirl', 'rosette', 'hilbert', 'sierpinski', 'carpet', 'hex', 'herringbone'];
@@ -34,5 +34,6 @@ if (process.argv[2] === 'candidates') {
 } else {
   mkdirSync(new URL('../public/', import.meta.url), { recursive: true });
   writeFileSync(new URL('../public/favicon.svg', import.meta.url), logoSvg(LOGO_DEFAULT) + '\n');
-  console.log('wrote public/favicon.svg');
+  writeFileSync(new URL('../public/favicon-studio.svg', import.meta.url), studioLogoSvg() + '\n');
+  console.log('wrote public/favicon.svg and public/favicon-studio.svg');
 }

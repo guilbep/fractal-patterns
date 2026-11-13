@@ -22,3 +22,14 @@ const LAGOON = (PALETTES.find((p) => p.name === 'Lagoon') ?? PALETTES[0]!).color
 
 // Chosen from `npm run logo -- candidates`: see scripts/make-logo.ts.
 export const LOGO_DEFAULT: LogoOptions = { kind: 'whirl', seed: 1, background: LAGOON[0]!, color: LAGOON[1]! };
+
+// The Wallpaper Studio's mark: a stem with two leaves and a five-petal bloom, in the logo's line style.
+export function studioLogoSvg(o: Pick<LogoOptions, 'background' | 'color'> = LOGO_DEFAULT): string {
+  const petals = [0, 72, 144, 216, 288].map((a) => `<ellipse cx="32" cy="11" rx="4" ry="6" transform="rotate(${a} 32 18)"/>`).join('');
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">` +
+    `<rect width="${SIZE}" height="${SIZE}" rx="12" fill="${o.background}"/>` +
+    `<g fill="none" stroke="${o.color}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">` +
+    `<path d="M32 58V27M32 50C24 50 19 45 18 38C25 38 31 42 32 50M32 43C40 43 45 38 46 31C39 31 33 35 32 43"/>${petals}</g></svg>`
+  );
+}

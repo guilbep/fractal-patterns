@@ -1,27 +1,4 @@
-/* Page shell: compact header, palette strip in the toolbar, the "on" mark on a tab. */
-
-/* Header: one row; the tagline hides under 700 px. */
-.shell-header {
-  flex-wrap: nowrap;
-  align-items: center;
-  padding-block: var(--s2);
-}
-.shell-header .tagline {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.shell-header > :last-child {
-  margin-inline-start: auto;
-  white-space: nowrap;
-}
-@media (max-width: 699.98px) {
-  .shell-header .tagline {
-    display: none;
-  }
-}
+/* Page shell: palette strip in the toolbar, the "on" mark on a tab. */
 
 /* The "on" mark on the Repetition tab. */
 .tab-on > [aria-hidden='true'] {
@@ -36,7 +13,7 @@
 
 /* Toolbar: the stats (palette, contrast, CO2) are one unit. It shares row one when everything fits,
    else it forms row two as a whole. Compact padding keeps two rows under 96 px at 1280 px. */
-.shell-header + .toolbar {
+.site-header + .toolbar {
   row-gap: var(--s1);
   padding-block: var(--s1);
 }

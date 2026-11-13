@@ -2,9 +2,8 @@
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { APP_NAME } from '@/app-name.ts';
 import ShortcutHint from '@/components/ShortcutHint.vue';
+import SiteHeader from '@/components/SiteHeader.vue';
 import { isTyping, readShortcut, shortcutFor, toggleFullscreen, writeShortcut } from '@/shortcuts.ts';
-import { LOGO_DEFAULT, logoSvg } from '@/logo.ts';
-import { svgToDataUri } from '@/css.ts';
 import { KIND_LABELS } from '@/fractal.ts';
 import { DETECTOR_LABELS } from '@/detectors.ts';
 import { SAMPLE_LABELS } from '@/samples.ts';
@@ -28,7 +27,6 @@ import SponsorBanner from '@/components/SponsorBanner.vue';
 // The Image tab loads its code when first opened, then stays mounted so its state stays.
 const ImagePanel = defineAsyncComponent(() => import('@/components/ImagePanel.vue'));
 
-const LOGO_URI = svgToDataUri(logoSvg(LOGO_DEFAULT));
 // The studio opens with the same palette (custom colors: no palette to pass).
 const studioHref = computed(() => (palette.value ? `./studio.html#${new URLSearchParams([paletteParam(palette.value)])}` : './studio.html'));
 
@@ -134,11 +132,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 </script>
 
 <template>
-  <header class="site-header shell-header">
-    <p class="brand"><img class="logo" :src="LOGO_URI" alt="" width="28" height="28">{{ APP_NAME }}</p>
-    <p class="tagline">Seeded fractal tiles for CSS backgrounds, with contrast you can trust.</p>
-    <p><a :href="studioHref">Wallpaper Studio</a></p>
-  </header>
+  <SiteHeader current="patterns" patterns-href="./index.html" :studio-href="studioHref" tagline="Seeded fractal tiles for CSS backgrounds, with contrast you can trust." />
 
   <div ref="bar" class="toolbar" role="toolbar" aria-label="Design actions">
     <div class="bar-row">

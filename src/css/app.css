@@ -13,7 +13,7 @@
   --pass: #1d6b3a;
   --fail: #a3262a;
 
-  --font: 'Avenir Next', Avenir, 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --s1: 0.25rem;
   --s2: 0.5rem;
@@ -99,8 +99,7 @@ p {
   white-space: nowrap;
 }
 
-/* Header and footer */
-.site-header,
+/* Footer (the header lives in site-header.css) */
 .site-footer {
   background: var(--surface);
   padding: var(--s3);
@@ -108,31 +107,11 @@ p {
   flex-wrap: wrap;
   gap: var(--s1) var(--s3);
   align-items: baseline;
-}
-.site-header {
-  border-bottom: 1px solid var(--line);
-}
-.site-footer {
   border-top: 1px solid var(--line);
   color: var(--muted);
 }
-.site-header p,
 .site-footer p {
   margin: 0;
-}
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-.brand .logo {
-  width: 1.75rem;
-  height: 1.75rem;
-}
-.tagline {
-  color: var(--muted);
 }
 
 /* Layout: sticky toolbar, sticky preview, tabbed controls. --bar-h and --tabs-h come from App.vue. */

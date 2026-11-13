@@ -17,7 +17,7 @@ The site is at <https://patterns.pierreguilbert.com/>. It has two pages:
 
 ### Page layout
 
-The header shows the logo and the app name. The toolbar under it has these buttons, in order:
+The header is shared by both tools: the Fractal Patterns logo and name, a switch between the two tools (Patterns and Wallpaper Studio, each with its own icon), the current tool's tagline, and a GitHub link. The toolbar under it has these buttons, in order:
 
 - Shuffle: draws a new seed for the current kind.
 - Random pattern: picks a different kind and a new seed, and goes back to a single pattern. The colors, plate, spacing and motion stay.
@@ -43,7 +43,7 @@ Two single-key shortcuts work in both pages: R shuffles, and F shows the preview
 
 The library is a row of family tabs plus "All". The page draws only the previews of the open tab. The open tab follows the pattern when it changes through Random pattern, undo, or a link.
 
-The header also has a link to the Wallpaper Studio, a second page. See [Wallpaper Studio](#wallpaper-studio).
+The tool switch in the header opens the Wallpaper Studio, a second page, with the same palette. See [Wallpaper Studio](#wallpaper-studio).
 
 ### Pattern library
 
@@ -415,7 +415,7 @@ The panel shows two notices:
 
 The page keeps the design in the URL hash. The link does not carry your own motif.
 
-The studio has the same palettes as the pattern tool. The palette strip in the toolbar shows the five colors and the name, with previous, next and a random palette. The Palette select in the Design panel groups the palettes as Light and Dark; a random palette shows as "Random". The "Pattern tool" link in the header opens the pattern tool with the same palette, and the "Wallpaper Studio" link of the pattern tool does the same in the other direction (keys `pn` and `pc` in the hash).
+The studio has the same palettes as the pattern tool. The palette strip in the toolbar shows the five colors and the name, with previous, next and a random palette. The Palette select in the Design panel groups the palettes as Light and Dark; a random palette shows as "Random". The "Patterns" segment of the tool switch in the header opens the pattern tool with the same palette, and the "Wallpaper Studio" segment does the same in the other direction (keys `pn` and `pc` in the hash).
 
 | Key | Meaning | Default |
 | --- | --- | --- |

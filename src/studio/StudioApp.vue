@@ -5,8 +5,10 @@ import SiteHeader from '@/components/SiteHeader.vue';
 import { isTyping, readShortcut, shortcutFor, toggleFullscreen, writeShortcut } from '@/shortcuts.ts';
 import { svgToDataUri } from '@/css.ts';
 import SponsorBanner from '@/components/SponsorBanner.vue';
-import { formatFootprint, formatKb, GRADE_SCALE, gradeBand, gzipSize, rawSize, weightGrade } from '@/co2.ts';
-import { DARK_NAMES, PALETTES, paletteParam, rollPalette } from '@/palettes.ts';
+import SizeBadge from '@/components/SizeBadge.vue';
+import { copyText } from '@/clipboard.ts';
+import { rawSize } from '@/co2.ts';
+import { PALETTE_GROUPS, PALETTES, paletteParam, rollPalette } from '@/palettes.ts';
 import { stepPalette } from '@/shell.ts';
 import PaletteStrip from '@/components/PaletteStrip.vue';
 import { safePathData } from '@/motifgrid.ts';
@@ -247,26 +249,6 @@ const wallStyle = computed(() => ({
 }));
 const fileName = computed(() => `wallpaper-${design.repeat}-${design.seed}.svg`);
 
-// Sizes: raw now, gzipped when CompressionStream answers. A stale answer is dropped.
-const raw = computed(() => rawSize(svg.value));
-const gz = ref<number | null | 'unknown'>(null);
-watch(
-  svg,
-  async (text) => {
-    gz.value = null;
-    try {
-      const n = await gzipSize(text);
-      if (text === svg.value) gz.value = n;
-    } catch {
-      if (text === svg.value) gz.value = 'unknown';
-    }
-  },
-  { immediate: true },
-);
-const sizeText = computed(() => `${raw.value} bytes, ${typeof gz.value === 'number' ? `${gz.value} gzipped` : gz.value === null ? 'compressing' : 'gzip size unknown'}`);
-const footprintFull = computed(() => (gz.value === null ? 'computing' : gz.value === 'unknown' ? 'size unknown' : formatFootprint(gz.value)));
-const footprintText = computed(() => footprintFull.value.split(' / ')[0]);
-
 // The hash follows the design, without new history entries; a pasted link loads its design.
 watch(design, (d) => history.replaceState(null, '', `#${encodeStudio(d)}`), { deep: true });
 const onHash = () => Object.assign(design, decodeStudio(location.hash));
@@ -303,10 +285,6 @@ function onKey(e: KeyboardEvent): void {
 onMounted(() => window.addEventListener('keydown', onKey));
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 // The same palette controls as the pattern tool: previous, next, random, and the grouped select.
-const PALETTE_GROUPS = [
-  { label: 'Light', palettes: PALETTES.filter((p) => !DARK_NAMES.has(p.name)) },
-  { label: 'Dark', palettes: PALETTES.filter((p) => DARK_NAMES.has(p.name)) },
-];
 const isRandom = computed(() => !PALETTES.some((p) => p.name === design.palette.name));
 function stepPal(dir: 1 | -1): void {
   const i = PALETTES.findIndex((p) => p.name === design.palette.name);
@@ -331,10 +309,8 @@ const showCss = ref(false);
 let copyTimer: ReturnType<typeof setTimeout> | undefined;
 async function copyCss(): Promise<void> {
   copyStatus.value = '';
-  try {
-    await navigator.clipboard.writeText(css.value);
-    copyStatus.value = 'Copied';
-  } catch {
+  if (await copyText(css.value)) copyStatus.value = 'Copied';
+  else {
     // No clipboard (insecure context, blocked): show the rule to copy by hand.
     showCss.value = true;
     copyStatus.value = 'Could not copy. Select the CSS below and copy it.';
@@ -363,9 +339,7 @@ onBeforeUnmount(() => sizes.disconnect());
     <div class="bar-stats">
     <PaletteStrip :colors="design.palette.colors" :name="design.palette.name" @previous="stepPal(-1)" @next="stepPal(1)" @random="rollPal" />
     <button type="button" class="icon-btn" aria-label="Full screen" title="Full screen (F)" :aria-keyshortcuts="shortcutOn ? 'F' : undefined" @click="fullscreen"><span aria-hidden="true">⛶</span></button>
-    <span v-if="typeof gz === 'number'" id="svg-grade" class="stat" :title="GRADE_SCALE"><span aria-hidden="true" class="grade-chip" :class="gradeBand(weightGrade(gz).grade)">{{ weightGrade(gz).grade }}</span><span class="visually-hidden">Weight grade {{ weightGrade(gz).grade }}, {{ formatKb(gz) }} kilobytes compressed</span></span>
-    <span id="svg-size" class="stat">{{ sizeText }}</span>
-    <span id="svg-co2" class="stat" :title="footprintFull"><span aria-hidden="true">{{ footprintText }}</span><span class="visually-hidden">{{ footprintFull }}</span></span>
+    <SizeBadge :svg="svg" />
     </div>
     <span class="visually-hidden" role="status" aria-live="polite">{{ copyStatus }}</span>
   </div>

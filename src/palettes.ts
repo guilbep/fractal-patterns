@@ -109,6 +109,11 @@ export const PALETTE_SPECS: readonly PaletteSpec[] = [
 
 export const PALETTES: readonly Palette[] = PALETTE_SPECS.map(makePalette);
 export const DARK_NAMES: ReadonlySet<string> = new Set(PALETTE_SPECS.filter((s) => s.dark).map((s) => s.name));
+// The palettes as the grouped select shows them.
+export const PALETTE_GROUPS: readonly { label: string; palettes: readonly Palette[] }[] = [
+  { label: 'Light', palettes: PALETTES.filter((p) => !DARK_NAMES.has(p.name)) },
+  { label: 'Dark', palettes: PALETTES.filter((p) => DARK_NAMES.has(p.name)) },
+];
 
 // A random spec inside the same rules: base hue weighted to blue and cyan, about 1 in 3 dark,
 // a warm accent only on a cool base.

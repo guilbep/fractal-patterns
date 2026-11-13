@@ -5,7 +5,16 @@ import { PICK_OPACITY, patternInvisible, swapRoles, worstTextContrast } from './
 import { worstTextContrastSurfaces } from './fills.ts';
 import { inGamut } from './oklch.ts';
 import { mulberry32 } from './patterns/util.ts';
-import { PALETTES, PALETTE_SPECS, makePalette, paletteLch, paletteRoles, randomPaletteSpec, type PaletteSpec } from './palettes.ts';
+import {
+  PALETTE_GROUPS,
+  PALETTES,
+  PALETTE_SPECS,
+  makePalette,
+  paletteLch,
+  paletteRoles,
+  randomPaletteSpec,
+  type PaletteSpec,
+} from './palettes.ts';
 
 const rnd = mulberry32(42);
 const RANDOM: PaletteSpec[] = Array.from({ length: 500 }, () => randomPaletteSpec(rnd));
@@ -116,4 +125,9 @@ test('random palettes are deterministic for a seed', () => {
 
 test('makePalette is deterministic and PALETTES follow PALETTE_SPECS', () => {
   PALETTE_SPECS.forEach((s, i) => assert.deepEqual(PALETTES[i], makePalette(s), s.name));
+});
+
+test('every palette is in exactly one group, and the groups hold no unknown name', () => {
+  const grouped = PALETTE_GROUPS.flatMap((g) => g.palettes.map((p) => p.name));
+  assert.deepEqual([...grouped].sort(), PALETTES.map((p) => p.name).sort());
 });

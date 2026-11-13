@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Download SVG, Copy SVG, Copy CSS, one status line, and the CSS to copy by hand. The slot takes page extras.
 import { ref, useId } from 'vue';
+import { copyText } from '@/clipboard.ts';
 
 const props = defineProps<{ svg: string; css: string; fileName: string }>();
 const cssId = useId();
@@ -18,12 +19,7 @@ const status = ref('');
 let timer: ReturnType<typeof setTimeout> | undefined;
 async function copy(text: string): Promise<void> {
   status.value = '';
-  try {
-    await navigator.clipboard.writeText(text);
-    status.value = 'Copied.';
-  } catch {
-    status.value = 'Copy failed: select the text and copy it by hand.';
-  }
+  status.value = (await copyText(text)) ? 'Copied.' : 'Copy failed: select the text and copy it by hand.';
   clearTimeout(timer);
   timer = setTimeout(() => (status.value = ''), 2000);
 }

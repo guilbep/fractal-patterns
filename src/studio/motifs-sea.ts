@@ -18,9 +18,10 @@ export const SEA_LABELS: Readonly<Record<SeaFamily, string>> = {
   bubbles: 'Bubbles',
 };
 export const SEA_ROLES: { hero: readonly SeaFamily[]; support: readonly SeaFamily[]; filler: readonly SeaFamily[] } = {
-  hero: ['coral', 'shell', 'fish'],
-  support: ['kelp', 'fish', 'shell'],
-  filler: ['bubbles', 'starfish', 'shell'],
+  hero: ['coral', 'shell', 'starfish'],
+  support: ['kelp', 'coral', 'shell'],
+  // Fish and bubbles float free: compose places this pool in the gaps (and keeps them off stalk ends).
+  filler: ['fish', 'bubbles', 'starfish'],
 };
 
 const BOX = 100;
@@ -148,10 +149,10 @@ const rngFor = (family: SeaFamily, seed: number) =>
 function kelp(seed: number): Raw {
   const rnd = rngFor('kelp', seed);
   const len = 100;
-  const bends = 2 + Math.floor(rnd() * 3);
-  const amp = range(rnd, 8, 13);
+  const bends = 2 + Math.floor(rnd() * 2);
+  const amp = range(rnd, 9, 13);
   const ph = range(rnd, 0, TAU);
-  const W = range(rnd, 8, 11);
+  const W = range(rnd, 12, 16);
   const axis = (s: number): Pt => [amp * Math.sin((bends * Math.PI * s) / 2 + ph) * Math.sqrt(s), -s * len];
   const width = (s: number) => W * (0.35 + 0.9 * Math.sin(Math.PI * s));
   const N = 7;
@@ -169,17 +170,15 @@ function kelp(seed: number): Raw {
   const ext = (p: Pt): Pt => [p[0] + (tipDir[0] - axis(0.92)[0]) * 2.5, p[1] + (tipDir[1] - axis(0.92)[1]) * 2.5];
   const blade: Cubic[] = [...through(R), [R[N]!, ext(R[N]!), ext(L[N]!), L[N]!], ...through([...L].reverse()), seg(L[0]!, R[0]!)];
   const fill: Cubic[][] = [blade];
-  const kind = rnd();
-  if (kind < 0.6) {
-    const n = 2 + Math.floor(rnd() * 2);
-    for (let i = 0; i < n; i++) {
-      const s = 0.2 + (0.5 * i) / n + range(rnd, 0, 0.08);
-      const sg = i % 2 ? 1 : -1;
-      const a = axis(s);
-      const off = width(s) + (kind < 0.3 ? 3 : 0);
-      if (kind < 0.3) fill.push(circle([a[0] + sg * off, a[1]], range(rnd, 3, 4.2)));
-      else fill.push(finger(frame([a[0] + sg * width(s) * 0.6, a[1]], UP + sg * 0.75, range(rnd, 14, 20)), 0.08, 0.06));
-    }
+  // Bladders: round floats that overlap the blade's edge, so they read at small size.
+  const n = 2 + Math.floor(rnd() * 2);
+  const flip = rnd() < 0.5 ? 1 : -1;
+  for (let i = 0; i < n; i++) {
+    const s = 0.12 + (0.6 * i) / n + range(rnd, 0, 0.06);
+    const sg = (i % 2 ? 1 : -1) * flip;
+    const a = axis(s);
+    const br = range(rnd, 4.5, 6);
+    fill.push(circle([a[0] + sg * (width(s) + br * 0.5), a[1]], br));
   }
   const det: Item[] = [{ c: through(Array.from({ length: 6 }, (_, i) => axis(0.04 + (0.84 * i) / 5))) }];
   for (let i = 0; i < 4; i++) {
@@ -215,109 +214,94 @@ function coral(seed: number): Raw {
   return { fill, det };
 }
 
-const SHELL_FORMS = ['scallop', 'snail', 'cone'] as const;
+const SHELL_FORMS = ['scallop', 'spiral'] as const;
 export type ShellForm = (typeof SHELL_FORMS)[number];
-/** Which form a `shell` seed gives (in turn, so any run of seeds shows all three). */
-export const shellForm = (seed: number): ShellForm => SHELL_FORMS[((seed % 3) + 3) % 3]!;
+/** Which form a `shell` seed gives (in turn, so any run of seeds shows both). */
+export const shellForm = (seed: number): ShellForm => SHELL_FORMS[((seed % 2) + 2) % 2]!;
 
 function shell(seed: number): Raw {
   const rnd = rngFor('shell', seed);
-  const form = shellForm(seed);
-  if (form === 'scallop') {
+  if (shellForm(seed) === 'scallop') {
+    // A wide fan of rounded ribs from a small hinge with two ears.
     const h: Pt = [0, 0];
-    const th = range(rnd, 0.8, 1.05);
+    const th = range(rnd, 1.05, 1.25);
     const R = 60;
-    const n = 7 + Math.floor(rnd() * 4);
+    const n = 7 + Math.floor(rnd() * 3);
     const ang = (i: number) => UP - th + (2 * th * i) / n;
     const edge: Cubic[] = [];
     for (let i = 0; i < n; i++) {
       const [a, b] = [ang(i), ang(i + 1)];
       const da = (b - a) / 3;
-      edge.push([polar(h, a, R), polar(h, a + da, R * 1.07), polar(h, b - da, R * 1.07), polar(h, b, R)]);
+      edge.push([polar(h, a, R), polar(h, a + da, R * 1.16), polar(h, b - da, R * 1.16), polar(h, b, R)]);
     }
-    const fan: Cubic[] = [seg(polar(h, UP + th, 7), polar(h, UP + th, R)), ...edge.reverse().map((c): Cubic => [c[3], c[2], c[1], c[0]])];
-    fan.push(seg(polar(h, UP - th, R), polar(h, UP - th, 7)), [polar(h, UP - th, 7), [0, 2], [0, 2], polar(h, UP + th, 7)]);
-    const e = 9;
+    const fan: Cubic[] = [seg(polar(h, UP + th, 8), polar(h, UP + th, R)), ...edge.reverse().map((c): Cubic => [c[3], c[2], c[1], c[0]])];
+    fan.push(seg(polar(h, UP - th, R), polar(h, UP - th, 8)), [polar(h, UP - th, 8), [0, 3], [0, 3], polar(h, UP + th, 8)]);
+    const e = range(rnd, 13, 16);
     const ears: Cubic[] = [
-      seg([-e, -6], [e, -6]),
-      seg([e, -6], [e * 0.6, 1]),
-      seg([e * 0.6, 1], [-e * 0.6, 1]),
-      seg([-e * 0.6, 1], [-e, -6]),
+      seg([-e, -9], [e, -9]),
+      seg([e, -9], [e * 0.7, 3]),
+      seg([e * 0.7, 3], [-e * 0.7, 3]),
+      seg([-e * 0.7, 3], [-e, -9]),
     ];
-    const det: Item[] = Array.from({ length: n - 1 }, (_, i) => ({ l: [polar(h, ang(i + 1), 10), polar(h, ang(i + 1), R * 0.95)] }));
+    const det: Item[] = Array.from({ length: n - 1 }, (_, i) => ({ l: [polar(h, ang(i + 1), 11), polar(h, ang(i + 1), R * 0.97)] }));
+    det.push({ q: [polar(h, UP - th * 0.8, 14), polar(h, UP, 18), polar(h, UP + th * 0.8, 14)] });
     return { fill: [fan, ears], det };
   }
-  if (form === 'snail') {
-    const r = 22;
-    const c: Pt = [0, 0];
-    const tipY = -r - range(rnd, 26, 36);
-    const tip: Pt = [range(rnd, -4, 4), tipY];
-    const sh = range(rnd, 0.5, 0.75);
-    const sR = polar(c, -sh, r);
-    const sL = polar(c, Math.PI + sh, r);
-    const k = 0.5523 * r;
-    const body: Cubic[] = [
-      [tip, [tip[0] + 6, tipY * 0.6], [sR[0] - 2, sR[1] - 8], sR],
-      [sR, [r + 2, 0], [r, k + 4], [0, r]],
-      [[0, r], [-k - 4, r], [-r - 2, 0], sL],
-      [sL, [sL[0] + 2, sL[1] - 8], [tip[0] - 6, tipY * 0.6], tip],
-    ];
-    const turns = range(rnd, 1.6, 2.2);
-    const sp: Pt[] = Array.from({ length: 10 }, (_, i) => {
-      const t = (i / 9) * turns * TAU;
-      return polar([2, 2], -t + 1, 2 + (r * 0.75 - 2) * (i / 9) ** 1.4);
-    });
-    const det: Item[] = [{ c: through(sp) }];
-    const lines = 2 + Math.floor(rnd() * 2);
-    for (let i = 1; i <= lines; i++) {
-      const y = -r + (tipY + r) * (i / (lines + 1));
-      const w = (r * 0.8 * (1 - i / (lines + 1))) | 0;
-      det.push({
-        q: [
-          [tip[0] * (i / (lines + 1)) - w, y],
-          [tip[0] * (i / (lines + 1)), y + 4],
-          [tip[0] * (i / (lines + 1)) + w, y - 1],
-        ],
-      });
-    }
-    return { fill: [body], det };
-  }
-  // cone: apex up, broad rounded base
-  const H = range(rnd, 70, 84);
-  const W = range(rnd, 18, 24);
-  const apex: Pt = [range(rnd, -2, 2), -H];
-  const sw = W * range(rnd, 0.9, 1.05);
+  // Spiral: a round body whorl with a short spire and a clear spiral line into the center.
+  const r = 30;
+  const turns = range(rnd, 2.2, 2.7);
+  const sp = range(rnd, 6, 10);
+  const k = 0.5523 * r;
   const body: Cubic[] = [
-    [apex, [apex[0] + W * 0.6, -H * 0.8], [sw, -H * 0.3], [sw, -W * 0.5]],
     [
-      [sw, -W * 0.5],
-      [sw, W * 0.4],
-      [W * 0.4, W * 0.55],
-      [0, W * 0.55],
+      [0, -r],
+      [k, -r],
+      [r, -k],
+      [r, 0],
     ],
     [
-      [0, W * 0.55],
-      [-W * 0.4, W * 0.55],
-      [-sw, W * 0.4],
-      [-sw, -W * 0.5],
+      [r, 0],
+      [r, k],
+      [k, r],
+      [0, r],
     ],
-    [[-sw, -W * 0.5], [-sw, -H * 0.3], [apex[0] - W * 0.6, -H * 0.8], apex],
+    [
+      [0, r],
+      [-k, r],
+      [-r, k],
+      [-r, 0],
+    ],
+    [
+      [-r, 0],
+      [-r, -k],
+      [-r * 0.7, -r - sp * 0.6],
+      [-r * 0.25, -r - sp],
+    ],
+    [
+      [-r * 0.25, -r - sp],
+      [-r * 0.1, -r - sp * 0.4],
+      [-k * 0.3, -r],
+      [0, -r],
+    ],
   ];
-  const bands = 3 + Math.floor(rnd() * 2);
-  const det: Item[] = [];
-  for (let i = 1; i <= bands; i++) {
-    const f = i / (bands + 1);
-    const y = -H + (H - W * 0.3) * f;
-    const w = sw * Math.min(1, f * 1.4) * 0.85;
-    det.push({
-      q: [
-        [-w, y],
-        [0, y + 4 + 3 * f],
-        [w, y],
-      ],
-    });
-  }
-  return { fill: [body], det };
+  const N = 22;
+  const spiral: Pt[] = Array.from({ length: N + 1 }, (_, i) => {
+    const t = (i / N) * turns * TAU;
+    return polar([0, 0], -Math.PI / 2 + t, r * 0.88 * Math.exp(-t / ((turns * TAU) / 2.6)));
+  });
+  return {
+    fill: [body],
+    det: [
+      { c: through(spiral) },
+      {
+        q: [
+          [r * 0.35, r * 0.5],
+          [r * 0.75, r * 0.2],
+          [r * 0.85, -r * 0.3],
+        ],
+      },
+    ],
+  };
 }
 
 const armsOf = (rnd: Rng) => (rnd() < 0.2 ? 6 : 5);
@@ -358,7 +342,7 @@ function starfish(seed: number): Raw {
 export function fishParts(seed: number): MotifParts & { body: Cubic[]; eye: Pt } {
   const rnd = rngFor('fish', seed);
   const d = range(rnd, 0.14, 0.26);
-  const ang = UP + range(rnd, 0.2, 0.4);
+  const ang = range(rnd, -0.06, 0.06); // level, head to the right; a mirror faces it left
   const F = frame([0, 0], ang, 80, range(rnd, -0.05, 0.05));
   const p = 0.05;
   const body: Cubic[] = [

@@ -87,6 +87,8 @@ const THEME_TABLE: Record<
     blooms: readonly ThemeFamily[];
     /** Families that hang (fruit): body straight down whatever the stem's direction. */
     hangs?: readonly ThemeFamily[];
+    /** Families that float free: only in the gaps, never on a stem or stalk end, drawn level (not rotated). */
+    floats?: readonly ThemeFamily[];
   }
 > = {
   floral: {
@@ -106,6 +108,7 @@ const THEME_TABLE: Record<
     tiers: [SEA_ROLES.hero, SEA_ROLES.support, SEA_ROLES.filler],
     make: (f, seed) => makeSeaMotif(f as SeaFamily, seed),
     blooms: ['coral', 'shell', 'starfish', 'fish', 'bubbles'],
+    floats: ['fish', 'bubbles'],
   },
   orchard: {
     families: ORCHARD_FAMILIES,
@@ -237,6 +240,8 @@ type Variant = {
   centered: boolean;
   /** Fruit: hangs from its base, body down (+y) with a small seeded swing. */
   hang: boolean;
+  /** Placed only in the gaps, unrotated (the theme's `floats`). */
+  floats?: boolean;
 };
 
 /** A custom motif's body: the circle with the area of the tight bounds of its largest shape whose bounds are not thin
@@ -315,6 +320,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
         body: motifRadius(m.silhouette).radius,
         centered: false,
         hang: theme.hangs?.includes(fam) ?? false,
+        floats: theme.floats?.includes(fam) ?? false,
       };
     });
   });
@@ -642,7 +648,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
       }
     }
     // One short side branch ending in a small motif (bud or berries), opposite the nearest support.
-    if (r() < 0.3 + 0.5 * density) {
+    if (r() < 0.3 + 0.5 * density && !variants[2]![index % VARIANTS]!.floats) {
       const qu = (0.5 + 0.1 * r()) * end;
       const q = at(qu);
       const sideSign = n % 2 === 0 ? sA : -sA;
@@ -679,7 +685,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   const fr = 0.04 * side;
   const fillerAt = (c: Pt, v: Variant): Placement => {
     const rotate0 = Math.round(rnd() * 360);
-    const rotate = v.hang ? Math.round(180 + swing(c)) : rotate0;
+    const rotate = v.hang ? Math.round(180 + swing(c)) : v.floats ? 0 : rotate0;
     const scale = round(fr / v.radius.radius, 100);
     const fl = rnd() < 0.5;
     // Move the anchor so the real circle sits at the chosen point.

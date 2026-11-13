@@ -4,6 +4,7 @@ import { safePathData } from '../motifgrid.ts';
 import { PALETTES } from '../palettes.ts';
 import { layerColors, studioSvg, type Placement, type Repeat, type Studio } from './model.ts';
 import { MOTIF_FAMILIES, motifBounds } from './motifs.ts';
+import { makeSeaMotif } from './motifs-sea.ts';
 import { torusDistance } from './scatter.ts';
 import {
   compose,
@@ -681,6 +682,34 @@ test('themes sea and orchard: deterministic, safe, at most 14 motifs and 5 color
         assertGap(p, repeat, at);
       }
   }
+});
+
+test('sea: no fish at a stem tip or on a stalk; fish and bubbles float level', () => {
+  const ids = themeFamilies('sea').map((f) => f.id) as ComposeOptions['families'];
+  let seen = 0;
+  for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+    const p = composeParts(opt(seed, { theme: 'sea', families: ids }));
+    const floats = new Set(
+      (['fish', 'bubbles'] as const).flatMap((f) =>
+        [0, 1, 2].flatMap((ti) => [0, 1].map((i) => makeSeaMotif(f, seed * 97 + ti * 13 + i).silhouette.d)),
+      ),
+    );
+    const isFloat = (m: number) => floats.has(p.studio.motifs[m]!.d);
+    assert.ok(
+      p.heroes.every((h) => !isFloat(h.motif)),
+      `seed ${seed} hero`,
+    );
+    for (const pl of p.plants)
+      assert.ok(
+        pl.attached.every((a) => !isFloat(a.placement.motif)),
+        `seed ${seed} attached`,
+      );
+    for (const f of p.filler.filter((f) => isFloat(f.motif))) {
+      assert.equal(f.rotate, 0, `seed ${seed} level`);
+      seen++;
+    }
+  }
+  assert.ok(seen > 0, 'some fish or bubbles float in the gaps');
 });
 
 test('themes: one family allowed, at least 6 placements; ids of another theme are ignored', () => {

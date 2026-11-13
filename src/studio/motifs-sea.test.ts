@@ -25,7 +25,9 @@ test('every family and seed gives safe, closed, compact paths inside the box', (
       assert.ok(db.minX >= 0 && db.minY >= 0 && db.maxX <= 100 && db.maxY <= 100, `${at} ${JSON.stringify(db)}`);
       const all = motifBounds(s.d + d.d);
       assert.ok(Math.abs((all.minX + all.maxX) / 2 - 50) <= 14, `${at} center`);
-      assert.ok(all.maxY - all.minY >= (['shell', 'starfish', 'bubbles'].includes(fam) ? 45 : 60), `${at} height`);
+      // A level fish is long, not tall: its width takes the box instead.
+      if (fam === 'fish') assert.ok(all.maxX - all.minX >= 85 && all.maxY - all.minY >= 35, `${at} level`);
+      else assert.ok(all.maxY - all.minY >= (['shell', 'starfish', 'bubbles'].includes(fam) ? 45 : 60), `${at} height`);
       assert.ok(s.d.length + d.d.length <= 1400, `${at} size ${s.d.length + d.d.length}`);
     }
   }
@@ -45,8 +47,15 @@ test('roles use only sea families and cover every family', () => {
   for (const f of SEA_FAMILIES) assert.ok(used.includes(f), f);
 });
 
-test('shell: all three forms occur', () => {
-  assert.equal(new Set(SEEDS.map(shellForm)).size, 3);
+test('shell: both forms (scallop, spiral) occur', () => {
+  assert.deepEqual([...new Set(SEEDS.map(shellForm))].sort(), ['scallop', 'spiral']);
+});
+
+test('roles: fish and bubbles only in the gap pool, never on a stem', () => {
+  for (const f of ['fish', 'bubbles'] as const) {
+    assert.ok(SEA_ROLES.filler.includes(f), f);
+    assert.ok(!SEA_ROLES.hero.includes(f) && !SEA_ROLES.support.includes(f), f);
+  }
 });
 
 test('starfish: 5 or 6 arms, both occur over 40 seeds', () => {

@@ -11,6 +11,7 @@ import {
   curvesOn,
   fade,
   imageCells,
+  imageVariants,
   layer2,
   layer2Own,
   layer2Settings,
@@ -85,6 +86,7 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
         <template v-else-if="!variantsOn">Draws several seeded variants into one larger tile, so the same picture comes back less often.</template>
         <template v-else>
           <span id="v-period">The same picture comes back every {{ tileSize.toLocaleString('en') }} px.</span>
+          <template v-if="usingImage && imageVariants">{{ ' ' }}{{ imageVariants.length }} {{ imageVariants.length === 1 ? 'picture' : 'pictures' }}.</template>
           <template v-if="!usingImage && hasCompat(params.kind)"> This pattern uses its fixed layout in this mode.</template>
           <template v-if="variantBytes">{{ ' ' }}{{ variantBytes.svg.toLocaleString('en') }} bytes against {{ variantBytes.plain.toLocaleString('en') }} for one tile.</template>
         </template>

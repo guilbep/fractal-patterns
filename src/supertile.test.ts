@@ -384,3 +384,41 @@ test('image super tile: the path data occurs once, the expanded form 16 times', 
 test('image super tile: empty cells at 0.25 leave 12 of 16 cells (seed 1, measured)', () => {
   assert.equal(uses(imageSuperTileSvg({ ...img, cells: 4, skip: 0.25 }, pic)).length, 12);
 });
+
+const sq = (a: number, b: number) =>
+  [
+    [
+      [a, a],
+      [b, a],
+      [b, b],
+    ],
+  ] as const satisfies readonly (readonly (readonly [number, number])[])[];
+const picOf = (svg: string) => uses(svg).map((x) => /href="#(\w)"/.exec(x)?.[1]);
+
+test('image super tile, several pictures: one set gives the same bytes as the single form', () => {
+  const o = { ...img, cells: 4, orient: true, jitter: 0.5, weights: 0.5, skip: 0.25 } as const;
+  assert.equal(imageSuperTileSvg(o, [pic]), imageSuperTileSvg(o, pic));
+  assert.equal(imageSuperTileExpanded(o, [pic]), imageSuperTileExpanded(o, pic));
+});
+
+test('image super tile, 3 pictures on 4 x 4: no equal neighbors with wrap, each once in defs, all used', () => {
+  const sets = [sq(1, 4), sq(2, 7), sq(3, 9)];
+  const svg = imageSuperTileSvg({ ...img, cells: 4 }, sets);
+  const v = picOf(svg);
+  assert.equal(v.length, 16);
+  for (let r = 0; r < 4; r++)
+    for (let c = 0; c < 4; c++) {
+      assert.notEqual(v[r * 4 + c], v[r * 4 + ((c + 1) % 4)], `right of ${r},${c}`);
+      assert.notEqual(v[r * 4 + c], v[((r + 1) % 4) * 4 + c], `below ${r},${c}`);
+    }
+  assert.deepEqual(new Set(v), new Set(['a', 'b', 'c']));
+  for (const s of sets) assert.equal(svg.split(`d="${pathData(s, 1)}"`).length - 1, 1);
+});
+
+test('image super tile, several pictures: two seeds deal different arrangements; an empty set is skipped', () => {
+  const sets = [sq(1, 4), sq(2, 7), sq(3, 9)];
+  assert.notDeepEqual(picOf(imageSuperTileSvg({ ...img, cells: 4 }, sets)), picOf(imageSuperTileSvg({ ...img, seed: 2, cells: 4 }, sets)));
+  const withEmpty = imageSuperTileSvg({ ...img, cells: 4 }, [sq(1, 4), [], sq(2, 7)]);
+  assert.equal(withEmpty, imageSuperTileSvg({ ...img, cells: 4 }, [sq(1, 4), sq(2, 7)]));
+  assert.equal(imageSuperTileSvg({ ...img, cells: 4 }, [pic, []]), imageSuperTileSvg({ ...img, cells: 4 }, pic));
+});

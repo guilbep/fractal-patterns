@@ -194,7 +194,44 @@ watch(
   },
 );
 
+// Extra pictures for Reduce repetition: traced with the same settings, never in a share link.
+export const MAX_EXTRA_IMAGES = 3;
+type Pixels = { data: Uint8ClampedArray; width: number; height: number };
+export const extraImages = shallowRef<readonly { name: string; file: Blob; img: Pixels }[]>([]);
+// Throws a plain-language Error the panel shows as is; files past the limit are left out.
+export async function addImages(files: readonly File[]): Promise<void> {
+  for (const file of files) {
+    if (extraImages.value.length >= MAX_EXTRA_IMAGES) return;
+    if (!file.type.startsWith('image/')) throw new Error(`"${file.name}" is not an image. Choose a JPEG, PNG, WebP, or GIF file.`);
+    let img: Pixels;
+    try {
+      img = await downscale(file, trace.resolution);
+    } catch {
+      throw new Error(`The browser could not read "${file.name}" as an image. Try another file or format.`);
+    }
+    extraImages.value = [...extraImages.value, { name: file.name, file, img }].slice(0, MAX_EXTRA_IMAGES);
+  }
+}
+export function removeExtraImage(i: number): void {
+  extraImages.value = extraImages.value.filter((_, k) => k !== i);
+}
+watch(
+  () => trace.resolution,
+  async (r) => {
+    const next = [];
+    for (const e of extraImages.value) {
+      try {
+        next.push({ ...e, img: await downscale(e.file, r) });
+      } catch {
+        next.push(e);
+      }
+    }
+    extraImages.value = next;
+  },
+);
+
 export function removeImage(): void {
+  extraImages.value = [];
   imageFile = null;
   activeSample.value = null;
   image.value = null;
@@ -225,21 +262,37 @@ const edgeMap = computed(() => {
   const c = call.value;
   return gray.value && tracing.value && c.method === 'edges' ? tracing.value.edges(gray.value, c.detector, c.threshold) : null;
 });
-export const traced = computed(() => {
-  const g = gray.value;
+type Tracing = NonNullable<typeof tracing.value>;
+type Gray = ReturnType<Tracing['toGray']>;
+// Image to polylines, for the main picture and the extra ones. `map` reuses a cached edge map.
+function polylinesOf(
+  t: Tracing,
+  g: Gray,
+  map = call.value.method === 'edges' ? t.edges(g, call.value.detector, call.value.threshold) : null,
+) {
   const c = call.value;
-  if (!g || !tracing.value) return null;
   // ponytail: contours always fit the whole image (contain); cover needs clipping in isolines.ts, the Fit select is disabled.
-  if (c.method === 'isolines') return tracing.value.traceIsolines(g, c.options);
-  const map = edgeMap.value;
+  if (c.method === 'isolines') return t.traceIsolines(g, c.options);
   return map
-    ? tracing.value.vectorize(map, g.width, g.height, {
+    ? t.vectorize(map, g.width, g.height, {
         size: params.size,
         tolerance: trace.tolerance,
         minLength: trace.minLength,
         fit: trace.fit,
       })
     : null;
+}
+export const traced = computed(() => {
+  const g = gray.value;
+  const t = tracing.value;
+  return g && t ? polylinesOf(t, g, edgeMap.value) : null;
+});
+watch(extraImages, (list) => {
+  if (list.length && !tracing.value) void loadTracing().then((m) => (tracing.value = m));
+});
+const extraTraced = computed(() => {
+  const t = tracing.value;
+  return t ? extraImages.value.map(({ img }) => polylinesOf(t, t.toGray(img.data, img.width, img.height))) : [];
 });
 export const usingImage = computed(() => source.value === 'image' && traced.value !== null);
 
@@ -330,16 +383,24 @@ const superOptions = (seed: number, color = roles.pattern) => ({ ...params, ...v
 export const imageCells = computed(() =>
   usingImage.value && traced.value ? (spacing.mirror ? mirrorTile(traced.value, params.size) : traced.value) : null,
 );
+// Every traced picture for the super tile, main first, skipping any that traced to no lines.
+export const imageVariants = computed(() =>
+  imageCells.value
+    ? [traced.value, ...extraTraced.value]
+        .filter((p): p is NonNullable<typeof p> => !!p && p.some((l) => l.length >= 2))
+        .map((p) => (spacing.mirror ? mirrorTile(p, params.size) : p))
+    : null,
+);
 const superSvg = (seed: number, color = roles.pattern): string =>
-  imageCells.value ? imageSuperTileSvg(superOptions(seed, color), imageCells.value) : variantTile(superOptions(seed, color)).svg;
+  imageVariants.value ? imageSuperTileSvg(superOptions(seed, color), imageVariants.value) : variantTile(superOptions(seed, color)).svg;
 // The measured cost shown under the switch: the super tile against one plain tile.
 export const variantBytes = computed(() => {
   if (!variantsOn.value) return null;
   if (!imageCells.value) return superTileBytes(superOptions(params.seed));
   const o = superOptions(params.seed);
   return {
-    svg: rawSize(imageSuperTileSvg(o, imageCells.value)),
-    expanded: rawSize(imageSuperTileExpanded(o, imageCells.value)),
+    svg: rawSize(imageSuperTileSvg(o, imageVariants.value ?? imageCells.value)),
+    expanded: rawSize(imageSuperTileExpanded(o, imageVariants.value ?? imageCells.value)),
     plain: rawSize(tileSvg(tile.value)),
   };
 });
@@ -474,9 +535,10 @@ export function ratioText(r: number): string {
 
 export const rawBytes = computed(() => rawSize(svg.value));
 
-// No-op in image mode: the seed does not shape a traced tile.
+// No-op in image mode, except Reduce repetition with two or more pictures: the seed deals them.
+export const imageShuffles = computed(() => variantsOn.value && (imageVariants.value?.length ?? 0) > 1);
 export function reseed(): void {
-  if (usingImage.value) return;
+  if (usingImage.value && !imageShuffles.value) return;
   params.seed = randomSeed();
 }
 

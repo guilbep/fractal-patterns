@@ -186,17 +186,26 @@ function parts(o: SuperTileOptions) {
   });
 }
 
-// One traced picture in every cell: no edge agrees, so every per-cell option applies; the seams it
-// shows are the picture's own. The polylines sit in a cell of edge o.size.
-const imageParts = (o: GridOptions, polys: Geo) =>
-  grid(o, {
-    geos: [polys],
-    variantAt: () => 0,
+// Traced pictures in the cells: no edge agrees, so every per-cell option applies; the seams it
+// shows are the pictures' own. The polylines sit in a cell of edge o.size. One picture fills every
+// cell; two to four take the math path's seeded arrangement, so no two neighbors (with wrap) match.
+const hasLines = (g: Geo): boolean => g.some((p) => p.length >= 2);
+const imageParts = (o: GridOptions, pics: Geo | readonly Geo[]) => {
+  // A single Geo's first item is a polyline of points; a list's first item is a Geo of polylines.
+  const list = (typeof (pics as Geo)[0]?.[0]?.[0] === 'number' || pics.length === 0 ? [pics] : pics) as readonly Geo[];
+  const kept = list.filter(hasLines).slice(0, VARIANTS);
+  const geos = kept.length > 1 ? kept : [kept[0] ?? list[0] ?? []];
+  const n = o.cells ?? SUPER_CELLS;
+  const map = geos.length > 1 ? arrange(geos.length, n, o.seed) : null;
+  return grid(o, {
+    geos,
+    variantAt: (r, c) => (map ? (map[r * n + c] ?? 0) : 0),
     orient: o.orient === true,
     skip: true,
     shift: true,
-    margin: Math.max(0, marginOf([polys], o.size)),
+    margin: Math.max(0, marginOf(geos, o.size)),
   });
+};
 
 function grid(o: GridOptions, src: CellSource) {
   const n = o.cells ?? SUPER_CELLS;
@@ -296,6 +305,7 @@ export function superTileBytes(o: SuperTileOptions): { svg: number; expanded: nu
   };
 }
 
-// A super tile of one traced picture: the path is written once and placed in every cell with <use>.
-export const imageSuperTileSvg = (o: GridOptions, polys: Geo): string => render(imageParts(o, polys));
-export const imageSuperTileExpanded = (o: GridOptions, polys: Geo): string => expand(imageParts(o, polys));
+// A super tile of traced pictures (one Geo, or a list of up to four): each path is written once and
+// placed in its cells with <use>.
+export const imageSuperTileSvg = (o: GridOptions, pics: Geo | readonly Geo[]): string => render(imageParts(o, pics));
+export const imageSuperTileExpanded = (o: GridOptions, pics: Geo | readonly Geo[]): string => expand(imageParts(o, pics));

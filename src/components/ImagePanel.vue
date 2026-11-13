@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { DETECTOR_LABELS, TRACE_GROUPS } from '@/detectors.ts';
-import { RESOLUTIONS, activeSample, curveBytes, image, loadImage, loadSample, rawBytes, removeImage, source, spacing, trace, traced, usingImage } from '@/state.ts';
+import { MAX_EXTRA_IMAGES, RESOLUTIONS, activeSample, addImages, extraImages, removeExtraImage, curveBytes, image, loadImage, loadSample, rawBytes, removeImage, source, spacing, trace, traced, usingImage } from '@/state.ts';
 import { SAMPLES, SAMPLE_LABELS, sampleImage, type Sample } from '@/samples.ts';
 
 const painted = new WeakSet<Element>();
@@ -31,6 +31,18 @@ function onPick(e: Event): void {
   const input = e.target as HTMLInputElement;
   void take(input.files?.[0]);
   input.value = ''; // the same file can be picked again
+}
+
+async function onPickMore(e: Event): Promise<void> {
+  const input = e.target as HTMLInputElement;
+  const files = [...(input.files ?? [])];
+  input.value = '';
+  error.value = '';
+  try {
+    await addImages(files);
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'The image could not be loaded.';
+  }
 }
 
 function onDrop(e: DragEvent): void {
@@ -65,6 +77,21 @@ function onDrop(e: DragEvent): void {
       <input type="file" accept="image/*" @change="onPick">
     </label>
     <p class="error" role="alert">{{ error }}</p>
+
+    <fieldset v-if="image" class="more-images">
+      <legend>More pictures for Reduce repetition</legend>
+      <template v-if="extraImages.length < MAX_EXTRA_IMAGES">
+        <label for="more-images">Add up to {{ MAX_EXTRA_IMAGES }} more pictures</label>
+        <input id="more-images" type="file" accept="image/*" multiple aria-describedby="more-images-hint" @change="onPickMore">
+      </template>
+      <p v-else class="muted">You added {{ MAX_EXTRA_IMAGES }} more pictures, the limit. Remove one to add another.</p>
+      <ul v-if="extraImages.length" class="more-list">
+        <li v-for="(x, i) in extraImages" :key="i + x.name">
+          {{ x.name }} <button type="button" class="btn" :aria-label="`Remove ${x.name}`" @click="removeExtraImage(i)">Remove</button>
+        </li>
+      </ul>
+      <p id="more-images-hint" class="hint-text">Each cell of the grid shows one of your pictures. Turn on Reduce repetition in the Repetition tab to see them.</p>
+    </fieldset>
 
     <label class="radio"><input id="trace-curves" v-model="trace.curves" type="checkbox" :disabled="!usingImage || contours" aria-describedby="trace-curves-hint"> Smooth curves</label>
     <p id="trace-curves-hint" class="hint-text">

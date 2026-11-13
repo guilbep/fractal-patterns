@@ -1,0 +1,90 @@
+/* Page shell: compact header, palette strip in the toolbar, the "on" mark on a tab. */
+
+/* Header: one row; the tagline hides under 700 px. */
+.shell-header {
+  flex-wrap: nowrap;
+  align-items: center;
+  padding-block: var(--s2);
+}
+.shell-header .tagline {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shell-header > :last-child {
+  margin-inline-start: auto;
+  white-space: nowrap;
+}
+@media (max-width: 699.98px) {
+  .shell-header .tagline {
+    display: none;
+  }
+}
+
+/* Palette strip: compact, sits with the stats. */
+.palette-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  font-size: 0.875rem;
+  min-width: 0;
+}
+.palette-strip .swatches {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+.palette-strip .swatch {
+  width: 1rem;
+  height: 1.5rem;
+}
+.palette-strip .palette-name {
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* WCAG 2.5.8: at least 24 by 24 CSS px. */
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+  padding: 0;
+  font: inherit;
+  font-size: 1.125rem;
+  line-height: 1;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.icon-btn:hover {
+  background: var(--sunk);
+}
+@media (max-width: 599.98px) {
+  /* Visually hidden, still read by screen readers. */
+  .palette-strip .palette-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* The "on" mark on the Repetition tab. */
+.tab-on > [aria-hidden='true'] {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-inline-start: 0.4rem;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: currentColor;
+}

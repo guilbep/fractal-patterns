@@ -6,7 +6,7 @@ import { svgToDataUri } from '@/css.ts';
 import { KIND_LABELS } from '@/fractal.ts';
 import { DETECTOR_LABELS } from '@/trace.ts';
 import { SAMPLE_LABELS } from '@/samples.ts';
-import { activeSample, contrast, fileName, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, randomPattern, ratioText, reseed, reset, svgHref, trace, traced, usingImage } from '@/state.ts';
+import { activeSample, contrast, layer2, variantsOn, fileName, motionPaused, params, patch, usingPatchwork, plateMode, plateStyle, randomPattern, ratioText, reseed, reset, svgHref, trace, traced, usingImage } from '@/state.ts';
 import { exportText, footprint, gzipped } from '@/state-export.ts';
 import ColorPanel from '@/components/ColorPanel.vue';
 import VisionPanel from '@/components/VisionPanel.vue';
@@ -17,6 +17,9 @@ import SpacingPanel from '@/components/SpacingPanel.vue';
 import MotionPanel from '@/components/MotionPanel.vue';
 import RepetitionPanel from '@/components/RepetitionPanel.vue';
 import { canRedo, canUndo, redo, shareUrl, undo } from '@/state-share.ts';
+import PaletteStrip from '@/components/PaletteStrip.vue';
+import { migrateTab, type TabId } from '@/shell.ts';
+import '@/css/shell.css';
 
 const LOGO_URI = svgToDataUri(logoSvg(LOGO_DEFAULT));
 
@@ -55,20 +58,19 @@ async function copyText(text: string, done: string, failed: string): Promise<voi
 const copyLink = () => copyText(shareUrl(), 'Link copied', 'Could not copy the link. Copy it from the address bar.');
 const copyCss = () => copyText(exportText.value, 'Copied', 'Copy failed. Copy the CSS from the Export tab.');
 
-// Tabs (WAI-ARIA tabs pattern, automatic activation). All panels stay mounted.
-const TABS = [
+// Tabs (WAI-ARIA tabs pattern, automatic activation). All panels stay mounted, except Repetition (v-if: its previews cost nothing while closed).
+const TABS: readonly { id: TabId; label: string }[] = [
   { id: 'pattern', label: 'Pattern' },
+  { id: 'repetition', label: 'Repetition' },
+  { id: 'layout', label: 'Layout' },
   { id: 'colors', label: 'Colors' },
   { id: 'image', label: 'Image' },
-  { id: 'motion', label: 'Motion' },
   { id: 'export', label: 'Export' },
-] as const;
-type TabId = (typeof TABS)[number]['id'];
+];
 const TAB_KEY = 'fp-tab';
 function readTab(): TabId {
   try {
-    const t = sessionStorage.getItem(TAB_KEY);
-    return TABS.find((x) => x.id === t)?.id ?? 'pattern';
+    return migrateTab(sessionStorage.getItem(TAB_KEY));
   } catch {
     return 'pattern';
   }
@@ -135,7 +137,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 </script>
 
 <template>
-  <header class="site-header">
+  <header class="site-header shell-header">
     <p class="brand"><img class="logo" :src="LOGO_URI" alt="" width="28" height="28">{{ APP_NAME }}</p>
     <p class="tagline">Seeded fractal tiles for CSS backgrounds, with contrast you can trust.</p>
     <p><a href="./studio.html">Wallpaper Studio</a></p>
@@ -158,6 +160,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <span aria-hidden="true">{{ contrast.normal !== 'fail' ? '✓' : '✗' }}</span>
       Contrast {{ ratioText(contrast.worst) }}:1 {{ contrast.normal !== 'fail' ? 'AA pass' : 'AA fail' }}
     </span>
+    <PaletteStrip />
     <span class="stat" :title="footprintFull()"><span aria-hidden="true">{{ footprintText() }}</span><span class="visually-hidden">{{ footprintFull() }}</span></span>
     </div>
     <span class="visually-hidden" role="status" aria-live="polite">{{ copyStatus }}</span>
@@ -181,7 +184,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
     <div class="controls">
       <div ref="tabBar" class="tabs" role="tablist" aria-label="Controls" @keydown="onTabKey">
-        <button v-for="t in TABS" :id="`tab-${t.id}`" :key="t.id" type="button" role="tab" class="tab" :aria-selected="tab === t.id" :aria-controls="`panel-${t.id}`" :tabindex="tab === t.id ? 0 : -1" @click="tab = t.id">{{ t.label }}</button>
+        <button v-for="t in TABS" :id="`tab-${t.id}`" :key="t.id" type="button" role="tab" class="tab" :aria-selected="tab === t.id" :aria-controls="`panel-${t.id}`" :tabindex="tab === t.id ? 0 : -1" @click="tab = t.id">{{ t.label }}<span v-if="t.id === 'repetition' && (variantsOn || layer2)" class="tab-on"><span aria-hidden="true"></span><span class="visually-hidden">on</span></span></button>
       </div>
       <div v-show="tab === 'pattern'" id="panel-pattern" class="tabpanel" role="tabpanel" aria-labelledby="tab-pattern">
         <div class="panel shortcut">
@@ -189,9 +192,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           <p class="muted hint">{{ usingImage ? 'Shuffle applies to math patterns only.' : '' }}<template v-if="!usingImage && shortcutOn">Or click the pattern, or press <kbd>R</kbd>.</template><template v-else-if="!usingImage">Or click the pattern.</template></p>
         </div>
         <PatternPanel />
-        <!-- One instance at a time (v-if on the tab): the ids inside stay unique while both tabs offer it. -->
-        <RepetitionPanel v-if="tab === 'pattern'" />
+      </div>
+      <div v-show="tab === 'repetition'" id="panel-repetition" class="tabpanel" role="tabpanel" aria-labelledby="tab-repetition">
+        <RepetitionPanel v-if="tab === 'repetition'" />
+      </div>
+      <div v-show="tab === 'layout'" id="panel-layout" class="tabpanel" role="tabpanel" aria-labelledby="tab-layout">
         <SpacingPanel />
+        <MotionPanel />
       </div>
       <div v-show="tab === 'colors'" id="panel-colors" class="tabpanel" role="tabpanel" aria-labelledby="tab-colors">
         <ColorPanel />
@@ -199,10 +206,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       </div>
       <div v-show="tab === 'image'" id="panel-image" class="tabpanel" role="tabpanel" aria-labelledby="tab-image">
         <ImagePanel />
-        <RepetitionPanel v-if="tab === 'image'" />
-      </div>
-      <div v-show="tab === 'motion'" id="panel-motion" class="tabpanel" role="tabpanel" aria-labelledby="tab-motion">
-        <MotionPanel />
       </div>
       <div v-show="tab === 'export'" id="panel-export" class="tabpanel" role="tabpanel" aria-labelledby="tab-export">
         <OutputPanel @depth="toDepth" />

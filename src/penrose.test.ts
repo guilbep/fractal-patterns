@@ -9,6 +9,7 @@ import {
   penroseArcs,
   penroseBoth,
   penroseEdges,
+  penroseArcsPath,
   penrosePatch,
   penroseTile,
   rhombArcs,
@@ -314,4 +315,175 @@ test('penroseTile: one uniform scale, every edge segment has the same length', (
     for (const l of whole) assert.ok(Math.abs(l - max) < 1e-6, `depth ${depth}: ${l} vs ${max}`);
     assert.ok(Math.abs(max - T / approximant(1, depth).width) < 1e-6, `depth ${depth}: edge ${max}`);
   }
+});
+
+// The arc path, parsed and sampled independently of the generator.
+const NUM = String.raw`-?\d+(?:\.\d+)?`;
+const SUB = new RegExp(`M(${NUM}) (${NUM})A(${NUM}) (${NUM}) 0 0 ([01]) (${NUM}) (${NUM})`, 'g');
+interface SvgArc {
+  readonly s: Pt;
+  readonly t: Pt;
+  readonly r: number;
+  readonly sweep: number;
+}
+const parseArcs = (d: string): SvgArc[] =>
+  [...d.matchAll(SUB)].map((m) => {
+    const [x0, y0, rx, ry, sw, x1, y1] = m.slice(1).map(Number) as [number, number, number, number, number, number, number];
+    assert.equal(rx, ry);
+    return { s: [x0, y0], t: [x1, y1], r: rx, sweep: sw };
+  });
+// Large-arc 0: centre on the side of the chord that makes the arc the short one.
+const arcCenter = ({ s, t, r, sweep }: SvgArc): Pt => {
+  const m: Pt = [(s[0] + t[0]) / 2, (s[1] + t[1]) / 2];
+  const a = dist(s, t) / 2;
+  const h = Math.sqrt(Math.max(0, r * r - a * a));
+  const sg = sweep === 1 ? 1 : -1;
+  const n: Pt = [(-(t[1] - s[1]) / (2 * a)) * sg, ((t[0] - s[0]) / (2 * a)) * sg];
+  return [m[0] + h * n[0], m[1] + h * n[1]];
+};
+const arcSpan = (arc: SvgArc): number => {
+  const o = arcCenter(arc);
+  const a0 = Math.atan2(arc.s[1] - o[1], arc.s[0] - o[0]);
+  const a1 = Math.atan2(arc.t[1] - o[1], arc.t[0] - o[0]);
+  return mod(arc.sweep === 1 ? a1 - a0 : a0 - a1, 2 * Math.PI);
+};
+const sampleSvgArc = (arc: SvgArc, n = 16): Pt[] => {
+  const o = arcCenter(arc);
+  const a0 = Math.atan2(arc.s[1] - o[1], arc.s[0] - o[0]);
+  const da = arcSpan(arc) * (arc.sweep === 1 ? 1 : -1);
+  return Array.from({ length: n + 1 }, (_, i): Pt => [
+    o[0] + arc.r * Math.cos(a0 + (da * i) / n),
+    o[1] + arc.r * Math.sin(a0 + (da * i) / n),
+  ]);
+};
+const segDist = (p: Pt, a: Pt, b: Pt) => {
+  const vx = b[0] - a[0];
+  const vy = b[1] - a[1];
+  const l2 = vx * vx + vy * vy;
+  const u = l2 === 0 ? 0 : Math.min(1, Math.max(0, ((p[0] - a[0]) * vx + (p[1] - a[1]) * vy) / l2));
+  return Math.hypot(p[0] - a[0] - u * vx, p[1] - a[1] - u * vy);
+};
+// Distance on the torus W x H from p to the nearest segment of any polyline; a grid of cells keeps it fast.
+const torusDistance = (polys: Pt[][], W: number, H: number) => {
+  const C = 10;
+  const cells = new Map<string, [Pt, Pt][]>();
+  for (const poly of polys)
+    for (let i = 1; i < poly.length; i++) {
+      const a = poly[i - 1]!;
+      const b = poly[i]!;
+      const k = `${Math.floor(mod((a[0] + b[0]) / 2, W) / C)},${Math.floor(mod((a[1] + b[1]) / 2, H) / C)}`;
+      cells.set(k, [...(cells.get(k) ?? []), [a, b]]);
+    }
+  const nx = Math.ceil(W / C);
+  const ny = Math.ceil(H / C);
+  return (p: Pt) => {
+    const q: Pt = [mod(p[0], W), mod(p[1], H)];
+    const cx = Math.floor(q[0] / C);
+    const cy = Math.floor(q[1] / C);
+    let best = Infinity;
+    // ponytail: +-3 cells covers segments up to 20 units long, the 8-segment chords at size 240.
+    for (let i = -3; i <= 3; i++)
+      for (let j = -3; j <= 3; j++)
+        for (const [a, b] of cells.get(`${mod(cx + i, nx)},${mod(cy + j, ny)}`) ?? []) {
+          // A wrapped cell lies one period away; segments are stored unreduced, so also try the +-1 shift.
+          const ox = cx + i < 0 ? W : cx + i >= nx ? -W : 0;
+          const oy = cy + j < 0 ? H : cy + j >= ny ? -H : 0;
+          const m: Pt = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+          const p2: Pt = [q[0] + ox + m[0] - mod(m[0], W), q[1] + oy + m[1] - mod(m[1], H)];
+          best = Math.min(best, segDist(p2, a, b));
+        }
+    return best;
+  };
+};
+const CASES = [1, 2, 3].flatMap((depth) => [1, 2, 3].map((seed) => ({ depth, seed, msg: `depth ${depth} seed ${seed}` })));
+const TH = T / PENROSE_ASPECT;
+
+test('penroseArcsPath is well formed: only M x y A r r 0 0 s x y sub-paths', () => {
+  for (const { depth, seed, msg } of CASES) {
+    const d = penroseArcsPath(mulberry32(seed), depth, T);
+    assert.match(d, new RegExp(`^(?:M${NUM} ${NUM}A${NUM} ${NUM} 0 0 [01] ${NUM} ${NUM})+$`), msg);
+    assert.doesNotMatch(d, /[^MA0-9 .-]/, msg);
+    for (const sub of d.split('M').slice(1)) assert.equal(sub.split('A')[1]!.split(' ').length, 7, `${msg}: ${sub}`);
+    const arcs = parseArcs(d);
+    assert.equal(arcs.length, d.split('M').length - 1, msg);
+  }
+});
+
+test('penroseArcsPath counts: two arcs per rhomb inside the tile, plus the shifted copies', () => {
+  for (const { depth, seed, msg } of CASES) {
+    const arcs = parseArcs(penroseArcsPath(mulberry32(seed), depth, T));
+    const rhombs = approximant(Math.floor(mulberry32(seed)() * 2 ** 32), depth).rhombs.length;
+    const inTile = arcs.filter((a) => {
+      const [x, y] = sampleSvgArc(a)[8]!;
+      return x >= 0 && x < T && y >= 0 && y < TH;
+    }).length;
+    if (seed === 1)
+      console.log(`arcs ${msg}: ${inTile} inside (2 x ${rhombs} rhombs) + ${arcs.length - inTile} shifted copies = ${arcs.length} written`);
+    assert.equal(inTile, 2 * rhombs, msg);
+    assert.ok(arcs.length > inTile, msg);
+  }
+});
+
+test('penroseArcsPath agrees with the polyline arcs of penroseTile on the torus', () => {
+  let worstOld = 0;
+  let worstNew = 0;
+  let worstOldCase = '';
+  let worstNewCase = '';
+  for (const { depth, seed, msg } of CASES) {
+    const samples = parseArcs(penroseArcsPath(mulberry32(seed), depth, T)).map((a) => sampleSvgArc(a));
+    const old = penroseTile(mulberry32(seed), depth, T, 'arcs');
+    const toNew = torusDistance(samples, T, TH);
+    const toOld = torusDistance(old, T, TH);
+    for (const poly of old)
+      for (const p of poly) {
+        const dd = toNew(p);
+        if (dd > worstOld) [worstOld, worstOldCase] = [dd, msg];
+      }
+    for (const poly of samples)
+      for (const p of poly) {
+        const dd = toOld(p);
+        if (dd > worstNew) [worstNew, worstNewCase] = [dd, msg];
+      }
+  }
+  console.log(
+    `worst old vertex to new arc: ${worstOld.toFixed(4)} (${worstOldCase}); worst new sample to old polyline: ${worstNew.toFixed(4)} (${worstNewCase})`,
+  );
+  // Measured 0.2851 (depth 1 seed 3): clip points of the old polyline lie on 8-segment chords.
+  assert.ok(worstOld <= 0.3, `old to new ${worstOld} at ${worstOldCase}`);
+  // Measured 0.3811 (depth 1 seed 1): the sagitta of a 1/8 chord of a 0.75-edge arc at size 240, r (1 - cos 9 deg).
+  assert.ok(worstNew <= 0.4, `new to old ${worstNew} at ${worstNewCase}`);
+});
+
+test('penroseArcsPath seam: an arc leaving the tile is also written shifted back in', () => {
+  for (const { depth, seed, msg } of CASES) {
+    const arcs = parseArcs(penroseArcsPath(mulberry32(seed), depth, T));
+    let checked = 0;
+    for (const a of arcs) {
+      const shifts = new Set<string>();
+      for (const [x, y] of sampleSvgArc(a)) {
+        const dx = x < 0 ? T : x > T ? -T : 0;
+        const dy = y < 0 ? TH : y > TH ? -TH : 0;
+        if (dx !== 0 || dy !== 0) shifts.add(`${dx},${dy}`);
+      }
+      for (const sh of shifts) {
+        const [dx, dy] = sh.split(',').map(Number) as [number, number];
+        const ok = arcs.some(
+          (b) =>
+            Math.abs(b.r - a.r) <= 0.11 && dist(b.s, [a.s[0] + dx, a.s[1] + dy]) <= 0.11 && dist(b.t, [a.t[0] + dx, a.t[1] + dy]) <= 0.11,
+        );
+        assert.ok(ok, `${msg}: arc ${JSON.stringify(a)} shift ${sh}`);
+        checked++;
+      }
+    }
+    assert.ok(checked > 0, msg);
+  }
+});
+
+test('penroseArcsPath sweep: arcs are on their circle and span under 180 degrees', () => {
+  for (const { depth, seed, msg } of CASES)
+    for (const a of parseArcs(penroseArcsPath(mulberry32(seed), depth, T))) {
+      assert.ok(dist(a.s, a.t) <= 2 * a.r + 0.15, `${msg}: chord longer than the diameter`);
+      assert.ok(Math.abs(dist(sampleSvgArc(a)[8]!, arcCenter(a)) - a.r) <= 0.15, msg);
+      assert.ok(arcSpan(a) < Math.PI, `${msg}: span ${(arcSpan(a) * 180) / Math.PI}`);
+    }
 });

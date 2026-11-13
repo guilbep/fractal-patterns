@@ -1000,3 +1000,14 @@ select {
     display: none;
   }
 }
+
+/* A file input has a wide natural size. On a narrow phone it must shrink with its box and not widen the page. */
+.drop,
+.drop > * {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.drop input[type='file'] {
+  width: 100%;
+}

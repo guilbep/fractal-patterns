@@ -124,3 +124,14 @@
 .size-badge:focus-visible > .size-tip {
   display: block;
 }
+
+/* Narrow phones (under 400 px): the stats row holds the strip, the full screen button and three badges.
+   The size badge keeps its grade and number and drops its unit. The tooltip and the accessible name keep it. */
+@media (max-width: 399.98px) {
+  .size-unit {
+    display: none;
+  }
+  .bar-stats {
+    gap: 0.25rem;
+  }
+}

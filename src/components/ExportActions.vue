@@ -3,7 +3,8 @@
 import { ref, useId } from 'vue';
 import { copyText } from '@/clipboard.ts';
 
-const props = defineProps<{ svg: string; css: string; fileName: string }>();
+// cssBox false: the page shows the CSS box itself, e.g. in a fold.
+const props = withDefaults(defineProps<{ svg: string; css: string; fileName: string; cssBox?: boolean }>(), { cssBox: true });
 const cssId = useId();
 
 function download(): void {
@@ -33,8 +34,10 @@ async function copy(text: string): Promise<void> {
     <slot />
   </div>
   <p class="copy-status" role="status" aria-live="polite">{{ status }}</p>
-  <label :for="cssId">CSS background</label>
-  <textarea :id="cssId" class="code" readonly rows="4" :value="css" @focus="($event.target as HTMLTextAreaElement).select()"></textarea>
+  <template v-if="cssBox">
+    <label :for="cssId">CSS background</label>
+    <textarea :id="cssId" class="code" readonly rows="4" :value="css" @focus="($event.target as HTMLTextAreaElement).select()"></textarea>
+  </template>
 </template>
 
 <style scoped>

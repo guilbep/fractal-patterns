@@ -51,9 +51,11 @@ async function openDesign(e: Event): Promise<void> {
   <section class="panel" aria-labelledby="export-h">
     <h2 id="export-h">Export</h2>
     <p class="export-stats"><SizeBadge :svg="svg" /></p>
-    <ExportActions :svg="svg" :css="css" file-name="pattern-builder" />
+    <ExportActions :svg="svg" :css="css" file-name="pattern-builder" :css-box="false" />
     <details class="group">
       <summary>CSS and design file</summary>
+      <label for="builder-css">CSS background</label>
+      <textarea id="builder-css" class="code" readonly rows="4" :value="css" @focus="($event.target as HTMLTextAreaElement).select()"></textarea>
       <button type="button" class="btn group-end" @click="downloadDesign">Download design (.json)</button>
       <div class="field">
         <label for="open-design">Open a design file</label>
@@ -63,3 +65,8 @@ async function openDesign(e: Event): Promise<void> {
     </details>
   </section>
 </template>
+
+<style scoped>
+/* Same rule as the box in ExportActions.vue. */
+textarea.code { display: block; inline-size: 100%; max-inline-size: 100%; box-sizing: border-box; font-family: inherit; resize: vertical; margin-block-end: var(--s2); }
+</style>

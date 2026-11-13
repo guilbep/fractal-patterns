@@ -101,3 +101,15 @@ export function gradeLine(gzipBytes: number): string {
 export const GRADE_SCALE = `This is the tool's own scale: ${WEIGHT_GRADES.map((w, i) =>
   w.limitKb === null ? `${w.grade} above` : `${w.grade} under ${w.limitKb}${i === 0 ? ' KB' : ''}`,
 ).join(', ')}. It is not the Website Carbon rating, which rates a whole page.`;
+
+// The size badge's visible text, the same on every page: grade, "2.85 KB gz", "≈ 0.6 mg CO₂".
+// gzipBytes: null while compressing, 'unknown' when gzip failed; the CO₂ part is then empty.
+export function badgeText(gzipBytes: number | null | 'unknown'): { grade: Grade | null; size: string; co2: string } {
+  if (gzipBytes === null) return { grade: null, size: 'compressing', co2: '' };
+  if (gzipBytes === 'unknown') return { grade: null, size: 'gzip size unknown', co2: '' };
+  return {
+    grade: weightGrade(gzipBytes).grade,
+    size: `${formatKb(gzipBytes)} KB gz`,
+    co2: formatFootprint(gzipBytes).split(' / ')[0] ?? '',
+  };
+}

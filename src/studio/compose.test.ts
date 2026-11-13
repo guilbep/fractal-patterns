@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { safePathData } from '../motifgrid.ts';
 import { PALETTES } from '../palettes.ts';
 import { layerColors, studioSvg, type Placement, type Repeat, type Studio } from './model.ts';
-import { MOTIF_FAMILIES } from './motifs.ts';
+import { MOTIF_FAMILIES, motifBounds } from './motifs.ts';
 import { torusDistance } from './scatter.ts';
 import { compose, composeColors, composeParts, composeSummary, latticeDistance, motifRadius, type ComposeOptions } from './compose.ts';
 import type { Pt } from '../patterns/util.ts';
@@ -97,9 +97,10 @@ test('stems: none when off; one stroke layer in the stem color, all stems in one
 
 test('bytes, straight repeat: worst over seeds 1..8', () => {
   const worst = (density: number) => Math.max(...SEEDS.map((seed) => composeSummary(compose(opt(seed, { density }))).bytes));
-  // Measured worst (heroes moved back along cut stems): 9504 at 0.2, 11587 at 0.5, 12981 at 0.9.
-  assert.ok(worst(0.2) <= 10000);
-  assert.ok(worst(0.5) <= 12000);
+  // Measured worst (bare plants removed, supports clear of their own hero): 9304 at 0.2, 11163 at 0.5, 12671 at 0.9;
+  // bounds: the measured worst rounded up to the next 500.
+  assert.ok(worst(0.2) <= 9500);
+  assert.ok(worst(0.5) <= 11500);
   assert.ok(worst(0.9) <= 13000);
 });
 
@@ -160,7 +161,12 @@ test('plants: tip and alternating supports registered on their stems, stems apar
         // The stem ends in a motif: a vine (closed, no end) with its hero, else a hero or support base within 3% of the side.
         const end = pl.stem[pl.stem.length - 1]!;
         const bases = [...(pl.tip && !pl.tipStalk ? [pl.tip] : []), ...pl.attached.filter((a) => !a.stalk).map((a) => a.placement)];
-        if (pl.vine ? pl.tip : bases.some((b) => Math.hypot(base(b)[0] - end[0], base(b)[1] - end[1]) <= 9)) endsInMotif++;
+        const nearEnd = (q: Pt) => Math.hypot(q[0] - end[0], q[1] - end[1]) <= 9;
+        if (pl.vine ? pl.tip : bases.some((b) => nearEnd(base(b)))) endsInMotif++;
+        // A plant without motifs is the host of another; every open stem ends at a motif or a junction.
+        const hosting = p.plants.filter((q) => q.host === p.plants.indexOf(pl));
+        if (!pl.tip && pl.attached.length === 0) assert.ok(hosting.length > 0, `${at} bare plant`);
+        if (!pl.vine) assert.ok(bases.some((b) => nearEnd(base(b))) || hosting.some((q) => nearEnd(q.stem[0]!)), `${at} bare end`);
         for (const a of pl.attached) {
           const d = a.stalk ? segDistance(base(a.placement), a.stalk[0], a.stalk[1]) : onStem(base(a.placement));
           assert.ok(d <= 1.5, `${at} attached ${d}`);
@@ -189,10 +195,11 @@ test('plants: tip and alternating supports registered on their stems, stems apar
       }
     }
   }
-  // Measured over 4 repeats x 8 seeds (117 plants): 0.923 with 2 supports, 0.889 on both sides (was 0.923: supports
-  // now share a cut stem with a moved hero), 0.932 with a hero, 0.983 ending in a motif.
-  assert.ok(twoSupports / total >= 0.9, `supports ${twoSupports / total}`);
-  assert.ok(bothSides / total >= 0.85, `sides ${bothSides / total}`);
+  // Measured over 4 repeats x 8 seeds (115 plants, 2 bare plants removed): 0.896 with 2 supports (was 0.923), 0.826 on
+  // both sides (was 0.889): supports now keep the gap from their own hero and each other, so more of them drop. Floors:
+  // the measured shares rounded down to 0.05 (were 0.9 and 0.85).
+  assert.ok(twoSupports / total >= 0.85, `supports ${twoSupports / total}`);
+  assert.ok(bothSides / total >= 0.8, `sides ${bothSides / total}`);
   assert.ok(heroes / total >= 0.9, `heroes ${heroes / total}`);
   assert.ok(endsInMotif / total >= 0.95, `ends ${endsInMotif / total}`);
 });
@@ -333,8 +340,10 @@ test('a hero moved back from the tip sits on its cut stem, with no bare stem bey
   assert.ok(moved > 0);
 });
 
-test('compose without a custom motif: the same SVG as before custom motifs (sha-256 prefixes taken before the change)', () => {
-  const want: Record<number, string> = { 1: '7590d6259efb59b3', 2: 'f559d32054f2970c', 3: '928794dc891c594e' };
+// Re-taken in ticket X4, which changes the default output on purpose (bare plants removed, supports clear of their own
+// hero); before: 1 7590d6259efb59b3, 2 f559d32054f2970c, 3 928794dc891c594e.
+test('compose without a custom motif: a stable SVG (sha-256 prefixes)', () => {
+  const want: Record<number, string> = { 1: '50c3cf6b0a7cfbdd', 2: '72807e354740a5b9', 3: '4ad9cae4b492718d' };
   for (const seed of [1, 2, 3]) {
     const svg = studioSvg(compose({ ...designOptions(decodeStudio('')), seed }));
     assert.equal(createHash('sha256').update(svg).digest('hex').slice(0, 16), want[seed], `seed ${seed}`);
@@ -404,4 +413,78 @@ test('compose: unsafe custom path data is dropped; with nothing left the generat
   const mixed = composeParts(opt(3, { custom: custom('hero', true, [...bad, ...SHAPES.slice(1)]) })).studio;
   assert.ok(mixed.motifs.every((m) => safePathData(m.d) && !m.d.includes('<')));
   assert.ok(mixed.motifs.some((m) => m.d === SHAPES[1]!.d));
+});
+
+test('no overlap inside a plant: hero, supports and branch end keep apart (real radii)', () => {
+  for (const repeat of REPEATS)
+    for (const seed of SEEDS) {
+      const p = composeParts(opt(seed, { repeat }));
+      for (const pl of p.plants) {
+        const cs = [...(pl.tip ? [pl.tip] : []), ...pl.attached.map((a) => a.placement)].map((q) => circle(p.studio, q));
+        for (let i = 0; i < cs.length; i++)
+          for (let j = i + 1; j < cs.length; j++)
+            assert.ok(
+              latticeDistance([cs[i]!.x, cs[i]!.y], [cs[j]!.x, cs[j]!.y], repeat, 300, 300) >= cs[i]!.r + cs[j]!.r,
+              `${repeat} ${seed}`,
+            );
+      }
+    }
+});
+
+// A 24-gon of radius rr around (50, cy).
+const disc = (rr: number, cy: number) =>
+  Array.from({ length: 24 }, (_, i) => {
+    const a = (i * Math.PI) / 12;
+    return `${i === 0 ? 'M' : 'L'}${Math.round((50 + rr * Math.cos(a)) * 10) / 10} ${Math.round((cy + rr * Math.sin(a)) * 10) / 10}`;
+  }).join('') + 'Z';
+
+test('custom motif sized by its body: a disc on a long thin stem matches a generated hero, and keeps the gap', () => {
+  const shapes = [
+    { color: '#2a7a3a', d: 'M48 40L52 40L52 98L48 98Z' },
+    { color: '#e070a0', d: disc(20, 22) },
+  ];
+  const discs: number[] = [];
+  const gen: number[] = [];
+  for (const repeat of REPEATS)
+    for (const seed of SEEDS) {
+      const p = composeParts(opt(seed, { repeat, custom: custom('hero', true, shapes) }));
+      discs.push(...p.heroes.map((h) => 40 * h.scale));
+      const g = composeParts(opt(seed, { repeat }));
+      gen.push(
+        ...g.heroes.map((h) => {
+          const b = motifBounds(g.studio.motifs[h.motif]!.d);
+          return Math.sqrt((b.maxX - b.minX) * (b.maxY - b.minY)) * h.scale;
+        }),
+      );
+      // The gap test's rule for the custom heroes, on their real union bounds.
+      const cs = p.plants.map((pl) => (pl.tip ? [circle(p.studio, pl.tip)] : []));
+      for (let i = 0; i < p.plants.length; i++)
+        for (const c of cs[i]!)
+          for (let j = 0; j < p.plants.length; j++) {
+            if (i === j) continue;
+            for (const q of p.plants[j]!.stem)
+              assert.ok(latticeDistance([c.x, c.y], q, repeat, 300, 300) >= c.r + 2.55, `${repeat} ${seed} stem`);
+            for (const a of p.plants[j]!.attached) {
+              const k = circle(p.studio, a.placement);
+              assert.ok(latticeDistance([c.x, c.y], [k.x, k.y], repeat, 300, 300) >= c.r + k.r + 1.8, `${repeat} ${seed} circle`);
+            }
+          }
+    }
+  const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const ratio = mean(discs) / mean(gen);
+  assert.ok(ratio > 0.75 && ratio < 1.25, `ratio ${ratio}`);
+});
+
+test('custom motif sized by its body: a compact disc keeps the bounding-circle size (within 10 percent)', () => {
+  const d = disc(40, 50);
+  const square = 'M10 10L90 10L90 90L10 90Z';
+  for (const seed of SEEDS.slice(0, 4)) {
+    const a = composeParts(opt(seed, { custom: custom('both', true, [{ color: '#e070a0', d }]) }));
+    const b = composeParts(opt(seed, { custom: custom('both', true, [{ color: '#e070a0', d: square }]) }));
+    // A square of the disc's bounds is scaled by its bounding circle under either rule.
+    const sa = a.heroes.map((h) => h.scale * motifRadius(a.studio.motifs[h.motif]!).radius);
+    const sb = b.heroes.map((h) => h.scale * motifRadius(b.studio.motifs[h.motif]!).radius);
+    assert.ok(sa.length > 0);
+    for (const [i, r] of sa.entries()) if (sb[i] !== undefined) assert.ok(Math.abs(r / sb[i]! - 1) < 0.1, `seed ${seed}`);
+  }
 });

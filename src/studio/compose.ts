@@ -160,7 +160,23 @@ type Variant = {
   bloom: boolean;
   box: number;
   parts: number[] | null;
+  /** The radius the motif is scaled by: its bounding radius, or (custom motif) its body's radius over sqrt(2/pi). */
+  body: number;
 };
+
+/** A custom motif's body: the circle with the area of the tight bounds of its largest shape whose bounds are not thin
+ * (aspect below 4), else of the union bounds; over sqrt(2/pi), the body of a square-bounded generated motif of radius 1,
+ * so that the body matches a generated hero's. */
+function customBody(ds: readonly string[], union: string): number {
+  const area = (d: string) => {
+    const b = motifBounds(d);
+    const [bw, bh] = [b.maxX - b.minX, b.maxY - b.minY];
+    return Math.max(bw, bh) < 4 * Math.min(bw, bh) ? bw * bh : 0;
+  };
+  const best = Math.max(...ds.map(area));
+  const a = best > 0 ? best : ((b) => (b.maxX - b.minX) * (b.maxY - b.minY))(motifBounds(union));
+  return Math.sqrt(a / Math.PI) / Math.sqrt(2 / Math.PI);
+}
 
 export function composeParts(o: ComposeOptions): ComposeParts {
   const allowed = o.families.length > 0 ? o.families : (['leaf'] as const);
@@ -182,8 +198,17 @@ export function composeParts(o: ComposeOptions): ComposeParts {
       if (!customVariant) {
         const parts = custom.shapes.map((c) => motifs.push({ d: c.d, box: custom.box, paint: 'fill' }) - 1);
         // One motif to the rules: its bounds are the union of its shapes.
-        const radius = motifRadius({ d: custom.shapes.map((c) => c.d).join(''), box: custom.box, paint: 'fill' });
-        customVariant = { sil: parts[0]!, det: null, radius, bloom: false, box: custom.box, parts };
+        const union = custom.shapes.map((c) => c.d).join('');
+        const radius = motifRadius({ d: union, box: custom.box, paint: 'fill' });
+        // Sized by its body, but its union bounds at most 1.8 times the generated motif's diameter.
+        const body = Math.max(
+          customBody(
+            custom.shapes.map((c) => c.d),
+            union,
+          ),
+          radius.radius / 1.8,
+        );
+        customVariant = { sil: parts[0]!, det: null, radius, bloom: false, box: custom.box, parts, body };
       }
       return [customVariant, customVariant];
     }
@@ -204,6 +229,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
         bloom: BLOOMS.includes(fam),
         box: m.silhouette.box,
         parts: null,
+        body: motifRadius(m.silhouette).radius,
       };
     });
   });
@@ -211,7 +237,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   // A motif whose base sits at `base`, pointing along angle `a` (radians), with real circle radius r.
   const put = (v: Variant, base: Pt, a: number, r: number, flip: boolean): Placement => {
     const rotate = Math.round(deg(a) + 90);
-    const scale = round(r / v.radius.radius, 100);
+    const scale = round(r / v.body, 100);
     const t = (rotate * Math.PI) / 180;
     const [x, y] = [base[0] + (v.box / 2) * scale * Math.sin(t), base[1] - (v.box / 2) * scale * Math.cos(t)];
     return { motif: v.sil, x: round(x, 10), y: round(y, 10), scale, rotate, flip };
@@ -475,6 +501,8 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     // Support motifs at alternating sides, on the stem, pointing away from it, smaller toward the tip.
     const n = 3 + Math.floor(r() * (1 + 3 * density));
     const attached: Built['attached'][number][] = [];
+    // Supports and the side branch's end also keep the gap from the plant's own hero and from each other.
+    const ownClear = (c: { c: Pt; r: number }) => clearOf(index, c.c, c.r) && circles.every((k) => dist(c.c, k.c) >= c.r + k.r + gap);
     for (let i = 0; i < n; i++) {
       const u = (0.15 + (0.7 * (i + 0.3 + 0.4 * r())) / n) * end;
       const sideSign = i % 2 === 0 ? sA : -sA;
@@ -494,7 +522,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
         const q = at(u + du);
         const pl = put(v, q.p, q.a + turn, rr * k, fl);
         const c = realCircle(v, pl);
-        if (!clearOf(index, c.c, c.r)) continue;
+        if (!ownClear(c)) continue;
         attached.push({ placement: pl, side: sideSign, stalk: null });
         circles.push({ ...c, v, p: pl });
         lastU = Math.max(lastU, u + du);
@@ -511,15 +539,15 @@ export function composeParts(o: ComposeOptions): ComposeParts {
       const v = variants[2]![index % VARIANTS]!;
       const pl = put(v, b, a, 0.04 * side, r() < 0.5);
       const c = realCircle(v, pl);
-      if (clearOf(index, c.c, c.r)) {
+      if (ownClear(c)) {
         lastU = Math.max(lastU, qu);
         stalks.push([q.p, b]);
         attached.push({ placement: pl, side: sideSign, stalk: [q.p, b] });
         circles.push({ ...c, v, p: pl });
       }
     }
-    // No hero: the stem ends just beyond its last support (or branch junction), not bare.
-    if (!tip && !vine && attached.length > 0) end = Math.min(1, lastU + 0.02);
+    // No hero: the stem ends just beyond its last support or, with none, its last branch junction; not bare.
+    if (!tip && !vine) end = Math.min(1, lastU + 0.02);
     const stem = end < 1 ? full.slice(0, Math.ceil(end * 128 - 1e-9) + 1) : full;
     const segs = end < 1 ? cutSegs(fullSegs, end) : fullSegs;
     const f = (q: Pt) => `${num(q[0] + shift[0])} ${num(q[1] + shift[1])}`;
@@ -532,6 +560,14 @@ export function composeParts(o: ComposeOptions): ComposeParts {
         .join('');
     plants.push({ stem, tip, tipStalk, attached, circles, path, vine, host });
   });
+
+  // A plant with no motif that no other plant starts on goes (its host may then become one); hosts are renumbered.
+  for (;;) {
+    const i = plants.findIndex((pl, j) => !pl.tip && pl.attached.length === 0 && !plants.some((q) => q.host === j));
+    if (i < 0) break;
+    plants.splice(i, 1);
+    for (const [j, pl] of plants.entries()) if (pl.host !== null && pl.host > i) plants[j] = { ...pl, host: pl.host - 1 };
+  }
 
   // Filler: small motifs only in the larger gaps, clear of every motif circle and, by a margin, of every stem.
   const fillerMargin = 0.03 * side;

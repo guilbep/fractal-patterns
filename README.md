@@ -29,6 +29,17 @@ The header is shared by both tools: the Fractal Patterns logo and name, a switch
 
 The toolbar ends with a palette strip and two badges. The strip shows the colors of the current palette, with buttons for the previous palette, the next palette, and a random palette. The first badge shows the worst text contrast and an AA pass or fail. The second badge shows the CO2 footprint of the export.
 
+The third badge shows the compressed size of the export with a weight grade in front, for example "A · 1.94 KB gz"; its tooltip and the Export tab give the scale. The grade is the tool's own scale for one background tile, not the Website Carbon rating, which rates a whole page in grams of CO2 per visit. The Wallpaper Studio shows the same grade for its SVG, with the scale in the badge title.
+
+| Grade | Compressed size (1 KB = 1024 bytes) |
+| --- | --- |
+| A+ | under 1 KB |
+| A | under 2 KB |
+| B | under 5 KB |
+| C | under 10 KB |
+| D | under 20 KB |
+| E | 20 KB or more |
+
 The hero is the large preview under the toolbar. It uses the exported `.fp-pattern` class, so it shows what you copy. Six tabs hold the controls:
 
 - Pattern: the library, the seed, the depth, the tile size, the stroke width, the patchwork layout, and the R key option.

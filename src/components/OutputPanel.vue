@@ -2,7 +2,8 @@
 import { ref } from 'vue';
 import { fileName, params, svgHref, usingImage } from '@/state.ts';
 import { exportHtml } from '@/export.ts';
-import { altBytes, altFormat, altGzip, altOpen, altReason, altText, cssBytes, exportScript, exportText, footprint, gzipped, scriptBytes, sizeBreakdown, scriptCount, scriptEvent, scriptOn } from '@/state-export.ts';
+import { GRADE_SCALE, weightGrade } from '@/co2.ts';
+import { altBytes, exportGzipBytes, altFormat, altGzip, altOpen, altReason, altText, cssBytes, exportScript, exportText, footprint, gzipped, scriptBytes, sizeBreakdown, scriptCount, scriptEvent, scriptOn } from '@/state-export.ts';
 
 const sizeText = (pick: (g: { css: number; script: number }) => string) =>
   gzipped.value === null ? 'computing' : gzipped.value === 'unknown' ? 'size unknown' : pick(gzipped.value);
@@ -36,6 +37,7 @@ async function copy(text: string): Promise<void> {
     </div>
     <dl class="stats">
       <div v-for="line in sizeBreakdown" :key="line" class="wide"><dt>{{ line.slice(0, line.indexOf(':')) }}</dt><dd>{{ line.slice(line.indexOf(':') + 2) }}</dd></div>
+      <div v-if="exportGzipBytes !== null" class="wide"><dt>Weight grade</dt><dd>{{ weightGrade(exportGzipBytes).grade }}. {{ GRADE_SCALE }}</dd></div>
       <div class="wide"><dt>Footprint</dt><dd>{{ sizeText(() => footprint ?? '') }}</dd></div>
     </dl>
     <p class="muted">A rough estimate: a straight line from the compressed size, calibrated on one websitecarbon.com measurement of <a href="https://pierreguilbert.com">pierreguilbert.com</a>. It counts one transfer of the exported CSS, and of the script when you add it. It does not count the rest of your page, browser caching (a repeat visit transfers nothing), or the energy to draw the pattern on the visitor's device.</p>

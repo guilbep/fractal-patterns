@@ -43,6 +43,10 @@
   .bar-stats .stat {
     padding-inline: var(--s1);
   }
+  /* The grade chip adds about 2 characters; "gz" goes, the tooltip and the accessible name still say compressed. */
+  .size-gz {
+    display: none;
+  }
 }
 @media (min-width: 64rem) {
   .toolbar > .bar-stats {

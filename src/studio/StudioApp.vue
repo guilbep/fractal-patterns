@@ -5,7 +5,7 @@ import SiteHeader from '@/components/SiteHeader.vue';
 import { isTyping, readShortcut, shortcutFor, toggleFullscreen, writeShortcut } from '@/shortcuts.ts';
 import { svgToDataUri } from '@/css.ts';
 import SponsorBanner from '@/components/SponsorBanner.vue';
-import { formatFootprint, gzipSize, rawSize } from '@/co2.ts';
+import { formatFootprint, formatKb, GRADE_SCALE, gradeBand, gzipSize, rawSize, weightGrade } from '@/co2.ts';
 import { DARK_NAMES, PALETTES, paletteParam, rollPalette } from '@/palettes.ts';
 import { stepPalette } from '@/shell.ts';
 import PaletteStrip from '@/components/PaletteStrip.vue';
@@ -363,6 +363,7 @@ onBeforeUnmount(() => sizes.disconnect());
     <div class="bar-stats">
     <PaletteStrip :colors="design.palette.colors" :name="design.palette.name" @previous="stepPal(-1)" @next="stepPal(1)" @random="rollPal" />
     <button type="button" class="icon-btn" aria-label="Full screen" title="Full screen (F)" :aria-keyshortcuts="shortcutOn ? 'F' : undefined" @click="fullscreen"><span aria-hidden="true">⛶</span></button>
+    <span v-if="typeof gz === 'number'" id="svg-grade" class="stat" :title="GRADE_SCALE"><span aria-hidden="true" class="grade-chip" :class="gradeBand(weightGrade(gz).grade)">{{ weightGrade(gz).grade }}</span><span class="visually-hidden">Weight grade {{ weightGrade(gz).grade }}, {{ formatKb(gz) }} kilobytes compressed</span></span>
     <span id="svg-size" class="stat">{{ sizeText }}</span>
     <span id="svg-co2" class="stat" :title="footprintFull"><span aria-hidden="true">{{ footprintText }}</span><span class="visually-hidden">{{ footprintFull }}</span></span>
     </div>

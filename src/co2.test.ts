@@ -113,3 +113,34 @@ test('sizeLines: with a script, without, and computing', async () => {
     'Script: 0.412 KB, computing',
   ]);
 });
+
+test('weightGrade boundaries', async () => {
+  const { weightGrade, WEIGHT_GRADES, GRADE_SCALE, gradeLine } = await import('./co2.ts');
+  const cases: [number, string][] = [
+    [0, 'A+'],
+    [1023, 'A+'],
+    [1024, 'A'],
+    [2047, 'A'],
+    [2048, 'B'],
+    [5119, 'B'],
+    [5120, 'C'],
+    [10239, 'C'],
+    [10240, 'D'],
+    [20479, 'D'],
+    [20480, 'E'],
+    [1e12, 'E'],
+  ];
+  for (const [b, g] of cases) assert.equal(weightGrade(b).grade, g, String(b));
+  assert.equal(weightGrade(1500).limitKb, 2);
+  assert.equal(weightGrade(1e12).limitKb, null);
+  const limits = WEIGHT_GRADES.map((w) => w.limitKb);
+  assert.equal(limits.at(-1), null);
+  for (let i = 1; i < limits.length - 1; i++) assert.ok((limits[i] as number) > (limits[i - 1] as number));
+  assert.equal(limits.filter((l) => l === null).length, 1);
+  assert.equal(
+    GRADE_SCALE,
+    "This is the tool's own scale: A+ under 1 KB, A under 2, B under 5, C under 10, D under 20, E above. It is not the Website Carbon rating, which rates a whole page.",
+  );
+  assert.equal(gradeLine(1987), 'Weight grade A: under 2 KB compressed.');
+  assert.equal(gradeLine(30000), 'Weight grade E: 20 KB compressed or more.');
+});

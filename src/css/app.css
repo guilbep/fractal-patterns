@@ -217,6 +217,23 @@ html {
 .stat.bad {
   color: var(--fail);
 }
+/* Weight grade chip: the letter is the signal, the color repeats it. Text on --sunk (the .stat background):
+   --pass 5.7:1 light, 10:1 dark; --muted 7.2:1 light, 8.4:1 dark; --fail 6.4:1 light, 8.7:1 dark (AA 4.5:1). */
+.grade-chip {
+  padding: 0 0.25em;
+  border: 1px solid currentColor;
+  border-radius: 0.25rem;
+  font-weight: 700;
+}
+.grade-chip.good {
+  color: var(--pass);
+}
+.grade-chip.mid {
+  color: var(--muted);
+}
+.grade-chip.high {
+  color: var(--fail);
+}
 .hint {
   margin: 0;
 }

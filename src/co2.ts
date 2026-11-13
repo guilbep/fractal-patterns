@@ -72,3 +72,32 @@ export function sizeLines(s: SizeInput): string[] {
   if (s.script > 0) lines.push(`Script: ${formatKb(s.script)} KB, ${gz((g) => g.script)}`);
   return lines;
 }
+
+// Weight grade: the tool's own scale for the compressed export size. Not the Website Carbon rating
+// (A+ to F, grams of CO2 per whole page visit). Each grade holds below its limit; E has no limit.
+export type Grade = 'A+' | 'A' | 'B' | 'C' | 'D' | 'E';
+export const WEIGHT_GRADES: readonly { readonly grade: Grade; readonly limitKb: number | null }[] = [
+  { grade: 'A+', limitKb: 1 },
+  { grade: 'A', limitKb: 2 },
+  { grade: 'B', limitKb: 5 },
+  { grade: 'C', limitKb: 10 },
+  { grade: 'D', limitKb: 20 },
+  { grade: 'E', limitKb: null },
+];
+export function weightGrade(gzipBytes: number): { grade: Grade; limitKb: number | null } {
+  const g = WEIGHT_GRADES.find((w) => w.limitKb !== null && gzipBytes < w.limitKb * 1024);
+  return g ? { ...g } : { grade: 'E', limitKb: null };
+}
+// 'good' | 'mid' | 'high': the chip color band. The letter is the signal; the color only repeats it.
+export function gradeBand(grade: Grade): 'good' | 'mid' | 'high' {
+  return grade === 'A+' || grade === 'A' ? 'good' : grade === 'B' || grade === 'C' ? 'mid' : 'high';
+}
+export function gradeLine(gzipBytes: number): string {
+  const { grade, limitKb } = weightGrade(gzipBytes);
+  return limitKb === null
+    ? `Weight grade ${grade}: ${WEIGHT_GRADES.at(-2)?.limitKb} KB compressed or more.`
+    : `Weight grade ${grade}: under ${limitKb} KB compressed.`;
+}
+export const GRADE_SCALE = `This is the tool's own scale: ${WEIGHT_GRADES.map((w, i) =>
+  w.limitKb === null ? `${w.grade} above` : `${w.grade} under ${w.limitKb}${i === 0 ? ' KB' : ''}`,
+).join(', ')}. It is not the Website Carbon rating, which rates a whole page.`;

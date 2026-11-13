@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { LOGO_DEFAULT, builderLogoSvg, logoSvg, studioLogoSvg } from './logo.ts';
+import { LOGO_DEFAULT, builderLogoSvg, logoSvg, studioLogoSvg, truchetLogoSvg } from './logo.ts';
 
 test('logoSvg draws the default mark as one compact, deterministic line', () => {
   const s = logoSvg(LOGO_DEFAULT);
@@ -34,10 +34,28 @@ test('studioLogoSvg draws a small, deterministic botanical mark in the logo styl
   assert.ok(s.length < 700, `${s.length} chars`);
 });
 
+test('truchetLogoSvg draws the Truchet tile as one compact, deterministic line', () => {
+  const s = truchetLogoSvg();
+  assert.ok(s.startsWith('<svg xmlns="http://www.w3.org/2000/svg"'));
+  for (const part of [
+    'viewBox="0 0 24 24"',
+    'rx="5"',
+    'M12 0A12 12 0 0 1 0 12M24 12A12 12 0 0 0 12 24',
+    'stroke-width="2.6"',
+    '#17181C',
+    '#F3F2EC',
+    'width="64"',
+  ])
+    assert.ok(s.includes(part), part);
+  assert.ok(truchetLogoSvg({ size: 28 }).includes('width="28" height="28"'));
+  assert.equal(s, truchetLogoSvg());
+  assert.ok(s.length < 400, `${s.length} chars`);
+});
+
 // The header shows these files, so they must not drift from the functions: run `npm run logo` after a change to the marks.
 test('each committed public/favicon*.svg equals the output of its function plus a newline', () => {
   const files: [string, string][] = [
-    ['favicon.svg', logoSvg(LOGO_DEFAULT)],
+    ['favicon.svg', truchetLogoSvg()],
     ['favicon-studio.svg', studioLogoSvg()],
     ['favicon-builder.svg', builderLogoSvg()],
   ];

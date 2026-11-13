@@ -67,7 +67,7 @@ A quasicrystal tiling is a tiling with five-, eight- or twelvefold order that ne
 
 A rectangular tile turns off some features for now: the patchwork layout (its cells are square), the spacing controls, and Reduce repetition. The panels say "Not available for this pattern yet." The kinds with a rectangular tile are the 5 hexagonal groups and the 3 Penrose kinds.
 
-Each kind has its own maximum depth, the number of recursion or detail levels. The other controls are tile size and stroke width. The Tile size control sits directly under the Library: preset buttons for 64, 96, 128, 192 and 256 px, and a slider from 40 to 320 px in steps of 4 (default 120). With Reduce repetition on, the exported tile is the grid of cells, so a line under the control gives its real size, for example "Exported tile: 384 by 384 px".
+Each kind has its own maximum depth, the number of recursion or detail levels. The other controls are tile size and stroke width. The Tile size control sits directly under the Library: preset buttons for 64, 96, 120, 128, 192 and 256 px, and a slider from 40 to 320 px in steps of 4 (default 120). With Reduce repetition on, the exported tile is the grid of cells, so a line under the control gives its real size, for example "Exported tile: 384 by 384 px".
 
 Some kinds give a large tile at their highest depth. For most kinds, the depth limit keeps the worst case near or under 20,000 characters of SVG at precision 1. The hexagonal groups go up to about 70,000. The page does not hide this cost: the Export tab shows the bytes and the CO2 badge shows the footprint for every design.
 

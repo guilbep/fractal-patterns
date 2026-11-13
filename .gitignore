@@ -5,3 +5,7 @@ candidates.svg
 
 # Test runner output, never committed
 .vitest/
+
+# Playwright output
+test-results/
+playwright-report/

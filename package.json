@@ -11,7 +11,8 @@
     "test": "node --test 'src/**/*.test.ts'",
     "lint": "oxlint --deny-warnings src scripts",
     "format": "oxfmt src scripts vite.config.ts tsconfig.json package.json .github",
-    "format:check": "oxfmt --check src scripts vite.config.ts tsconfig.json package.json .github"
+    "format:check": "oxfmt --check src scripts vite.config.ts tsconfig.json package.json .github",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "apca-w3": "^0.1.9"

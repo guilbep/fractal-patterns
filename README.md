@@ -688,6 +688,18 @@ Run them like this:
 FP_REFERENCE_SVG=/path/to/reference.svg npm test
 ```
 
+## Run the browser tests
+
+The browser tests use Playwright. They are in the `e2e` folder. They build the site, serve it on port 18494, and open the three pages in Chromium.
+
+Run them:
+
+```sh
+make e2e        # npm run e2e
+```
+
+The tests check each page at a desktop size and at a phone size. A page must load with no error and must not scroll sideways. The Builder tests drag, use the keys, undo, add files, fill the tile and download the SVG. `make ci` does not run these tests.
+
 ## Measure page speed
 
 `make perf` builds the site and measures both pages with Lighthouse. Lighthouse is the page speed tool from Google. It uses the mobile setting: a slow 4G network and a CPU 4 times slower, both simulated.

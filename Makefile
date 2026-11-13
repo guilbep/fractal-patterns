@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install dev lint format format-check typecheck test build preview perf ci clean logo
+.PHONY: help install dev lint format format-check typecheck test build preview perf ci clean logo e2e
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-13s %s\n", $$1, $$2}'
@@ -33,6 +33,9 @@ logo: ## Write public/favicon.svg from the logo mark (src/logo.ts)
 
 preview: build ## Build, then serve dist locally
 	npx vite preview
+
+e2e: ## Build, serve dist and run the Playwright browser tests
+	npm run e2e
 
 perf: ## Build, then print the Lighthouse mobile median of 3 runs per page
 	npm run build

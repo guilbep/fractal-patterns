@@ -13,6 +13,9 @@
     "format": "oxfmt src scripts vite.config.ts tsconfig.json package.json .github",
     "format:check": "oxfmt --check src scripts vite.config.ts tsconfig.json package.json .github"
   },
+  "dependencies": {
+    "apca-w3": "^0.1.9"
+  },
   "devDependencies": {
     "@types/node": "^22.19.11",
     "@vitejs/plugin-vue": "^6.0.8",
@@ -25,8 +28,5 @@
   },
   "engines": {
     "node": ">=24"
-  },
-  "dependencies": {
-    "apca-w3": "^0.1.9"
   }
 }

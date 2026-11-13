@@ -59,7 +59,7 @@ Some kinds give a large tile at their highest depth. For most kinds, the depth l
 
 ### Free and compatible layouts
 
-Seven Surfaces kinds have two layouts: Running bond, Stack bond, Herringbone, Basket weave, Honeycomb, Triangular net and Nested boxes. In the free layout, the seed also chooses the layout. In the compatible layout, the layout is fixed for each depth, so tiles with different seeds can sit next to each other without a seam. The page uses the free layout. There is no separate control: Reduce repetition switches these kinds to the compatible layout, and the panel says so.
+All 13 Surfaces kinds have two layouts. In the free layout, the seed also chooses the layout. In the compatible layout, the layout is fixed for each depth, so tiles with different seeds can sit next to each other without a seam. The page uses the free layout. There is no separate control: Reduce repetition switches these kinds to the compatible layout, and the panel says so.
 
 ### Seeds and events
 
@@ -96,16 +96,16 @@ The spacing controls are off with Reduce repetition, with Smooth curves, and for
 
 A repeating tile shows the same picture again at a fixed distance, and the eye finds the grid. The Repetition panel has four ways to make that less visible. It sits in the Pattern tab and in the Image tab.
 
-Reduce repetition puts several seeded variants of the kind into one larger tile. No two neighbor cells show the same variant, also across the tile edge. It needs a math pattern with a single layout. It applies to the 16 kinds whose edges match between seeds: Carpet, Quadtree, Tree, Folded curve, Koch lattice, Sierpinski, H-tree, Curve stitching, Whirl and the 7 Surfaces kinds with a compatible layout. The panel shows the bytes of the larger tile against the bytes of one tile. The options:
+Reduce repetition puts several seeded variants of the kind into one larger tile. No two neighbor cells show the same variant, also across the tile edge. It needs a math pattern with a single layout. It applies to the 22 kinds whose edges match between seeds: Carpet, Quadtree, Tree, Folded curve, Koch lattice, Sierpinski, H-tree, Curve stitching, Whirl and the 13 Surfaces kinds, which use their compatible layout here. The panel shows the bytes of the larger tile against the bytes of one tile. The options:
 
 | Option | What it does | Kinds |
 | --- | --- | --- |
-| Strength | Light: 2 variants, 2 by 2. Medium: 4 variants, 4 by 4. Wide: 4 variants, 6 by 6. Strong: 6 variants, 6 by 6. | All 16 |
-| Line weight | Varies the stroke weight softly across the tile. | All 16 |
-| Turn and flip each cell | Turns or mirrors each cell, at no extra path. | Carpet, Tree, Folded curve, Koch lattice, H-tree, Curve stitching, Whirl |
-| Empty cells | Leaves up to 50% of the cells empty. | Carpet, Tree, Folded curve, Koch lattice, H-tree, Curve stitching, Whirl |
+| Strength | Light: 2 variants, 2 by 2. Medium: 4 variants, 4 by 4. Wide: 4 variants, 6 by 6. Strong: 6 variants, 6 by 6. | All 22 |
+| Line weight | Varies the stroke weight softly across the tile. | All 22 |
+| Turn and flip each cell | Turns or mirrors each cell, at no extra path. | Carpet, Tree, Folded curve, Koch lattice, H-tree, Curve stitching, Whirl, Dot grid |
+| Empty cells | Leaves up to 50% of the cells empty. | Carpet, Tree, Folded curve, Koch lattice, H-tree, Curve stitching, Whirl, Dot grid |
 | Offset | None, Half-drop or Brick: shifts every second column or row by half a cell. | Carpet, Tree, Folded curve, H-tree, Curve stitching, Whirl |
-| Mix two depths | Draws half of the variants one depth lower. | Carpet, Tree, Folded curve, H-tree, Curve stitching, Whirl |
+| Mix two depths | Draws half of the variants one depth lower. | Carpet, Tree, Folded curve, H-tree, Curve stitching, Whirl, Dot grid |
 | Shift and scale | A small shift and size change per cell. | Carpet, Tree, Folded curve, H-tree, Curve stitching, Whirl |
 
 Second layer adds a second copy of the tile on top of the first. Its size is coprime with the first size, so the two layers together repeat only at a much larger distance. Two whole numbers are coprime if no number above 1 divides both. The panel gives that distance. The controls:
@@ -269,7 +269,7 @@ While the page is open, the browser tab icon follows the current kind, seed and 
 
 ## Wallpaper Studio
 
-The Wallpaper Studio is a second page, `studio.html`. It makes original botanical wallpapers from a seed. A few plants grow on stems that follow a calm flow. Each stem has a large motif at its tip and smaller motifs on alternating sides. Small filler motifs fill the larger gaps. The code generates every motif from plain geometry and the seed. The tool contains no copy of an existing design.
+The Wallpaper Studio is a second page, `studio.html`. It makes original botanical wallpapers from a seed. One stem, the vine, runs through the tile and joins itself across the repeat, so it has no visible start or end. The other plants branch from an existing stem. Each stem carries a large motif at or near its tip and smaller motifs along its sides. Plants keep a gap from each other, and a few small filler motifs sit in the larger gaps. The code generates every motif from plain geometry and the seed. The tool contains no copy of an existing design.
 
 The controls:
 

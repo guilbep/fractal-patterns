@@ -522,7 +522,7 @@ onBeforeUnmount(() => sizes.disconnect());
     </div>
   </main>
   <footer class="site-footer">
-    <p><a href="https://github.com/guilbep/fractal-patterns">Source on GitHub</a></p>
+    <p><a href="https://github.com/guilbep/patterns">Source on GitHub</a></p>
     <SponsorBanner />
   </footer>
 </template>

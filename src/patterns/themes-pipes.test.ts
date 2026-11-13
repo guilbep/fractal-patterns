@@ -4,10 +4,12 @@ import { geometry } from '../fractal.ts';
 import { TILES, tileGeometry, wangLayout } from '../wang.ts';
 import {
   ENDLESSMAZE_MAX_DEPTH,
+  ENDLESSRAIL_MAX_DEPTH,
   PATHS_MAX_DEPTH,
   PIPES_MAX_DEPTH,
   WEAVE_MAX_DEPTH,
   endlessmaze,
+  endlessrail,
   paths,
   pipes,
   weave,
@@ -21,6 +23,7 @@ const KINDS = [
   ['weave', weave, WEAVE_MAX_DEPTH],
   ['paths', paths, PATHS_MAX_DEPTH],
   ['endlessmaze', endlessmaze, ENDLESSMAZE_MAX_DEPTH],
+  ['endlessrail', endlessrail, ENDLESSRAIL_MAX_DEPTH],
 ] as const;
 type WangKind = (typeof KINDS)[number][0];
 const geoOf = (kind: WangKind, seed: number, depth: number) => geometry({ kind, seed, depth, size: S });

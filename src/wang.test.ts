@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { TILES, WEAVE_HALF, tileGeometry, wangBytes, wangLayout, wangSvg, type WangOptions, type WangStyle } from './wang.ts';
 import type { Poly } from './patterns/util.ts';
 
-const STYLES: readonly WangStyle[] = ['pipes', 'weave', 'paths', 'maze'];
+const STYLES: readonly WangStyle[] = ['pipes', 'weave', 'paths', 'maze', 'rail'];
 const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 test('TILES: 16 distinct edge sets, index = top + 2 right + 4 bottom + 8 left', () => {
@@ -71,7 +71,7 @@ test('tileGeometry: lines reach coded edges at the midpoint only, nothing else o
         for (let e = 0; e < 4; e++) {
           const pts = along(g, e);
           if (edges[e] === 0) assert.equal(pts.length, 0, `${tag} edge ${e}`);
-          else if (style === 'weave') {
+          else if (style === 'weave' || style === 'rail') {
             assert.ok(pts.some((v) => Math.abs(v - (c - d)) < 1e-9) && pts.some((v) => Math.abs(v - (c + d)) < 1e-9), `${tag} edge ${e}`);
             assert.ok(
               pts.every((v) => Math.abs(Math.abs(v - c) - d) < 1e-9),

@@ -108,10 +108,10 @@ test('mirrorSuperSvg: one path, 4 uses, edge 120, no newline', () => {
 
 // Square kinds only: the mirror super tile assumes a square tile, and the page switches Mirror off for a
 // rectangular kind (Penrose), so the three Penrose kinds are skipped here.
-test('mirrorSuperSvg: the 2 x 2 block is seamless for all 69 square kinds, inner lines and wrap', () => {
+test('mirrorSuperSvg: the 2 x 2 block is seamless for all 70 square kinds, inner lines and wrap', () => {
   const fails: string[] = [];
   const square = KINDS.filter((k) => tileAspect(k) === 1);
-  assert.equal(square.length, 69);
+  assert.equal(square.length, 70);
   for (const kind of square) {
     const o = { ...base, kind };
     const svg = mirrorSuperSvg(o);

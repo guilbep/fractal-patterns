@@ -24,7 +24,7 @@ export function wangLayout(cells: number, seed: number, density = 0.5): number[]
   return out;
 }
 
-export type WangStyle = 'pipes' | 'weave' | 'paths' | 'maze';
+export type WangStyle = 'pipes' | 'weave' | 'paths' | 'maze' | 'rail';
 
 /** Half the distance between the two strokes of a weave ribbon, as a fraction of the cell (18 % apart). */
 export const WEAVE_HALF = 0.09;
@@ -54,8 +54,8 @@ const circle = (cx: number, cy: number, r: number): Poly =>
     return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
   });
 
-// The x offsets of the strokes of one line: one stroke for pipes, two for a weave ribbon.
-const lanes = (style: WangStyle, s: number): number[] => (style === 'weave' ? [-WEAVE_HALF * s, WEAVE_HALF * s] : [0]);
+// The x offsets of the strokes of one line: one stroke for pipes, two for a weave ribbon or a rail track.
+const lanes = (style: WangStyle, s: number): number[] => (style === 'weave' || style === 'rail' ? [-WEAVE_HALF * s, WEAVE_HALF * s] : [0]);
 
 // Top to bottom; with a gap, broken around the centre (the "under" strand of a crossing).
 function straight(style: WangStyle, s: number, gap: boolean): Poly[] {
@@ -105,13 +105,76 @@ function stub(style: WangStyle, s: number): Poly[] {
   ];
 }
 
+// Rail: half gauge WEAVE_HALF, sleepers reach SLEEPER times as far from the track centre.
+const SLEEPER = 1.4;
+
+// A sleeper across a top-to-bottom track at height y.
+const sleeper = (y: number, s: number): Poly => [
+  [s / 2 - SLEEPER * WEAVE_HALF * s, y],
+  [s / 2 + SLEEPER * WEAVE_HALF * s, y],
+];
+
+// Track pieces: rails cross a coded edge at middle +- WEAVE_HALF; no sleeper comes closer than s / 8 to the border.
+function railTile(edges: Edges, variant: number, s: number): Poly[] {
+  const c = s / 2;
+  const d = WEAVE_HALF * s;
+  const on = [0, 1, 2, 3].filter((e) => edges[e] === 1);
+  // Top to bottom, sleepers at the given fractions of the cell.
+  const track = (at: number[]): Poly[] => [...straight('rail', s, false), ...at.map((f) => sleeper(f * s, s))];
+  // Top to right around the top-right corner, three radial sleepers (the first 15 degrees, 0.13 s of arc, in).
+  const curve = (): Poly[] => [
+    ...arcs('rail', s),
+    ...[1, 3, 5].map((k): Poly => {
+      const a = (k / 6) * (Math.PI / 2);
+      return [c - SLEEPER * d, c + SLEEPER * d].map((r): Pt => [s - r * Math.cos(a), r * Math.sin(a)]);
+    }),
+  ];
+  const QUARTERS = [1 / 8, 3 / 8, 5 / 8, 7 / 8];
+  switch (on.length) {
+    case 0:
+      return [];
+    case 1: {
+      // Buffer stop: rails to the centre, a bar across them.
+      const end: Poly[] = [
+        [
+          [c - d, 0],
+          [c - d, c],
+        ],
+        [
+          [c + d, 0],
+          [c + d, c],
+        ],
+        sleeper(c, s),
+        sleeper(s / 8, s),
+        sleeper((3 * s) / 8, s),
+      ];
+      return turn(end, on[0]!, s);
+    }
+    case 2: {
+      const [a, b] = [on[0]!, on[1]!];
+      if (b - a === 2) return turn(track(QUARTERS), a, s);
+      return turn(curve(), b - a === 1 ? a : 3, s);
+    }
+    case 3: {
+      const m = [0, 1, 2, 3].find((e) => edges[e] === 0)!;
+      return [...turn(track(QUARTERS), m + 1, s), ...turn(curve(), variant % 2 === 1 ? m + 2 : m + 1, s)];
+    }
+    default: {
+      // Level crossing: sleepers stop short of the crossing square and of each other.
+      const at = [1 / 8, 0.3, 0.7, 7 / 8];
+      return [...track(at), ...turn(track(at), 1, s)];
+    }
+  }
+}
+
 /**
- * The content of one tile in 0..size: lines meet the edges coded 1 at their midpoints (weave: at +-WEAVE_HALF * size).
+ * The content of one tile in 0..size: lines meet the edges coded 1 at their midpoints (weave and rail: at +-WEAVE_HALF * size).
  * crossGap: false draws a four-way crossing as a plain join (no over and under gap).
  */
 export function tileGeometry(style: WangStyle, edges: Edges, variant: number, size: number, crossGap = true): Poly[] {
   const s = size;
   const c = s / 2;
+  if (style === 'rail') return railTile(edges, variant, s);
   const on = [0, 1, 2, 3].filter((e) => edges[e] === 1);
   if (style === 'maze') {
     // Straight walls from the centre to each coded middle: a wall end, a line, a corner, a T or a cross.

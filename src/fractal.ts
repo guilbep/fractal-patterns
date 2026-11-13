@@ -38,10 +38,12 @@ import { CHLADNI_MAX_DEPTH, chladni } from './patterns/themes-chladni.ts';
 import { THEME_HOME_MAX_DEPTH, lanterns, quilt, railway } from './patterns/themes-home.ts';
 import {
   ENDLESSMAZE_MAX_DEPTH,
+  ENDLESSRAIL_MAX_DEPTH,
   PATHS_MAX_DEPTH,
   PIPES_MAX_DEPTH,
   WEAVE_MAX_DEPTH,
   endlessmaze,
+  endlessrail,
   paths,
   pipes,
   weave,
@@ -136,6 +138,7 @@ export const KINDS = [
   'weave',
   'paths',
   'endlessmaze',
+  'endlessrail',
   'octa',
   'octastars',
   'dodeca',
@@ -239,6 +242,7 @@ const PATTERNS: Readonly<
   weave: { family: 'theme', label: 'Basketwork', maxDepth: WEAVE_MAX_DEPTH, gen: weave },
   paths: { family: 'theme', label: 'Garden paths', maxDepth: PATHS_MAX_DEPTH, gen: paths },
   endlessmaze: { family: 'theme', label: 'Endless maze', maxDepth: ENDLESSMAZE_MAX_DEPTH, gen: endlessmaze },
+  endlessrail: { family: 'theme', label: 'Endless railway', maxDepth: ENDLESSRAIL_MAX_DEPTH, gen: endlessrail },
   octa: { family: 'quasi', label: 'Eightfold rhombs', maxDepth: QUASI_MAX_DEPTH, gen: octaEdges },
   octastars: { family: 'quasi', label: 'Eightfold stars', maxDepth: QUASI_MAX_DEPTH, gen: octaStars },
   dodeca: { family: 'quasi', label: 'Twelvefold rhombs', maxDepth: QUASI_MAX_DEPTH, gen: dodecaEdges },

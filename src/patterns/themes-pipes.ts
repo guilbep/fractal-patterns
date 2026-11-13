@@ -1,4 +1,4 @@
-// Pipes, Basketwork, Garden paths and Endless maze: the Wang tiles of src/wang.ts as plain polylines, one long line = one polyline.
+// Pipes, Basketwork, Garden paths, Endless maze and Endless railway: the Wang tiles of src/wang.ts as plain polylines, one long line = one polyline.
 import { TILES, tileGeometry, wangLayout, type WangStyle } from '../wang.ts';
 import type { Generator, Poly, Pt } from './util.ts';
 
@@ -6,6 +6,7 @@ export const PIPES_MAX_DEPTH = 5;
 export const WEAVE_MAX_DEPTH = 5;
 export const PATHS_MAX_DEPTH = 5;
 export const ENDLESSMAZE_MAX_DEPTH = 5;
+export const ENDLESSRAIL_MAX_DEPTH = 5;
 
 const key = ([x, y]: Pt): string => `${Math.round(x * 1e3)},${Math.round(y * 1e3)}`;
 
@@ -63,3 +64,6 @@ export const weave = wang('weave', () => 0.7, true);
 export const paths = wang('paths', () => 0.5, false);
 // 0.55: about 69 % of cells have 2 or 3 walls (0.45: 58 %, 0.65: 18 % crosses and many closed rooms).
 export const endlessmaze = wang('maze', () => 0.55, false);
+// 0.4, cells with 0..4 tracked edges, seeds 1..10 at 8 x 8: 15 / 34 / 35 / 16 / 1 % (0.3: 24 / 41 / 26 / 8 / 0.3 %, mostly
+// buffer stops; 0.5: 9 / 27 / 36 / 24 / 5 %, too many crossings).
+export const endlessrail = wang('rail', () => 0.4, false);

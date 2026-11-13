@@ -35,8 +35,11 @@ import { THEME_AIR_MAX_DEPTH, chain, feathers } from './patterns/themes-air.ts';
 import { THEME_CRAFT_MAX_DEPTH, knot, roof } from './patterns/themes-craft.ts';
 import { THEME_EARTH_MAX_DEPTH, cracks, roots, stars } from './patterns/themes-earth.ts';
 import { CHLADNI_MAX_DEPTH, chladni } from './patterns/themes-chladni.ts';
+import { THEME_HOME_MAX_DEPTH, lanterns, quilt, railway } from './patterns/themes-home.ts';
 import { PIPES_MAX_DEPTH, pipes } from './patterns/themes-pipes.ts';
+import { THEME_SKY_MAX_DEPTH, clouds, moons, storm } from './patterns/themes-sky.ts';
 import { THEME_WATER_MAX_DEPTH, rain, ridges, seigaiha } from './patterns/themes-water.ts';
+import { THEME_WILD_MAX_DEPTH, leaves, nest, river, thorns } from './patterns/themes-wild.ts';
 import { circuit, maze, topo } from './patterns/themes.ts';
 import { PENROSE_ASPECT, PENROSE_MAX_DEPTH, penroseArcs, penroseArcsPath, penroseBoth, penroseEdges } from './penrose.ts';
 import { QUASI_MAX_DEPTH, dodecaEdges, dodecaStars, octaEdges, octaStars } from './quasi.ts';
@@ -111,6 +114,16 @@ export const KINDS = [
   'penrosearcs',
   'penroseboth',
   'chladni',
+  'clouds',
+  'moons',
+  'storm',
+  'leaves',
+  'river',
+  'thorns',
+  'nest',
+  'railway',
+  'quilt',
+  'lanterns',
   'octa',
   'octastars',
   'dodeca',
@@ -201,6 +214,16 @@ const PATTERNS: Readonly<
     extra: penroseArcsPath,
   },
   chladni: { family: 'theme', label: 'Chladni figures', maxDepth: CHLADNI_MAX_DEPTH, gen: chladni },
+  clouds: { family: 'theme', label: 'Clouds', maxDepth: THEME_SKY_MAX_DEPTH.clouds, gen: clouds },
+  moons: { family: 'theme', label: 'Moons', maxDepth: THEME_SKY_MAX_DEPTH.moons, gen: moons },
+  storm: { family: 'theme', label: 'Storm', maxDepth: THEME_SKY_MAX_DEPTH.storm, gen: storm },
+  leaves: { family: 'theme', label: 'Leaves', maxDepth: THEME_WILD_MAX_DEPTH.leaves, gen: leaves },
+  river: { family: 'theme', label: 'River', maxDepth: THEME_WILD_MAX_DEPTH.river, gen: river },
+  thorns: { family: 'theme', label: 'Thorns', maxDepth: THEME_WILD_MAX_DEPTH.thorns, gen: thorns },
+  nest: { family: 'theme', label: 'Nest', maxDepth: THEME_WILD_MAX_DEPTH.nest, gen: nest },
+  railway: { family: 'theme', label: 'Railway', maxDepth: THEME_HOME_MAX_DEPTH.railway, gen: railway },
+  quilt: { family: 'theme', label: 'Quilt', maxDepth: THEME_HOME_MAX_DEPTH.quilt, gen: quilt },
+  lanterns: { family: 'theme', label: 'Lanterns', maxDepth: THEME_HOME_MAX_DEPTH.lanterns, gen: lanterns },
   octa: { family: 'quasi', label: 'Eightfold rhombs', maxDepth: QUASI_MAX_DEPTH, gen: octaEdges },
   octastars: { family: 'quasi', label: 'Eightfold stars', maxDepth: QUASI_MAX_DEPTH, gen: octaStars },
   dodeca: { family: 'quasi', label: 'Twelvefold rhombs', maxDepth: QUASI_MAX_DEPTH, gen: dodecaEdges },

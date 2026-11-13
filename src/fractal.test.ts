@@ -165,6 +165,16 @@ test('families', () => {
     'chain',
     'pipes',
     'chladni',
+    'clouds',
+    'moons',
+    'storm',
+    'leaves',
+    'river',
+    'thorns',
+    'nest',
+    'railway',
+    'quilt',
+    'lanterns',
   ] as const)
     assert.equal(KIND_FAMILY[kind], 'theme', kind);
   for (const family of FAMILIES) assert.ok(typeof FAMILY_LABELS[family] === 'string' && FAMILY_LABELS[family].length > 0, family);
@@ -192,7 +202,7 @@ test('families', () => {
 });
 
 test('all kinds are registered', () => {
-  assert.equal(KINDS.length, 64);
+  assert.equal(KINDS.length, 74);
   const ids = [
     'carpet',
     'quadtree',
@@ -249,6 +259,16 @@ test('all kinds are registered', () => {
     'penrosearcs',
     'penroseboth',
     'chladni',
+    'clouds',
+    'moons',
+    'storm',
+    'leaves',
+    'river',
+    'thorns',
+    'nest',
+    'railway',
+    'quilt',
+    'lanterns',
     'octa',
     'octastars',
     'dodeca',
@@ -627,6 +647,66 @@ const PINS: Readonly<Record<PatternParams['kind'], readonly (readonly [number, n
     [2780, 1541374676],
     [1182, 3482209262],
     [3697, 3866082923],
+  ],
+  clouds: [
+    [1337, 3064573650],
+    [1790, 2023148705],
+    [1363, 3619986680],
+    [1827, 2616704624],
+  ],
+  moons: [
+    [2132, 4013591651],
+    [2221, 678589459],
+    [2034, 558217547],
+    [2120, 2829416971],
+  ],
+  storm: [
+    [1153, 2939578166],
+    [1560, 585080292],
+    [1121, 171389073],
+    [1521, 299604240],
+  ],
+  leaves: [
+    [2552, 2181640620],
+    [3196, 4049334429],
+    [2517, 568532657],
+    [3181, 391666195],
+  ],
+  river: [
+    [4007, 33295346],
+    [4802, 1215086662],
+    [3891, 3134793168],
+    [4716, 893683492],
+  ],
+  thorns: [
+    [1916, 2045280025],
+    [2129, 980260309],
+    [1908, 1399229801],
+    [2141, 3844974312],
+  ],
+  nest: [
+    [3550, 3946057647],
+    [4245, 1760855050],
+    [3409, 2509182175],
+    [4238, 1013266296],
+  ],
+  railway: [
+    [2273, 3576178955],
+    [3143, 4053214351],
+    [2252, 380030920],
+    [3127, 3213268463],
+  ],
+  quilt: [
+    [1824, 697537044],
+    [5586, 272279417],
+    [1656, 3380475270],
+    [5299, 2883195034],
+  ],
+  lanterns: [
+    [2847, 2214941356],
+    [3721, 1527352572],
+    [2930, 672190111],
+    [3806, 1945616283],
   ],
   octa: [
     [16032, 4137623251],

@@ -37,7 +37,7 @@ The header also has a link to the Wallpaper Studio, a second page. See [Wallpape
 
 ### Pattern library
 
-The page draws 64 pattern kinds in six families:
+The page draws 74 pattern kinds in six families:
 
 | Family | Kinds | Names |
 | --- | --- | --- |
@@ -45,7 +45,7 @@ The page draws 64 pattern kinds in six families:
 | Line art | 4 | Curve stitching, Whirl, Rosette, Spirals |
 | Surfaces | 13 | Running bond, Stack bond, Herringbone, Basket weave, Honeycomb, Triangular net, Nested boxes, Dot grid, Hatch, Crosshatch, Zigzag, Fish scales, Waves |
 | Symmetry groups | 17 | p1 translation, p2 half turn, pm mirror, pg glide, cm mirror and glide, pmm two mirrors, pmg mirror and glide, pgg two glides, cmm two mirrors, centered, p4 quarter turn, p4m quarter turn and mirrors, p4g quarter turn and glides, p3 third turn, p3m1 third turn and mirrors, p31m third turn, mirrors off center, p6 sixth turn, p6m sixth turn and mirrors |
-| Themes | 15 | Topography, Maze, Circuit, Waves (seigaiha), Rain, Mountain ridges, Constellations, Roots, Cracked earth, Knotwork, Roof tiles, Feathers, Chain and fence, Pipes, Chladni figures |
+| Themes | 25 | Topography, Maze, Circuit, Waves (seigaiha), Rain, Mountain ridges, Constellations, Roots, Cracked earth, Knotwork, Roof tiles, Feathers, Chain and fence, Pipes, Chladni figures, Clouds, Moons, Storm, Leaves, River, Thorns, Nest, Railway, Quilt, Lanterns |
 | Quasicrystals | 7 | Penrose rhombs, Penrose arcs, Penrose rhombs and arcs, Eightfold rhombs, Eightfold stars, Twelvefold rhombs, Twelvefold stars |
 
 A wallpaper group is one of the 17 ways to repeat a motif over a plane with mirrors, turns and glides. The page has all 17. The 12 square groups use a square tile. The 5 hexagonal groups are p3, p3m1, p31m, p6 and p6m. They use a rectangular tile, 1 wide by the square root of 3 high. A hexagonal lattice repeats in that rectangle.
@@ -501,6 +501,9 @@ Patterns:
 | `src/patterns/themes-air.ts` | Generators of Feathers and Chain and fence. |
 | `src/patterns/themes-pipes.ts` | The Pipes generator, from Wang tiles. |
 | `src/patterns/themes-chladni.ts` | The Chladni figures generator. |
+| `src/patterns/themes-sky.ts` | Generators of Clouds, Moons and Storm. |
+| `src/patterns/themes-wild.ts` | Generators of Leaves, River, Thorns and Nest. |
+| `src/patterns/themes-home.ts` | Generators of Railway, Quilt and Lanterns. |
 | `src/patterns/util.ts` | Seeded random generator, tile placement and periodic clipping. |
 | `src/penrose.ts` | Penrose tilings from de Bruijn's pentagrid, and the periodic approximant. |
 | `src/quasi.ts` | Eightfold and twelvefold periodic approximants. |

@@ -327,6 +327,7 @@ function onKey(e: KeyboardEvent): void {
 .stage-hint {
   align-self: stretch;
   margin: 0.5rem 0 0;
+  padding-inline: var(--s3);
   font-size: 0.875rem;
 }
 </style>

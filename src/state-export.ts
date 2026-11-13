@@ -3,11 +3,21 @@ import { computed, ref, watch } from 'vue';
 import { APP_NAME } from '@/app-name.ts';
 import { formatFootprint, gzipSize } from '@/co2.ts';
 import { exportCss, exportJs, exportParallax, type ExportInput } from '@/export.ts';
-import { KIND_LABELS, tileHeight } from '@/fractal.ts';
+import { KIND_LABELS, extraPath, geometry, tileHeight } from '@/fractal.ts';
+import { altUnavailable } from '@/alt-export.ts';
+import { exportCanvasJs, exportPaintWorklet } from '@/canvas-export.ts';
+import { patchworkGeometry } from '@/patchwork.ts';
+import { squareScene } from '@/scene.ts';
+import { mirrorTile, withGap, zoomWrap } from '@/spacing.ts';
 import { DETECTOR_LABELS } from '@/trace.ts';
 import { scaledSecondSize } from '@/layers.ts';
 import {
   aspect,
+  curvesOn,
+  opacity,
+  spacing,
+  traced,
+  variantsOn,
   fade,
   layer2,
   layer2Settings,
@@ -28,6 +38,7 @@ import {
   usingImage,
   usingPatchwork,
 } from '@/state.ts';
+import type { Pt } from '@/patterns/util.ts';
 
 // Enough to make the tile again.
 export const exportLabel = computed(() =>
@@ -106,3 +117,57 @@ export const exportGzipBytes = computed(() =>
   gzipped.value && gzipped.value !== 'unknown' ? gzipped.value.css + gzipped.value.script : null,
 );
 export const footprint = computed(() => (exportGzipBytes.value === null ? null : formatFootprint(exportGzipBytes.value)));
+
+// Other formats: the canvas script and the paint worklet, a view on the current design.
+// The scene repeats the plain-tile pipeline of state.ts (tileFor is private there): math, patchwork, or traced polylines, then mirror, zoom, gap.
+export const altFormat = ref<'canvas' | 'worklet'>('canvas');
+export const altOpen = ref(false); // nothing is computed while the group is collapsed
+export const altReason = computed(() =>
+  altUnavailable({
+    curves: curvesOn.value,
+    extra: aspect.value !== 1 ? extraPath(params) : '',
+    variants: variantsOn.value,
+    layer2: layer2.value,
+  }),
+);
+const altScene = computed(() => {
+  const size = params.size;
+  let polys: readonly (readonly Pt[])[] =
+    usingImage.value && traced.value
+      ? traced.value
+      : usingPatchwork.value
+        ? patchworkGeometry({ ...patch, seed: params.seed, depth: params.depth, size })
+        : geometry(params);
+  let w = size;
+  // Spacing applies to a square tile only, as in the preview.
+  if (aspect.value === 1) {
+    if (spacing.mirror) polys = mirrorTile(polys, size);
+    if (spacing.zoom !== 1) polys = zoomWrap(polys, size, spacing.zoom);
+    if (spacing.gap > 0) ({ polys, size: w } = withGap(polys, size, spacing.gap));
+  }
+  const scene = squareScene(polys, { size: w, strokeWidth: params.strokeWidth, color: roles.pattern, opacity: opacity.value });
+  return { ...scene, height: tileHeight(w, aspect.value) };
+});
+export const altText = computed(() => {
+  if (!altOpen.value || altReason.value) return '';
+  if (altFormat.value === 'canvas') return exportCanvasJs(altScene.value, roles.background, params.precision);
+  const { worklet, css, register } = exportPaintWorklet(altScene.value, roles.background, params.precision);
+  return [`// fp-pattern.worklet.js`, worklet, '', '/* CSS */', css, '', '// Register (in the page)', register].join('\n');
+});
+export const altBytes = computed(() => utf8.encode(altText.value).length);
+export const altGzip = ref<number | null | 'unknown'>(null);
+let altRequest = 0;
+watch(
+  altText,
+  async (t) => {
+    const id = ++altRequest;
+    altGzip.value = null;
+    try {
+      const n = t ? await gzipSize(t) : 0;
+      if (id === altRequest) altGzip.value = n;
+    } catch {
+      if (id === altRequest) altGzip.value = 'unknown';
+    }
+  },
+  { immediate: true },
+);

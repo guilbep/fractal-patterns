@@ -226,3 +226,14 @@ test('the module source has no node imports and no randomness', () => {
   assert.ok(!src.includes('node:'));
   assert.ok(!src.includes('Math.random'));
 });
+
+test('a rectangular 120 x 208 scene: the canvas and the pattern step in y use the height', () => {
+  const tall: Scene = { ...stroke, height: 208 };
+  const js = exportCanvasJs(tall, '#ffffff', 1);
+  assert.match(js, /"w":120,"h":208/);
+  assert.match(js, /tile\.height = Math\.max\(1, Math\.round\(d\.h \* r\)\)/);
+  assert.match(js, /d: \(d\.h \* r\) \/ tile\.height/);
+  const { worklet } = exportPaintWorklet(tall, '#ffffff', 1);
+  assert.match(worklet, /"w":120,"h":208/);
+  assert.match(worklet, /y \+= d\.h/);
+});

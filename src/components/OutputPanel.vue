@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { fileName, params, rawBytes, svgHref, usingImage } from '@/state.ts';
 import { exportHtml } from '@/export.ts';
-import { cssBytes, exportScript, exportText, footprint, gzipped, scriptBytes, scriptCount, scriptEvent, scriptOn } from '@/state-export.ts';
+import { altBytes, altFormat, altGzip, altOpen, altReason, altText, cssBytes, exportScript, exportText, footprint, gzipped, scriptBytes, scriptCount, scriptEvent, scriptOn } from '@/state-export.ts';
 
 const sizeText = (pick: (g: { css: number; script: number }) => string) =>
   gzipped.value === null ? 'computing' : gzipped.value === 'unknown' ? 'size unknown' : pick(gzipped.value);
@@ -91,6 +91,32 @@ async function copy(text: string): Promise<void> {
     </template>
 
     <p class="muted out-note">CSS: {{ cssBytes.toLocaleString('en') }} bytes<template v-if="exportScript">. Script: {{ scriptBytes.toLocaleString('en') }} bytes</template>.</p>
+
+    <details class="alt" @toggle="altOpen = ($event.target as HTMLDetailsElement).open">
+      <summary>Other formats (experimental)</summary>
+      <p v-if="altReason" id="alt-unavailable" class="muted out-note">Not available for this design: {{ altReason }}</p>
+      <template v-else>
+        <div class="field">
+          <label for="alt-format">Format</label>
+          <select id="alt-format" v-model="altFormat">
+            <option value="canvas">Canvas script</option>
+            <option value="worklet">CSS Paint worklet (Chromium only)</option>
+          </select>
+        </div>
+        <p id="alt-hint" class="muted out-note">
+          <template v-if="altFormat === 'canvas'">Draws the tile with JavaScript on a canvas. It is larger than the CSS export and needs JavaScript. Use it only as a base for a pattern that changes or never repeats.</template>
+          <template v-else>An experiment. It works in Chrome and Edge only. Other browsers show the fallback background color. Save the worklet as fp-pattern.worklet.js and register it in the page with <code>if ('paintWorklet' in CSS) CSS.paintWorklet.addModule('fp-pattern.worklet.js');</code></template>
+        </p>
+        <div class="block">
+          <div class="block-head">
+            <h3 id="alt-h">Code</h3>
+            <button type="button" class="btn" @click="copy(altText)">Copy</button>
+          </div>
+          <textarea id="alt-out" class="code" readonly rows="12" aria-labelledby="alt-h" :value="altText"></textarea>
+        </div>
+        <p id="alt-size" class="muted out-note">{{ bytes(altBytes) }}, {{ altGzip === null ? 'computing' : altGzip === 'unknown' ? 'size unknown' : altGzip.toLocaleString('en') }} gzipped, against {{ bytes(cssBytes) }} for the CSS export.</p>
+      </template>
+    </details>
   </section>
 </template>
 
@@ -99,4 +125,7 @@ async function copy(text: string): Promise<void> {
 .block-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s2); margin-bottom: var(--s2); }
 .block-head h3 { margin: 0; }
 .code { max-inline-size: 100%; }
+.alt { margin-top: var(--s3); }
+.alt summary { cursor: pointer; }
+textarea.code { inline-size: 100%; font-family: inherit; resize: vertical; }
 </style>

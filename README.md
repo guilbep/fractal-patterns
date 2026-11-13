@@ -41,7 +41,7 @@ The header also has a link to the Wallpaper Studio, a second page. See [Wallpape
 
 ### Pattern library
 
-The page draws 74 pattern kinds in six families:
+The page draws 76 pattern kinds in six families:
 
 | Family | Kinds | Names |
 | --- | --- | --- |
@@ -49,7 +49,7 @@ The page draws 74 pattern kinds in six families:
 | Line art | 4 | Curve stitching, Whirl, Rosette, Spirals |
 | Surfaces | 13 | Running bond, Stack bond, Herringbone, Basket weave, Honeycomb, Triangular net, Nested boxes, Dot grid, Hatch, Crosshatch, Zigzag, Fish scales, Waves |
 | Symmetry groups | 17 | p1 translation, p2 half turn, pm mirror, pg glide, cm mirror and glide, pmm two mirrors, pmg mirror and glide, pgg two glides, cmm two mirrors, centered, p4 quarter turn, p4m quarter turn and mirrors, p4g quarter turn and glides, p3 third turn, p3m1 third turn and mirrors, p31m third turn, mirrors off center, p6 sixth turn, p6m sixth turn and mirrors |
-| Themes | 25 | Topography, Maze, Circuit, Waves (seigaiha), Rain, Mountain ridges, Constellations, Roots, Cracked earth, Knotwork, Roof tiles, Feathers, Chain and fence, Pipes, Chladni figures, Clouds, Moons, Storm, Leaves, River, Thorns, Nest, Railway, Quilt, Lanterns |
+| Themes | 27 | Topography, Maze, Circuit, Waves (seigaiha), Rain, Mountain ridges, Constellations, Roots, Cracked earth, Knotwork, Roof tiles, Feathers, Chain and fence, Pipes, Chladni figures, Clouds, Moons, Storm, Leaves, River, Thorns, Nest, Railway, Quilt, Lanterns, Basketwork, Garden paths |
 | Quasicrystals | 7 | Penrose rhombs, Penrose arcs, Penrose rhombs and arcs, Eightfold rhombs, Eightfold stars, Twelvefold rhombs, Twelvefold stars |
 
 A wallpaper group is one of the 17 ways to repeat a motif over a plane with mirrors, turns and glides. The page has all 17. The 12 square groups use a square tile. The 5 hexagonal groups are p3, p3m1, p31m, p6 and p6m. They use a rectangular tile, 1 wide by the square root of 3 high. A hexagonal lattice repeats in that rectangle.
@@ -427,7 +427,7 @@ The repository holds tested modules that the pages do not use yet, or use only i
 | --- | --- | --- |
 | `src/motifgrid.ts` | A tile made of a grid of small motifs, each defined once and placed with `<use>`. | Only helpers: the variant order and the path check |
 | `src/custom.ts` | A custom motif: strokes you draw in a square, repeated by a wallpaper group. | No |
-| `src/wang.ts` | Wang tiles: square tiles with edge codes, laid out so that every shared edge matches. The styles are pipes, weave and paths. | Only the pipes style, as the Pipes kind |
+| `src/wang.ts` | Wang tiles: square tiles with edge codes, laid out so that every shared edge matches. The styles are pipes, weave and paths. | The three styles, as the Pipes, Basketwork and Garden paths kinds |
 | `src/penrose.ts` | A finite patch of the true Penrose tiling, next to the periodic approximant. | Only the approximant, as the Penrose kinds |
 | `src/isolines.ts` | Contour lines of the smoothed brightness, kept only where an edge is strong. | Only the contour step, in the studio Color shapes and Ink methods |
 
@@ -517,7 +517,7 @@ Patterns:
 | `src/patterns/themes-earth.ts` | Generators of Constellations, Roots and Cracked earth. |
 | `src/patterns/themes-craft.ts` | Generators of Knotwork and Roof tiles. |
 | `src/patterns/themes-air.ts` | Generators of Feathers and Chain and fence. |
-| `src/patterns/themes-pipes.ts` | The Pipes generator, from Wang tiles. |
+| `src/patterns/themes-pipes.ts` | Generators of Pipes, Basketwork and Garden paths, from Wang tiles. |
 | `src/patterns/themes-chladni.ts` | The Chladni figures generator. |
 | `src/patterns/themes-sky.ts` | Generators of Clouds, Moons and Storm. |
 | `src/patterns/themes-wild.ts` | Generators of Leaves, River, Thorns and Nest. |

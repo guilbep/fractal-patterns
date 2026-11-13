@@ -12,12 +12,12 @@ test('tabForKind stays on all, stays on the family of the kind, else moves', () 
   assert.equal(tabForKind('fractal', b), 'line');
 });
 
-test('kindsForTab returns the family kinds, and all 74 in family order', () => {
+test('kindsForTab returns the family kinds, and all 76 in family order', () => {
   assert.ok(kindsForTab('line').every((k) => KIND_FAMILY[k] === 'line'));
   assert.ok(kindsForTab('line').includes(b));
   const all = kindsForTab('all');
-  assert.equal(all.length, 74);
-  assert.equal(new Set(all).size, 74);
+  assert.equal(all.length, 76);
+  assert.equal(new Set(all).size, 76);
   assert.deepEqual(
     all,
     FAMILIES.flatMap((f) => kindsForTab(f)),

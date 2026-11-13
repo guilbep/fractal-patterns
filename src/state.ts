@@ -17,6 +17,7 @@ import { mirrorTile, withGap, zoomWrap } from '@/spacing.ts';
 import type { Pt } from '@/patterns/util.ts';
 import { traceCall, type TraceChoice } from '@/detectors.ts';
 import { sampleImage, type Sample } from '@/samples.ts';
+import { readImage } from '@/image-file.ts';
 import { PALETTES, paletteRoles, rollPalette, type Palette } from '@/palettes.ts';
 import { APCA_SCORE, apcaWorst } from '@/apca.ts';
 import { blend, contrastRatio, textLevel } from '@/contrast.ts';
@@ -141,6 +142,7 @@ export const trace = reactive({ ...TRACE_DEFAULTS });
 export const image = shallowRef<{ data: Uint8ClampedArray; width: number; height: number } | null>(null);
 // ponytail: the File stays referenced so a resolution change can re-downscale; dropped by removeImage().
 let imageFile: Blob | null = null;
+type Pixels = { data: Uint8ClampedArray; width: number; height: number };
 // The built-in example in use, if any; it is redrawn at each resolution.
 export const activeSample = ref<Sample | null>(null);
 
@@ -151,23 +153,10 @@ export function loadSample(id: Sample): void {
   source.value = 'image';
 }
 
-async function downscale(file: Blob, edge: number): Promise<{ data: Uint8ClampedArray; width: number; height: number }> {
-  const bitmap = await createImageBitmap(file);
-  try {
-    const s = edge / Math.max(bitmap.width, bitmap.height);
-    const width = Math.max(1, Math.round(bitmap.width * s));
-    const height = Math.max(1, Math.round(bitmap.height * s));
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) throw new Error('no 2d context');
-    ctx.drawImage(bitmap, 0, 0, width, height);
-    return { data: ctx.getImageData(0, 0, width, height).data, width, height };
-  } finally {
-    bitmap.close();
-  }
-}
+// The image at `edge` px on its longer side, enlarged if smaller. An SVG file is refused (the caller shows that the
+// browser could not read it), as before the shared reader, which decodes SVG.
+const downscale = (file: Blob, edge: number): Promise<Pixels> =>
+  file.type === 'image/svg+xml' ? Promise.reject(new Error('svg')) : readImage(file, edge, true);
 
 // Throws a plain-language Error the panel shows as is.
 export async function loadImage(file: File): Promise<void> {
@@ -197,7 +186,6 @@ watch(
 
 // Extra pictures for Reduce repetition: traced with the same settings, never in a share link.
 export const MAX_EXTRA_IMAGES = 3;
-type Pixels = { data: Uint8ClampedArray; width: number; height: number };
 export const extraImages = shallowRef<readonly { name: string; file: Blob; img: Pixels }[]>([]);
 // Throws a plain-language Error the panel shows as is; files past the limit are left out.
 export async function addImages(files: readonly File[]): Promise<void> {

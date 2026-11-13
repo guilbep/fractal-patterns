@@ -11,9 +11,10 @@ export interface Decoded {
   close(): void;
 }
 
-// The size of the image drawn with its longer side at most `max` px: never upscaled, at least 1 px.
-export function fitSize(width: number, height: number, max: number): [number, number] {
-  const s = Math.min(1, max / Math.max(width, height));
+// The size of the image drawn with its longer side at most `max` px, at least 1 px. Never upscaled, unless
+// `enlarge`: then the longer side is exactly `max` (the Patterns page traces at a fixed resolution).
+export function fitSize(width: number, height: number, max: number, enlarge = false): [number, number] {
+  const s = enlarge ? max / Math.max(width, height) : Math.min(1, max / Math.max(width, height));
   return [Math.max(1, Math.round(width * s)), Math.max(1, Math.round(height * s))];
 }
 
@@ -35,8 +36,8 @@ export async function decodeImage(file: Blob): Promise<Decoded> {
   return { src: bitmap, width: bitmap.width, height: bitmap.height, close: () => bitmap.close() };
 }
 
-export function sample(image: Decoded, max: number): Pixels {
-  const [width, height] = fitSize(image.width, image.height, max);
+export function sample(image: Decoded, max: number, enlarge = false): Pixels {
+  const [width, height] = fitSize(image.width, image.height, max, enlarge);
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -46,10 +47,10 @@ export function sample(image: Decoded, max: number): Pixels {
   return { data: ctx.getImageData(0, 0, width, height).data, width, height };
 }
 
-export async function readImage(file: Blob, max: number): Promise<Pixels> {
+export async function readImage(file: Blob, max: number, enlarge = false): Promise<Pixels> {
   const image = await decodeImage(file);
   try {
-    return sample(image, max);
+    return sample(image, max, enlarge);
   } finally {
     image.close();
   }

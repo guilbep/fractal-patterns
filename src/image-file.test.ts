@@ -14,3 +14,9 @@ test('fitSize does not upscale', () => {
 test('fitSize keeps at least 1 px on the short side', () => {
   assert.deepEqual(fitSize(3, 1000, 256), [1, 256]);
 });
+
+test('fitSize with enlarge brings the longer side to max, up or down', () => {
+  assert.deepEqual(fitSize(40, 30, 256, true), [256, 192]);
+  assert.deepEqual(fitSize(1000, 500, 256, true), [256, 128]);
+  assert.deepEqual(fitSize(40, 30, 256), [40, 30]);
+});

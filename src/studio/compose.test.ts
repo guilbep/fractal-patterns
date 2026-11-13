@@ -488,3 +488,122 @@ test('custom motif sized by its body: a compact disc keeps the bounding-circle s
     for (const [i, r] of sa.entries()) if (sb[i] !== undefined) assert.ok(Math.abs(r / sb[i]! - 1) < 0.1, `seed ${seed}`);
   }
 });
+
+test('custom scale absent or 1: the same SVG as before (sha-256 prefixes)', () => {
+  const want: Record<string, string> = {
+    '1 hero': '7d6c74440a8841b5',
+    '1 both': '013372de367c1b6e',
+    '2 hero': '90a2043d54d9f27f',
+    '2 both': '84f9e0153df6aef8',
+    '3 hero': '8d8a3ec08459ac1b',
+    '3 both': '631e19b6aaa552d7',
+  };
+  for (const seed of [1, 2, 3])
+    for (const role of ['hero', 'both'] as const)
+      for (const scale of [{}, { scale: 1 }]) {
+        const svg = studioSvg(compose(opt(seed, { custom: { ...custom(role, role === 'hero'), ...scale } })));
+        assert.equal(
+          createHash('sha256').update(svg).digest('hex').slice(0, 16),
+          want[`${seed} ${role}`],
+          `${seed} ${role} ${'scale' in scale}`,
+        );
+      }
+});
+
+test('custom scale 2: the first plant (laid out before any other) gets a hero twice as large', () => {
+  // A small disc: no clamp at scale 2, and model scales large enough that rounding stays under 1 percent.
+  const shapes = [{ color: '#e070a0', d: disc(10, 50) }];
+  let exact = 0;
+  for (const seed of SEEDS) {
+    const a = composeParts(opt(seed, { custom: { ...custom('hero', true, shapes), scale: 1 } })).plants[0]!;
+    const b = composeParts(opt(seed, { custom: { ...custom('hero', true, shapes), scale: 2 } })).plants[0]!;
+    assert.deepEqual(a.stem[0], b.stem[0], `seed ${seed}`);
+    if (!a.tip || !b.tip) continue;
+    // A hero that had to shrink (0.6 to 1) differs by a step ratio; most keep their full size.
+    if (Math.abs(b.tip.scale / a.tip.scale / 2 - 1) < 0.01) exact++;
+  }
+  assert.ok(exact >= SEEDS.length / 2, `exact ${exact}`);
+});
+
+// The custom heroes and supports keep the gap from other plants' stems and motifs (real union bounds).
+const assertGap = (p: ReturnType<typeof composeParts>, repeat: Repeat, at: string) => {
+  const own = (pl: (typeof p.plants)[number]) => [...(pl.tip ? [pl.tip] : []), ...pl.attached.map((a) => a.placement)];
+  for (let i = 0; i < p.plants.length; i++)
+    for (const c of own(p.plants[i]!).map((q) => circle(p.studio, q)))
+      for (let j = 0; j < p.plants.length; j++) {
+        if (i === j) continue;
+        for (const q of p.plants[j]!.stem) assert.ok(latticeDistance([c.x, c.y], q, repeat, 300, 300) >= c.r + 2.55, `${at} stem`);
+        for (const k of own(p.plants[j]!).map((q) => circle(p.studio, q)))
+          assert.ok(latticeDistance([c.x, c.y], [k.x, k.y], repeat, 300, 300) >= c.r + k.r + 1.8, `${at} circle`);
+      }
+};
+
+test('custom scale 0.5, 1, 2: nothing touches', () => {
+  for (const scale of [0.5, 1, 2])
+    for (const role of ['hero', 'both'] as const)
+      for (const seed of SEEDS) {
+        const p = composeParts(opt(seed, { repeat: 'half-drop', custom: { ...custom(role, true), scale } }));
+        assertGap(p, 'half-drop', `${scale} ${role} ${seed}`);
+      }
+});
+
+test('custom scale 3: the union diameter stays under 60 percent of the side', () => {
+  for (const seed of SEEDS) {
+    const p = composeParts(opt(seed, { custom: { ...custom('both', true), scale: 3 } }));
+    const first = p.studio.motifs.findIndex((m) => m.d === SHAPES[0]!.d);
+    const union = motifRadius({ d: SHAPES.map((s) => s.d).join(''), box: 100, paint: 'fill' }).radius;
+    const mine = p.studio.layers.flatMap((l) => l.placements.filter((q) => q.motif === first));
+    assert.ok(mine.length > 0);
+    for (const q of mine) assert.ok(2 * union * q.scale <= 0.6 * 300 + 1e-9, `seed ${seed} ${q.scale}`);
+  }
+});
+
+test('custom stroke shapes: same placement as the fills, in a stroke layer above them; stroke-only works', () => {
+  const line = { color: '#103050', d: 'M50 96C40 60 60 40 50 10', paint: 'stroke' as const };
+  for (const seed of SEEDS.slice(0, 4)) {
+    const p = composeParts(opt(seed, { custom: custom('hero', true, [SHAPES[0]!, SHAPES[1]!, line]) }));
+    const s = p.studio;
+    const ids = [SHAPES[0]!.d, SHAPES[1]!.d, line.d].map((d) => s.motifs.findIndex((m) => m.d === d));
+    assert.deepEqual(
+      ids.map((i) => s.motifs[i]!.paint),
+      ['fill', 'fill', 'stroke'],
+    );
+    const layerOf = ids.map((m) => s.layers.findIndex((l) => l.placements.some((q) => q.motif === m)));
+    assert.ok(layerOf[0]! < layerOf[1]! && layerOf[1]! < layerOf[2]!);
+    const key = (q: Placement) => `${q.x} ${q.y} ${q.scale} ${q.rotate} ${q.flip}`;
+    const per = ids.map((m) => s.layers.flatMap((l) => l.placements.filter((q) => q.motif === m)).map(key));
+    assert.equal(per[0]!.length, p.heroes.length);
+    assert.deepEqual(per[2], per[0]);
+    assert.deepEqual(per[1], per[0]);
+    const stroke = s.layers[layerOf[2]!]!;
+    assert.equal(stroke.color, line.color);
+    assert.equal(stroke.strokeWidth, 1.2);
+    // Off the palette, a stroke takes the detail color.
+    const q = composeParts(opt(seed, { custom: custom('hero', false, [SHAPES[0]!, line]) })).studio;
+    assert.equal(q.layers.at(-1)!.color, colors.detail);
+    // Stroke only.
+    const o = composeParts(opt(seed, { custom: custom('both', true, [line]) }));
+    const m = o.studio.motifs.findIndex((x) => x.d === line.d);
+    assert.ok(o.heroes.length > 0 && o.heroes.every((h) => h.motif === m));
+    assert.ok(studioSvg(o.studio).includes('stroke="#103050"'));
+  }
+  // Unsafe stroke path data is dropped too.
+  const bad = { ...line, d: 'M0 0L10 10"/><script>' };
+  assert.equal(studioSvg(compose(opt(3, { custom: custom('hero', true, [bad]) }))), studioSvg(compose(opt(3))));
+});
+
+test("custom anchor 'center': the box center sits on the stem point", () => {
+  for (const seed of SEEDS.slice(0, 4)) {
+    const p = composeParts(opt(seed, { custom: { ...custom('hero', true), anchor: 'center' } }));
+    const base = composeParts(opt(seed, { custom: custom('hero', true) }));
+    assert.deepEqual(p.plants[0]!.stem[0], base.plants[0]!.stem[0]);
+    for (const pl of p.plants) {
+      if (!pl.tip || pl.tipStalk) continue;
+      // A hero that ends a plain stem sits at its last sample (the stem is cut where the hero moved).
+      const end = pl.stem.at(-1)!;
+      assert.ok(Math.hypot(pl.tip.x - end[0], pl.tip.y - end[1]) <= 1, `seed ${seed}`);
+    }
+    for (const pl of p.plants.filter((q) => q.tip && q.tipStalk))
+      assert.ok(Math.hypot(pl.tip!.x - pl.tipStalk![1][0], pl.tip!.y - pl.tipStalk![1][1]) <= 1, `seed ${seed} stalk`);
+  }
+});

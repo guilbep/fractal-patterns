@@ -10,6 +10,15 @@ import { layerColors, studioBytes } from './model.ts';
 import { makeMotif, motifBounds, type MotifFamily } from './motifs.ts';
 import { flowAngle } from './scatter.ts';
 
+export interface CustomShape {
+  readonly color: string;
+  readonly d: string;
+  /** Default 'fill'. */
+  readonly paint?: 'fill' | 'stroke';
+  /** Stroke width in the motif's box units, default 1.5 (1.5 reads as about 1.2 px on a 300 px tile). */
+  readonly width?: number;
+}
+
 export interface ComposeOptions {
   readonly seed: number;
   readonly width: number;
@@ -27,13 +36,18 @@ export interface ComposeOptions {
     readonly stem: string;
   };
   readonly stems: boolean;
-  /** A motif of the person's own (a cropped trace): one fill shape per color, back to front. It replaces the generated
-   * hero motifs, the supports along the stems, or both. Shapes whose path data is unsafe are dropped. */
+  /** A motif of the person's own (a cropped trace): one shape per color, back to front, filled or (a line drawing)
+   * stroked; strokes are drawn above the fills. It replaces the generated hero motifs, the supports along the stems, or
+   * both. Shapes whose path data is unsafe are dropped. */
   readonly custom?: {
-    readonly shapes: readonly { readonly color: string; readonly d: string }[];
+    readonly shapes: readonly CustomShape[];
     readonly box: number;
     readonly role: 'hero' | 'support' | 'both';
     readonly keepColors: boolean;
+    /** 0.4 to 3, default 1: a factor on the size the composer gives the motif. */
+    readonly scale?: number;
+    /** Where the motif meets its stem: 'base' (default) its box's bottom center, 'center' its box's center. */
+    readonly anchor?: 'base' | 'center';
   };
 }
 
@@ -59,6 +73,8 @@ const BLOOMS: readonly MotifFamily[] = ['flower', 'bud', 'berry'];
 const JUNCTION = 0.16;
 // The hero's largest radius, as a share of the side (0.12 x 1.1).
 const HERO_MAX = 0.132;
+// A custom motif's union diameter never exceeds this share of the tile's shorter side, whatever its scale.
+const CUSTOM_MAX = 0.6;
 const num = (v: number) => String(Math.round(v * 10) / 10);
 
 export interface ComposeParts {
@@ -160,8 +176,11 @@ type Variant = {
   bloom: boolean;
   box: number;
   parts: number[] | null;
-  /** The radius the motif is scaled by: its bounding radius, or (custom motif) its body's radius over sqrt(2/pi). */
+  /** The radius the motif is scaled by: its bounding radius, or (custom motif) its body's radius over sqrt(2/pi), over
+   * the person's scale. */
   body: number;
+  /** The motif's box center sits on its base (custom anchor 'center'). */
+  centered: boolean;
 };
 
 /** A custom motif's body: the circle with the area of the tight bounds of its largest shape whose bounds are not thin
@@ -188,7 +207,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   const families: MotifFamily[] = [];
   const customShapes = (o.custom?.shapes ?? []).flatMap((c) => {
     const d = safePathData(c.d);
-    return d ? [{ color: c.color, d }] : [];
+    return d ? [{ color: c.color, d, paint: c.paint ?? 'fill', width: c.width ?? 1.5 }] : [];
   });
   const custom = o.custom && customShapes.length > 0 && o.custom.box > 0 ? { ...o.custom, shapes: customShapes } : null;
   let customVariant: Variant | null = null;
@@ -196,19 +215,20 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     if (custom && ((ti === 0 && custom.role !== 'support') || (ti === 1 && custom.role !== 'hero'))) {
       rnd(); // the same draws as a generated tier, so the rest of the layout stays as it was
       if (!customVariant) {
-        const parts = custom.shapes.map((c) => motifs.push({ d: c.d, box: custom.box, paint: 'fill' }) - 1);
+        const parts = custom.shapes.map((c) => motifs.push({ d: c.d, box: custom.box, paint: c.paint }) - 1);
         // One motif to the rules: its bounds are the union of its shapes.
         const union = custom.shapes.map((c) => c.d).join('');
         const radius = motifRadius({ d: union, box: custom.box, paint: 'fill' });
-        // Sized by its body, but its union bounds at most 1.8 times the generated motif's diameter.
-        const body = Math.max(
-          customBody(
-            custom.shapes.map((c) => c.d),
-            union,
-          ),
-          radius.radius / 1.8,
+        // Sized by its body, but its union bounds at most 1.8 times the generated motif's diameter, unless the person
+        // asks for a larger motif (then `put` still keeps it under CUSTOM_MAX of the side).
+        const k = Math.min(3, Math.max(0.4, Number.isFinite(custom.scale) ? custom.scale! : 1));
+        const own = customBody(
+          custom.shapes.map((c) => c.d),
+          union,
         );
-        customVariant = { sil: parts[0]!, det: null, radius, bloom: false, box: custom.box, parts, body };
+        const body = (k > 1 ? own : Math.max(own, radius.radius / 1.8)) / k;
+        const centered = custom.anchor === 'center';
+        customVariant = { sil: parts[0]!, det: null, radius, bloom: false, box: custom.box, parts, body, centered };
       }
       return [customVariant, customVariant];
     }
@@ -230,6 +250,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
         box: m.silhouette.box,
         parts: null,
         body: motifRadius(m.silhouette).radius,
+        centered: false,
       };
     });
   });
@@ -237,9 +258,11 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   // A motif whose base sits at `base`, pointing along angle `a` (radians), with real circle radius r.
   const put = (v: Variant, base: Pt, a: number, r: number, flip: boolean): Placement => {
     const rotate = Math.round(deg(a) + 90);
-    const scale = round(r / v.body, 100);
+    const cap = v.parts ? Math.floor(((CUSTOM_MAX * side) / 2 / v.radius.radius) * 100) / 100 : Infinity;
+    const scale = Math.min(round(r / v.body, 100), cap);
     const t = (rotate * Math.PI) / 180;
-    const [x, y] = [base[0] + (v.box / 2) * scale * Math.sin(t), base[1] - (v.box / 2) * scale * Math.cos(t)];
+    const lift = v.centered ? 0 : (v.box / 2) * scale;
+    const [x, y] = [base[0] + lift * Math.sin(t), base[1] - lift * Math.cos(t)];
     return { motif: v.sil, x: round(x, 10), y: round(y, 10), scale, rotate, flip };
   };
   const realCircle = (v: Variant, p: Placement) => {
@@ -635,10 +658,19 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   add(o.colors.leaf, 1, leaf);
   add(o.colors.bloom, 1, bloom);
   add(o.colors.detail, 1, detail);
-  // Palette roles: the back shape (a trace's largest, as every plate covers the colors in front of it) gets the leaf
-  // color, the next the bloom color, the rest the detail color.
+  // Palette roles: the back fill shape (a trace's largest, as every plate covers the colors in front of it) gets the
+  // leaf color, the next the bloom color, the rest and every stroke shape the detail color. Strokes go above the fills.
+  // Their width: the stroke is non-scaling (model.ts), so the layer's width is in pixels at tile scale 1 whatever the
+  // motif's scale; width 1.5 in box units reads as 0.4 percent of the side (1.2 px on a 300 px tile).
   const roles = [o.colors.leaf, o.colors.bloom];
-  custom?.shapes.forEach((c, k) => add(custom.keepColors ? c.color : (roles[k] ?? o.colors.detail), 1, own[k]!));
+  if (custom) {
+    const fillIdx = custom.shapes.flatMap((c, k) => (c.paint === 'fill' ? [k] : []));
+    fillIdx.forEach((k, j) => add(custom.keepColors ? custom.shapes[k]!.color : (roles[j] ?? o.colors.detail), 1, own[k]!));
+    custom.shapes.forEach((c, k) => {
+      if (c.paint === 'stroke')
+        add(custom.keepColors ? c.color : o.colors.detail, round((0.004 * side * Math.max(0, c.width)) / 1.5, 100), own[k]!);
+    });
+  }
   return {
     studio: { width: w, height: h, background: o.colors.background, repeat, motifs, layers: out },
     heroes: plants.flatMap((pl) => (pl.tip ? [pl.tip] : [])),

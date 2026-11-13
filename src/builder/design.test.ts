@@ -2,7 +2,23 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { studioInstances } from '../studio/model.ts';
-import { addItem, designSvg, duplicateItem, moveBy, owners, parseDesign, removeItem, reorder, toStudio, updateItem } from './design.ts';
+import {
+  addItem,
+  designSvg,
+  duplicateItem,
+  duplicateMany,
+  moveBy,
+  moveMany,
+  owners,
+  parseDesign,
+  removeItem,
+  removeMany,
+  reorder,
+  reorderMany,
+  toStudio,
+  updateItem,
+  updateMany,
+} from './design.ts';
 import type { Design, Item, Stamp } from './types.ts';
 
 const A: Stamp = {
@@ -217,4 +233,52 @@ test("parseDesign keeps overlap 'down'; a missing or unknown value leaves the ke
     assert.equal(designSvg(p), designSvg(d));
   }
   assert.equal(designSvg({ ...d, overlap: 'none' }), designSvg(d));
+});
+
+test('group operations wrap, keep order and leave the input unchanged', () => {
+  const d: Design = { ...base, stamps: [A, B], items: [item(1, 0, 10, 10), item(2, 0, 100, 100), item(3, 0, 190, 50)] };
+  const before = structuredClone(d);
+  const at = (x: Design, id: number) => x.items.find((it) => it.id === id)!;
+
+  const m = moveMany(d, [1, 3], 20, 0);
+  assert.deepEqual([at(m, 1).x, at(m, 1).y], [30, 10]);
+  assert.deepEqual([at(m, 3).x, at(m, 3).y], [10, 50]);
+  assert.equal(at(m, 2), at(d, 2));
+
+  const r = removeMany(d, [1, 2]);
+  assert.deepEqual(
+    r.items.map((it) => it.id),
+    [3],
+  );
+
+  const { design: c, ids } = duplicateMany(d, [1, 3]);
+  assert.equal(c.items.length, 5);
+  assert.deepEqual(ids, [4, 5]);
+  assert.equal(c.items[1]!.id, 4);
+  assert.deepEqual([c.items[1]!.x, c.items[1]!.y], [30, 30]);
+  assert.equal(c.items[4]!.id, 5);
+  assert.deepEqual([c.items[4]!.x, c.items[4]!.y], [10, 70]);
+
+  assert.deepEqual(
+    reorderMany(d, [1, 2], 'front').items.map((it) => it.id),
+    [3, 1, 2],
+  );
+  assert.deepEqual(
+    reorderMany(d, [3], 'back').items.map((it) => it.id),
+    [3, 1, 2],
+  );
+
+  const u = updateMany(d, [1, 2], { opacity: 0.5 });
+  assert.deepEqual(
+    u.items.map((it) => it.opacity),
+    [0.5, 0.5, 1],
+  );
+
+  assert.deepEqual(d, before);
+  assert.equal(moveMany(d, [], 5, 5), d);
+  assert.equal(moveMany(d, [99], 5, 5), d);
+  assert.equal(removeMany(d, []), d);
+  assert.equal(duplicateMany(d, []).design, d);
+  assert.equal(reorderMany(d, [], 'front'), d);
+  assert.equal(updateMany(d, [], { opacity: 0.5 }), d);
 });

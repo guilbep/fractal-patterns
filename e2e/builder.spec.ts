@@ -218,3 +218,18 @@ test('snap places a dragged shape on the grid', async ({ page }) => {
   await expect(stage(page)).toBeVisible();
   await expect(page.getByLabel('Snap')).not.toBeChecked();
 });
+
+test('multi-select moves a group', async ({ page }) => {
+  await startAgain(page);
+  const before = (await stored(page))!.items.map((it) => it.x);
+  await stage(page).focus();
+  await page.keyboard.press('ControlOrMeta+a');
+  await expect(page.getByText('16 shapes selected')).toBeAttached();
+  await page.keyboard.press('ArrowRight');
+  const mod = (v: number, m: number) => ((v % m) + m) % m;
+  await expect.poll(async () => (await stored(page))!.items.map((it) => it.x)).not.toEqual(before);
+  const after = (await stored(page))!.items.map((it) => it.x);
+  after.forEach((x, k) => expect(x).toBeCloseTo(mod(before[k]! + 1, WIDTH), 6));
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect.poll(async () => (await stored(page))!.items.map((it) => it.x)).toEqual(before);
+});

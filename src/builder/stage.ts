@@ -55,3 +55,26 @@ export function snapPoint(x: number, y: number, width: number, height: number, p
 export function cellOrder(): [number, number][] {
   return [-1, 0, 1].flatMap((oy) => [-1, 0, 1].map((ox): [number, number] => [ox, oy]));
 }
+
+/**
+ * The ids of the items whose center, in any of the 9 cells (the center plus a cell offset),
+ * lies inside the rectangle with corners (x0, y0) and (x1, y1), in tile units.
+ */
+export function itemsInRect(
+  items: readonly { id: number; x: number; y: number }[],
+  rect: { x0: number; y0: number; x1: number; y1: number },
+  width: number,
+  height: number,
+): number[] {
+  const [l, r] = [Math.min(rect.x0, rect.x1), Math.max(rect.x0, rect.x1)];
+  const [t, b] = [Math.min(rect.y0, rect.y1), Math.max(rect.y0, rect.y1)];
+  return items
+    .filter((it) =>
+      cellOrder().some(([ox, oy]) => {
+        const x = it.x + ox * width;
+        const y = it.y + oy * height;
+        return x >= l && x <= r && y >= t && y <= b;
+      }),
+    )
+    .map((it) => it.id);
+}

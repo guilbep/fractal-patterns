@@ -55,7 +55,23 @@ function save(d: Design): void {
 }
 
 export const design = shallowRef<Design>(load());
-export const selectedId = ref<number | null>(null);
+/** The selected item ids, in selection order. */
+export const selectedIds = ref<number[]>([]);
+/** The last selected id; setting it replaces the selection. */
+export const selectedId = computed<number | null>({
+  get: () => selectedIds.value[selectedIds.value.length - 1] ?? null,
+  set: (id) => select(id),
+});
+export function select(id: number | null): void {
+  selectedIds.value = id === null ? [] : [id];
+}
+export function toggleSelect(id: number): void {
+  const ids = selectedIds.value;
+  selectedIds.value = ids.includes(id) ? ids.filter((k) => k !== id) : [...ids, id];
+}
+export function selectAll(): void {
+  selectedIds.value = design.value.items.map((it) => it.id);
+}
 export const selected = computed<Item | null>(() => design.value.items.find((it) => it.id === selectedId.value) ?? null);
 export const svg = computed(() => designSvg(design.value));
 
@@ -65,7 +81,8 @@ export const canRedo = ref(false);
 
 function show(d: Design): void {
   design.value = d;
-  if (selectedId.value !== null && !d.items.some((it) => it.id === selectedId.value)) selectedId.value = null;
+  const kept = selectedIds.value.filter((id) => d.items.some((it) => it.id === id));
+  if (kept.length !== selectedIds.value.length) selectedIds.value = kept;
   canUndo.value = history.canUndo();
   canRedo.value = history.canRedo();
 }

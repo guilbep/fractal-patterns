@@ -181,6 +181,69 @@ export function reorder(d: Design, id: number, to: 'front' | 'back' | 'up' | 'do
   return { ...d, items };
 }
 
+const pick = (d: Design, ids: readonly number[]): Set<number> => new Set(ids.filter((id) => d.items.some((it) => it.id === id)));
+
+/** Apply `f` to each listed item (unknown ids are skipped); no known id gives the same design. */
+function mapMany(d: Design, ids: readonly number[], f: (it: Item) => Partial<Omit<Item, 'id'>>): Design {
+  const set = pick(d, ids);
+  if (!set.size) return d;
+  return { ...d, items: d.items.map((it) => (set.has(it.id) ? fix(d, { ...it, ...f(it) }) : it)) };
+}
+
+export function moveMany(d: Design, ids: readonly number[], dx: number, dy: number): Design {
+  return mapMany(d, ids, (it) => ({ x: it.x + dx, y: it.y + dy }));
+}
+
+export function updateMany(
+  d: Design,
+  ids: readonly number[],
+  patch: Partial<Omit<Item, 'id'>> | ((it: Item) => Partial<Omit<Item, 'id'>>),
+): Design {
+  return mapMany(d, ids, typeof patch === 'function' ? patch : () => patch);
+}
+
+export function removeMany(d: Design, ids: readonly number[]): Design {
+  const set = pick(d, ids);
+  return set.size ? { ...d, items: d.items.filter((it) => !set.has(it.id)) } : d;
+}
+
+/** A copy right above each original, moved by 10 percent of the tile, and the new ids in the order of `ids`. */
+export function duplicateMany(d: Design, ids: readonly number[]): { design: Design; ids: number[] } {
+  const set = pick(d, ids);
+  if (!set.size) return { design: d, ids: [] };
+  let id = nextId(d);
+  const copyOf = new Map<number, number>();
+  const items: Item[] = [];
+  for (const it of d.items) {
+    items.push(it);
+    if (!set.has(it.id)) continue;
+    copyOf.set(it.id, id);
+    items.push(fix(d, { ...it, id: id++, x: it.x + d.width / 10, y: it.y + d.height / 10 }));
+  }
+  return { design: { ...d, items }, ids: ids.filter((k) => copyOf.has(k)).map((k) => copyOf.get(k)!) };
+}
+
+/** Move the listed items together, keeping their relative order. Up and down move each by one place where it can. */
+export function reorderMany(d: Design, ids: readonly number[], to: 'front' | 'back' | 'up' | 'down'): Design {
+  const set = pick(d, ids);
+  if (!set.size) return d;
+  let items: Item[];
+  if (to === 'front' || to === 'back') {
+    const moved = d.items.filter((it) => set.has(it.id));
+    const rest = d.items.filter((it) => !set.has(it.id));
+    items = to === 'front' ? [...rest, ...moved] : [...moved, ...rest];
+  } else {
+    // Swap each selected item with an unselected neighbor, scanning from the side it moves toward.
+    items = [...d.items];
+    const up = to === 'up';
+    for (let k = up ? items.length - 2 : 1; up ? k >= 0 : k < items.length; k += up ? -1 : 1) {
+      const j = up ? k + 1 : k - 1;
+      if (set.has(items[k]!.id) && !set.has(items[j]!.id)) [items[k], items[j]] = [items[j]!, items[k]!];
+    }
+  }
+  return items.every((it, k) => it === d.items[k]) ? d : { ...d, items };
+}
+
 const COLOR = /^#[0-9a-fA-F]{6}$/;
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
 const fin = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);

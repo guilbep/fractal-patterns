@@ -1,8 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { addItem, parseDesign, removeItem } from './design.ts';
+import { addItem, parseDesign, removeItem, removeMany } from './design.ts';
 import { BASIC_STAMPS } from './stamps.ts';
-import { canRedo, canUndo, commit, defaultDesign, design, redo, resetDesign, selectedId, undo, useStamp } from './store.ts';
+import {
+  canRedo,
+  canUndo,
+  commit,
+  defaultDesign,
+  design,
+  redo,
+  resetDesign,
+  selectAll,
+  selectedId,
+  selectedIds,
+  undo,
+  useStamp,
+} from './store.ts';
 
 test('defaultDesign is a pure 16-item design that survives a stored round trip', () => {
   const d = defaultDesign();
@@ -41,4 +54,14 @@ test('the selection clears when a commit removes its item', () => {
   selectedId.value = id;
   commit(removeItem(design.value, id));
   assert.equal(selectedId.value, null);
+});
+
+test('selectAll then removing two items leaves the third selected', () => {
+  resetDesign();
+  const [a, b, c] = design.value.items.slice(0, 3).map((it) => it.id);
+  commit({ ...design.value, items: design.value.items.slice(0, 3) });
+  selectAll();
+  commit(removeMany(design.value, [a!, b!]));
+  assert.deepEqual(selectedIds.value, [c]);
+  assert.equal(selectedId.value, c);
 });

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cellOrder, handleTransform, hitStroke, snapPoint, stepSelection, viewBox } from './stage.ts';
+import { cellOrder, handleTransform, hitStroke, itemsInRect, snapPoint, stepSelection, viewBox } from './stage.ts';
 
 const near = (a: number, b: number): void => assert.ok(Math.abs(a - b) < 1e-9, `${a} != ${b}`);
 
@@ -65,4 +65,15 @@ test('cellOrder draws the row above first', () => {
   const rows = cellOrder().map(([, oy]) => oy);
   assert.deepEqual(rows, [-1, -1, -1, 0, 0, 0, 1, 1, 1]);
   assert.equal(new Set(cellOrder().map((c) => c.join())).size, 9);
+});
+
+test('itemsInRect finds centers in the rectangle, wrapped centers too', () => {
+  const items = [
+    { id: 1, x: 10, y: 10 },
+    { id: 2, x: 100, y: 100 },
+    { id: 3, x: 190, y: 50 },
+  ];
+  assert.deepEqual(itemsInRect(items, { x0: 0, y0: 0, x1: 50, y1: 60 }, 200, 200), [1]);
+  assert.deepEqual(itemsInRect(items, { x0: 180, y0: 40, x1: 220, y1: 60 }, 200, 200), [3]);
+  assert.deepEqual(itemsInRect(items, { x0: -20, y0: 40, x1: 20, y1: 60 }, 200, 200), [3]);
 });

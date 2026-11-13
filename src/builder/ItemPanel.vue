@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // The inspector of the selected shape: every change the stage offers by drag, as form controls.
 import { computed } from 'vue';
-import { duplicateItem, removeItem, reorder, updateItem } from './design.ts';
+import { duplicateMany, removeMany, reorderMany, updateMany } from './design.ts';
 import { setAllColors, setPartColor, usedColors } from './item-colors.ts';
-import { commit, design, preview, selected, selectedId } from './store.ts';
+import { commit, design, preview, selected, selectedIds } from './store.ts';
 import type { Design, Item } from './types.ts';
 
 const MAX_INPUTS = 6;
@@ -14,24 +14,27 @@ const minSide = computed(() => Math.min(design.value.width, design.value.height)
 const sizeMin = computed(() => Math.max(1, Math.round(minSide.value * 0.02)));
 const sizeMax = computed(() => Math.round(minSide.value * 1.5));
 const side = computed(() => (selected.value && stamp.value ? selected.value.scale * stamp.value.box : 0));
-const index = computed(() => design.value.items.findIndex((it) => it.id === selectedId.value));
-const atTop = computed(() => index.value === design.value.items.length - 1);
-const atBottom = computed(() => index.value === 0);
+const many = computed(() => selectedIds.value.length > 1);
+/** The positions of the selected items in the list, low to high. */
+const indexes = computed(() => design.value.items.flatMap((it, k) => (selectedIds.value.includes(it.id) ? [k] : [])));
+// The group is at the top when its items are the last ones (and at the bottom when they are the first ones).
+const atTop = computed(() => indexes.value[0] === design.value.items.length - indexes.value.length);
+const atBottom = computed(() => indexes.value[indexes.value.length - 1] === indexes.value.length - 1);
 const swatches = computed(() => usedColors(design.value));
 
 // The design at the start of the current drag: each preview and the final commit build on it, so one drag is one undo step.
 let base: Design | null = null;
 
 function edit(e: Event, patch: (it: Item) => Partial<Omit<Item, 'id'>>): void {
-  const id = selectedId.value;
-  if (id === null) return;
+  const ids = selectedIds.value;
+  if (!ids.length) return;
   base ??= design.value;
-  const it = base.items.find((t) => t.id === id);
-  if (!it) return;
-  const next = updateItem(base, id, patch(it));
+  const next = updateMany(base, ids, patch);
   if (e.type === 'change') {
     base = null;
     commit(next);
+    // A group slider shows the change, not a value: back to its start after each change.
+    if (many.value) (e.target as HTMLInputElement).value = (e.target as HTMLInputElement).defaultValue;
   } else preview(next);
 }
 
@@ -39,31 +42,49 @@ const value = (e: Event): string => (e.target as HTMLInputElement).value;
 const num = (e: Event): number => Number(value(e));
 
 function setAll(color: string): void {
-  const id = selectedId.value;
-  if (id !== null) commit(updateItem(design.value, id, { colors: setAllColors(partColors.value, color) }));
+  const d = design.value;
+  act((x, ids) => updateMany(x, ids, (it) => ({ colors: setAllColors(d.stamps[it.stamp]?.parts.map((p) => p.color) ?? [], color) })));
 }
 
-function act(op: (d: Design, id: number) => Design): void {
-  const id = selectedId.value;
-  if (id !== null) commit(op(design.value, id));
+function act(op: (d: Design, ids: number[]) => Design): void {
+  const ids = selectedIds.value;
+  if (!ids.length) return;
+  const next = op(design.value, ids);
+  if (next !== design.value) commit(next);
 }
 
 function duplicate(): void {
-  const id = selectedId.value;
-  if (id === null) return;
-  const before = design.value;
-  const next = duplicateItem(before, id);
-  if (next === before) return;
-  commit(next);
-  selectedId.value = next.items[index.value + 1]?.id ?? id;
+  const r = duplicateMany(design.value, selectedIds.value);
+  if (!r.ids.length) return;
+  commit(r.design);
+  selectedIds.value = r.ids;
 }
 </script>
 
 <template>
   <section class="panel item-panel" aria-labelledby="item-h">
-    <h2 id="item-h">Selected shape</h2>
+    <h2 id="item-h">{{ many ? `Selected shapes (${selectedIds.length})` : 'Selected shape' }}</h2>
     <p v-if="!selected || !stamp" class="muted">Select a shape on the tile.</p>
-    <template v-else>
+    <template v-else-if="many">
+      <p class="muted">Turn and Size change each shape by the amount you set.</p>
+      <div class="fields">
+        <div class="field">
+          <label for="item-turn">Turn by</label>
+          <input id="item-turn" type="range" min="-180" max="180" step="1" value="0" @input="edit($event, (it) => ({ rotate: it.rotate + num($event) }))" @change="edit($event, (it) => ({ rotate: it.rotate + num($event) }))">
+        </div>
+        <div class="field">
+          <label for="item-size">Size, percent</label>
+          <input id="item-size" type="range" min="25" max="300" step="1" value="100" @input="edit($event, (it) => ({ scale: (it.scale * num($event)) / 100 }))" @change="edit($event, (it) => ({ scale: (it.scale * num($event)) / 100 }))">
+        </div>
+        <div class="field">
+          <label for="item-opacity">Opacity <output for="item-opacity">{{ Math.round(selected.opacity * 100) }} %</output></label>
+          <input id="item-opacity" type="range" min="0.05" max="1" step="0.05" :value="selected.opacity" @input="edit($event, () => ({ opacity: num($event) }))" @change="edit($event, () => ({ opacity: num($event) }))">
+        </div>
+      </div>
+      <label class="radio"><input id="item-flip" type="checkbox" :checked="selected.flip" @change="act((d, ids) => updateMany(d, ids, { flip: !selected!.flip }))"> Flip</label>
+    </template>
+    <template v-if="selected && stamp">
+      <template v-if="!many">
       <p class="muted">{{ stamp.name }}</p>
       <div class="fields">
         <div class="field">
@@ -79,7 +100,7 @@ function duplicate(): void {
           <input id="item-opacity" type="range" min="0.05" max="1" step="0.05" :value="selected.opacity" @input="edit($event, () => ({ opacity: num($event) }))" @change="edit($event, () => ({ opacity: num($event) }))">
         </div>
       </div>
-      <label class="radio"><input id="item-flip" type="checkbox" :checked="selected.flip" @change="act((d, id) => updateItem(d, id, { flip: !selected!.flip }))"> Flip</label>
+      <label class="radio"><input id="item-flip" type="checkbox" :checked="selected.flip" @change="act((d, ids) => updateMany(d, ids, { flip: !selected!.flip }))"> Flip</label>
 
       <div class="colors">
         <div v-for="(c, i) in partColors.slice(0, MAX_INPUTS)" :key="i" class="color-field">
@@ -94,19 +115,20 @@ function duplicate(): void {
           </div>
         </template>
       </div>
+      </template>
       <div class="swatches" role="group" aria-label="Colors in this design">
         <button v-for="c in swatches" :key="c" type="button" class="swatch" :style="{ background: c }" :aria-label="c" :title="c" @click="setAll(c)" />
       </div>
 
       <div class="actions">
         <button type="button" class="btn" @click="duplicate">Duplicate</button>
-        <button type="button" class="btn" @click="act(removeItem)">Delete</button>
+        <button type="button" class="btn" @click="act(removeMany)">Delete</button>
       </div>
       <div class="actions" role="group" aria-label="Order">
-        <button type="button" class="btn" :disabled="atTop" @click="act((d, id) => reorder(d, id, 'front'))">To front</button>
-        <button type="button" class="btn" :disabled="atTop" @click="act((d, id) => reorder(d, id, 'up'))">Forward</button>
-        <button type="button" class="btn" :disabled="atBottom" @click="act((d, id) => reorder(d, id, 'down'))">Backward</button>
-        <button type="button" class="btn" :disabled="atBottom" @click="act((d, id) => reorder(d, id, 'back'))">To back</button>
+        <button type="button" class="btn" :disabled="atTop" @click="act((d, ids) => reorderMany(d, ids, 'front'))">To front</button>
+        <button type="button" class="btn" :disabled="atTop" @click="act((d, ids) => reorderMany(d, ids, 'up'))">Forward</button>
+        <button type="button" class="btn" :disabled="atBottom" @click="act((d, ids) => reorderMany(d, ids, 'down'))">Backward</button>
+        <button type="button" class="btn" :disabled="atBottom" @click="act((d, ids) => reorderMany(d, ids, 'back'))">To back</button>
       </div>
     </template>
   </section>

@@ -3,10 +3,10 @@
 // the tile edges), one turn-and-resize handle, and keyboard control.
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { instanceMatrix, passInstances, repeatCell } from '@/studio/model.ts';
-import { duplicateItem, moveBy, owners, removeItem, reorder, toStudio, updateItem } from './design.ts';
-import { commit, design, preview, selected, selectedId } from './store.ts';
-import type { Design } from './types.ts';
-import { cellOrder, handleTransform, hitStroke, snapPoint, stepSelection, viewBox } from './stage.ts';
+import { duplicateMany, moveBy, moveMany, owners, removeMany, reorderMany, toStudio, updateItem, updateMany } from './design.ts';
+import { commit, design, preview, select, selectAll, selected, selectedId, selectedIds, toggleSelect } from './store.ts';
+import type { Design, Item } from './types.ts';
+import { cellOrder, handleTransform, hitStroke, itemsInRect, snapPoint, stepSelection, viewBox } from './stage.ts';
 
 // Snap to grid: a stage setting, not part of the design or of undo.
 const SNAP_KEY = 'fp-builder-snap-v1';
@@ -101,23 +101,25 @@ const veil = computed(() => {
   return `M${-w / 2} ${-h / 2}h${2 * w}v${2 * h}h${-2 * w}z M0 0h${w}v${h}H0z`;
 });
 
-/** The selected item's outlines: its instances inside or touching the central cell. */
+/** The selected items' outlines: their instances inside or touching the central cell. */
 const outlines = computed(() => {
-  const it = selected.value;
-  if (!it) return [];
-  const st = design.value.stamps[it.stamp];
-  if (!st) return [];
-  const side = it.scale * st.box;
-  const r = (side * Math.SQRT2) / 2;
-  const layer = ownerIds.value.indexOf(it.id);
   const { width: w, height: h } = cell.value;
-  return instances.value
-    .filter((i) => i.layer === layer && i.x + r >= 0 && i.x - r <= w && i.y + r >= 0 && i.y - r <= h)
-    .map((i) => ({ x: i.x, y: i.y, side, rotate: i.rotate }));
+  return selectedIds.value.flatMap((id) => {
+    const it = design.value.items.find((t) => t.id === id);
+    const st = it && design.value.stamps[it.stamp];
+    if (!it || !st) return [];
+    const side = it.scale * st.box;
+    const r = (side * Math.SQRT2) / 2;
+    const layer = ownerIds.value.indexOf(it.id);
+    return instances.value
+      .filter((i) => i.layer === layer && i.x + r >= 0 && i.x - r <= w && i.y + r >= 0 && i.y - r <= h)
+      .map((i) => ({ x: i.x, y: i.y, side, rotate: i.rotate }));
+  });
 });
 
+/** The turn handle: only with exactly one selected item. */
 const handle = computed(() => {
-  const o = outlines.value[0];
+  const o = selectedIds.value.length === 1 ? outlines.value[0] : undefined;
   if (!o) return null;
   const t = (o.rotate * Math.PI) / 180;
   const q = o.side / 2;
@@ -136,8 +138,19 @@ function toSvg(e: PointerEvent): [number, number] {
   return [p.x, p.y];
 }
 
-type Drag = { kind: 'move' | 'turn'; id: number; start: [number, number]; startDesign: Design; center: [number, number]; changed: boolean };
+type Drag = {
+  kind: 'move' | 'turn' | 'marquee';
+  id: number;
+  start: [number, number];
+  startDesign: Design;
+  center: [number, number];
+  changed: boolean;
+  /** move: the items that move together; marquee: the selection to add to. */
+  ids: number[];
+};
 let drag: Drag | null = null;
+/** The marquee rectangle while it is drawn, in tile units. */
+const marquee = ref<{ x: number; y: number; width: number; height: number } | null>(null);
 
 function onDown(e: PointerEvent): void {
   if (e.button !== 0) return;
@@ -145,16 +158,24 @@ function onDown(e: PointerEvent): void {
   const start = toSvg(e);
   const startDesign = design.value;
   if (target.closest('[data-handle]') && selected.value && handle.value) {
-    drag = { kind: 'turn', id: selected.value.id, start, startDesign, center: handle.value.center, changed: false };
+    drag = { kind: 'turn', id: selected.value.id, start, startDesign, center: handle.value.center, changed: false, ids: [] };
   } else {
     const hit = target.closest('[data-item]');
     const id = hit ? Number(hit.getAttribute('data-item')) : NaN;
+    const add = e.shiftKey || e.ctrlKey || e.metaKey;
     if (!Number.isFinite(id) || id < 0) {
-      selectedId.value = null;
+      // Empty space: a marquee; Shift adds to the selection.
+      if (!add) select(null);
+      drag = { kind: 'marquee', id: -1, start, startDesign, center: start, changed: false, ids: add ? [...selectedIds.value] : [] };
+    } else if (add) {
+      toggleSelect(id);
+      svgEl.value?.focus();
+      e.preventDefault();
       return;
+    } else {
+      if (!selectedIds.value.includes(id)) select(id);
+      drag = { kind: 'move', id, start, startDesign, center: start, changed: false, ids: [...selectedIds.value] };
     }
-    selectedId.value = id;
-    drag = { kind: 'move', id, start, startDesign, center: start, changed: false };
   }
   svgEl.value?.setPointerCapture(e.pointerId);
   svgEl.value?.focus();
@@ -171,10 +192,14 @@ function onMove(e: PointerEvent): void {
     const d = drag.startDesign;
     const it = d.items.find((t) => t.id === drag!.id);
     if (!it) return;
-    // The unsnapped target, wrapped by updateItem, then snapped (snapPoint wraps again).
+    // The dragged shape's unsnapped target, wrapped by updateItem, then snapped (snapPoint wraps again);
+    // the others move by the same step and keep their offsets.
     const moved = moveBy(d, it.id, dx, dy).items.find((t) => t.id === it.id)!;
     const [x, y] = snapOn.value && !e.altKey ? snapPoint(moved.x, moved.y, d.width, d.height, parts.value) : [moved.x, moved.y];
-    preview(updateItem(d, it.id, { x, y }));
+    preview(moveMany(d, drag.ids, x - it.x, y - it.y));
+  } else if (drag.kind === 'marquee') {
+    const [x0, y0] = drag.start;
+    marquee.value = { x: Math.min(x0, now[0]), y: Math.min(y0, now[1]), width: Math.abs(now[0] - x0), height: Math.abs(now[1] - y0) };
   } else {
     const it = drag.startDesign.items.find((t) => t.id === drag!.id);
     if (!it) return;
@@ -186,7 +211,14 @@ function onMove(e: PointerEvent): void {
 
 function onUp(e: PointerEvent): void {
   if (!drag) return;
-  if (drag.changed) commit(design.value);
+  if (drag.kind === 'marquee') {
+    const m = marquee.value;
+    const d = design.value;
+    // ponytail: wraps by the design size, exact for straight repeats; half-drop and brick neighbors are offset.
+    const found = m ? itemsInRect(d.items, { x0: m.x, y0: m.y, x1: m.x + m.width, y1: m.y + m.height }, d.width, d.height) : [];
+    selectedIds.value = [...drag.ids, ...found.filter((id) => !drag!.ids.includes(id))];
+    marquee.value = null;
+  } else if (drag.changed) commit(design.value);
   drag = null;
   if (svgEl.value?.hasPointerCapture(e.pointerId)) svgEl.value.releasePointerCapture(e.pointerId);
 }
@@ -194,12 +226,18 @@ function onUp(e: PointerEvent): void {
 /** What the live region says: a function of the selected id and the item list only, so a drag says nothing new. */
 const spoken = computed(() => {
   const items = design.value.items;
+  if (selectedIds.value.length > 1) return `${selectedIds.value.length} shapes selected`;
   const k = items.findIndex((t) => t.id === selectedId.value);
   if (k < 0) return 'No shape selected';
   return `${design.value.stamps[items[k]!.stamp]?.name ?? 'Shape'}, shape ${k + 1} of ${items.length}`;
 });
 
 function onKey(e: KeyboardEvent): void {
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'a') {
+    e.preventDefault();
+    selectAll();
+    return;
+  }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   const pick = e.key === 'n' ? 1 : e.key === 'p' || e.key === 'N' ? -1 : 0;
   if (pick) {
@@ -208,32 +246,38 @@ function onKey(e: KeyboardEvent): void {
     if (ids.length) selectedId.value = stepSelection(ids, selectedId.value, pick);
     return;
   }
-  const it = selected.value;
-  if (!it) return;
+  const ids = selectedIds.value;
+  if (!ids.length) return;
   const d = design.value;
   const step = e.shiftKey ? 10 : 1;
   const sx = snapOn.value ? (step * d.width) / parts.value : step;
   const sy = snapOn.value ? (step * d.height) / parts.value : step;
-  const turn = (by: number): Design => updateItem(d, it.id, { rotate: it.rotate + by });
-  const size = (by: number): Design => updateItem(d, it.id, { scale: it.scale * by });
+  const each = (f: (it: Item) => Partial<Item>): Design => updateMany(d, ids, f);
+  const turn = (by: number): Design => each((it) => ({ rotate: it.rotate + by }));
+  const size = (by: number): Design => each((it) => ({ scale: it.scale * by }));
+  let copies: number[] = [];
   const actions: Record<string, () => Design | null> = {
-    ArrowLeft: () => moveBy(d, it.id, -sx, 0),
-    ArrowRight: () => moveBy(d, it.id, sx, 0),
-    ArrowUp: () => moveBy(d, it.id, 0, -sy),
-    ArrowDown: () => moveBy(d, it.id, 0, sy),
-    Delete: () => removeItem(d, it.id),
-    Backspace: () => removeItem(d, it.id),
-    d: () => duplicateItem(d, it.id),
+    ArrowLeft: () => moveMany(d, ids, -sx, 0),
+    ArrowRight: () => moveMany(d, ids, sx, 0),
+    ArrowUp: () => moveMany(d, ids, 0, -sy),
+    ArrowDown: () => moveMany(d, ids, 0, sy),
+    Delete: () => removeMany(d, ids),
+    Backspace: () => removeMany(d, ids),
+    d: () => {
+      const r = duplicateMany(d, ids);
+      copies = r.ids;
+      return r.design;
+    },
     '[': () => turn(-15),
     ']': () => turn(15),
     '-': () => size(0.9),
     '+': () => size(1 / 0.9),
     '=': () => size(1 / 0.9),
-    f: () => updateItem(d, it.id, { flip: !it.flip }),
-    PageUp: () => reorder(d, it.id, 'up'),
-    PageDown: () => reorder(d, it.id, 'down'),
+    f: () => each((it) => ({ flip: !it.flip })),
+    PageUp: () => reorderMany(d, ids, 'up'),
+    PageDown: () => reorderMany(d, ids, 'down'),
     Escape: () => {
-      selectedId.value = null;
+      select(null);
       return null;
     },
   };
@@ -242,11 +286,9 @@ function onKey(e: KeyboardEvent): void {
   e.preventDefault();
   const next = action();
   if (!next) return;
+  if (next === d) return;
   commit(next);
-  if (e.key === 'd') {
-    const i = next.items.findIndex((t) => t.id === it.id);
-    selectedId.value = next.items[i + 1]?.id ?? it.id;
-  }
+  if (copies.length) selectedIds.value = copies;
 }
 </script>
 
@@ -268,7 +310,7 @@ function onKey(e: KeyboardEvent): void {
       :style="sizeStyle"
       tabindex="0"
       role="application"
-      aria-label="Tile editor. N and P select the next and previous shape. Arrow keys move the selected shape."
+      aria-label="Tile editor. N and P select the next and previous shape. Arrow keys move the selected shapes. Control or Command A selects all."
       @pointerdown="onDown"
       @pointermove="onMove"
       @pointerup="onUp"
@@ -317,10 +359,11 @@ function onKey(e: KeyboardEvent): void {
         :height="o.side"
         :transform="`translate(${o.x} ${o.y}) rotate(${o.rotate})`"
       />
+      <rect v-if="marquee" class="marquee" :x="marquee.x" :y="marquee.y" :width="marquee.width" :height="marquee.height" />
       <circle v-if="handle" class="handle" data-handle :cx="handle.cx" :cy="handle.cy" :r="handle.r" />
     </svg>
     <p class="visually-hidden" aria-live="polite">{{ spoken }}</p>
-    <p class="stage-hint">Keys: N and P choose a shape, arrows move it. Drag to move. Drag the round handle to turn and resize. Shapes that cross an edge come back on the other side. With Snap on, hold Alt to drag freely.</p>
+    <p class="stage-hint">Keys: N and P choose a shape, arrows move the selection. Shift-click adds a shape; drag on empty space to select an area. Drag to move. Drag the round handle to turn and resize. Shapes that cross an edge come back on the other side. With Snap on, hold Alt to drag freely.</p>
   </div>
 </template>
 
@@ -374,6 +417,13 @@ function onKey(e: KeyboardEvent): void {
   fill: none;
   stroke: var(--accent);
   stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.marquee {
+  fill: rgba(0, 0, 0, 0.06);
+  stroke: var(--accent);
+  stroke-dasharray: 4 3;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }

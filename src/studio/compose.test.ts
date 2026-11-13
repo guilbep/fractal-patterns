@@ -5,7 +5,16 @@ import { PALETTES } from '../palettes.ts';
 import { layerColors, studioSvg, type Placement, type Repeat, type Studio } from './model.ts';
 import { MOTIF_FAMILIES, motifBounds } from './motifs.ts';
 import { torusDistance } from './scatter.ts';
-import { compose, composeColors, composeParts, composeSummary, latticeDistance, motifRadius, type ComposeOptions } from './compose.ts';
+import {
+  compose,
+  composeColors,
+  composeParts,
+  composeSummary,
+  latticeDistance,
+  motifRadius,
+  themeFamilies,
+  type ComposeOptions,
+} from './compose.ts';
 import type { Pt } from '../patterns/util.ts';
 import { createHash } from 'node:crypto';
 import { decodeStudio, designOptions } from './studio-share.ts';
@@ -652,4 +661,40 @@ test('custom ink shape: the even-odd rule and a long path reach the model', () =
   const s = compose({ ...o, custom: { shapes: [{ color: '#143c14', d: long }], box: 100, role: 'hero', keepColors: true } });
   assert.equal(s.motifs.filter((m) => m.d === long).length, 0);
   assert.equal(studioSvg(s), studioSvg(compose(o)));
+});
+
+test('themes sea and orchard: deterministic, safe, at most 14 motifs and 5 colors, 3 plants, nothing touches, own families', () => {
+  for (const theme of ['sea', 'orchard'] as const) {
+    const ids: string[] = themeFamilies(theme).map((f) => f.id);
+    for (const repeat of ['straight', 'half-drop'] as const)
+      for (const seed of [1, 2, 3, 4, 5, 6]) {
+        const at = `${theme} ${repeat} ${seed}`;
+        const o = opt(seed, { repeat, theme, families: ids as ComposeOptions['families'] });
+        const p = composeParts(o);
+        const s = p.studio;
+        assert.equal(studioSvg(s), studioSvg(compose(o)), at);
+        for (const m of s.motifs) assert.equal(safePathData(m.d), m.d, at);
+        assert.ok(s.motifs.length <= 14, at);
+        assert.ok(layerColors(s).length <= 5, at);
+        assert.ok(p.plants.length >= 3, `${at} ${p.plants.length} plants`);
+        assert.ok(p.families.length > 0 && p.families.every((f) => ids.includes(f)), at);
+        assertGap(p, repeat, at);
+      }
+  }
+});
+
+test('themes: one family allowed, at least 6 placements; ids of another theme are ignored', () => {
+  for (const [theme, fam] of [
+    ['sea', 'starfish'],
+    ['orchard', 'cherries'],
+  ] as const)
+    for (const seed of SEEDS) {
+      const p = composeParts(opt(seed, { theme, families: [fam] }));
+      assert.ok(p.families.length > 0 && p.families.every((f) => f === fam), `${theme} ${seed}`);
+      assert.ok(fills(p.studio).length >= 6, `${theme} ${seed}`);
+    }
+  // Only floral ids with the sea theme: the sea's first support family.
+  assert.ok(composeParts(opt(1, { theme: 'sea', families: ['leaf'] })).families.every((f) => f === 'kelp'));
+  // Without a theme, a sea id is ignored: the floral fallback (leaf).
+  assert.ok(composeParts(opt(1, { families: ['kelp'] })).families.every((f) => f === 'leaf'));
 });

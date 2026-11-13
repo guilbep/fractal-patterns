@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mulberry32 } from '../patterns/util.ts';
 import { PALETTES } from '../palettes.ts';
-import { compose } from './compose.ts';
+import { compose, THEMES, themeFamilies } from './compose.ts';
 import { studioSvg } from './model.ts';
 import { MOTIF_FAMILIES } from './motifs.ts';
 import { DEFAULT_DESIGN, decodeStudio, designOptions, encodeStudio, MAX_SEED, REPEATS, type StudioDesign } from './studio-share.ts';
@@ -10,8 +10,10 @@ import { DEFAULT_DESIGN, decodeStudio, designOptions, encodeStudio, MAX_SEED, RE
 test('50 seeded random designs survive a round trip', () => {
   const rnd = mulberry32(42);
   for (let i = 0; i < 50; i++) {
-    let families = MOTIF_FAMILIES.filter(() => rnd() < 0.5);
-    if (families.length === 0) families = [MOTIF_FAMILIES[i % MOTIF_FAMILIES.length]!];
+    const theme = THEMES[i % THEMES.length]!.id;
+    const all = themeFamilies(theme).map((f) => f.id);
+    let families = all.filter(() => rnd() < 0.5);
+    if (families.length === 0) families = [all[i % all.length]!];
     const d: StudioDesign = {
       seed: Math.floor(rnd() * MAX_SEED),
       palette: Math.floor(rnd() * PALETTES.length),
@@ -19,6 +21,7 @@ test('50 seeded random designs survive a round trip', () => {
       density: Math.round(rnd() * 100) / 100,
       size: 200 + 20 * Math.floor(rnd() * 16),
       stems: rnd() < 0.5,
+      theme,
       families,
     };
     assert.deepEqual(decodeStudio(encodeStudio(d)), d);
@@ -64,4 +67,27 @@ test('out-of-range values are clamped', () => {
 test('the page default is light: its SVG is under 20000 bytes', () => {
   const bytes = new TextEncoder().encode(studioSvg(compose(designOptions(DEFAULT_DESIGN)))).length;
   assert.ok(bytes < 20000, `${bytes} bytes`);
+});
+
+test('theme: round trip, absent is floral, unknown falls back to floral, old links unchanged', () => {
+  for (const { id } of THEMES) {
+    const d: StudioDesign = { ...DEFAULT_DESIGN, theme: id, families: themeFamilies(id).map((f) => f.id) };
+    assert.deepEqual(decodeStudio(encodeStudio(d)), d, id);
+    // Bit i is the theme's i-th family.
+    const two = { ...d, families: [d.families[0]!, d.families[2]!] };
+    assert.ok(encodeStudio(two).includes('f=5'), id);
+    assert.deepEqual(decodeStudio(encodeStudio(two)), two, id);
+  }
+  assert.equal(encodeStudio({ ...DEFAULT_DESIGN, theme: 'sea', families: themeFamilies('sea').map((f) => f.id) }), 't=s');
+  assert.equal(decodeStudio('s=3').theme, 'floral');
+  assert.equal(decodeStudio('t=o&f=1').families.join(), 'pear');
+  for (const h of ['t=x', 't=', 't=floral', 't=S']) assert.deepEqual(decodeStudio(h), DEFAULT_DESIGN, h);
+  // An old link decodes as before.
+  const old = decodeStudio('s=7&r=1&f=5');
+  assert.equal(old.theme, 'floral');
+  assert.deepEqual(old.families, [MOTIF_FAMILIES[0], MOTIF_FAMILIES[2]]);
+  assert.equal(encodeStudio(old), 's=7&r=1&f=5');
+  // Only the theme changed: a different string.
+  const base = decodeStudio('s=7&f=5');
+  assert.notEqual(encodeStudio({ ...base, theme: 'orchard' }), encodeStudio(base));
 });

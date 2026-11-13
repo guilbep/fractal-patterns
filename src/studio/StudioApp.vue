@@ -11,9 +11,8 @@ import { inkMask, traceInk } from './inktrace.ts';
 import { cropLines, traceLines } from './linetrace.ts';
 import { defaultsFor, inkColor, isSvgFile, ownShapes, pickMethod, type OwnMethod, type OwnShape } from './own-motif.ts';
 import { importSvg, type SvgImport } from './svg-import.ts';
-import { compose, composeSummary } from './compose.ts';
+import { compose, composeSummary, THEMES, themeFamilies, type Theme } from './compose.ts';
 import { INK_MAX_LENGTH, repeatCell, studioSvg, type Repeat } from './model.ts';
-import { MOTIF_FAMILIES, MOTIF_LABELS } from './motifs.ts';
 import { decodeStudio, designOptions, encodeStudio, MAX_SEED, SIZE_MAX, SIZE_MIN, SIZE_STEP } from './studio-share.ts';
 
 const LOGO_URI = svgToDataUri(logoSvg(LOGO_DEFAULT));
@@ -243,6 +242,17 @@ const onHash = () => Object.assign(design, decodeStudio(location.hash));
 onMounted(() => window.addEventListener('hashchange', onHash));
 onBeforeUnmount(() => window.removeEventListener('hashchange', onHash));
 
+const THEME_HINTS: Partial<Record<Theme, string>> = {
+  sea: 'Seaweed, coral, shells, starfish, fish, and bubbles.',
+  orchard: 'Fruit and blossom that hang from the branches.',
+};
+const families = computed(() => themeFamilies(design.theme));
+// A new theme starts with all six of its families on.
+function setTheme(t: Theme): void {
+  design.theme = t;
+  design.families = families.value.map((f) => f.id);
+}
+
 function shuffle(): void {
   design.seed = Math.floor(Math.random() * MAX_SEED);
 }
@@ -319,6 +329,13 @@ onBeforeUnmount(() => sizes.disconnect());
             </div>
           </div>
           <div class="field">
+            <label for="theme">Theme</label>
+            <select id="theme" :value="design.theme" :aria-describedby="THEME_HINTS[design.theme] ? 'theme-hint' : undefined" @change="setTheme(($event.target as HTMLSelectElement).value as Theme)">
+              <option v-for="t in THEMES" :key="t.id" :value="t.id">{{ t.label }}</option>
+            </select>
+            <p v-if="THEME_HINTS[design.theme]" id="theme-hint" class="hint-text">{{ THEME_HINTS[design.theme] }}</p>
+          </div>
+          <div class="field">
             <label for="palette">Palette</label>
             <select id="palette" v-model.number="design.palette">
               <option v-for="(p, i) in PALETTES" :key="p.name" :value="i">{{ p.name }}</option>
@@ -358,9 +375,9 @@ onBeforeUnmount(() => sizes.disconnect());
         <fieldset>
           <legend class="visually-hidden">Motif families (at least one)</legend>
           <div class="families">
-            <label v-for="f in MOTIF_FAMILIES" :key="f" class="radio">
-              <input v-model="design.families" type="checkbox" :value="f" :disabled="design.families.length === 1 && design.families.includes(f)">
-              {{ MOTIF_LABELS[f] }}
+            <label v-for="f in families" :key="f.id" class="radio">
+              <input v-model="design.families" type="checkbox" :value="f.id" :disabled="design.families.length === 1 && design.families.includes(f.id)">
+              {{ f.label }}
             </label>
           </div>
         </fieldset>

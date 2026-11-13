@@ -1,16 +1,18 @@
 // The studio design as a compact URL hash query: s seed, p palette index, r repeat, d density,
-// z tile size, st stems, f families bit mask. Only values that differ from the defaults are written.
+// z tile size, st stems, t theme (f floral, s sea, o orchard), f families bit mask (bit i: the theme's i-th family). Only values that differ from the defaults are written.
 import { PALETTES } from '../palettes.ts';
-import { composeColors, type ComposeOptions } from './compose.ts';
+import { composeColors, themeFamilies, type ComposeOptions, type Theme, type ThemeFamily } from './compose.ts';
 import type { Repeat } from './model.ts';
-import { MOTIF_FAMILIES, type MotifFamily } from './motifs.ts';
+import { MOTIF_FAMILIES } from './motifs.ts';
 
 export const REPEATS: readonly Repeat[] = ['straight', 'half-drop', 'brick', 'mirror'];
 export const MAX_SEED = 0xffffffff;
 export const SIZE_MIN = 200;
 export const SIZE_MAX = 500;
 export const SIZE_STEP = 20;
-const ALL_FAMILIES = (1 << MOTIF_FAMILIES.length) - 1;
+const ALL_FAMILIES = (1 << MOTIF_FAMILIES.length) - 1; // every theme has six families
+const THEME_KEYS: Readonly<Record<Theme, string>> = { floral: 'f', sea: 's', orchard: 'o' };
+const ids = (t: Theme): ThemeFamily[] => themeFamilies(t).map((f) => f.id);
 
 export interface StudioDesign {
   seed: number;
@@ -19,7 +21,8 @@ export interface StudioDesign {
   density: number;
   size: number;
   stems: boolean;
-  families: MotifFamily[];
+  theme: Theme;
+  families: ThemeFamily[];
 }
 
 export const DEFAULT_DESIGN: Readonly<StudioDesign> = {
@@ -29,10 +32,11 @@ export const DEFAULT_DESIGN: Readonly<StudioDesign> = {
   density: 0.4,
   size: 300,
   stems: true,
+  theme: 'floral',
   families: [...MOTIF_FAMILIES],
 };
 
-const mask = (fs: readonly MotifFamily[]): number => MOTIF_FAMILIES.reduce((m, f, i) => (fs.includes(f) ? m | (1 << i) : m), 0);
+const mask = (t: Theme, fs: readonly ThemeFamily[]): number => ids(t).reduce((m, f, i) => (fs.includes(f) ? m | (1 << i) : m), 0);
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
 const round2 = (v: number): number => Math.round(v * 100) / 100;
 
@@ -45,7 +49,8 @@ export function encodeStudio(d: StudioDesign): string {
   if (round2(d.density) !== D.density) q.set('d', String(round2(d.density)));
   if (d.size !== D.size) q.set('z', String(d.size));
   if (d.stems !== D.stems) q.set('st', d.stems ? '1' : '0');
-  const f = mask(d.families);
+  if (d.theme !== D.theme) q.set('t', THEME_KEYS[d.theme]);
+  const f = mask(d.theme, d.families);
   if (f !== ALL_FAMILIES) q.set('f', String(f));
   return q.toString();
 }
@@ -67,7 +72,8 @@ export function decodeStudio(hash: string): StudioDesign {
   const density = num('d');
   const size = int('z', SIZE_MIN, SIZE_MAX, D.size);
   const f = int('f', 0, ALL_FAMILIES, ALL_FAMILIES);
-  const families = MOTIF_FAMILIES.filter((_, i) => f & (1 << i));
+  const theme = (Object.keys(THEME_KEYS) as Theme[]).find((t) => THEME_KEYS[t] === q.get('t')) ?? D.theme;
+  const families = ids(theme).filter((_, i) => f & (1 << i));
   return {
     seed: int('s', 0, MAX_SEED, D.seed),
     palette: int('p', 0, PALETTES.length - 1, D.palette),
@@ -75,7 +81,8 @@ export function decodeStudio(hash: string): StudioDesign {
     density: density === null ? D.density : round2(clamp(density, 0, 1)),
     size: SIZE_MIN + Math.round((size - SIZE_MIN) / SIZE_STEP) * SIZE_STEP,
     stems: q.has('st') ? q.get('st') !== '0' : D.stems,
-    families: families.length > 0 ? families : [...MOTIF_FAMILIES],
+    theme,
+    families: families.length > 0 ? families : ids(theme),
   };
 }
 
@@ -87,6 +94,7 @@ export function designOptions(d: StudioDesign): ComposeOptions {
     repeat: d.repeat,
     density: d.density,
     families: d.families,
+    theme: d.theme,
     colors: composeColors(PALETTES[d.palette]?.colors ?? []),
     stems: d.stems,
   };

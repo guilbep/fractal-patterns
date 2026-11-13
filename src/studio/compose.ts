@@ -7,7 +7,9 @@ import { safePathData } from '../motifgrid.ts';
 import { mulberry32, type Pt } from '../patterns/util.ts';
 import type { Placement, Repeat, Studio, StudioLayer, StudioMotif } from './model.ts';
 import { INK_MAX_LENGTH, layerColors, studioBytes } from './model.ts';
-import { makeMotif, motifBounds, type MotifFamily } from './motifs.ts';
+import { makeMotif, MOTIF_FAMILIES, MOTIF_LABELS, motifBounds, type MotifFamily } from './motifs.ts';
+import { makeOrchardMotif, ORCHARD_FAMILIES, ORCHARD_LABELS, ORCHARD_ROLES, type OrchardFamily } from './motifs-orchard.ts';
+import { makeSeaMotif, SEA_FAMILIES, SEA_LABELS, SEA_ROLES, type SeaFamily } from './motifs-sea.ts';
 import { flowAngle } from './scatter.ts';
 
 export interface CustomShape {
@@ -28,8 +30,10 @@ export interface ComposeOptions {
   readonly repeat: Repeat;
   /** 0 to 1. */
   readonly density: number;
-  /** The motif families that may appear (at least one). */
-  readonly families: readonly MotifFamily[];
+  /** The motif families that may appear (at least one); ids of another theme are ignored. */
+  readonly families: readonly ThemeFamily[];
+  /** Default 'floral'. */
+  readonly theme?: Theme;
   readonly colors: {
     readonly background: string;
     readonly leaf: string;
@@ -63,14 +67,59 @@ export function motifRadius(m: StudioMotif): { radius: number; cx: number; cy: n
   };
 }
 
-// Motif pools: plant tips, supports along the stems, small motifs (branch ends and filler).
-const TIERS: readonly (readonly MotifFamily[])[] = [
-  ['flower', 'frond', 'leaf'],
-  ['leaf', 'sprig', 'bud'],
-  ['berry', 'bud'],
+export type Theme = 'floral' | 'sea' | 'orchard';
+export type ThemeFamily = MotifFamily | SeaFamily | OrchardFamily;
+export const THEMES: readonly { readonly id: Theme; readonly label: string }[] = [
+  { id: 'floral', label: 'Floral' },
+  { id: 'sea', label: 'Sea' },
+  { id: 'orchard', label: 'Orchard' },
 ];
+type Made = { silhouette: StudioMotif; detail: StudioMotif };
+// Per theme: its families and labels, its role pools (plant tips, supports along the stems, small motifs: branch ends and
+// filler), its motif maker, and the families whose silhouette takes the bloom color (the others take the leaf color).
+const THEME_TABLE: Record<
+  Theme,
+  {
+    families: readonly ThemeFamily[];
+    labels: Readonly<Record<string, string>>;
+    tiers: readonly (readonly ThemeFamily[])[];
+    make: (f: ThemeFamily, seed: number) => Made;
+    blooms: readonly ThemeFamily[];
+  }
+> = {
+  floral: {
+    families: MOTIF_FAMILIES,
+    labels: MOTIF_LABELS,
+    tiers: [
+      ['flower', 'frond', 'leaf'],
+      ['leaf', 'sprig', 'bud'],
+      ['berry', 'bud'],
+    ],
+    make: (f, seed) => makeMotif(f as MotifFamily, seed),
+    blooms: ['flower', 'bud', 'berry'],
+  },
+  sea: {
+    families: SEA_FAMILIES,
+    labels: SEA_LABELS,
+    tiers: [SEA_ROLES.hero, SEA_ROLES.support, SEA_ROLES.filler],
+    make: (f, seed) => makeSeaMotif(f as SeaFamily, seed),
+    blooms: ['coral', 'shell', 'starfish', 'fish', 'bubbles'],
+  },
+  orchard: {
+    families: ORCHARD_FAMILIES,
+    labels: ORCHARD_LABELS,
+    tiers: [ORCHARD_ROLES.hero, ORCHARD_ROLES.support, ORCHARD_ROLES.filler],
+    make: (f, seed) => makeOrchardMotif(f as OrchardFamily, seed),
+    blooms: ['pear', 'apple', 'cherries', 'lemon', 'blossom'],
+  },
+};
+
+/** The theme's six families, in order (bit i of the link's family mask is the i-th), with their labels. */
+export function themeFamilies(theme: Theme): { id: ThemeFamily; label: string }[] {
+  const t = THEME_TABLE[theme] ?? THEME_TABLE.floral;
+  return t.families.map((id) => ({ id, label: t.labels[id]! }));
+}
 const VARIANTS = 2; // ponytail: 2 per tier keeps 2 x 2 + 2 x 2 + 2 + 1 stem motif = 11 motifs.
-const BLOOMS: readonly MotifFamily[] = ['flower', 'bud', 'berry'];
 // A branch's stem may come closer than the stem distance to its host within this share of the side.
 const JUNCTION = 0.16;
 // The hero's largest radius, as a share of the side (0.12 x 1.1).
@@ -84,7 +133,7 @@ export interface ComposeParts {
   /** Hero placements (the tip motif of each plant), with motif indices into studio.motifs (the silhouettes). */
   readonly heroes: readonly Placement[];
   /** The family of each motif variant used: tip, support, small. */
-  readonly families: readonly MotifFamily[];
+  readonly families: readonly ThemeFamily[];
   readonly plants: readonly Plant[];
   /** Small motifs in the gaps between plants (silhouettes). */
   readonly filler: readonly Placement[];
@@ -200,13 +249,16 @@ function customBody(ds: readonly string[], union: string): number {
 }
 
 export function composeParts(o: ComposeOptions): ComposeParts {
-  const allowed = o.families.length > 0 ? o.families : (['leaf'] as const);
+  const theme = THEME_TABLE[o.theme ?? 'floral'] ?? THEME_TABLE.floral;
+  const own0 = o.families.filter((f) => theme.families.includes(f));
+  // None of the theme's: its first support family.
+  const allowed = own0.length > 0 ? own0 : [theme.tiers[1]![0]!];
   const { width: w, height: h, repeat } = o;
   const side = Math.min(w, h);
   const density = clamp01(o.density);
   const rnd = mulberry32(o.seed ^ 0x2c1b3c6d);
   const motifs: StudioMotif[] = [];
-  const families: MotifFamily[] = [];
+  const families: ThemeFamily[] = [];
   const customShapes = (o.custom?.shapes ?? []).flatMap((c) => {
     const d = safePathData(c.d, c.evenodd ? INK_MAX_LENGTH : undefined);
     return d
@@ -215,7 +267,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
   });
   const custom = o.custom && customShapes.length > 0 && o.custom.box > 0 ? { ...o.custom, shapes: customShapes } : null;
   let customVariant: Variant | null = null;
-  const variants = TIERS.map((pool, ti): Variant[] => {
+  const variants = theme.tiers.map((pool, ti): Variant[] => {
     if (custom && ((ti === 0 && custom.role !== 'support') || (ti === 1 && custom.role !== 'hero'))) {
       rnd(); // the same draws as a generated tier, so the rest of the layout stays as it was
       if (!customVariant) {
@@ -243,7 +295,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     const start = Math.floor(rnd() * fams.length);
     return Array.from({ length: VARIANTS }, (_, i) => {
       const fam = fams[(start + i) % fams.length]!;
-      const m = makeMotif(fam, o.seed * 97 + ti * 13 + i);
+      const m = theme.make(fam, o.seed * 97 + ti * 13 + i);
       families.push(fam);
       motifs.push(m.silhouette);
       // ponytail: small motifs (about 24 px) read as silhouettes; their detail would cost bytes, not looks.
@@ -252,7 +304,7 @@ export function composeParts(o: ComposeOptions): ComposeParts {
         sil: motifs.indexOf(m.silhouette),
         det: ti !== 2 ? motifs.length - 1 : null,
         radius: motifRadius(m.silhouette),
-        bloom: BLOOMS.includes(fam),
+        bloom: theme.blooms.includes(fam),
         box: m.silhouette.box,
         parts: null,
         body: motifRadius(m.silhouette).radius,

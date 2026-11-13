@@ -706,3 +706,19 @@ test('a rectangular second layer: --fp-size-2-y, its own background-size and dri
   assert.ok(s.includes('  background-size: var(--fp-size-2) var(--fp-size-2-y);'));
   assert.ok(s.includes('  to { background-position: var(--fp-size-2) var(--fp-size-2-y); }'));
 });
+
+test('second layer color: off keeps the pattern color in both tiles; on draws tile 2 in its own color', async () => {
+  const { generate } = await import('./fractal.ts');
+  for (const kind of ['tree', 'koch', 'hilbert'] as const) {
+    const tile = (seed: number, color: string) =>
+      generate({ kind, seed, size: 64, depth: 3, strokeWidth: 1, precision: 1, color, opacity: 0.6 });
+    const css = (color2: string) => exportCss({ ...L2_INPUT, svg: tile(1, '#336699'), second: { svg: tile(2, color2), tileSize: 101 } });
+    const off = css('#336699');
+    const on = css('#e07a5f');
+    const uri = (c: string) => svgToDataUri(tile(2, c));
+    assert.ok(off.includes(uri('#336699')) && !off.includes('e07a5f'), kind);
+    assert.ok(on.includes(uri('#e07a5f')) && !on.includes(uri('#336699')), kind);
+    assert.ok(on.includes(svgToDataUri(tile(1, '#336699'))), kind);
+    assert.equal(on.split('--fp-tile').length, off.split('--fp-tile').length, kind);
+  }
+});

@@ -1,21 +1,21 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import type { Roles } from '@/pairing.ts';
-import { fill, palette, roles, setFillColor, setRole } from '@/state.ts';
+import { fill, layer2Color, palette, roles, setFillColor, setLayer2Color, setRole } from '@/state.ts';
 
-// 'fill': the color of the filled closed shapes, kept outside the three roles.
-type Role = keyof Roles | 'fill';
+// 'fill': the color of the filled closed shapes; 'layer2': the second layer's own color. Both outside the three roles.
+type Role = keyof Roles | 'fill' | 'layer2';
 const props = defineProps<{ role: Role; label: string; hint: string }>();
 
 // Roles this role must not share a color with: same color hides the pattern or the text.
-const CLASHES: Record<Role, (keyof Roles)[]> = { background: ['pattern', 'text'], pattern: ['background'], text: ['background'], fill: ['background'] };
+const CLASHES: Record<Role, (keyof Roles)[]> = { background: ['pattern', 'text'], pattern: ['background'], text: ['background'], fill: ['background'], layer2: ['background'] };
 const NAMES: Record<keyof Roles, string> = { background: 'Background', pattern: 'Pattern', text: 'Text' };
 function usedBy(c: string): string | undefined {
   const k = CLASHES[props.role].find((o) => roles[o] === c);
   return k && NAMES[k];
 }
-const value = (r: Role): string => (r === 'fill' ? fill.color : roles[r]);
-const set = (r: Role, hex: string): void => (r === 'fill' ? setFillColor(hex) : setRole(r, hex));
+const value = (r: Role): string => (r === 'fill' ? fill.color : r === 'layer2' ? layer2Color.value : roles[r]);
+const set = (r: Role, hex: string): void => (r === 'fill' ? setFillColor(hex) : r === 'layer2' ? setLayer2Color(hex) : setRole(r, hex));
 
 const draft = ref(value(props.role));
 const invalid = ref(false);

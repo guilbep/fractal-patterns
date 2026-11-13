@@ -19,6 +19,8 @@ import {
   variantsOn,
   fade,
   layer2,
+  layer2Color,
+  layer2Own,
   layer2Settings,
   motion,
   params,
@@ -63,7 +65,8 @@ const exportInput = computed<ExportInput>(() => ({
     ? {
         second: {
           ...layer2Settings,
-          svg: svgForSeed((params.seed + 1) >>> 0),
+          // With its own color the second tile is drawn in it; else in the pattern color, byte-identical to before.
+          svg: svgForSeed((params.seed + 1) >>> 0, layer2Own.value ? layer2Color.value : roles.pattern),
           tileSize: scaledSecondSize(tileSize.value, layer2Settings.scale),
           // The second layer keeps the aspect of the first.
           ...(aspect.value !== 1 ? { tileHeight: tileHeight(scaledSecondSize(tileSize.value, layer2Settings.scale), aspect.value) } : {}),

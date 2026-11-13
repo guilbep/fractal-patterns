@@ -1,5 +1,5 @@
 import { blend, contrastRatio, relativeLuminance } from './contrast.ts';
-import { plateSurfaces, worstTextContrastSurfaces } from './fills.ts';
+import { plateSurfaces, surfaceColors } from './fills.ts';
 
 export interface Roles {
   readonly background: string;
@@ -8,7 +8,13 @@ export interface Roles {
 }
 // The roles with the fill of closed shapes, when on: one more surface under the text (fills.ts).
 // The functions below take Roles and spread them, so a fill passed in rides along to textWorst.
-export type FilledRoles = Roles & { readonly fill?: string | null; readonly fillOpacity?: number };
+// `second`: the second layer drawn in its own color at `strength` times the stroke opacity (absent = same color as the
+// pattern, which the spots model). It rides along the same way.
+export type FilledRoles = Roles & {
+  readonly fill?: string | null;
+  readonly fillOpacity?: number;
+  readonly second?: { readonly color: string; readonly strength: number } | null;
+};
 
 export interface Fix {
   readonly text: string;
@@ -25,15 +31,33 @@ const ONE: Spots = (o) => [o];
 // strokes and of the fill (a second layer carries the fill too), under a plate of opacity `plate`.
 // Without a fill it equals worstTextContrast at each spot, as before.
 export function textWorst(r: FilledRoles, opacity: number, plate: number, spots: Spots = ONE): number {
+  return Math.min(...textSurfaces(r, opacity, plate, spots).map((c) => contrastRatio(r.text, c)));
+}
+
+// Every color under the text, for WCAG here and APCA (apca.ts). With a second color, the strokes of the first layer
+// show at `opacity` alone, and the second layer (::after, painted over ::before) adds its color at opacity * strength
+// over each surface under it (background, fill) and over the first stroke on it: the crossing. The plate covers all.
+export function textSurfaces(r: FilledRoles, opacity: number, plate: number, spots: Spots = ONE): string[] {
   const fill = r.fill ?? null;
   const fillSpots = fill === null ? [0] : spots(r.fillOpacity ?? 1);
-  let worst = Infinity;
-  for (const x of spots(opacity))
+  const second = r.second ?? null;
+  const out: string[] = [];
+  for (const x of second ? [opacity] : spots(opacity))
+    for (const y of fillSpots)
+      out.push(
+        ...surfaceColors(plateSurfaces({ background: r.background, pattern: r.pattern, patternOpacity: x, fill, fillOpacity: y }, plate)),
+      );
+  if (second) {
+    const o2 = opacity * second.strength;
+    const k = Math.min(1, Math.max(0, plate));
     for (const y of fillSpots) {
-      const s = plateSurfaces({ background: r.background, pattern: r.pattern, patternOpacity: x, fill, fillOpacity: y }, plate);
-      worst = Math.min(worst, worstTextContrastSurfaces(r.text, s));
+      const unders = fill === null ? [r.background] : [r.background, blend(fill, r.background, y)];
+      for (const u of unders)
+        for (const c of [blend(second.color, u, o2), blend(second.color, blend(r.pattern, u, opacity), o2)])
+          out.push(blend(r.background, c, k));
     }
-  return worst;
+  }
+  return out;
 }
 export const worstAt = (r: FilledRoles, o: number, spots: Spots) => textWorst(r, o, 0, spots);
 

@@ -22,6 +22,7 @@ import {
 } from './pairing.ts';
 import { mulberry32 } from './patterns/util.ts';
 import { layerSpots } from './layers.ts';
+import { apcaWorst } from './apca.ts';
 
 const OPACITIES = [0.1, 0.4, 1];
 
@@ -333,4 +334,31 @@ test('fixWithFill: lowers the fill opacity first, and a reported fix reaches the
     }
   }
   assert.ok(lowered > 0);
+});
+
+test('a second layer color near the text lowers the worst contrast, over its own strokes and the crossing', () => {
+  const r = { background: '#ffffff', pattern: '#336699', text: '#222222' };
+  const o = 0.6;
+  const strength = 0.8;
+  const before = textWorst(r, o, 0, (x) => layerSpots(x, 2, strength));
+  const second = { color: '#333333', strength };
+  const after = textWorst({ ...r, second }, o, 0, (x) => layerSpots(x, 2, strength));
+  // Expected from the surfaces the CSS paints: ::after (second color) over ::before (pattern) over the background.
+  const alone = blend(second.color, r.background, o * strength);
+  const cross = blend(second.color, blend(r.pattern, r.background, o), o * strength);
+  const expected = Math.min(
+    contrastRatio(r.text, r.background),
+    contrastRatio(r.text, blend(r.pattern, r.background, o)),
+    contrastRatio(r.text, alone),
+    contrastRatio(r.text, cross),
+  );
+  assert.equal(after, expected);
+  assert.ok(after < before, `${after} < ${before}`);
+  // A full plate hides both layers.
+  assert.equal(
+    textWorst({ ...r, second }, o, 1, (x) => layerSpots(x, 2, strength)),
+    contrastRatio(r.text, r.background),
+  );
+  // APCA reads the same surfaces.
+  assert.ok(Math.abs(apcaWorst({ ...r, second }, o, 0)) < Math.abs(apcaWorst(r, o, 0)));
 });

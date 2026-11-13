@@ -10,6 +10,8 @@ import {
   fill,
   lastFix,
   layer2,
+  layer2Color,
+  layer2Own,
   layer2Settings,
   layout,
   motion,
@@ -55,6 +57,7 @@ export function snapshot(): Design {
     variantOptions: { ...variantOptions },
     sections: sections.value,
     fill: { ...fill },
+    layer2Color: layer2Own.value ? layer2Color.value : null,
   };
 }
 
@@ -80,6 +83,8 @@ export function applyDesign(d: Design): void {
   Object.assign(variantOptions, d.variantOptions);
   sections.value = d.sections;
   Object.assign(fill, d.fill);
+  layer2Own.value = d.layer2Color !== null;
+  if (d.layer2Color !== null) layer2Color.value = d.layer2Color;
   source.value = 'math';
   lastFix.value = null; // the Fix result no longer describes these colors
 }

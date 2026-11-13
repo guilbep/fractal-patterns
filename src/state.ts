@@ -66,6 +66,10 @@ export const fill = reactive<{ -readonly [K in keyof FillStyle]: FillStyle[K] }>
   color: softOf(DEFAULT_PALETTE),
   opacity: 1,
 });
+// The second layer's own color, used only when layer2Own is on; it follows the palette's accent (the 4th).
+const accentOf = (p: Palette | null): string => p?.colors[3] ?? '#e07a5f';
+export const layer2Own = ref(false);
+export const layer2Color = ref(accentOf(DEFAULT_PALETTE));
 // The last random palette, kept so the fill color and the off-palette note work while it is selected.
 const randomColors = ref<Palette | null>(null);
 export const palette = computed(
@@ -237,13 +241,13 @@ function tileFor(seed: number): Tile {
   return spacing.gap > 0 ? withGap(polys, size, spacing.gap) : { polys, size };
 }
 const tile = computed(() => tileFor(params.seed));
-const tileSvg = (t: Tile) =>
+const tileSvg = (t: Tile, color = roles.pattern) =>
   fillOn.value
     ? sceneToSvg(
-        fillScene(t.polys, { size: t.size, strokeWidth: params.strokeWidth, color: roles.pattern, opacity: opacity.value }, fill),
+        fillScene(t.polys, { size: t.size, strokeWidth: params.strokeWidth, color, opacity: opacity.value }, fill),
         params.precision,
       )
-    : svgFromPolylines(t.polys, { ...params, size: t.size, color: roles.pattern, opacity: opacity.value }, aspect.value, t.extra);
+    : svgFromPolylines(t.polys, { ...params, size: t.size, color, opacity: opacity.value }, aspect.value, t.extra);
 // Fills need plain polylines: not the variants super tile, not the curve tile, not a kind with a raw `extra` path.
 export const fillAvailable = computed(() => !variantsOn.value && !curvesOn.value && aspect.value === 1);
 const fillOn = computed(() => fill.mode !== 'none' && fillAvailable.value);
@@ -270,6 +274,9 @@ const curveSvg = computed(() =>
       })
     : null,
 );
+// The curve tile in another color: the color sits only in the root stroke attribute.
+// ponytail: string swap on the generated tile, the tracer has no cheap re-color.
+const recolor = (svg: string, color: string): string => svg.replace(`stroke="${roles.pattern}"`, `stroke="${color}"`);
 // The measured cost shown under the checkbox: the curve tile against the straight tile with the same settings.
 export const curveBytes = computed(() =>
   curveSvg.value === null ? null : { svg: rawSize(curveSvg.value), plain: rawSize(tileSvg(tile.value)) },
@@ -286,7 +293,7 @@ export function resetVariants(): void {
 export const variantsOn = computed(() =>
   variantsActive({ variants: variants.value, kind: params.kind, layout: layout.value, usingImage: usingImage.value }),
 );
-const superOptions = (seed: number) => ({ ...params, ...variantOptions, seed, color: roles.pattern, opacity: opacity.value });
+const superOptions = (seed: number, color = roles.pattern) => ({ ...params, ...variantOptions, seed, color, opacity: opacity.value });
 // The measured cost shown under the switch: the super tile against one plain tile.
 export const variantBytes = computed(() => (variantsOn.value ? superTileBytes(superOptions(params.seed)) : null));
 
@@ -294,10 +301,11 @@ export const tileSize = computed(() =>
   variantsOn.value ? variantTile(superOptions(params.seed)).size : curveSvg.value !== null ? params.size : tile.value.size,
 );
 // The tile for any seed with the current settings; a traced image gives the same tile for every seed.
-export function svgForSeed(seed: number): string {
-  if (variantsOn.value) return variantTile(superOptions(seed)).svg;
-  if (curveSvg.value !== null) return curveSvg.value;
-  return tileSvg(seed === params.seed ? tile.value : tileFor(seed));
+// `color` draws the strokes in another color (the second layer's own color).
+export function svgForSeed(seed: number, color = roles.pattern): string {
+  if (variantsOn.value) return variantTile(superOptions(seed, color)).svg;
+  if (curveSvg.value !== null) return recolor(curveSvg.value, color);
+  return tileSvg(seed === params.seed ? tile.value : tileFor(seed), color);
 }
 export const svg = computed(() => svgForSeed(params.seed));
 // Against repetition, for every source: a second copy at a coprime size, and a soft CSS fade.
@@ -371,6 +379,7 @@ const checkedRoles = computed(() => ({
   ...roles,
   fill: fillOn.value && closedShapes.value > 0 ? fill.color : null,
   fillOpacity: fill.opacity,
+  second: layer2.value && layer2Own.value ? { color: layer2Color.value, strength: layer2Settings.opacity } : null,
 }));
 
 export const contrast = computed(() => {
@@ -454,6 +463,11 @@ export function setRole(role: keyof Roles, hex: string): void {
   setRoles({ ...roles, [role]: hex.toLowerCase() });
 }
 
+export function setLayer2Color(hex: string): void {
+  lastFix.value = null;
+  layer2Color.value = hex.toLowerCase();
+}
+
 export function setFillColor(hex: string): void {
   lastFix.value = null;
   fill.color = hex.toLowerCase();
@@ -464,6 +478,7 @@ export function applyPalette(p: Palette): void {
   lastFix.value = null;
   paletteName.value = p.name;
   fill.color = softOf(p);
+  layer2Color.value = accentOf(p);
   setRoles(paletteRoles(p.colors));
 }
 
@@ -520,6 +535,7 @@ export function reset(): void {
   variants.value = false;
   resetVariants();
   layer2.value = false;
+  layer2Own.value = false;
   resetLayer2();
   fade.value = false;
   parallax.value = false;

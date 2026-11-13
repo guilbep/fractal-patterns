@@ -10,6 +10,7 @@ import { canVary, superTileSvg } from '@/supertile.ts';
 import {
   fade,
   layer2,
+  layer2Own,
   layer2Settings,
   parallax,
   params,
@@ -25,6 +26,7 @@ import {
   variantsOn,
 } from '@/state.ts';
 import { parallaxDemoCss } from '@/state-export.ts';
+import RoleInput from '@/components/RoleInput.vue';
 import type { VariantOptions } from '@/variants.ts';
 
 const applies = computed(() => optionsFor(params.kind));
@@ -139,6 +141,8 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
     </p>
     <div v-if="layer2" class="layer2-group" role="group" aria-labelledby="layer2-h">
       <h3 id="layer2-h">Second layer</h3>
+      <label class="radio"><input id="layer2-own" v-model="layer2Own" type="checkbox"> Own color for the second layer</label>
+      <RoleInput v-if="layer2Own" role="layer2" label="Second layer" hint="the second layer strokes" />
       <div class="fields">
         <div class="field">
           <label for="l2-x">Shift right <output for="l2-x">{{ layer2Settings.x }}%</output></label>

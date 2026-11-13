@@ -116,7 +116,7 @@ Reduce repetition puts several seeded variants of the kind into one larger tile.
 | Mix two depths | Draws half of the variants one depth lower. | Carpet, Tree, Folded curve, H-tree, Curve stitching, Whirl, Dot grid |
 | Shift and scale | A small shift and size change per cell. | Carpet, Tree, Folded curve, H-tree, Curve stitching, Whirl |
 
-Second layer adds a second copy of the tile on top of the first. Its size is coprime with the first size, so the two layers together repeat only at a much larger distance. Two whole numbers are coprime if no number above 1 divides both. The panel gives that distance. The controls:
+Second layer adds a second copy of the tile on top of the first. Its size is coprime with the first size, so the two layers together repeat only at a much larger distance. Two whole numbers are coprime if no number above 1 divides both. The panel gives that distance. "Own color for the second layer" draws the second layer in its own color; a palette sets it to its accent color. The second tile then has its own data URI, so the export grows a little. The contrast check also counts the second color alone and where it crosses the first layer. The color vision panel does not show the second color yet. The controls:
 
 - Shift right and Shift down: 0 to 100% of the second tile.
 - Turn: -180 to 180 degrees.
@@ -292,6 +292,7 @@ The hash writes only the values that differ from the default. The key `fi` holds
 | `px` | Parallax on scroll, `1` or `0` | `0` |
 | `fd` | Soft fade, `1` or `0` | `0` |
 | `sx` | Different angle per section, `1` or `0` | `0` |
+| `l2c` | Own color of the second layer, without `#`; written only when it is on | absent (the pattern color) |
 
 The page reads the hash as untrusted input. A missing or broken value takes its default, and a number outside its range is clamped. The older keys keep their meaning, so older links still work.
 

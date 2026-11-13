@@ -36,6 +36,7 @@ export interface Design extends Motion {
   readonly variantOptions: VariantOptions; // strength and per-cell options of Reduce repetition
   readonly sections: boolean; // export-only helper classes that turn the pattern per section
   readonly fill: FillStyle; // closed shapes filled with a second color
+  readonly layer2Color: string | null; // the second layer's own color; null = the pattern color
 }
 // Not in the URL: pinned patchwork cells (a per-session tweak), the palette name (the roles carry the colors),
 // and the image source (the pixels never leave the browser).
@@ -73,6 +74,7 @@ export const DESIGN_DEFAULTS: Design = {
   variantOptions: VARIANT_DEFAULTS,
   sections: false,
   fill: { mode: 'none', color: '#c3eaec', opacity: 1 },
+  layer2Color: null,
 };
 
 // Field to short key. The insertion order is the order of the encoded string.
@@ -111,7 +113,8 @@ const KEYS: Readonly<Record<keyof Design, string>> = {
   parallax: 'px',
   variantOptions: 'vo',
   sections: 'sx',
-  fill: 'fi', // keep new keys last: older links stay valid
+  fill: 'fi',
+  layer2Color: 'l2c', // keep new keys last: older links stay valid
 };
 const FIELDS = Object.keys(KEYS) as (keyof Design)[];
 
@@ -203,7 +206,7 @@ export function encodeDesign(d: Design): string {
       continue;
     }
     const v = d[f];
-    if (v === DESIGN_DEFAULTS[f]) continue;
+    if (v === DESIGN_DEFAULTS[f] || v === null) continue;
     pairs.push([KEYS[f], typeof v === 'boolean' ? (v ? '1' : '0') : typeof v === 'number' ? String(v) : v.replace(/^#/, '')]);
   }
   return new URLSearchParams(pairs).toString();
@@ -267,6 +270,7 @@ export function decodeDesign(query: string): Design {
     variantOptions: decodeVO(get('variantOptions')),
     sections: bool('sections'),
     fill: decodeFill(get('fill')),
+    layer2Color: /^[0-9a-f]{6}$/i.test(get('layer2Color')) ? `#${get('layer2Color').toLowerCase()}` : null,
   };
 }
 

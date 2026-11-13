@@ -10,6 +10,7 @@ export interface PreviewCard {
   readonly group: CardGroup;
   readonly label: string;
   readonly options: VariantOptions;
+  readonly example?: boolean; // a slider at 0 previews a demonstration value instead, captioned "example"
 }
 
 // The option fields each group changes.
@@ -29,7 +30,15 @@ const DROPS = [
   { drop: 'brick', label: 'Brick' },
 ] as const;
 
-// At most 12 cards: 4 strengths, 2 toggles, 3 offsets, 3 sliders (each shown at its current value).
+// A slider at 0 would preview the same picture as the others: it shows this value instead.
+export const SLIDER_EXAMPLES = { jitter: 1, weights: 1, skip: 0.25 } as const;
+const SLIDERS = [
+  ['jitter', 'Shift and scale'],
+  ['weights', 'Line weight'],
+  ['skip', 'Empty cells'],
+] as const;
+
+// At most 12 cards: 4 strengths, 2 toggles, 3 offsets, 3 sliders (each at its current value, or its example value at 0).
 export function previewOptions(current: VariantOptions, kind: Kind): PreviewCard[] {
   const a = optionsFor(kind);
   if (!a.variants) return [];
@@ -43,8 +52,10 @@ export function previewOptions(current: VariantOptions, kind: Kind): PreviewCard
   if (a.depths) cards.push({ id: 'depths', group: 'depths', label: 'Mix two depths', options: { ...current, depths: true } });
   if (a.drop)
     for (const d of DROPS) cards.push({ id: `drop-${d.drop}`, group: 'drop', label: d.label, options: { ...current, drop: d.drop } });
-  if (a.jitter) cards.push({ id: 'jitter', group: 'jitter', label: 'Shift and scale', options: { ...current } });
-  if (a.weights) cards.push({ id: 'weights', group: 'weights', label: 'Line weight', options: { ...current } });
-  if (a.skip) cards.push({ id: 'skip', group: 'skip', label: 'Empty cells', options: { ...current } });
+  for (const [key, label] of SLIDERS)
+    if (a[key]) {
+      const example = current[key] === 0;
+      cards.push({ id: key, group: key, label, options: { ...current, [key]: example ? SLIDER_EXAMPLES[key] : current[key] }, example });
+    }
   return cards;
 }

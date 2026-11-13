@@ -11,7 +11,6 @@ import {
   fade,
   layer2,
   layer2Settings,
-  opacity,
   parallax,
   params,
   resetLayer2,
@@ -33,10 +32,12 @@ const percent = (e: Event) => Number((e.target as HTMLInputElement).value) / 100
 const possible = computed(() => !usingImage.value && canVary(params.kind));
 
 // Previews: drawn in black at a small cell size and colored by CSS masks, so colors never rebuild them.
+// The stroke is about 1.6 px in the 120 px picture, whatever the cell count, so the picture reads.
 const CELL = 20;
+const PIC_PX = 120;
 const cache = new Map<string, string>(); // ponytail: unbounded, holds one entry per picture seen this session
 function picture(o: VariantOptions): string {
-  const opts = { ...params, ...o, size: CELL, strokeWidth: (params.strokeWidth * CELL) / params.size, color: '#000000', opacity: 1 };
+  const opts = { ...params, ...o, size: CELL, strokeWidth: (1.6 * o.cells * CELL) / PIC_PX, color: '#000000', opacity: 1 };
   const key = JSON.stringify(opts);
   let url = cache.get(key);
   if (url === undefined) {
@@ -47,8 +48,9 @@ function picture(o: VariantOptions): string {
 }
 const cards = computed(() => (variantsOn.value ? previewOptions({ ...variantOptions }, params.kind) : []));
 const pics = computed(() => new Map(cards.value.map((c) => [c.id, picture(c.options)])));
+const example = (id: string) => cards.value.find((c) => c.id === id)?.example;
 const group = (g: string) => cards.value.filter((c) => c.group === g);
-const panelVars = computed(() => ({ '--rp-fg': roles.pattern, '--rp-bg': roles.background, '--rp-op': String(opacity.value) }));
+const panelVars = computed(() => ({ '--rp-fg': roles.pattern, '--rp-bg': roles.background }));
 
 const size2 = computed(() => scaledSecondSize(tileSize.value, layer2Settings.scale));
 const repeat = computed(() => repeatDistance(tileSize.value, size2.value));
@@ -71,9 +73,8 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
         </template>
       </p>
     </template>
-    <div v-if="possible && variantsOn" class="variants-group" role="group" aria-labelledby="variants-h" :style="panelVars">
-      <h3 id="variants-h">Variants</h3>
-      <fieldset id="v-strength" class="fields">
+    <div v-if="possible && variantsOn" class="variants-group" role="group" aria-label="Variants" :style="panelVars">
+      <fieldset id="v-strength">
         <legend>Strength</legend>
         <div class="rep-cards">
           <label v-for="c in group('strength')" :key="c.id" class="rep-card">
@@ -91,7 +92,7 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
           <span v-else id="v-depths-hint" class="hint-text">Half of the variants are drawn one depth lower.</span>
         </label>
       </div>
-      <fieldset v-if="applies.drop" id="v-drop" class="fields" aria-describedby="v-drop-hint">
+      <fieldset v-if="applies.drop" id="v-drop" aria-describedby="v-drop-hint">
         <legend>Offset</legend>
         <p id="v-drop-hint" class="hint-text">Shifts every second column or row by half a cell, which hides the square grid.</p>
         <div class="rep-cards">
@@ -102,7 +103,7 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
         </div>
       </fieldset>
       <div v-if="applies.jitter" class="rep-slider">
-        <span class="rep-pic" aria-hidden="true"><span :style="{ '--pic': pics.get('jitter') }"></span></span>
+        <span class="rep-slider-pic"><span class="rep-pic" aria-hidden="true"><span :style="{ '--pic': pics.get('jitter') }"></span></span><span v-if="example('jitter')" class="hint-text">example</span></span>
         <div class="field">
           <label for="v-jitter">Shift and scale <output for="v-jitter">{{ Math.round(variantOptions.jitter * 100) }}%</output></label>
           <input id="v-jitter" :value="Math.round(variantOptions.jitter * 100)" type="range" min="0" max="100" step="1" aria-describedby="v-jitter-hint" @input="variantOptions.jitter = percent($event)">
@@ -110,7 +111,7 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
         </div>
       </div>
       <div v-if="applies.weights" class="rep-slider">
-        <span class="rep-pic" aria-hidden="true"><span :style="{ '--pic': pics.get('weights') }"></span></span>
+        <span class="rep-slider-pic"><span class="rep-pic" aria-hidden="true"><span :style="{ '--pic': pics.get('weights') }"></span></span><span v-if="example('weights')" class="hint-text">example</span></span>
         <div class="field">
           <label for="v-weights">Line weight <output for="v-weights">{{ Math.round(variantOptions.weights * 100) }}%</output></label>
           <input id="v-weights" :value="Math.round(variantOptions.weights * 100)" type="range" min="0" max="100" step="1" aria-describedby="v-weights-hint" @input="variantOptions.weights = percent($event)">
@@ -118,7 +119,7 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
         </div>
       </div>
       <div v-if="applies.skip" class="rep-slider">
-        <span class="rep-pic" aria-hidden="true"><span :style="{ '--pic': pics.get('skip') }"></span></span>
+        <span class="rep-slider-pic"><span class="rep-pic" aria-hidden="true"><span :style="{ '--pic': pics.get('skip') }"></span></span><span v-if="example('skip')" class="hint-text">example</span></span>
         <div class="field">
           <label for="v-skip">Empty cells <output for="v-skip">{{ Math.round(variantOptions.skip * 100) }}%</output></label>
           <input id="v-skip" :value="Math.round(variantOptions.skip * 100)" type="range" min="0" max="50" step="1" aria-describedby="v-skip-hint" @input="variantOptions.skip = percent($event)">

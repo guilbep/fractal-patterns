@@ -49,8 +49,25 @@ function onLibKey(e: KeyboardEvent): void {
 }
 
 // Reads the seed, never the colors: a color change only updates the custom properties below.
+// In All, a seed change draws the current kind's family at once and the rest when the browser is idle;
+// until then the other families keep their last pictures.
+const restReady = ref(true);
+watch(
+  () => params.seed,
+  () => {
+    if (libTab.value !== 'all') return;
+    restReady.value = false;
+    const done = () => (restReady.value = true);
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(done);
+    else setTimeout(done);
+  },
+);
+const shown = new Map<Kind, string>(); // the last mask drawn per kind
 const groups = computed(() => {
-  const items = previews(kindsForTab(libTab.value));
+  const kinds = kindsForTab(libTab.value);
+  const now = restReady.value ? kinds : kinds.filter((k) => KIND_FAMILY[k] === KIND_FAMILY[params.kind] || !shown.has(k));
+  for (const p of previews(now)) shown.set(p.kind, p.mask);
+  const items = kinds.map((kind) => ({ kind, mask: shown.get(kind)! }));
   return FAMILIES.map((family) => ({ family, items: items.filter((p) => KIND_FAMILY[p.kind] === family) })).filter((g) => g.items.length);
 });
 // The Patchwork details open by themselves when patchwork turns on, and never close by themselves.

@@ -789,27 +789,8 @@ dd {
 .gallery {
   margin-bottom: var(--s4);
 }
-.family-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s1) var(--s3);
-}
-.family-links button {
-  font: inherit;
-  color: var(--accent);
-  background: none;
-  border: 0;
-  padding: 0;
-  text-decoration: underline;
-  text-underline-offset: 0.15em;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.75rem;
-}
 .family-h {
   margin: var(--s3) 0 var(--s2);
-  scroll-margin-top: var(--s3);
 }
 .family-h .muted {
   font-weight: 400;

@@ -88,3 +88,68 @@
   border-radius: 50%;
   background: currentColor;
 }
+
+/* Toolbar: the stats (palette, contrast, CO2) are one unit. It shares row one when everything fits,
+   else it forms row two as a whole. Compact padding keeps two rows under 96 px at 1280 px. */
+.shell-header + .toolbar {
+  row-gap: var(--s1);
+  padding-block: var(--s1);
+}
+.toolbar > .bar-stats {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.bar-stats .stat {
+  white-space: nowrap;
+}
+.stat-short {
+  display: none;
+}
+@media (max-width: 599.98px) {
+  /* Phones: one stats row, short contrast text; the long one stays for screen readers. */
+  .stat-short {
+    display: inline;
+  }
+  .stat-long {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .bar-stats .stat {
+    padding-inline: var(--s1);
+  }
+  .palette-strip .swatch {
+    width: 0.75rem;
+  }
+}
+@media (min-width: 64rem) {
+  .toolbar > .bar-stats {
+    display: flex;
+    flex: none;
+  }
+  /* The preview stays in view under the toolbar while the controls scroll. */
+  .layout > .stage {
+    position: sticky;
+    top: var(--bar-h, 0px);
+    height: min(56rem, calc(100vh - var(--bar-h, 0px)));
+  }
+}
+
+/* The R shortcut: one line at the end of the Pattern tab, hidden where a keyboard is unlikely. */
+.shortcut-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--s2);
+}
+.shortcut-line .hint {
+  margin: 0;
+}
+@media (hover: none) {
+  .shortcut-line {
+    display: none;
+  }
+}

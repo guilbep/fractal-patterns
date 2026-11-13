@@ -157,11 +157,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     <button type="button" class="btn" @click="copyLink">Copy link</button>
     </div>
     <div class="bar-stats">
+    <PaletteStrip />
     <span class="stat" :class="contrast.normal !== 'fail' ? 'ok' : 'bad'">
       <span aria-hidden="true">{{ contrast.normal !== 'fail' ? '✓' : '✗' }}</span>
-      Contrast {{ ratioText(contrast.worst) }}:1 {{ contrast.normal !== 'fail' ? 'AA pass' : 'AA fail' }}
+      <span class="stat-long">Contrast {{ ratioText(contrast.worst) }}:1 {{ contrast.normal !== 'fail' ? 'AA pass' : 'AA fail' }}</span>
+      <span class="stat-short" aria-hidden="true">{{ ratioText(contrast.worst) }}:1 AA</span>
     </span>
-    <PaletteStrip />
     <span class="stat" :title="footprintFull()"><span aria-hidden="true">{{ footprintText() }}</span><span class="visually-hidden">{{ footprintFull() }}</span></span>
     </div>
     <span class="visually-hidden" role="status" aria-live="polite">{{ copyStatus }}</span>
@@ -188,11 +189,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <button v-for="t in TABS" :id="`tab-${t.id}`" :key="t.id" type="button" role="tab" class="tab" :aria-selected="tab === t.id" :aria-controls="`panel-${t.id}`" :tabindex="tab === t.id ? 0 : -1" @click="tab = t.id">{{ t.label }}<span v-if="t.id === 'repetition' && (variantsOn || layer2)" class="tab-on"><span aria-hidden="true"></span><span class="visually-hidden">on</span></span></button>
       </div>
       <div v-show="tab === 'pattern'" id="panel-pattern" class="tabpanel" role="tabpanel" aria-labelledby="tab-pattern">
-        <div class="panel shortcut">
-          <label class="radio"><input v-model="shortcutOn" type="checkbox"> Keyboard shortcut: R shuffles</label>
-          <p class="muted hint">{{ usingImage ? 'Shuffle applies to math patterns only.' : '' }}<template v-if="!usingImage && shortcutOn">Or click the pattern, or press <kbd>R</kbd>.</template><template v-else-if="!usingImage">Or click the pattern.</template></p>
-        </div>
         <PatternPanel />
+        <div class="shortcut-line">
+          <label class="radio"><input v-model="shortcutOn" type="checkbox"> Keyboard shortcut: R shuffles</label>
+          <span class="muted hint">{{ usingImage ? 'Shuffle applies to math patterns only.' : '' }}<template v-if="!usingImage && shortcutOn">Or click the pattern, or press <kbd>R</kbd>.</template><template v-else-if="!usingImage">Or click the pattern.</template></span>
+        </div>
       </div>
       <div v-show="tab === 'repetition'" id="panel-repetition" class="tabpanel" role="tabpanel" aria-labelledby="tab-repetition">
         <RepetitionPanel v-if="tab === 'repetition'" />

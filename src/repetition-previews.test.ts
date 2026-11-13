@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { GROUP_FIELDS, previewOptions } from './repetition-previews.ts';
+import { GROUP_FIELDS, SLIDER_EXAMPLES, previewOptions } from './repetition-previews.ts';
 import { STRENGTHS, VARIANT_DEFAULTS, type VariantOptions } from './variants.ts';
 
 const current: VariantOptions = { ...VARIANT_DEFAULTS, jitter: 0.3, weights: 0.2, skip: 0.1 };
@@ -38,4 +38,17 @@ test('each card changes only the field it names', () => {
     }
   const orient = previewOptions(current, 'carpet').find((c) => c.id === 'orient')!;
   assert.equal(orient.options.orient, true);
+});
+
+test('a slider at 0 previews its example value, captioned; above 0 its own value, no caption', () => {
+  const zero = previewOptions({ ...current, jitter: 0, weights: 0, skip: 0 }, 'carpet');
+  for (const key of ['jitter', 'weights', 'skip'] as const) {
+    const c = zero.find((x) => x.id === key)!;
+    assert.equal(c.options[key], SLIDER_EXAMPLES[key]);
+    assert.equal(c.example, true);
+    const set = previewOptions(current, 'carpet').find((x) => x.id === key)!;
+    assert.equal(set.options[key], current[key]);
+    assert.equal(set.example, false);
+  }
+  assert.deepEqual(SLIDER_EXAMPLES, { jitter: 1, weights: 1, skip: 0.25 });
 });

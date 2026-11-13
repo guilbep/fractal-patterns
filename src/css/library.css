@@ -49,3 +49,8 @@
   align-items: center;
   font-weight: 700;
 }
+/* Off-screen families in the All tab skip layout and paint. */
+.family {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 16rem;
+}

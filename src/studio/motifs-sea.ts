@@ -149,13 +149,13 @@ const rngFor = (family: SeaFamily, seed: number) =>
 function kelp(seed: number): Raw {
   const rnd = rngFor('kelp', seed);
   const len = 100;
-  const bends = 2 + Math.floor(rnd() * 2);
-  const amp = range(rnd, 9, 13);
+  const bends = 3 + Math.floor(rnd() * 2); // 3 or 4 half-waves along the blade
+  const amp = range(rnd, 15, 19);
   const ph = range(rnd, 0, TAU);
   const W = range(rnd, 12, 16);
-  const axis = (s: number): Pt => [amp * Math.sin((bends * Math.PI * s) / 2 + ph) * Math.sqrt(s), -s * len];
+  const axis = (s: number): Pt => [amp * Math.sin(bends * Math.PI * s + ph) * Math.sqrt(s), -s * len];
   const width = (s: number) => W * (0.35 + 0.9 * Math.sin(Math.PI * s));
-  const N = 7;
+  const N = 12;
   const ss = Array.from({ length: N + 1 }, (_, i) => (0.92 * i) / N);
   const side = (sg: number) =>
     ss.map((s): Pt => {
@@ -177,7 +177,7 @@ function kelp(seed: number): Raw {
     const s = 0.12 + (0.6 * i) / n + range(rnd, 0, 0.06);
     const sg = (i % 2 ? 1 : -1) * flip;
     const a = axis(s);
-    const br = range(rnd, 4.5, 6);
+    const br = range(rnd, 6.5, 8.5);
     fill.push(circle([a[0] + sg * (width(s) + br * 0.5), a[1]], br));
   }
   const det: Item[] = [{ c: through(Array.from({ length: 6 }, (_, i) => axis(0.04 + (0.84 * i) / 5))) }];

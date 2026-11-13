@@ -233,9 +233,11 @@ test('plants: tip and alternating supports registered on their stems, stems apar
   // Measured over 4 repeats x 8 seeds (ticket X5, 122 plants, was 115): 0.951 with a hero (was 0.948), 0.902 with 2
   // supports (was 0.896), 0.811 on both sides (was 0.826). Floors: the measured shares rounded down to 0.05 (were 0.9,
   // 0.85, 0.8).
-  assert.ok(twoSupports / total >= 0.9, `supports ${twoSupports / total}`);
+  // Ticket F-STUDIO (retries for plants that did not fit add short late plants): 0.896 with 2 supports; floor was 0.9.
+  assert.ok(twoSupports / total >= 0.85, `supports ${twoSupports / total}`);
   assert.ok(bothSides / total >= 0.8, `sides ${bothSides / total}`);
-  assert.ok(heroes / total >= 0.95, `heroes ${heroes / total}`);
+  // Ticket F-STUDIO: 0.936 with a hero after the late plant retries; floor was 0.95.
+  assert.ok(heroes / total >= 0.9, `heroes ${heroes / total}`);
   assert.ok(endsInMotif / total >= 0.95, `ends ${endsInMotif / total}`);
 });
 
@@ -548,6 +550,18 @@ test('custom scale absent or 1: the same SVG as before (sha-256 prefixes)', () =
       }
 });
 
+test('density 0.9: at least 90 percent of the planned plants are placed', () => {
+  // Measured over 3 themes x 4 repeats x seeds 1..20: 90.2% before ticket F-STUDIO, 95.9% after. Floor with a margin.
+  let placed = 0;
+  let planned = 0;
+  for (const theme of ['floral', 'sea', 'orchard'] as const)
+    for (const repeat of REPEATS)
+      for (let seed = 1; seed <= 20; seed++) {
+        placed += composeParts(opt(seed, { theme, repeat, density: 0.9, families: themeFamilies(theme).map((f) => f.id) })).plants.length;
+        planned += 5;
+      }
+  assert.ok(placed / planned >= 0.93, `placed ${placed / planned}`);
+});
 test('custom scale 2: the first plant (laid out before any other) gets a hero twice as large', () => {
   // A small disc: no clamp at scale 2, and model scales large enough that rounding stays under 1 percent.
   const shapes = [{ color: '#e070a0', d: disc(10, 50) }];
@@ -560,7 +574,8 @@ test('custom scale 2: the first plant (laid out before any other) gets a hero tw
     // A hero that had to shrink (0.6 to 1) differs by a step ratio; most keep their full size.
     if (Math.abs(b.tip.scale / a.tip.scale / 2 - 1) < 0.01) exact++;
   }
-  assert.ok(exact >= SEEDS.length / 2, `exact ${exact}`);
+  // Ticket F-STUDIO: the late plant retries crowd the first hero more often, 3 of 8 exact (floor was 4 of 8).
+  assert.ok(exact >= 3, `exact ${exact}`);
 });
 
 // The custom heroes and supports keep the gap from other plants' stems and motifs (real union bounds).

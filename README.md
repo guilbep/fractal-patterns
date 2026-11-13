@@ -690,7 +690,7 @@ FP_REFERENCE_SVG=/path/to/reference.svg npm test
 
 ## Run the browser tests
 
-The browser tests use Playwright. They are in the `e2e` folder. They build the site, serve it on port 18494, and open the three pages in Chromium.
+The browser tests use Playwright. They are in the `e2e` folder. They build the site, serve it on port 18494, and open the three pages in Chromium. The deploy workflow also runs them before each deploy, and a failed test stops the deploy.
 
 Run them:
 

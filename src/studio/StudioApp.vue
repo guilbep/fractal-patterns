@@ -393,10 +393,6 @@ onBeforeUnmount(() => sizes.disconnect());
               <button type="button" class="btn" @click="shuffle">Shuffle</button>
             </div>
             <p v-if="studioTracking(studio)" id="tracking" class="hint-text" :title="`${studioTries(studio) ? `Best of ${studioTries(studio)} tries. ` : ''}Worst part: ${balance(studioTracking(studio)!).worst}`">Balance: {{ balance(studioTracking(studio)!).label }}</p>
-            <label class="radio"><input id="balance" v-model="design.balance" type="checkbox" aria-describedby="balance-hint"> Balance automatically</label>
-            <p id="balance-hint" class="hint-text">Composes again when the wallpaper has a dense strip or a large empty area, and keeps the best of up to six tries. Not used with Large tile.</p>
-            <label class="radio"><input id="ground" v-model="design.ground" type="checkbox" aria-describedby="ground-hint"> Ground layer</label>
-            <p id="ground-hint" class="hint-text">A quiet layer of small foliage behind the plants, in the soft color of the palette. It adds depth and fills empty areas.</p>
           </div>
           <div class="field">
             <label for="theme">Theme</label>
@@ -423,15 +419,20 @@ onBeforeUnmount(() => sizes.disconnect());
             <input id="size" v-model.number="design.size" type="range" :min="SIZE_MIN" :max="SIZE_MAX" :step="SIZE_STEP">
           </div>
           <div class="field">
-            <label class="radio"><input id="large" v-model="design.large" type="checkbox" aria-describedby="large-hint"> Large tile</label>
-            <p id="large-hint" class="hint-text">Composes one tile of twice the width and height, with about four times the plants. The picture comes back four times less often. About three times the bytes.</p>
-          </div>
-          <div class="field">
             <label for="zoom">Preview zoom <output for="zoom">{{ zoom }} %</output></label>
             <input id="zoom" v-model.number="zoom" type="range" min="50" max="200" step="10">
           </div>
         </div>
-        <label class="radio"><input id="stems" v-model="design.stems" type="checkbox"> Show stems</label>
+        <!-- The options sit under the grid, one per row: inside a grid cell they stretched the selects of their row. -->
+        <div class="options">
+          <label class="radio"><input id="balance" v-model="design.balance" type="checkbox" aria-describedby="balance-hint"> Balance automatically</label>
+          <p id="balance-hint" class="hint-text">Composes again when the wallpaper has a dense strip or a large empty area, and keeps the best of up to six tries. Not used with Large tile.</p>
+          <label class="radio"><input id="ground" v-model="design.ground" type="checkbox" aria-describedby="ground-hint"> Ground layer</label>
+          <p id="ground-hint" class="hint-text">A quiet layer of small foliage behind the plants, in the soft color of the palette. It adds depth and fills empty areas.</p>
+          <label class="radio"><input id="large" v-model="design.large" type="checkbox" aria-describedby="large-hint"> Large tile</label>
+          <p id="large-hint" class="hint-text">Composes one tile of twice the width and height, with about four times the plants. The picture comes back four times less often. About three times the bytes.</p>
+          <label class="radio"><input id="stems" v-model="design.stems" type="checkbox"> Show stems</label>
+        </div>
         <label class="radio shortcut-switch"><input id="shortcuts" v-model="shortcutOn" type="checkbox"> Keyboard shortcuts: R shuffles, F shows the wallpaper full screen</label>
       </section>
 

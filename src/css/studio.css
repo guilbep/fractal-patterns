@@ -38,3 +38,17 @@
   gap: var(--s1);
   min-width: 0;
 }
+
+/* Design panel: the controls of a grid row keep their own height, and a select never stretches. */
+.fields {
+  align-items: start;
+}
+.options {
+  display: grid;
+  gap: 0;
+  margin-top: var(--s2);
+}
+.options .hint-text {
+  margin: 0 0 var(--s2) 2rem;
+  max-width: 60ch;
+}

@@ -483,9 +483,14 @@ export function composeParts(o: ComposeOptions): ComposeParts {
     [1, 240],
     [0.7, 120],
     [0.5, 120],
+    // Still short (only then, so compositions that already fit keep their draw order): more start positions per plant.
+    [0.7, 400],
+    [0.5, 400],
+    [0.35, 400],
   ] as const)
     for (let tries = 0; stems.length < (lk === 1 ? want : Math.max(3, want)) && tries < budget; tries++) {
       if (lk === 1 && tries > 0 && tries % 60 === 0) stemDistance *= 0.8;
+      if (budget === 400 && tries === 200) stemDistance *= 0.85;
       const s = Math.floor(rnd() * 2 ** 32);
       const idx = stems.length;
       let st: Stem;

@@ -253,6 +253,27 @@ test('the free layouts break the boundary agreement, so the super tile needs com
   ]);
 });
 
+test('the candidates from docs/research/wang-tiles.md fail the boundary agreement, so they stay out', () => {
+  // Measured: their edge crossings move with the seed, at every depth.
+  const candidates = [
+    'knot',
+    'leaves',
+    'rain',
+    'moons',
+    'feathers',
+    'roof',
+    'quilt',
+    'lanterns',
+    'chain',
+    'seigaiha',
+    'clouds',
+    'nest',
+    'rosette',
+    'spiral',
+  ] as const;
+  assert.deepEqual(Object.keys(boundaryFailures(candidates, true)), [...candidates]);
+});
+
 test('superTileSvg throws RangeError for a kind that cannot vary', () => {
   assert.throws(() => superTileSvg({ ...base, kind: 'maze' }), RangeError);
 });

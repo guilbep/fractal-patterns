@@ -21,14 +21,14 @@ A builder read the generators. Ticket counts are estimates.
 | Fits the engine with a new drawing style | Maze, Circuit, Railway, Thorns, River | 1 or 2 tickets each |
 | Needs more edge states | Mountain ridges, double-track Railway, Circuit with diagonals | 2 or 3 tickets each, plus a shared helper |
 | Already has Reduce repetition | The 22 kinds in `VARIANT_KINDS` | Wang adds little |
-| Probably fits Reduce repetition as it is | Knotwork, Leaves, Rain, Moons, Feathers, Roof tiles, Quilt, Lanterns, Chain, Waves, Clouds, Nest | 1 ticket to measure all |
+| Measured, does not fit Reduce repetition | Knotwork, Leaves, Rain, Moons, Feathers, Roof tiles, Quilt, Lanterns, Chain, Waves, Clouds, Nest, Rosette, Spiral | Their edge crossings move with the seed |
 | Cannot fit | 17 symmetry groups, 7 quasicrystals, Topography, Chladni, Hilbert, Cracked earth, Constellations, Roots, Storm | Their structure is global |
 
-The "probably fits" group is not measured. The builder read only the header comments for most of those kinds.
+The seam test (seeds 1 to 12, every depth) fails for all 14 of those kinds: two different seeds cross the cell edge at different places, at every depth. Each seed tiles with itself. The test in `src/supertile.test.ts` pins this result.
 
 ## Ranking by gain for the work
 
-1. Measure the "probably fits" kinds with the seam test, and turn on Reduce repetition for each kind that passes.
+1. Done: the 14 "probably fits" kinds were measured with the seam test and none passes, so Reduce repetition stays at 22 kinds.
 2. Maze as a Wang kind. It is no longer a true maze, because loops and closed rooms can appear. So it becomes a second kind, "Endless maze", next to the present Maze.
 3. Railway as a Wang kind: two rails with sleepers, buffer stops, and crossings.
 4. Thorns.

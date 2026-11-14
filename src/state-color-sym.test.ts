@@ -55,3 +55,16 @@ test('on, p6m: the tile is size x size·√3', () => {
 test('on, tree: not a symmetry kind, unchanged', () => {
   assert.equal(at('tree', true), at('tree', false));
 });
+
+test('wheel: the image border lies outside the tile, so its edge draws no line at the repeat', async () => {
+  const { wheel } = await import('./state.ts');
+  at('p4m', true);
+  params.size = 120;
+  colorSym.render = 'wheel';
+  wheel.value = { dataUrl: 'data:image/webp;base64,AA', type: 'image/webp', bytes: 2, seam: 1, n: 256, pad: 1 };
+  const s = svg.value;
+  // 120 px tile, 256 + 2 px image: offset 120 / 256 = 0.46875, width 120 + 2 · 0.46875 = 120.9375.
+  assert.match(s, /x="-0\.46875" y="-0\.46875" width="120\.9375" height="120\.9375"/);
+  colorSym.render = 'bands';
+  wheel.value = null;
+});

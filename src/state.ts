@@ -360,7 +360,14 @@ const bandsTile = (seed: number): string | null =>
   farris.value?.bandsTile(params.kind, seed, params.size, tileHeight(params.size, aspect.value), bandColors.value, colorSym) ?? null;
 
 // The "Smooth wheel" image, grown in the shared heavy worker. The last one stays drawn while the next one grows.
-export const wheel = shallowRef<{ dataUrl: string; type: 'image/webp' | 'image/png'; bytes: number; seam: number } | null>(null);
+export const wheel = shallowRef<{
+  dataUrl: string;
+  type: 'image/webp' | 'image/png';
+  bytes: number;
+  seam: number;
+  n: number;
+  pad: number;
+} | null>(null);
 export const wheelStatus = ref<'' | 'growing'>('');
 export const wheelOn = computed(() => colorSymActive.value && colorSym.render === 'wheel');
 let heavyLoad: Promise<typeof import('@/heavy/client.ts')> | undefined;
@@ -394,7 +401,9 @@ const wheelTile = (seed: number): string | null => {
   if (!wheelOn.value || !w || seed !== params.seed) return null;
   const size = params.size;
   const h = tileHeight(size, aspect.value);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${h}" width="${size}" height="${h}"><image href="${w.dataUrl}" width="${size}" height="${h}" preserveAspectRatio="none"/></svg>`;
+  // The image's wrapped border (w.pad pixels) lies just outside the tile, so edge smoothing draws no line at the repeat.
+  const [dx, dy] = [(size * w.pad) / w.n, (h * w.pad) / w.n];
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${h}" width="${size}" height="${h}"><image href="${w.dataUrl}" x="${-dx}" y="${-dy}" width="${size + 2 * dx}" height="${h + 2 * dy}" preserveAspectRatio="none"/></svg>`;
 };
 
 // One pipeline for every source: base polylines, mirror, zoom, gap. The gap gives the final tile size.

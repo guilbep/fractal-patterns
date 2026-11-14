@@ -50,6 +50,7 @@ async function onPickMore(e: Event): Promise<void> {
     <p class="lede">Photograph a wall, a floor, or a fabric. The tool traces its edges into a light tile that uses your colors.</p>
     <ul class="image-notes">
       <li>Use only images that you own or have a license for.</li>
+      <li>You can trace an image made with any tool, AI included.</li>
       <li>Your image stays in your browser. Nothing is uploaded.</li>
     </ul>
 

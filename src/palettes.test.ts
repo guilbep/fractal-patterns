@@ -26,6 +26,10 @@ const ALL = ALL_SPECS.map((s, i) => ({
 }));
 const hueDist = (a: number, b: number) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b));
 
+test('the generated palettes-data.ts matches makePalette over PALETTE_SPECS (run make palettes)', () => {
+  assert.deepEqual(PALETTES, PALETTE_SPECS.map(makePalette));
+});
+
 test('there are 25 curated palettes, 17 light and 8 dark, more cool bases than warm', () => {
   assert.equal(PALETTES.length, 25);
   assert.equal(PALETTE_SPECS.filter((s) => s.dark).length, 8);

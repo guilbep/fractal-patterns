@@ -11,6 +11,7 @@
 import { relativeLuminance } from './contrast.ts';
 import { maxChroma, oklchToHex } from './oklch.ts';
 import { pickRoles, type Roles } from './pairing.ts';
+import { PALETTE_DATA } from './palettes-data.ts';
 
 export interface Palette {
   readonly name: string;
@@ -109,7 +110,8 @@ export const PALETTE_SPECS: readonly PaletteSpec[] = [
   spec('Plum', 325, 'near', true),
 ];
 
-export const PALETTES: readonly Palette[] = PALETTE_SPECS.map(makePalette);
+// Precomputed (make palettes): building them here cost about 9 ms at start on a slow phone.
+export const PALETTES: readonly Palette[] = PALETTE_DATA;
 export const DARK_NAMES: ReadonlySet<string> = new Set(PALETTE_SPECS.filter((s) => s.dark).map((s) => s.name));
 // The palettes as the grouped select shows them.
 export const PALETTE_GROUPS: readonly { label: string; palettes: readonly Palette[] }[] = [

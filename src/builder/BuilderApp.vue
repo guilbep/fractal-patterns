@@ -191,7 +191,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <TilePanel />
       </div>
       <template v-if="useOpen && !phone">
-        <button type="button" class="btn quiet use-back" @click="closeUse">‹ Back to the design</button>
+        <button type="button" class="btn secondary use-back" @click="closeUse">‹ Back to the design</button>
         <UseIt
           :svg="svg"
           :tile-width="cell.width"

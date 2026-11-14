@@ -482,7 +482,7 @@ useBarHeight(head, '--head-h');
 
     <div class="controls studio-controls">
       <div v-if="useOpened" v-show="useOpen" class="studio-use" @keydown.esc="closeUse">
-        <button type="button" class="btn quiet use-back" @click="closeUse"><span aria-hidden="true">‹&nbsp;</span>Back to the design</button>
+        <button type="button" class="btn secondary use-back" @click="closeUse"><span aria-hidden="true">‹&nbsp;</span>Back to the design</button>
         <Teleport defer to="#use-sheet-steps" :disabled="!phone">
         <UseIt
           :svg="svg"

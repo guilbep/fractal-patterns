@@ -319,6 +319,10 @@
 }
 .use-back {
   justify-self: start;
+  min-height: 2.75rem;
+  padding: 0 var(--s4);
+  font-size: 1rem;
+  font-weight: 600;
 }
 .use-web {
   display: grid;

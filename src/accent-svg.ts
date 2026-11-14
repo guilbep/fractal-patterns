@@ -1,5 +1,5 @@
 // The accent layer as SVG: each distinct tile shape written once in <defs>, each copy a <use> of it, unless the copy
-// written inline is shorter (a triangle or a square): those copies join one shared <path>. Pure.
+// is not turned and written inline is shorter (a triangle or a square): those copies join one shared <path>. Pure.
 // A unit is a tile shape moved so its pivot (accent-vary.ts) is at 0, 0; tile shapes equal up to a translation, at
 // the output precision, share one unit. Filled non-zero on the parent group: overlapping shapes join, a ring's
 // reversed inner loop stays a hole.
@@ -48,7 +48,8 @@ export function accentSvg(
     const sin = Math.sin(rotate) * scale;
     const poly = shapes[shape]!.map(([px, py]): Pt => [x + (px - cx) * cos - (py - cy) * sin, y + (px - cx) * sin + (py - cy) * cos]);
     const d = closedPathData([poly], precision);
-    if (d.length < use.length) inline += d;
+    // A turned copy stays a <use>: its inline points vary and compress worse than the repeated tags (gzip is what ships).
+    if (deg === '0' && d.length < use.length) inline += d;
     else {
       uses.push(use);
       used.add(shapeUnit[shape]!);

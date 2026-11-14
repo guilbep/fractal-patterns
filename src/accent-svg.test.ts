@@ -70,11 +70,12 @@ function allUse(shapes: readonly Poly[], places: readonly AccentPlace[], w: numb
 
 for (const shape of ['triangle', 'square', 'dot'] as const)
   for (const turn of [0, 100])
-    test(`${shape}s scattered on 6 x 6, turn ${turn}: no larger than either method alone (+64 bytes)`, () => {
+    test(`${shape}s scattered on 6 x 6, turn ${turn}: gzip no larger than either method alone (+64 bytes)`, () => {
       const layer = { on: true, shape, size: 20, amount: 100, place: 'seed', snap: 8 } as const;
       const s = accentShapes('tree', layer, { seed: 5, depth: 4, size: 120 });
       const v = varyAccent(s, 120, 120, { ...ACCENT_VARY_DEFAULTS, turn }, 5);
-      const n = accentSvg(s, v.places, v.width, v.height, '#e07a3f', 1).length;
-      const best = Math.min(allInline(v.polys, v.width, v.height).length, allUse(s, v.places, v.width, v.height).length);
+      const gz = (t: string) => gzipSync(t).length;
+      const n = gz(accentSvg(s, v.places, v.width, v.height, '#e07a3f', 1));
+      const best = Math.min(gz(allInline(v.polys, v.width, v.height)), gz(allUse(s, v.places, v.width, v.height)));
       assert.ok(n <= best + 64, `${n} > ${best} + 64`);
     });

@@ -34,6 +34,8 @@ test('F opens full screen from the page, but not from the tile editor (F flips t
   await expect.poll(() => isFull(page)).toBe(false);
   await page.locator('svg.tile-editor').focus();
   await page.keyboard.press('f');
+  // Give a wrongly opened full screen time to show before checking that it did not.
+  await page.waitForTimeout(500);
   expect(await isFull(page)).toBe(false);
 });
 

@@ -270,6 +270,13 @@ p.hero-plate {
   background: none;
   border-radius: 0;
 }
+/* The phone Use it sheet: the device gets 220 px of height and scales to fit it; the caption sits under it. */
+.sheet.sheet-use .use-stage {
+  height: auto;
+}
+.sheet-use .use-stage .uip-stage {
+  height: 220px;
+}
 /* The shortcut hint moves up, above the view buttons. */
 .stage:has(> .hero) > .shortcut-hint {
   right: var(--s3);

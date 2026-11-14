@@ -172,8 +172,11 @@ const shirtMask = `url("${svgToDataUri(`<svg xmlns="http://www.w3.org/2000/svg" 
 }
 /* Phone: a rounded body, the clock over the wallpaper. */
 .uip-phone {
+  /* The clock is sized from the phone's own width, so it stays on one line however small the device is drawn. */
+  container-type: inline-size;
   box-sizing: border-box;
-  padding: 3%;
+  /* 3 % of the phone's own width (a % padding would take the stage's width, and squeeze a small phone's screen). */
+  padding: calc(0.03 * min(100cqw, 100cqh * var(--ar)));
   background: #17181c;
   border-radius: 14% / 6.5%;
   box-shadow: 0 0 0 1px var(--line);
@@ -191,8 +194,9 @@ const shirtMask = `url("${svgToDataUri(`<svg xmlns="http://www.w3.org/2000/svg" 
   inset: 9% 0 auto;
   display: grid;
   justify-items: center;
-  font: 800 clamp(1.5rem, 11cqh, 5rem) / 1 var(--font);
+  font: 800 min(24cqw, 5rem) / 1 var(--font);
   letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 .uip-date {
   font-size: 0.26em;

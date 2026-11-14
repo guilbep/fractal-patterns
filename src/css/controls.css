@@ -683,3 +683,66 @@
     display: none;
   }
 }
+
+/* Use it: "Choose your phone", a select grouped by brand, the chosen size and density beside it. */
+.use-it-phones {
+  display: grid;
+  gap: var(--s1);
+  font-size: 0.875rem;
+}
+.use-it-phone-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+.use-it-phone-row select {
+  min-height: 2.25rem;
+  max-width: 100%;
+}
+.use-it-phone-row .use-it-px {
+  margin-left: 0;
+}
+
+/* "Send to my phone": a centered card with the QR code, dark on white whatever the theme. */
+.sheet.qr-dialog {
+  inset: 0;
+  width: min(100% - 32px, 22rem);
+  height: fit-content;
+  margin: auto;
+  border-radius: 16px;
+}
+.qr-code {
+  justify-self: center;
+  width: 240px;
+  height: 240px;
+  background: #fff;
+}
+.qr-code svg {
+  display: block;
+  width: 240px;
+  height: 240px;
+}
+.qr-text {
+  margin: 0;
+  font-size: 0.875rem;
+}
+.qr-link {
+  display: grid;
+  gap: var(--s1);
+  font-size: 0.875rem;
+}
+.qr-link input {
+  min-width: 0;
+  padding: var(--s1) var(--s2);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+.qr-dialog .btn {
+  justify-content: center;
+}

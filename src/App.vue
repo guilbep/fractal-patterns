@@ -8,7 +8,7 @@ import SiteHeader from '@/components/SiteHeader.vue';
 import { isTyping, readShortcut, shortcutFor, toggleFullscreen, writeShortcut } from '@/shortcuts.ts';
 import { KIND_LABELS, tileHeight } from '@/fractal.ts';
 import UseIt from '@/components/UseIt.vue';
-import { DESTINATIONS, type Destination } from '@/use-it.ts';
+import { DESTINATIONS, takeUse, type Destination } from '@/use-it.ts';
 import { SAMPLE_LABELS } from '@/samples.ts';
 import { activeSample, contrast, palette, layer2, variantsOn, fileName, motionPaused, params, patch, roles, svg, usingPatchwork, plateMode, plateStyle, randomPattern, ratioShort, ratioText, reseed, reset, svgHref, trace, traced, usingImage, imageShuffles, tileSize, aspect, variantOptions } from '@/state.ts';
 import { exportGzipBytes, exportText, gzipped, sizeBreakdown } from '@/state-export.ts';
@@ -154,7 +154,16 @@ function readUse(): Destination['id'] {
     return 'web';
   }
 }
-const useInitial = readUse();
+// A "Send to my phone" link (use=<destination>) opens Use it there: the tab, or on phones the sheet.
+const useFrom = takeUse(location, history);
+const useInitial = useFrom ?? readUse();
+if (useFrom && !phone.value) tab.value = 'use';
+onMounted(() => {
+  const opener = document.getElementById('tab-use');
+  if (useFrom && phone.value && opener) useSheet.value?.open(opener);
+});
+// A design made from an uploaded image cannot travel in the link.
+const noLink = computed(() => (usingImage.value ? 'This design uses your image, so it cannot travel by link.' : undefined));
 function writeUse(id: Destination['id']): void {
   try {
     sessionStorage.setItem(USE_KEY, id);
@@ -328,6 +337,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           :svg-file-name="fileName"
           :initial="useInitial"
           :preview-target="phone ? '#use-sheet-preview' : '#use-preview'"
+          :share-link="shareUrl"
+          :no-link="noLink"
           @destination="writeUse"
         >
           <template #web><OutputPanel @depth="toDepth" /></template>

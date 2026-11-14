@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { FAMILIES } from '@/fractal.ts';
 import { createHistory } from '@/history.ts';
 import { PALETTES, linkedPalette } from '@/palettes.ts'; // STUDIO-PAL
+import { takeUse } from '@/use-it.ts';
 import { DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design, WELCOME } from '@/share.ts';
 import {
   accent,
@@ -159,6 +160,8 @@ export function initShare(): void {
   if (started) return;
   started = true;
   const hasWindow = typeof window !== 'undefined' && !!window.location;
+  // "Send to my phone" links add use=<destination>: the page reads it (App.vue) and it leaves the address before the design is read.
+  if (hasWindow) takeUse(window.location, window.history);
   // A design string always holds '='; a bare anchor such as #depth is not a design.
   const isDesign = (h: string) => h.includes('=');
   // STUDIO-PAL: a hash with only pn or pc is a palette, not a design.

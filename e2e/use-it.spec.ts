@@ -58,6 +58,23 @@ test('Use it: an iPhone PNG draws the tile at 3×, so a 320 px tile repeats ever
   expect(same320).toBe(false);
 });
 
+test('Use it: a phone from the list sets the size and the density; Custom keeps both', async ({ page }) => {
+  await page.goto('/index.html');
+  await page.getByRole('button', { name: 'Use it…' }).click();
+  const panel = page.locator('#panel-use');
+  await panel.getByText('Phone wallpaper').click();
+  await expect(panel.getByText('Android sizes are approximate. On that phone, use This phone.')).toBeVisible();
+  await panel.getByLabel('Choose your phone').selectOption({ label: 'Samsung Galaxy S25 · approx.' });
+  await expect(panel.getByText('1080 × 2340 · 3×')).toBeVisible();
+  await Promise.all([page.waitForEvent('download'), panel.getByRole('button', { name: 'Download PNG · 1080 × 2340' }).click()]);
+  await expect(panel.getByRole('status')).toHaveText('Saved 1080 × 2340 PNG at 3×.');
+  await panel.getByLabel('Choose your phone').selectOption({ label: 'Google Pixel 9 · approx.' });
+  await expect(panel.getByText('1080 × 2424 · 2.625×')).toBeVisible();
+  await panel.getByText('Custom size…').click();
+  await expect(panel.getByRole('radiogroup', { name: 'Pixel density' }).getByRole('radio', { name: '2.625×' })).toBeChecked();
+  await expect(panel.getByRole('button', { name: 'Download PNG · 1080 × 2424' })).toBeVisible();
+});
+
 test('Use it on a desktop: no "This phone (detected)"; the phone list starts with the iPhones', async ({ page }) => {
   await page.goto('/index.html');
   await page.getByRole('button', { name: 'Use it…' }).click();
@@ -88,7 +105,8 @@ test.describe('on a phone', () => {
     await expect(sheet.getByRole('button', { name: 'Download PNG · 1170 × 2532' })).toBeVisible();
     await sheet.locator('.use-it-dest', { hasText: 'Desktop wallpaper' }).tap();
     await expect(sheet.getByText('This screen (detected)')).toHaveCount(0);
+    // Custom keeps the density of the preset before it: the first desktop preset here, MacBook Pro 14″, is 2×.
     await sheet.getByText('Custom size…').tap();
-    await expect(sheet.getByRole('radiogroup', { name: 'Pixel density' }).getByRole('radio', { name: '3×' })).toBeChecked();
+    await expect(sheet.getByRole('radiogroup', { name: 'Pixel density' }).getByRole('radio', { name: '2×' })).toBeChecked();
   });
 });

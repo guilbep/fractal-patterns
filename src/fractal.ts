@@ -204,8 +204,8 @@ function starKind(id: TilingId) {
 
 // The grown kinds' generators stay out of the start JS: the heavy task (heavy/tasks.ts) hands them over with useGrown,
 // and Node (the tests) loads them at module start, through paths the bundler does not follow.
-// ponytail: on the page's main thread a call draws nothing ([]): the favicon, byte estimates, patchwork and Builder stamps
-// of a grown kind stay empty. Growing them there would block 50 to 170 ms; ask them through the heavy task when one needs it.
+// ponytail: on the page's main thread a call draws nothing ([]), since growing there would block 50 to 170 ms. Callers handle
+// it: the favicon uses the grown tile or the default mark, patchwork and Builder stamps leave grown kinds out with a note.
 type GrownKind = 'turing-stripes' | 'turing-spots' | 'coral' | 'frost';
 let grownGens: Record<GrownKind, Generator> | null = null;
 export function useGrown(r: typeof import('./patterns/reaction.ts'), d: typeof import('./patterns/dla.ts')): void {

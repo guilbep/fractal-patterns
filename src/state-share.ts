@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { FAMILIES } from '@/fractal.ts';
 import { createHistory } from '@/history.ts';
-import { linkedPalette } from '@/palettes.ts'; // STUDIO-PAL
+import { PALETTES, linkedPalette } from '@/palettes.ts'; // STUDIO-PAL
 import { DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design, WELCOME } from '@/share.ts';
 import {
   accent,
@@ -20,6 +20,7 @@ import {
   layout,
   motion,
   opacity,
+  paletteName,
   params,
   parallax,
   patch,
@@ -71,6 +72,8 @@ export function snapshot(): Design {
 export function applyDesign(d: Design): void {
   Object.assign(params, { kind: d.kind, seed: d.seed, depth: d.depth, size: d.size, strokeWidth: d.strokeWidth, precision: d.precision });
   Object.assign(roles, { background: d.background, pattern: d.pattern, text: d.text });
+  // The link carries colors, not a palette name: name the curated palette that holds all three, else none ("Custom").
+  paletteName.value = PALETTES.find((p) => [d.background, d.pattern, d.text].every((c) => p.colors.includes(c)))?.name ?? null;
   opacity.value = d.opacity;
   plateMode.value = d.plateMode;
   plateOpacity.value = d.plateOpacity;

@@ -258,3 +258,98 @@ To make sure of these, a person must look in a browser.
 - The Builder Order menu with the keyboard (open, pick, Esc), and the Flip toggle state.
 - The grade chip colors for each grade band, in light and dark mode.
 - Studio undo and redo after a slider drag: one drag is one step.
+
+# Phase 5b feature check
+
+This section checks the "Use it" panel of branch `phase5b`, commit `023b9e3`, against `FEATURES.md` and spec section 4.
+The rule is the same: every feature survives.
+
+Method. I read the diff `phase5a..phase5b` (21 files) and every changed component.
+The rows below list only the items that phase 5b touches, and the new items.
+The other rows of the phase 5a check are still true: phase 5b did not change their files, or changed other lines.
+Line numbers are for commit `023b9e3`.
+
+## Counts, phase 5b
+
+| Status | Rows |
+| --- | --- |
+| Kept as is | 9 |
+| Moved | 8 |
+| Changed | 9 |
+| New | 12 |
+| Missing | 0 |
+
+## Rows, phase 5b
+
+| Feature | Status | Where now |
+| --- | --- | --- |
+| Toolbar order (Core) | changed: the out group is now "Copy link" (Patterns only), "Copy CSS", "Use it…"; "Download SVG" left the toolbar on the three pages | `src/App.vue:184-188`, `src/studio/StudioApp.vue:419-420`, `src/builder/BuilderApp.vue:129-130` |
+| "Copy link" (Patterns toolbar) | kept as is; it stays in the toolbar for good (owner's decision) | `src/App.vue:185` |
+| "Download SVG" quiet toolbar button (Core) | moved to Use it on the three pages: under "Website background", and as the "SVG" size of "Clothing & fabric" and "Paper & gift wrap" | `src/components/UseIt.vue:168-171`, `src/use-it.ts:83,95` |
+| Export actions block: "Download SVG", "Copy SVG", "Copy CSS", status, "CSS background" box | kept as is (file not changed in 5b); in the Builder it now shows under Use it › Website background | `src/components/ExportActions.vue`, `src/builder/ExportPanel.vue` |
+| "Use it…" toolbar button | changed: it opens the Use it tab (Patterns) or the Use it view (Studio, Builder), and focus moves to the tab or to the step "1 · What is it for?" | `src/App.vue:105-110`, `src/studio/StudioApp.vue:363-373`, `src/builder/BuilderApp.vue:44-52` |
+| Patterns "Copy CSS", "Copy link", "Download SVG" | changed: "Download SVG" moved into Use it (see Core); "Copy CSS" and "Copy link" stay in the toolbar | `src/App.vue:185-186` |
+| Copy CSS failure "Copy failed. Copy the CSS from the Export tab." | changed: now "Copy failed. Copy the CSS from the Use it tab.", because the tab has a new name | `src/App.vue:67` |
+| File names `fractal-…`, `patchwork-…`, `traced-…` | kept as is; a PNG adds the size, see New | `src/state.ts:433-436` |
+| Six tabs, session key `fp-tab` | changed: the sixth tab is "Use it" (id `use`); a stored value `export` opens "Use it" | `src/shell.ts:1,7`, `src/App.vue:76` |
+| Patterns preview | changed: while the Use it tab is open, the device preview takes the stage; the pattern stays mounted under it, hidden | `src/App.vue:197,217` |
+| Export "Performance settings": Depth link, precision, stats | moved to Use it › Website background, unchanged | `src/App.vue:258`, `src/components/OutputPanel.vue` |
+| "Use it": Download SVG, CSS and HTML blocks | moved to Use it › Website background, unchanged | `src/App.vue:258`, `src/components/OutputPanel.vue` |
+| Script option, "When", "Variants", "Copy script", byte line | moved to Use it › Website background, unchanged | `src/App.vue:258`, `src/components/OutputPanel.vue` |
+| "Other formats (experimental)" | moved to Use it › Website background, unchanged | `src/App.vue:258`, `src/components/OutputPanel.vue` |
+| Studio "Download SVG" `wallpaper-{repeat}-{seed}.svg` | moved to Use it › Website background, same file name; also the SVG sizes of fabric and paper | `src/studio/StudioApp.vue:459` |
+| Studio "Copy CSS" in the toolbar | kept as is | `src/studio/StudioApp.vue:419` |
+| Studio copy failure text and the CSS box | changed: a failed copy still shows the old box with the same text; "Use it…" no longer opens this box | `src/studio/StudioApp.vue:320-330,469-473` |
+| Studio design controls | kept as is; hidden, not destroyed, while Use it is open | `src/studio/StudioApp.vue:475` |
+| Builder toolbar: size badge, "Copy CSS", "Download SVG" | changed: "Download SVG" left the toolbar; the badge and "Copy CSS" stay | `src/builder/BuilderApp.vue:120-130` |
+| Builder Export card: size badge, export actions, `pattern-builder.svg` | moved to Use it › Website background; it is no longer a folded section, the contents are the same | `src/builder/ExportPanel.vue:45-47`, `src/builder/BuilderApp.vue:164` |
+| Builder "CSS and design file" fold, all status texts | moved with the Export card, unchanged | `src/builder/ExportPanel.vue:48-58` |
+| Builder Shapes, Selected, Tile and Fill sections | kept as is; hidden, not destroyed, while Use it is open | `src/builder/BuilderApp.vue:145-149` |
+| `fp-tab` (session) | changed: the old value `export` maps to `use` | `src/shell.ts:7` |
+| Patterns CSS, HTML, script and other formats | kept as is (files not changed in 5b) | `src/export.ts` |
+| Studio CSS rule | kept as is; it also shows in the new "CSS rule" box | `src/studio/StudioApp.vue:221,464` |
+| Builder CSS lines, SVG and design file | kept as is (files not changed in 5b) | `src/builder/builder-css.ts` |
+| Use it panel, three steps: "1 · What is it for?", "2 · Which size?", "3 · Get it" | new: the same panel on the three pages | `src/components/UseIt.vue:113-190` |
+| Eight destinations with presets and a how-to line | new: phone, desktop, website, video call, fabric, paper, game texture, slides; sizes as in spec section 4 | `src/use-it.ts:26-119` |
+| PNG download at the chosen size | new: the renderer loads on demand; the file name is `{base}-{w}x{h}.png`; the status says "Saved W × H PNG." | `src/components/UseIt.vue:65-90`, `src/png-export.ts`, `src/use-it.ts:130-132` |
+| "Keep the clock readable" | new: phone only, on by default; it fades the top 32 % of the PNG to the background color | `src/components/UseIt.vue:154-160`, `src/png-plan.ts:30-32` |
+| "This phone (detected)" and "This screen (detected)" | new: screen size times device pixel ratio, portrait for a phone, landscape for a screen | `src/use-it.ts:122-127` |
+| "Custom size…" | new: phone and desktop; width and height are clamped to 16 to 8192 px | `src/use-it.ts:134-138`, `src/components/UseIt.vue:142-153` |
+| Device previews | new: the tile on a phone with a clock, a laptop, a browser, a call, fabric, paper, a texture or slides, drawn with CSS and inline SVG | `src/components/UseItPreview.vue` |
+| "Send to my phone (QR)" | new: shown, but marked unavailable (`aria-disabled`, title "Coming later") | `src/components/UseIt.vue:177` |
+| PNG warnings | new: on touch devices, a size over 16.7 M px shows "This size may be too large for a phone browser." with a "Download SVG" link; a failed PNG also offers "Download SVG" | `src/components/UseIt.vue:179-187`, `src/png-plan.ts` |
+| Last destination, for the session only | new: keys `fp-use`, `fp-use-studio`, `fp-use-builder` in sessionStorage; "Website background" at first | `src/App.vue:111`, `src/studio/StudioApp.vue:378`, `src/builder/BuilderApp.vue:64` |
+| Studio and Builder Use it view | new: "‹ Back to the design" and Esc close it, and focus returns to "Use it…"; not stored, not in the link | `src/studio/StudioApp.vue:373-376,437,441-442`, `src/builder/BuilderApp.vue:53-58,151` |
+| Studio Website background: second "Copy CSS" and "CSS rule" box | new: a "Copy CSS" button and a "CSS rule" box that is always visible in the panel | `src/studio/StudioApp.vue:455-465` |
+
+## Missing, phase 5b
+
+None found.
+
+Search method: for each label the old Export tab, the Studio export area and the Builder Export card show, I searched it in `src` on `phase5b`.
+Each one is still reachable, under Use it › Website background or in the toolbar.
+
+## Points for the owner, phase 5b
+
+- The Patterns Copy CSS failure text changed from "the Export tab" to "the Use it tab". This change is on purpose, because the tab has a new name. It waits for your confirmation.
+- "Download SVG" left the toolbar on the three pages, as the design canvas shows. It now takes one more click.
+- The "Hero only" size of "Website background" changes only the preview. The CSS and the export content are the same as for "Repeating CSS".
+- Spec section 4 says the panel is a bottom sheet on a phone. I found no bottom sheet in the code. On a phone the panel takes the controls column.
+- "Send to my phone (QR)" shows, but it does nothing. Its title says "Coming later".
+- The PNG is drawn on one canvas. The strip plan in `src/png-plan.ts` exists, but the renderer does not use it yet. A3 (3508 × 4961) and large custom sizes can fail on iOS Safari. The panel then offers the SVG.
+- In the Studio, "Use it…" no longer shows the old CSS box. That box now shows only after a failed copy.
+- In the Builder, Esc closes Use it only when focus is in the controls column. In the Studio, Esc also works from the preview.
+
+## Not checked by reading code, phase 5b
+
+To make sure of these, a person must look in a browser.
+
+- The eight device previews, in light and dark mode and at phone width.
+- A PNG download on iOS Safari and on Android, at A3 and at a large custom size.
+- The clock fade in the PNG, on a light and on a dark background.
+- The detected size on a real phone and on a high-density screen.
+- Focus: it moves to "1 · What is it for?" when the view opens, and back to "Use it…" after Back or Esc.
+- Full screen and the F key while Use it is open, on Patterns and Studio.
+- A screen reader on the destination cards, whose radio buttons are visually hidden.
+- The "Send to my phone (QR)" button: a screen reader says it is not available.
+- The session memory: the last destination comes back after a reload, and not in a new tab.

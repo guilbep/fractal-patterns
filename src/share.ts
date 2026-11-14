@@ -138,7 +138,7 @@ const KEYS: Readonly<Record<keyof Design, string>> = {
   // Written whenever it differs from the default; the page keeps it at the default for a kind without accent
   // shapes (snapshot in state-share.ts), so a palette pick does not lengthen those links.
   accent: 'ac',
-  accentLayer: 'al', // encodeAccentLayer: written only when it differs from the kind's defaults
+  accentLayer: 'al', // encodeAccentLayer: written only when it differs from the kind's defaults (off in patchwork)
   accentVary: 'av', // keep new keys last: older links stay valid
 };
 const FIELDS = Object.keys(KEYS) as (keyof Design)[];
@@ -301,7 +301,7 @@ export function encodeDesign(d: Design): string {
       continue;
     }
     if (f === 'accentLayer') {
-      const al = encodeAccentLayer(d.kind, d.accentLayer);
+      const al = encodeAccentLayer(d.kind, d.accentLayer, d.layout === 'patchwork');
       if (al) pairs.push([KEYS[f], al]);
       continue;
     }
@@ -342,6 +342,7 @@ export function decodeDesign(query: string): Design {
   };
   const oneOf = <T extends string>(f: keyof Design, values: readonly T[], fallback: T): T => values.find((v) => v === get(f)) ?? fallback;
   const kind = oneOf('kind', KINDS, D.kind);
+  const layout = oneOf('layout', ['single', 'patchwork'], D.layout);
   const av = decodeAV(get('accentVary'));
   const bool = (f: 'mirror' | 'frame' | 'variants' | 'layer2' | 'fade' | 'parallax' | 'sections'): boolean =>
     get(f) === '1' ? true : get(f) === '0' ? false : D[f];
@@ -369,7 +370,7 @@ export function decodeDesign(query: string): Design {
     zoom: num('zoom', 0.25, 4),
     gap: num('gap', 0, 120),
     mirror: bool('mirror'),
-    layout: oneOf('layout', ['single', 'patchwork'], D.layout),
+    layout,
     cells: num('cells', 2, 4, true),
     frame: bool('frame'),
     families: num('families', 0, ALL_FAMILIES, true) || ALL_FAMILIES, // no family at all is not a design
@@ -384,7 +385,8 @@ export function decodeDesign(query: string): Design {
     layer2Color: /^[0-9a-f]{6}$/i.test(get('layer2Color')) ? `#${get('layer2Color').toLowerCase()}` : null,
     change: decodeChange(get('change')),
     accent: color('accent'),
-    accentLayer: decodeAccentLayer(kind, get('accentLayer') || null),
+    // In patchwork the kind is not drawn: the defaults are off (accentDefaults). No rectangular kind has its own accent.
+    accentLayer: decodeAccentLayer(kind, get('accentLayer') || null, layout === 'patchwork'),
     accentVary: av ?? { applies: get('variants') === '1' ? 'base' : appliesDefault(kind), ...ACCENT_VARY_DEFAULTS },
   };
 }

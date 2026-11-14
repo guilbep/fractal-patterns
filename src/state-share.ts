@@ -7,6 +7,7 @@ import { takeUse } from '@/use-it.ts';
 import { DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design, WELCOME } from '@/share.ts';
 import {
   accent,
+  accentDrawn,
   accentLayer,
   accentVary,
   applyPalette,
@@ -69,7 +70,9 @@ export function snapshot(): Design {
     change: { dir: change.value, to: changeTo.value },
     // Only a shown accent layer carries its color: a palette pick without one leaves the link as it was.
     accent: accentLayer.on ? accent.value : DESIGN_DEFAULTS.accent,
-    accentLayer: { ...accentLayer },
+    // A patchwork links the layer it draws ('own' as a dot on a grid). An image is not in the link: its math design
+    // keeps the stored layer, so the link reloads that kind as it was.
+    accentLayer: layout.value === 'patchwork' ? { ...accentDrawn.value } : { ...accentLayer },
     accentVary: { applies: varyApplies.value, ...accentVary },
   };
 }

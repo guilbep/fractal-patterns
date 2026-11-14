@@ -529,3 +529,4 @@ To make sure of these, a person must look in a browser.
 | One-tile marker | changed: outlines one base tile, not the composed file (96 px on Truchet with the accent varied over 576 px) | `src/App.vue`, `e2e/accent-controls.spec.ts` |
 | Second layer size | changed: from the base tile, not the composed file | `src/components/RepetitionPanel.vue` |
 | Link keys `al`, `av` | kept as is: the controls write them through the merged state | `src/share.ts` |
+| Accent shapes over an image or a patchwork | new: drawn on a grid or scattered by the seed; Kind's own shape and place are hidden there and a stored 'own' draws as a dot on a grid; Applies to Accent works (an image also keeps Base); a patchwork link carries `al` (off by default there), an image is not in the link | `src/state.ts`, `src/accent-layer.ts`, `src/share.ts`, `e2e/accent-modes.spec.ts` |

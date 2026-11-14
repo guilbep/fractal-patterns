@@ -20,12 +20,14 @@ function rng(seed: number): () => number {
   };
 }
 
-function randomDesign(r: () => number): Design {
+// `force` sets the layout. A patchwork has no own accent (accentDefaults).
+function randomDesign(r: () => number, force?: 'patchwork'): Design {
   const pick = <T>(xs: readonly T[]): T => xs[Math.floor(r() * xs.length)] as T;
   const int = (lo: number, hi: number) => lo + Math.floor(r() * (hi - lo + 1));
   const real = (lo: number, hi: number) => Math.round((lo + r() * (hi - lo)) * 100) / 100 + 0;
   const color = () => `#${int(0, 0xffffff).toString(16).padStart(6, '0')}`;
   const kind = pick(KINDS);
+  let layout: Design['layout'] = 'single';
   return {
     kind,
     seed: int(0, 0xffffffff),
@@ -50,7 +52,7 @@ function randomDesign(r: () => number): Design {
     zoom: real(0.25, 4),
     gap: real(0, 120),
     mirror: r() < 0.5,
-    layout: pick(['single', 'patchwork'] as const),
+    layout: (layout = force ?? pick(['single', 'patchwork'] as const)),
     cells: int(2, 4),
     frame: r() < 0.5,
     families: int(1, 63),
@@ -70,7 +72,7 @@ function randomDesign(r: () => number): Design {
     accent: r() < 0.5 ? DESIGN_DEFAULTS.accent : color(),
     accentLayer:
       r() < 0.5
-        ? accentDefaults(kind)
+        ? accentDefaults(kind, layout === 'patchwork')
         : {
             on: r() < 0.5,
             shape: pick(ACCENT_SHAPES.filter((x) => x !== 'own')),
@@ -298,7 +300,7 @@ test('sameDesign compares field by field', () => {
 test('round trip of 100 random patchwork designs', () => {
   const r = rng(5);
   for (let n = 0; n < 100; n++) {
-    const d: Design = { ...randomDesign(r), layout: 'patchwork' };
+    const d = randomDesign(r, 'patchwork');
     assert.deepEqual(decodeDesign(encodeDesign(d)), d, encodeDesign(d));
   }
 });
@@ -620,4 +622,21 @@ test('the accent layer and its variation: al and av last, round trip, old links 
     assert.deepEqual(decodeDesign(`k=hex&av=${bad}`).accentVary, { applies: 'base', ...ACCENT_VARY_DEFAULTS }, bad);
   assert.equal(sameDesign(t, { ...t, accentVary: { ...t.accentVary, turn: 1 } }), false);
   assert.equal(sameDesign(t, { ...t, accentLayer: { ...t.accentLayer } as AccentLayer }), true);
+});
+
+test('patchwork: the accent defaults are off, al round-trips, old patchwork links decode and encode unchanged', () => {
+  // Old patchwork links: no al, so the accent is off (Truchet's own dots were never drawn over a patchwork).
+  for (const old of ['k=truchet&s=7&l=patchwork', 's=3&l=patchwork&c=4&f=1']) {
+    const d = decodeDesign(old);
+    assert.deepEqual(d.accentLayer, accentDefaults(d.kind, true), old);
+    assert.equal(d.accentLayer.on, false, old);
+    assert.equal(encodeDesign(d), old, old);
+  }
+  for (const link of ['k=truchet&s=7&l=patchwork&al=1_d_15_100_g_8', 's=3&l=patchwork&c=4&f=1&al=1_d_15_100_g_8']) {
+    const d = decodeDesign(link);
+    assert.deepEqual(d.accentLayer, { on: true, shape: 'dot', size: 15, amount: 100, place: 'grid', snap: 8 }, link);
+    assert.equal(encodeDesign(d), link, link);
+  }
+  // 'own' does not exist over a patchwork: such a value gives the off defaults.
+  assert.equal(decodeDesign('k=truchet&l=patchwork&al=1_o_15_100_o_8').accentLayer.on, false);
 });

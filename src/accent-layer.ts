@@ -26,10 +26,18 @@ const SEED_SPOTS = 64; // place 'seed': 64 shapes at amount 100
 const DROP_SALT = 0x2545f491; // seed offsets: the base layer draws from mulberry32(seed) itself
 const SCATTER_SALT = 0x6c8e9cf5;
 
-export function accentDefaults(kind: Kind): AccentLayer {
-  return hasAccent(kind)
+// `patchwork`: the kind is not drawn, so its own shapes and places do not exist: the defaults are off, as for a kind without them.
+export function accentDefaults(kind: Kind, patchwork = false): AccentLayer {
+  return hasAccent(kind) && !patchwork
     ? { on: true, shape: 'own', size: OWN_SIZE[kind] ?? 15, amount: 100, place: 'own', snap: 8 }
     : { on: false, shape: 'dot', size: 15, amount: 100, place: 'grid', snap: 8 };
+}
+
+// The layer drawn where the kind's own shapes and places do not exist (an image, a patchwork): 'own' shape gives a dot,
+// 'own' place a grid. The stored layer keeps 'own', so going back to the math kind restores it.
+export function accentEffective(layer: AccentLayer, own: boolean): AccentLayer {
+  if (own || (layer.shape !== 'own' && layer.place !== 'own')) return layer;
+  return { ...layer, shape: layer.shape === 'own' ? 'dot' : layer.shape, place: layer.place === 'own' ? 'grid' : layer.place };
 }
 
 // Shapes in stamp units, the Builder's 100 box centered on 0 (src/builder/stamps.ts); the dot radius is 30.
@@ -220,15 +228,15 @@ const fromCode = <T extends string>(codes: Record<T, string>, c: string | undefi
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(v)));
 
 /** The `al` value, or null when the layer is the kind's default (old links stay unchanged). */
-export function encodeAccentLayer(kind: Kind, layer: AccentLayer): string | null {
-  const d = accentDefaults(kind);
+export function encodeAccentLayer(kind: Kind, layer: AccentLayer, patchwork = false): string | null {
+  const d = accentDefaults(kind, patchwork);
   if ((Object.keys(d) as (keyof AccentLayer)[]).every((k) => d[k] === layer[k])) return null;
   return [layer.on ? 1 : 0, SHAPE_CODE[layer.shape], layer.size, layer.amount, PLACE_CODE[layer.place], layer.snap].join('_');
 }
 
 /** The layer from an `al` value: missing or malformed gives the kind's defaults; numbers are clamped. */
-export function decodeAccentLayer(kind: Kind, value: string | null | undefined): AccentLayer {
-  const d = accentDefaults(kind);
+export function decodeAccentLayer(kind: Kind, value: string | null | undefined, patchwork = false): AccentLayer {
+  const d = accentDefaults(kind, patchwork);
   const parts = (value ?? '').split('_');
   if (parts.length !== 6) return d;
   const [on, s, size, amount, pl, snap] = parts;
@@ -236,8 +244,8 @@ export function decodeAccentLayer(kind: Kind, value: string | null | undefined):
   const place = fromCode(PLACE_CODE, pl);
   const nums = [size, amount, snap].map((v) => (/^\d+(\.\d+)?$/.test(v!) ? Number(v) : NaN));
   if ((on !== '0' && on !== '1') || !shape || !place || nums.some(Number.isNaN)) return d;
-  // 'own' exists only for kinds with their own accent shapes.
-  if (!hasAccent(kind) && (shape === 'own' || place === 'own')) return d;
+  // 'own' exists only for kinds with their own accent shapes, drawn as a single pattern.
+  if ((!hasAccent(kind) || patchwork) && (shape === 'own' || place === 'own')) return d;
   const sn = clamp(nums[2]!, 4, 16);
   return {
     on: on === '1',

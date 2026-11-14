@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { accentDefaults, accentShapes, decodeAccentLayer, encodeAccentLayer, type AccentLayer } from './accent-layer.ts';
+import { accentDefaults, accentEffective, accentShapes, decodeAccentLayer, encodeAccentLayer, type AccentLayer } from './accent-layer.ts';
 import { isClosed } from './fills.ts';
 import { accentGeometry } from './fractal.ts';
 import type { Pt } from './patterns/util.ts';
@@ -113,4 +113,15 @@ test('codec: round trip, defaults give no al, clamping, garbage gives the defaul
   assert.equal(decodeAccentLayer('tree', '1_d_99_100_g_8').size, 40);
   assert.equal(decodeAccentLayer('tree', '1_d_1_5_g_99').amount, 10);
   assert.equal(decodeAccentLayer('tree', '1_d_1_5_g_99').snap, 16);
+});
+
+test('accentEffective: own becomes a dot on a grid where the kind is not drawn, other layers pass through', () => {
+  const own = accentDefaults('truchet');
+  assert.equal(accentEffective(own, true), own);
+  assert.deepEqual(accentEffective(own, false), { ...own, shape: 'dot', place: 'grid' });
+  const ring = { ...own, shape: 'ring', place: 'own' } as const;
+  assert.deepEqual(accentEffective(ring, false), { ...ring, place: 'grid' });
+  const seed = { ...own, shape: 'triangle', place: 'seed' } as const;
+  assert.equal(accentEffective(seed, false), seed);
+  assert.equal(accentDefaults('truchet', true).on, false);
 });

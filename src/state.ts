@@ -18,7 +18,7 @@ import {
 import { patchworkCells, patchworkGeometry, type PatchworkParams } from '@/patchwork.ts';
 import { mirrorTile, withGap, zoomWrap } from '@/spacing.ts';
 import type { Poly, Pt } from '@/patterns/util.ts';
-import { accentDefaults, accentShapes, type AccentLayer } from '@/accent-layer.ts';
+import { accentDefaults, accentEffective, accentShapes, type AccentLayer } from '@/accent-layer.ts';
 import { ACCENT_VARY_DEFAULTS, varyAccent, type AccentVary } from '@/accent-vary.ts';
 import { traceCall, type TraceChoice } from '@/detectors.ts';
 import { sampleImage, type Sample } from '@/samples.ts';
@@ -310,7 +310,6 @@ export const usingPatchwork = computed(() => !usingImage.value && layout.value =
 export const aspect = computed(() => (usingImage.value || usingPatchwork.value ? 1 : tileAspect(params.kind)));
 
 // One pipeline for every source: base polylines, mirror, zoom, gap. The gap gives the final tile size.
-// `accent`: the accent shapes, through the same spacing as the strokes; only for a single math pattern.
 type Polys = readonly (readonly Pt[])[];
 type Tile = { polys: Polys; size: number; extra?: string };
 // Mirror, zoom, gap; spacing assumes a square tile.
@@ -359,14 +358,17 @@ export const tileScene = computed(() => {
 export const fillAvailable = computed(() => !variantsOn.value && !curvesOn.value && aspect.value === 1);
 const fillOn = computed(() => fill.mode !== 'none' && fillAvailable.value);
 export const closedShapes = computed(() => splitClosed(tile.value.polys).closed.length);
-// The accent shapes of one tile at the current seed, for a single math pattern only. Through the same spacing as
-// the strokes, except over a base super tile or a rectangular tile, which skip spacing.
+// The kind's own shapes and places exist only where the kind is drawn as a single pattern.
+export const accentOwnOk = computed(() => !usingImage.value && !usingPatchwork.value);
+// The layer drawn and linked: over an image or a patchwork, 'own' becomes a dot on a grid; accentLayer keeps 'own'.
+export const accentDrawn = computed(() => accentEffective(accentLayer, accentOwnOk.value));
+// The accent shapes of one tile at the current seed. Through the same spacing as the strokes, except over a base
+// super tile, a rectangular tile, or the curve tile, which skip spacing.
 function accentFor(seed: number): { polys: Polys; width: number; height: number } | null {
-  if (usingImage.value || usingPatchwork.value) return null;
   const size = params.size;
-  const polys: Polys = accentShapes(params.kind, accentLayer, { seed, depth: params.depth, size });
+  const polys: Polys = accentShapes(params.kind, accentDrawn.value, { seed, depth: params.depth, size });
   if (polys.length === 0) return null;
-  if (variantsOn.value || aspect.value !== 1) return { polys, width: size, height: tileHeight(size, aspect.value) };
+  if (variantsOn.value || curvesOn.value || aspect.value !== 1) return { polys, width: size, height: tileHeight(size, aspect.value) };
   const t = space(polys, size);
   return { polys: t.polys, width: t.size, height: t.size };
 }
@@ -432,7 +434,8 @@ export const variantsOn = computed(
   () =>
     variantsActive({ variants: variants.value, kind: params.kind, layout: layout.value, usingImage: usingImage.value }) &&
     !curvesOn.value &&
-    (usingImage.value || varyApplies.value !== 'accent'),
+    // An image varied its picture before Applies to reached it: with the accent off, it still does.
+    (varyApplies.value !== 'accent' || (usingImage.value && !accentLayer.on)),
 );
 // The base layer can vary: a traced image, or a single pattern of a kind with seed-compatible edges.
 export const baseCanVary = computed(() => usingImage.value || (layout.value === 'single' && canVary(params.kind)));

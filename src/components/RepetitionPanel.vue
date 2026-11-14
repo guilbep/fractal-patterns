@@ -31,6 +31,7 @@ import {
   spacing,
   tileSize,
   usingImage,
+  usingPatchwork,
   variantBytes,
   variantOptions,
   variants,
@@ -128,9 +129,10 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
           <template v-if="variantBytes">{{ ' ' }}{{ variantBytes.svg.toLocaleString('en') }} bytes against {{ variantBytes.plain.toLocaleString('en') }} for one tile.</template>
         </template>
       </p>
-      <template v-if="!usingImage">
+      <template v-if="!usingImage || accentCan">
         <UiSegmented :model-value="varyApplies" class="v-applies" label="Applies to" name="v-applies" :options="appliesOptions" @update:model-value="varyApplies = $event as VaryApplies" />
-        <p v-if="!baseCanVary" id="v-applies-base" class="hint-text">This pattern must meet at every tile edge, so only the accent shapes can vary.</p>
+        <p v-if="!baseCanVary && usingPatchwork" id="v-applies-base" class="hint-text">A patchwork does not vary its cells, so only the accent shapes can vary.</p>
+        <p v-else-if="!baseCanVary" id="v-applies-base" class="hint-text">This pattern must meet at every tile edge, so only the accent shapes can vary.</p>
         <p v-if="!accentCan" id="v-applies-accent" class="hint-text">Turn on Accent shapes in the Pattern tab first.</p>
       </template>
       <p v-if="usingImage && !spacing.mirror" id="v-seamless" class="hint-text">

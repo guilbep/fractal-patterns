@@ -1,10 +1,10 @@
 // Pure logic for the page shell: tab ids and palette stepping.
 
-export const TAB_IDS = ['pattern', 'repetition', 'layout', 'colors', 'image', 'export'] as const;
+export const TAB_IDS = ['pattern', 'repetition', 'layout', 'colors', 'image', 'use'] as const;
 export type TabId = (typeof TAB_IDS)[number];
 
-// Old stored tab ids that moved: Motion now lives in Layout.
-const MOVED: Readonly<Record<string, TabId>> = { motion: 'layout' };
+// Old stored tab ids that moved: Motion now lives in Layout, Export became Use it.
+const MOVED: Readonly<Record<string, TabId>> = { motion: 'layout', export: 'use' };
 
 export function migrateTab(stored: string | null): TabId {
   if (stored === null) return 'pattern';

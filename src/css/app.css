@@ -1,40 +1,48 @@
-/* Tokens: every chrome color lives here. Pairs checked with contrastRatio:
-   text on any surface >= 6.3, --line on any surface >= 3.3, in both themes. */
+/* Graph Paper tokens: every chrome color lives here. `make contrast` checks the pairs in both themes:
+   text >= 4.5 on page, surface and sunk; --line and --accent >= 3 as non-text. --hairline is decorative (exempt). */
 :root {
   color-scheme: light dark;
-  --page: #dfe4e1;
-  --surface: #fbfcfb;
-  --sunk: #eef1ef;
-  --ink: #18201d;
-  --muted: #45524d;
-  --line: #6f7d77;
-  --accent: #2e46a8;
+  --page: #f3f2ec;
+  --surface: #ffffff;
+  --sunk: #eae9e2;
+  --ink: #17181c;
+  --muted: #4a4d55;
+  --line: #80828a;
+  --hairline: #c9c8c0;
+  --accent: #2d3ec7;
   --accent-ink: #ffffff;
-  --pass: #1d6b3a;
-  --fail: #a3262a;
+  --pass: #1f6e3d;
+  --fail: #b3261e;
+  --warn: #8a5a00;
 
   --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --s1: 0.25rem;
   --s2: 0.5rem;
+  --s2-5: 0.75rem;
   --s3: 1rem;
   --s4: 1.5rem;
   --s5: 2.5rem;
-  --radius: 0.375rem;
+  --radius-control: 6px;
+  --radius-card: 10px;
+  --radius-chip: 999px;
+  --radius: var(--radius-control);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --page: #0f1311;
-    --surface: #1b211e;
-    --sunk: #141917;
-    --ink: #e6ece9;
-    --muted: #a9b5b0;
-    --line: #84918b;
-    --accent: #9fb2ff;
+    --page: #121317;
+    --surface: #1c1e23;
+    --sunk: #0b0c0f;
+    --ink: #ecebe6;
+    --muted: #a9abb2;
+    --line: #6c6f77;
+    --hairline: #33353b;
+    --accent: #95a1ff;
     --accent-ink: #12172b;
-    --pass: #7fd49a;
-    --fail: #ff9a94;
+    --pass: #6fcf94;
+    --fail: #ff8a80;
+    --warn: #e0a84a;
   }
 }
 
@@ -152,88 +160,388 @@ html {
 }
 .hero h1 {
   margin: 0 0 var(--s2);
-  font-size: clamp(1.5rem, 4vw + 0.5rem, 5.5rem);
-  line-height: 0.95;
-  font-weight: 700;
-  letter-spacing: -0.035em;
-  max-width: 10ch;
+  font-size: 1.5rem;
+  line-height: 1.1;
+  font-weight: 750;
+  letter-spacing: -0.02em;
 }
 .hero p {
-  max-width: 38ch;
   font-size: 0.875rem;
+  line-height: 1.55;
   margin: 0;
 }
 .hero-text {
   max-width: 100%;
 }
-.hero-plate {
+/* The T button hides the text for viewing only: it stays in the page and in the contrast check. */
+.hero-text.text-off {
+  visibility: hidden;
+}
+/* Only the paragraph carries the plate in 'split' mode: it hugs its text. */
+p.hero-plate {
   inline-size: fit-content;
 }
+/* The one-tile marker: on a tile seam, right of center and one row down when it fits, else at 0,0. */
+.one-tile {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  left: round(down, calc((100% - var(--tile-w)) * 0.8), var(--tile-w));
+  top: 0;
+  top: round(down, calc((100% - var(--tile-h)) * 0.2), var(--tile-h));
+  width: var(--tile-w);
+  height: var(--tile-h);
+  outline: 2px dashed var(--accent);
+  outline-offset: -1px;
+  pointer-events: none;
+}
+/* Caption and view buttons over the preview corners, outside the hero so a click on them does not shuffle. */
+.hero-caption,
+.hero-actions {
+  position: absolute;
+  z-index: 2;
+  bottom: var(--s3);
+  display: flex;
+  gap: 6px;
+  margin: 0;
+}
+.hero-caption {
+  left: var(--s3);
+  align-items: center;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  max-width: calc(100% - 7rem);
+  overflow: hidden;
+}
+.hero-actions {
+  right: var(--s3);
+}
+.hero-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  color: var(--ink);
+  cursor: pointer;
+}
+.hero-btn[aria-pressed='false'] {
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+/* Use it: the device preview covers the stage; the hero and its buttons stay in the page, hidden. */
+.stage-use > :not(.use-stage) {
+  visibility: hidden;
+}
+.use-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  padding: var(--s3);
+  background: var(--sunk);
+}
+/* Full screen (F) still shows the pattern itself. */
+.stage-use:fullscreen > :not(.use-stage) {
+  visibility: visible;
+}
+.stage:fullscreen > .use-stage {
+  display: none !important;
+}
+.use-stage .use-it-preview {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  width: 100%;
+  height: 100%;
+}
+.use-stage .uip-stage {
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+}
+/* The shortcut hint moves up, above the view buttons. */
+.stage:has(> .hero) > .shortcut-hint {
+  right: var(--s3);
+  bottom: calc(var(--s3) + 36px + var(--s2));
+}
 
+/* Toolbar (design canvas): a 60 px white band, 24 px sides, 8 px gaps, one row on desktop.
+   Three groups: make (buttons, palette), stats (chips), out (copy, Use it). Below 64rem the groups wrap;
+   on phones the make and out rows scroll inside themselves and the page never scrolls sideways. */
 .toolbar {
   position: sticky;
   top: 0;
   z-index: 3;
-  display: grid;
-  gap: var(--s1);
-  padding: var(--s2) var(--s3);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 60px;
+  box-sizing: border-box;
+  padding: 12px 24px;
   background: var(--surface);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--hairline);
 }
-/* Narrow screens: the buttons row scrolls inside itself; the badges get their own row, always visible. */
-.bar-row,
-.bar-stats {
+.bar-make,
+.bar-stats,
+.bar-out {
   display: flex;
   align-items: center;
-  gap: var(--s2);
+  gap: 8px;
+  min-width: 0;
 }
-.bar-row {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-}
-.bar-stats {
-  flex-wrap: wrap;
-}
-.bar-row > * {
+.bar-make > *,
+.bar-out > *,
+.bar-stats > * {
   flex: none;
 }
-.bar-sep {
-  align-self: stretch;
-  border-left: 1px solid var(--line);
+.bar-stats {
+  margin-inline-start: auto;
 }
-.stat {
+@media (max-width: 63.99rem) {
+  .bar-stats {
+    margin-inline-start: 0;
+  }
+}
+/* Phones: the bottom bar (BottomBar.vue) and the palette sheet take the toolbar's buttons, the preview corner its chips.
+   The toolbar stays in the page with no height (its live region keeps speaking), so --bar-h measures 0. */
+@media (max-width: 599.98px) {
+  .toolbar {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+  }
+  .bar-make,
+  .bar-stats,
+  .bar-out {
+    display: none;
+  }
+  .phone-chips {
+    position: absolute;
+    z-index: 2;
+    left: 12px;
+    bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    max-width: calc(100% - 112px);
+  }
+  /* One chip per row from the first paint: the size chip grows when its value arrives, and a wrap then would shift the
+     layout (CLS). The size text with "mg CO₂" does not fit one row beside the contrast chip below 430 px anyway. */
+  .phone-chips > * {
+    font-size: 12px;
+  }
+  .phone-chips .size-badge {
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+  }
+  /* The kind, size and seed caption leaves the corner to the chips; its full sentence stays for screen readers. */
+  .hero-caption {
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .hero-actions {
+    right: 12px;
+    bottom: 12px;
+  }
+}
+.bar-sep {
+  width: 1px;
+  height: 24px;
+  margin: 0 6px;
+  background: var(--hairline);
+}
+.toolbar .btn {
+  gap: 6px;
+  height: 36px;
+  min-height: 36px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.toolbar .btn.primary {
+  padding: 0 14px;
+  font-weight: 650;
+}
+.toolbar .btn.tool-btn {
+  justify-content: center;
+  width: 36px;
+  padding: 0;
+}
+.toolbar .btn.tool-btn:disabled {
+  background: transparent;
+}
+.toolbar .btn.use-it {
+  padding: 0 14px;
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--page);
+  font-weight: 650;
+}
+.toolbar .btn.use-it:hover {
+  background: var(--muted);
+}
+.toolbar .btn.quiet {
+  padding: 0 8px;
+}
+/* Under 1440 px the Patterns row needs about 60 px more: the palette name goes (the swatches stay, screen readers
+   still hear "Palette: name"), the separator margins and the side padding shrink. One row at 1280 px. */
+@media (max-width: 1439.98px) {
+  .toolbar {
+    padding-inline: 16px;
+  }
+  .bar-sep {
+    margin: 0;
+  }
+  .toolbar .palette-strip .palette-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+/* Copy link (stays, Patterns only) is quiet: an icon with a tooltip until there is room for its words.
+   The words stay the accessible name. */
+@media (max-width: 1535.98px) {
+  .out-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .toolbar .btn.quiet {
+    justify-content: center;
+    width: 36px;
+    padding: 0;
+  }
+}
+.tool-icon {
+  flex: none;
+}
+/* Status chips: pills, 28 px, mono 13 px. */
+.bar-chip,
+.size-badge {
   display: inline-flex;
   align-items: center;
-  gap: var(--s1);
-  padding: var(--s1) var(--s2);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  font-size: 0.875rem;
-  background: var(--sunk);
+  gap: 6px;
+  height: 28px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 13px;
+  white-space: nowrap;
 }
-.stat.ok {
+.bar-chip.ok {
   color: var(--pass);
+  background: color-mix(in srgb, var(--pass) 12%, var(--surface));
+  font-weight: 600;
 }
-.stat.bad {
+.bar-chip.bad {
   color: var(--fail);
+  background: color-mix(in srgb, var(--fail) 12%, var(--surface));
+  font-weight: 600;
 }
-/* Weight grade chip: the letter is the signal, the color repeats it. Text on --sunk (the .stat background):
-   --pass 5.7:1 light, 10:1 dark; --muted 7.2:1 light, 8.4:1 dark; --fail 6.4:1 light, 8.7:1 dark (AA 4.5:1). */
+/* Weight grade circle: the letter is the signal, the fill repeats it. Light: white on --pass 6.3:1, on --warn 5.9:1,
+   on --fail 6.5:1. Dark: --page on --pass 9.8:1, on --warn 8.7:1, on --fail 8.1:1 (AA 4.5:1). */
 .grade-chip {
-  padding: 0 0.25em;
-  border: 1px solid currentColor;
-  border-radius: 0.25rem;
+  --chip-ink: #ffffff;
+  --chip-warn: var(--warn);
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 50%;
+  font-size: 0.75rem;
   font-weight: 700;
+  line-height: 1;
+  color: var(--chip-ink);
+}
+@media (prefers-color-scheme: dark) {
+  .grade-chip {
+    --chip-ink: var(--page);
+  }
 }
 .grade-chip.good {
-  color: var(--pass);
+  background: var(--pass);
 }
 .grade-chip.mid {
-  color: var(--muted);
+  background: var(--chip-warn);
+}
+.grade-chip.pending {
+  background: var(--hairline);
 }
 .grade-chip.high {
-  color: var(--fail);
+  background: var(--fail);
 }
+/* The size badge (all pages): grade, compressed size, CO2; the details in a tooltip on hover and keyboard focus. */
+/* The width of the final text is reserved from the first paint, so "compressing" turning into the size does
+   not widen the badge and push the toolbar onto a new row. Measured: "C 6.6 kB · 1.3 mg CO₂" is 13.5em wide;
+   "A+ 12.6 kB · 2.5 mg CO₂" (the widest likely) about 14.5em. */
+.size-badge {
+  position: relative;
+  gap: 8px;
+  padding: 0 10px 0 3px;
+  background: var(--sunk);
+  cursor: default;
+  min-width: 14.5em;
+}
+.size-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.size-badge .grade-chip {
+  font-family: var(--font);
+}
+.size-tip {
+  display: none;
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.25rem);
+  right: 0; /* anchored to the right edge of the badge, so it opens inward on a phone */
+  width: max-content;
+  max-width: min(22rem, calc(100vw - 2rem));
+  padding: var(--s1) var(--s2);
+  border: 1px solid var(--line);
+  border-radius: 0.375rem;
+  background: var(--surface);
+  white-space: normal;
+  text-align: start;
+  font-size: 0.875rem;
+}
+.size-line {
+  display: block;
+}
+.size-badge:hover > .size-tip,
+.size-badge:focus-visible > .size-tip {
+  display: block;
+}
+.size-badge.tip-off > .size-tip {
+  display: none;
+}
+
 .hint {
   margin: 0;
 }
@@ -251,6 +559,11 @@ kbd {
   padding: var(--s3);
   min-width: 0;
 }
+/* Underline tabs on the page background (Patterns). */
+.controls:has(> .tabs) {
+  gap: 0;
+  padding: 0;
+}
 .tabs {
   position: sticky;
   top: calc(var(--bar-h, 0px) + var(--stage-h));
@@ -258,32 +571,43 @@ kbd {
   display: flex;
   flex-wrap: nowrap;
   overflow-x: auto;
-  gap: var(--s1);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: var(--s1);
+  gap: 2px;
+  background: var(--page);
+  border-bottom: 1px solid var(--hairline);
+  padding: 0 var(--s3);
+  font-size: 0.9375rem;
 }
 .tab {
   flex: none;
-  min-height: 2.75rem;
-  padding: 0 var(--s3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 0 14px;
   font: inherit;
-  color: var(--ink);
+  color: var(--muted);
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius);
+  border: 0;
+  border-bottom: 2px solid transparent;
   cursor: pointer;
 }
 .tab[aria-selected='true'] {
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-weight: 600;
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+  font-weight: 650;
+}
+.tab:focus-visible {
+  outline-offset: -0.1875rem;
 }
 .tabpanel {
   display: grid;
-  gap: var(--s3);
+  gap: 20px;
   min-width: 0;
+  padding: var(--s4) var(--s3);
+}
+/* One card style for every tab's panels. */
+.tabpanel .panel {
+  border-color: var(--hairline);
 }
 .shortcut {
   display: grid;
@@ -308,49 +632,187 @@ kbd {
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
     align-items: start;
   }
-  .toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--s2);
-  }
-  .bar-row,
-  .bar-stats {
-    display: contents;
-  }
   .stage {
     z-index: 0;
     height: calc(100vh - var(--bar-h, 0px));
     border-bottom: 0;
     border-right: 1px solid var(--line);
   }
+  .stage:has(> .hero) {
+    border-right-color: var(--hairline);
+  }
+  /* The stage is one viewport tall under the toolbar, so the header pushes its bottom out of view until it scrolls away. */
+  .hero-caption,
+  .hero-actions {
+    bottom: calc(var(--s3) + var(--head-h, 0px));
+  }
+  .stage:has(> .hero) > .shortcut-hint {
+    bottom: calc(var(--s3) + 36px + var(--s2) + var(--head-h, 0px));
+  }
+  .use-stage {
+    padding: 4rem var(--s5) calc(var(--s5) + var(--head-h, 0px));
+  }
+  .stage:fullscreen > .hero-caption,
+  .stage:fullscreen > .hero-actions {
+    bottom: var(--s3);
+  }
+  .stage:has(> .hero):fullscreen > .shortcut-hint {
+    bottom: calc(var(--s3) + 36px + var(--s2));
+  }
   .hero {
     padding: var(--s5);
   }
+  /* The board's plate: full width, 28 by 32 px inside, a 36 px headline and a 16 px paragraph. */
+  .hero-text.hero-plate {
+    inline-size: 100%;
+  }
   .hero h1 {
-    margin-bottom: var(--s3);
+    margin-bottom: 10px;
+    font-size: 2.25rem;
   }
   .hero p {
-    font-size: 1.125rem;
+    font-size: 1rem;
   }
   .controls {
     padding: var(--s4);
     gap: var(--s4);
   }
+  .controls:has(> .tabs) {
+    gap: 0;
+    padding: 0;
+  }
   .tabs {
     top: var(--bar-h, 0px);
     flex-wrap: wrap;
     overflow-x: visible;
+    padding: 0 28px;
   }
   .tabpanel {
-    gap: var(--s4);
+    gap: 20px;
+    padding: var(--s4) 28px;
+  }
+}
+
+/* Phones (design boards Mobile-Patterns, Mobile-Sheet): a 270 px preview, the controls in a white sheet under it.
+   The sheet's rounded top and handle are drawn by the stage (::after), so the preview stays above the content scrolling under it.
+   Scrolling into the controls leaves a 150 px preview strip: a sticky top of -120 px everywhere; where scroll-driven
+   animations exist, the box itself shrinks from 270 to 150 px, so the plate stays in view. The grid row keeps 270 px: nothing moves. */
+@media (max-width: 599.98px) {
+  :root {
+    --stage-h: 270px;
+  }
+  html {
+    scroll-padding-top: calc(150px + var(--s2));
+  }
+  .layout {
+    grid-template-rows: 270px auto;
+  }
+  .stage {
+    top: -120px;
+    height: 270px;
+    border-bottom: 0;
+  }
+  .stage::after {
+    content: '';
+    position: absolute;
+    z-index: 4;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 12px;
+    border-radius: 16px 16px 0 0;
+    background:
+      linear-gradient(var(--hairline), var(--hairline)) center 8px / 40px 4px no-repeat,
+      var(--surface);
+    box-shadow: 0 -2px 12px rgba(23, 24, 28, 0.08);
+    /* Only the upward shadow: below, the sheet continues in the controls. */
+    clip-path: inset(-24px 0 0 0);
+    pointer-events: none;
+  }
+  .stage:fullscreen::after {
+    display: none;
+  }
+  .phone-chips,
+  .hero-actions {
+    bottom: 22px;
+  }
+  /* The 150 px strip (design board Mobile-Sheet): only the contrast chip, top right, clear of the plate; the size chip
+     shows again at full height. --strip-top: where the strip starts inside the stage (the sticky stage keeps 270 px here). */
+  .stage-compact .phone-chips {
+    top: calc(var(--strip-top, 120px) + 6px);
+    right: 6px;
+    bottom: auto;
+    left: auto;
+  }
+  .stage-compact .phone-chips .size-badge {
+    display: none;
+  }
+  .controls {
+    background: var(--surface);
+    min-height: calc(100dvh - 150px);
+    align-content: start;
+  }
+  /* Use it (Studio): the device preview keeps its taller stage, without the shrink. */
+  .layout:has(> .stage-use) {
+    grid-template-rows: none;
+  }
+  /* The six tabs: a 3 × 2 grid of buttons, still one tablist (arrows move in reading order). */
+  .tabs {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 12px 16px 0;
+    overflow: visible;
+    background: var(--surface);
+    border-bottom: 0;
+    font-size: 14px;
+  }
+  .tab {
+    justify-content: center;
+    min-height: 40px;
+    padding: 0 6px;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  .tab[aria-selected='true'] {
+    color: var(--surface);
+    background: var(--ink);
+    border-color: var(--ink);
+  }
+  .tab:focus-visible {
+    outline-offset: 2px;
+  }
+  .tabpanel {
+    padding: 12px 16px var(--s4);
+  }
+}
+@supports (animation-timeline: scroll()) {
+  @media (max-width: 599.98px) and (prefers-reduced-motion: no-preference) {
+    .stage:not(.stage-use) {
+      --strip-top: 0px;
+      top: 0;
+      animation: stage-shrink linear both;
+      animation-timeline: scroll(root);
+      /* Starts once the header has scrolled away, so no gap opens above the preview. */
+      animation-range: var(--head-h, 56px) calc(var(--head-h, 56px) + 120px);
+    }
+    .stage:fullscreen {
+      animation: none;
+    }
+  }
+}
+@keyframes stage-shrink {
+  to {
+    height: 150px;
   }
 }
 
 .panel {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-card);
   padding: var(--s4) var(--s3);
   min-width: 0;
 }
@@ -707,7 +1169,7 @@ dd {
 .tag {
   font-size: 0.8125rem;
   border: 1px solid var(--line);
-  border-radius: 1rem;
+  border-radius: var(--radius-chip);
   padding: 0 0.4em;
   white-space: nowrap;
 }
@@ -831,6 +1293,13 @@ dd {
   display: grid;
   gap: 0 var(--s4);
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+}
+/* A select keeps the width of its longest option; without this the field overflows into the next column. */
+.fields > * {
+  min-width: 0;
+}
+.fields select {
+  max-width: 100%;
 }
 .seed-row {
   display: flex;

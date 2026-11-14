@@ -14,6 +14,7 @@ export type FilledRoles = Roles & {
   readonly fill?: string | null;
   readonly fillOpacity?: number;
   readonly second?: { readonly color: string; readonly strength: number } | null;
+  readonly accent?: string | null; // the accent shapes' color, at full opacity; null or absent = none on the tile
 };
 
 export interface Fix {
@@ -45,13 +46,18 @@ export function textSurfaces(r: FilledRoles, opacity: number, plate: number, spo
   for (const x of second ? [opacity] : spots(opacity))
     for (const y of fillSpots)
       out.push(
-        ...surfaceColors(plateSurfaces({ background: r.background, pattern: r.pattern, patternOpacity: x, fill, fillOpacity: y }, plate)),
+        ...surfaceColors(
+          plateSurfaces(
+            { background: r.background, pattern: r.pattern, patternOpacity: x, fill, fillOpacity: y, accent: r.accent ?? null },
+            plate,
+          ),
+        ),
       );
   if (second) {
     const o2 = opacity * second.strength;
     const k = Math.min(1, Math.max(0, plate));
     for (const y of fillSpots) {
-      const unders = fill === null ? [r.background] : [r.background, blend(fill, r.background, y)];
+      const unders = [r.background, ...(fill === null ? [] : [blend(fill, r.background, y)]), ...(r.accent ? [r.accent] : [])];
       for (const u of unders)
         for (const c of [blend(second.color, u, o2), blend(second.color, blend(r.pattern, u, opacity), o2)])
           out.push(blend(r.background, c, k));

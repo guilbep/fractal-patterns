@@ -4,23 +4,28 @@
   background-repeat: repeat;
 }
 .stamp-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));
-  gap: var(--s1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
 }
 .stamp-btn {
   display: grid;
   place-items: center;
-  aspect-ratio: 1;
-  min-width: 44px;
-  padding: var(--s1);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: #f4f1ea;
+  width: 3.5rem;
+  height: 3.5rem;
+  padding: 0.875rem;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  /* ponytail: a fixed light ground in both themes, so the dark stamps keep their contrast. */
+  background: #f7f6f2;
   cursor: pointer;
 }
 .stamp-btn:hover {
   border-color: var(--accent);
+}
+.stamp-btn.on {
+  border: 2px solid var(--accent);
+  padding: calc(0.875rem - 1px);
 }
 .stamp-btn:focus-visible {
   outline: 2px solid var(--accent);
@@ -31,31 +36,118 @@
   height: 100%;
 }
 
-/* Control panels: the Studio's classes, plus what only the builder needs. */
-.controls details.group {
-  margin-top: var(--s3);
-  border-top: 1px solid var(--line);
-  padding-top: var(--s2);
+/* The right column: one section per card, folded with a summary of its current values. */
+.controls {
+  gap: 0.625rem;
 }
-.controls summary {
+@media (min-width: 64rem) {
+  .controls {
+    padding: 1.25rem 1.75rem;
+    gap: 0.625rem;
+  }
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  min-width: 0;
+}
+.card-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  min-height: 2.75rem;
-  font-weight: 600;
+  gap: 0.625rem;
+  min-height: 3.25rem;
+  padding: var(--s2) 1.125rem;
+  list-style: none;
   cursor: pointer;
 }
-.controls summary::before {
-  content: '▸';
-  margin-right: var(--s2);
-  color: var(--muted);
-}
-.controls details[open] > summary::before {
-  content: '▾';
-}
-.controls summary::-webkit-details-marker {
+.card-head::-webkit-details-marker {
   display: none;
 }
-.controls details[open] > summary {
+.card-head h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.card-sum {
+  flex: 1 1 10rem;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.card-head::after {
+  content: '▸';
+  margin-left: auto;
+  font-size: 0.75rem;
+}
+details[open] > .card-head::after {
+  content: '▾';
+}
+.card-head:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--radius-card);
+}
+.card-body {
+  padding: 0 1.125rem 1.125rem;
+}
+
+/* Folded rows inside a card: marker, name, summary on the right. */
+.fold-list {
+  margin-top: 0.875rem;
+  border-top: 1px solid var(--hairline);
+}
+.fold {
+  border-bottom: 1px solid var(--hairline);
+}
+.fold:last-child {
+  border-bottom: 0;
+}
+.fold > summary,
+.controls details.group > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 2.75rem;
+  font-size: 0.875rem;
+  list-style: none;
+  cursor: pointer;
+}
+.fold > summary::-webkit-details-marker,
+.controls details.group > summary::-webkit-details-marker {
+  display: none;
+}
+.fold > summary::before,
+.controls details.group > summary::before {
+  content: '▸';
+  font-size: 0.75rem;
+}
+.fold[open] > summary::before,
+.controls details.group[open] > summary::before {
+  content: '▾';
+}
+.fold-name {
+  flex: 1;
+}
+.fold-sum {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.fold-sum.plain {
+  font-family: inherit;
+}
+.fold[open] {
+  padding-bottom: var(--s3);
+}
+.controls details.group {
+  margin-top: var(--s3);
+  border-top: 1px solid var(--hairline);
+}
+.controls details.group[open] > summary {
   margin-bottom: var(--s2);
 }
 .controls .group-end {
@@ -110,4 +202,123 @@
 .controls input[type='color'] {
   min-width: 2.75rem;
   min-height: 2.75rem;
+}
+
+/* The stage column: the page ground, a hairline beside the controls. */
+@media (min-width: 64rem) {
+  .layout > .stage {
+    border-right-color: var(--hairline);
+  }
+}
+
+/* Use it: the way back to the sections, above the panel. */
+.use-back {
+  justify-self: start;
+  padding: 0 8px;
+}
+.builder-sections {
+  display: contents;
+}
+
+/* The first-run coach: a dark card at the bottom of the stage, non-modal. Fixed colors in both themes. */
+.coach {
+  position: absolute;
+  left: 60px;
+  right: 60px;
+  bottom: 20px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 10px;
+  background: #17181c;
+  color: #ecebe6;
+  box-shadow: 0 8px 24px rgba(23, 24, 28, 0.25);
+}
+.coach[hidden] {
+  display: none;
+}
+.coach-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.coach-step {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #a9abb2;
+  text-transform: uppercase;
+}
+.coach-bar {
+  display: flex;
+  gap: 4px;
+}
+.coach-bar span {
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  background: #4a4d55;
+}
+.coach-bar span.on {
+  background: #95a1ff;
+}
+.coach-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+}
+.coach-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.coach-actions button {
+  height: 34px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.coach-actions button:focus-visible {
+  outline: 2px solid #95a1ff;
+  outline-offset: 2px;
+}
+.coach-actions .coach-skip {
+  padding: 0 12px;
+  border: 1px solid #6c6f77;
+  background: transparent;
+  color: #ecebe6;
+}
+.coach-actions .coach-next {
+  padding: 0 14px;
+  border: 0;
+  background: #fff;
+  color: #17181c;
+  font-weight: 650;
+}
+@media (prefers-color-scheme: dark) {
+  .coach {
+    border: 1px solid #4a4d55;
+  }
+}
+@media (max-width: 37.5rem) {
+  .coach {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+  }
+}
+/* The stage is one viewport tall under the toolbar: lift the coach by the header until it scrolls away. */
+@media (min-width: 64rem) {
+  .coach {
+    bottom: calc(20px + var(--head-h, 0px));
+  }
+}
+/* Phones: the coach is the first card of the controls sheet (BuilderApp.vue mounts it there), not over the 270 px preview. */
+@media (max-width: 599.98px) {
+  .controls > .coach {
+    position: static;
+  }
 }

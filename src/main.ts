@@ -1,5 +1,6 @@
 import { createApp, watch } from 'vue';
 import '@/css/app.css';
+import '@/css/controls.css';
 import App from './App.vue';
 import { initShare } from './state-share.ts';
 import { params, roles, usingImage, usingPatchwork } from './state.ts';

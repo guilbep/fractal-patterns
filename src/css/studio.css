@@ -30,25 +30,341 @@
   border-radius: var(--radius);
 }
 
-/* The palette strip leads the stats row, as in the pattern tool. On a phone the row wraps and never widens the page. */
-.toolbar > .bar-stats {
+/* Preview: the wallpaper edge to edge, two chips bottom left, full screen bottom right (design board values). */
+.stage {
+  border-color: var(--hairline);
+}
+.wall-chips {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  max-width: calc(100% - 84px);
   display: flex;
   flex-wrap: wrap;
+  gap: 8px;
+}
+.wall-chip,
+.wall-full {
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  color: var(--ink);
+  border-radius: var(--radius-control);
+}
+.wall-chip {
+  display: flex;
   align-items: center;
-  gap: var(--s1);
-  min-width: 0;
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+.wall-chip.mono {
+  font-family: var(--mono);
+}
+.wall-chip.balance {
+  color: var(--pass);
+  font-weight: 600;
+}
+.wall-chip.balance:not(.good) {
+  color: var(--warn);
+}
+.wall-full {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+/* The corner hint sits above the full screen button. */
+.stage > .shortcut-hint {
+  right: 16px;
+  bottom: 60px;
 }
 
-/* Design panel: the controls of a grid row keep their own height, and a select never stretches. */
+/* Controls: page background, white cards. */
+.controls.studio-controls {
+  gap: 12px;
+  align-content: start;
+}
+.s-card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  min-width: 0;
+}
+.design-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px 32px;
+  padding: 20px;
+}
+@media (min-width: 40rem) {
+  .design-card {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .design-card > .span-2 {
+    grid-column: span 2;
+  }
+  /* Seed and Palette on the left, Tile size (presets and slider) on the right, as tall as both. */
+  .design-card > .size-field {
+    grid-column: 2;
+    grid-row: 2 / span 2;
+  }
+}
+.design-card fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.design-card .field {
+  margin: 0;
+  gap: 6px;
+  align-content: start;
+}
+.s-label,
+.design-card .field label {
+  font-size: 14px;
+  font-weight: 650;
+}
+.s-label {
+  padding: 0;
+  margin-bottom: 8px;
+}
+.design-card .field output {
+  font-family: var(--mono);
+  font-size: 14px;
+}
+.design-card input[type='range'] {
+  accent-color: var(--ink);
+}
+.design-card input[type='number'],
+.design-card select {
+  min-height: 36px;
+  height: 36px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--line);
+  padding: 0 10px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+.design-card input[type='number'] {
+  font-family: var(--mono);
+  min-width: 0;
+}
+.design-card .seed-row {
+  gap: 6px;
+}
+.seed-shuffle {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.design-card select {
+  width: 100%;
+}
+
+/* Theme: three picture cards, a real radio group. */
+.theme-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.theme-card {
+  display: block;
+  position: relative;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: var(--surface);
+  cursor: pointer;
+}
+.theme-card:has(input:checked) {
+  border: 2px solid var(--accent);
+}
+.theme-card:has(input:focus-visible) {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+.theme-thumb {
+  display: block;
+  height: 72px;
+}
+.theme-name {
+  display: block;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+.theme-card:has(input:checked) .theme-name {
+  font-weight: 650;
+}
+.theme-field .hint-text {
+  margin-top: 8px;
+}
+
+/* Tile size: ink segmented presets above the exact slider. */
+.size-presets .ui-segmented-label {
+  display: none;
+}
+.size-presets .ui-segmented-option {
+  min-height: 34px;
+  padding: 0 14px;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.size-presets .ui-segmented-option + .ui-segmented-option {
+  border-left-color: var(--hairline);
+}
+.size-presets .ui-segmented-option[aria-checked='true'] {
+  background: var(--ink);
+  color: var(--surface);
+  font-weight: 650;
+}
+
+/* Folded sections: a 52 px summary row, closed by default. */
+.fold > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 18px;
+  cursor: pointer;
+  list-style: none;
+}
+.fold > summary::-webkit-details-marker {
+  display: none;
+}
+.fold-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+.fold-sum {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--muted);
+}
+.fold-sum.sans {
+  font-family: inherit;
+}
+.fold-mark {
+  transition: transform 0.15s;
+}
+.fold[open] .fold-mark {
+  transform: rotate(90deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .fold-mark {
+    transition: none;
+  }
+}
+.fold-body {
+  margin: 0;
+  border: 0;
+  min-width: 0;
+  padding: 0 18px 18px;
+}
+.studio-controls .summary {
+  font-size: 13px;
+}
+
 .fields {
   align-items: start;
 }
 .options {
   display: grid;
   gap: 0;
-  margin-top: var(--s2);
 }
 .options .hint-text {
   margin: 0 0 var(--s2) 2rem;
   max-width: 60ch;
+}
+@media (min-width: 64rem) {
+  .stage {
+    height: calc(100vh - var(--bar-h, 0px) - var(--head-h, 0px));
+  }
+  .controls.studio-controls {
+    padding: 24px 28px;
+    gap: 12px;
+  }
+}
+/* On a narrow preview the chips wrap to two rows: the corner hint moves to the top. */
+@media (max-width: 40rem) {
+  .stage > .shortcut-hint {
+    top: 12px;
+    bottom: auto;
+  }
+}
+
+/* Use it: the design controls stay mounted, hidden; their wrapper adds no box, so the column's grid is unchanged. */
+.studio-design {
+  display: contents;
+}
+.studio-use {
+  display: grid;
+  gap: var(--s3);
+  align-content: start;
+  min-width: 0;
+}
+.use-back {
+  justify-self: start;
+}
+.use-web {
+  display: grid;
+  gap: var(--s2);
+  min-width: 0;
+}
+.use-web-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+.use-web .code {
+  inline-size: 100%;
+  font-family: var(--mono);
+  font-size: 13px;
+  resize: vertical;
+}
+/* On a narrow screen the stage is short: the device preview gets room to read. */
+@media (max-width: 63.99rem) {
+  .stage.stage-use {
+    min-height: 28rem;
+  }
+}
+
+/* Phones: the size chip and the balance chip share the corner (design board Mobile-Studio); theme, seed and size are in the controls. */
+@media (max-width: 599.98px) {
+  .wall-chip.mono {
+    display: none;
+  }
+  /* 10 px above the sheet's 12 px rounded top. */
+  .wall-chips {
+    left: 12px;
+    bottom: 22px;
+  }
+  /* One row, so the 150 px strip keeps most of the wallpaper in view: 12 px chips (as on Patterns) beside the full screen button. */
+  .wall-chips {
+    flex-wrap: nowrap;
+    gap: 6px;
+    max-width: calc(100% - 68px);
+  }
+  .wall-chip {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .wall-full {
+    right: 12px;
+    bottom: 22px;
+  }
 }

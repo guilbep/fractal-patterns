@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { blend } from '@/contrast.ts';
 import { checkedRoles, contrast, fill, opacity, plateMode, plateOpacity, ratioText, roles, spots } from '@/state.ts';
+import UiSection from '@/components/UiSection.vue';
 import { CVD_LABELS, betweenSurfaces, cvdReport, effectiveOpacity, lightnessDiff, type LightnessDiff } from '@/vision.ts';
 
 // The paragraph sits on the plate in 'plate' and 'split', the heading only in 'plate'.
@@ -44,11 +45,15 @@ const cvd = computed(() =>
     pass: c.text >= 4.5,
   })),
 );
+const summary = computed(() => {
+  const pass = cvd.value.filter((c) => c.pass).length;
+  const lightness = Math.round(Math.min(...rows.value.map((r) => r.diff.value)));
+  return [`cvd ${pass}/${cvd.value.length}`, `L* ${lightness}`, between.value && 'check text lightness'].filter(Boolean).join(' · ');
+});
 </script>
 
 <template>
-  <section class="panel" aria-labelledby="vision-h">
-    <h2 id="vision-h">Second opinion</h2>
+  <UiSection title="Second opinion" heading-id="vision-h" :summary="summary">
     <p class="lede">WCAG 2.2 decides pass or fail. These checks show what the ratio does not.</p>
 
     <h3 id="lightness-h">Lightness difference</h3>
@@ -106,7 +111,7 @@ const cvd = computed(() =>
       The Colors panel also shows the APCA™ Lc value, for information only. APCA™ is the candidate contrast method for WCAG 3, and is currently in public beta. WCAG 3 is still in development and subject to changes prior to adoption. APCA is not part of WCAG 2.
       <a href="https://git.apcacontrast.com/">Read about APCA</a>
     </p>
-  </section>
+  </UiSection>
 </template>
 
 <style scoped>

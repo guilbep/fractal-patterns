@@ -33,6 +33,8 @@ import {
 } from '@/state.ts';
 import { parallaxDemoCss } from '@/state-export.ts';
 import RoleInput from '@/components/RoleInput.vue';
+import UiSection from '@/components/UiSection.vue';
+import { STRENGTHS } from '@/variants.ts';
 import type { VariantOptions } from '@/variants.ts';
 
 // ponytail: the traced tile is always square (the vectorizer fits the image into a square cell).
@@ -73,12 +75,24 @@ const panelVars = computed(() => ({ '--rp-fg': roles.pattern, '--rp-bg': roles.b
 
 const size2 = computed(() => scaledSecondSize(tileSize.value, layer2Settings.scale));
 const repeat = computed(() => repeatDistance(tileSize.value, size2.value));
+const variantsSummary = computed(() => {
+  if (!possible.value) return 'not available';
+  if (!variantsOn.value) return 'off';
+  const { cells, count } = variantOptions;
+  const strength = STRENGTHS.find((s) => s.cells === cells && s.count === count)?.label.split(':')[0];
+  return ['on', strength, `${cells} by ${cells}`].filter(Boolean).join(' · ');
+});
+const moreSummary = computed(
+  () =>
+    [layer2.value && 'second layer', fade.value && 'soft fade', change.value !== 'none' && 'slow change', sections.value && 'per-section angle']
+      .filter(Boolean)
+      .join(' · ') || 'none',
+);
 const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-timeline: scroll()');
 </script>
 
 <template>
-  <section class="panel" aria-labelledby="repetition-h">
-    <h2 id="repetition-h">Repetition</h2>
+  <UiSection title="Reduce repetition" heading-id="repetition-h" :summary="variantsSummary" open>
     <p v-if="usingImage && curvesOn" id="variants-hint" class="hint-text">Turn off Smooth curves to reduce repetition on an image.</p>
     <p v-else-if="!usingImage && !canVary(params.kind)" id="variants-hint" class="hint-text">This pattern repeats by design, so variants are not available. Second layer and Soft fade below still work.</p>
     <template v-else>
@@ -164,8 +178,9 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
         <button type="button" class="btn" @click="resetVariants">Reset variants</button>
       </div>
     </div>
+  </UiSection>
 
-    <h3 class="rep-more">More ways to hide the repeat</h3>
+  <UiSection title="More ways to hide the repeat" heading-id="rep-more-h" :summary="moreSummary">
     <label class="radio"><input id="layer2" v-model="layer2" type="checkbox" aria-describedby="layer2-hint"> Second layer</label>
     <p id="layer2-hint" class="hint-text">
       <template v-if="layer2">A second copy at {{ size2.toLocaleString('en') }} px. Together they repeat every {{ repeat.toLocaleString('en') }} px.</template>
@@ -236,5 +251,5 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
 
     <label class="radio"><input id="sections" v-model="sections" type="checkbox" aria-describedby="sections-hint"> Different angle per section</label>
     <p id="sections-hint" class="hint-text">Adds three helper classes to the CSS, fp-a, fp-b, and fp-c, that turn the pattern by a different angle. Put them on successive sections of a page. The preview does not change.</p>
-  </section>
+  </UiSection>
 </template>

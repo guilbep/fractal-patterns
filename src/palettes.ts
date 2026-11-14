@@ -97,6 +97,8 @@ export const PALETTE_SPECS: readonly PaletteSpec[] = [
   spec('Rose', 350, 'near'),
   spec('Brick', 28, 'near'),
   spec('Clay', 40, 'near'),
+  // Green leaves, orange berries: the first-visit design (share.ts WELCOME) uses it.
+  spec('Herbarium', 155, 'warm'),
   spec('Night', 255, 'warm', true),
   spec('Deep sea', 220, 'warm', true),
   spec('Ink', 265, 'near', true),

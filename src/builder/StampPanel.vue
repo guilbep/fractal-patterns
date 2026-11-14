@@ -2,14 +2,18 @@
 // The shapes library: the stamps of the design, the studio's generated drawings, and a person's own files.
 // Untrusted files reach the page only as path data rebuilt from numbers (stampFromSvg, stampFromShapes), bound with :d.
 import { computed, ref } from 'vue';
+import UiFileDrop from '@/components/UiFileDrop.vue';
 import { readImage } from '@/image-file.ts';
 import { isSvgFile } from '@/studio/own-motif.ts';
 import { addItem } from './design.ts';
 import { stampFromShapes } from './stamps.ts';
-import { commit, design, selectedId, useStamp } from './store.ts';
+import { commit, design, selected, selectedId, useStamp } from './store.ts';
 import type { Stamp } from './types.ts';
 
 const MAX_BYTES = 5 * 1024 * 1024;
+// ponytail: the counts before the lazy modules load (studioStamps: 3 x 6 families; FAMILIES in fractal.ts); the real count replaces them once loaded.
+const STUDIO_COUNT = 18;
+const MATH_FAMILIES = 6;
 const seed = ref(1);
 const status = ref('');
 let svgFailed = false; // set by stampFromFile when the SVG module cannot load
@@ -84,10 +88,7 @@ async function stampFromFile(file: File): Promise<Stamp | null> {
   return stampFromShapes(c.shapes, c.box, file.name);
 }
 
-async function onFiles(e: Event): Promise<void> {
-  const input = e.target as HTMLInputElement;
-  const files = [...(input.files ?? [])];
-  input.value = ''; // the same files can be chosen again
+async function onFiles(files: File[]): Promise<void> {
   if (!files.length) return;
   status.value = 'Loading…';
   svgFailed = false;
@@ -118,74 +119,82 @@ async function onFiles(e: Event): Promise<void> {
 </script>
 
 <template>
-  <section class="panel" aria-labelledby="stamps-h">
+  <section class="card" aria-labelledby="stamps-h">
     <!-- The page heading, as App.vue has one; the site header shows the name already. -->
     <h1 class="visually-hidden">Pattern Builder</h1>
-    <h2 id="stamps-h">Shapes</h2>
-
-    <h3>In this tile</h3>
-    <div class="stamp-grid">
-      <button v-for="(s, i) in design.stamps" :key="i" type="button" class="stamp-btn" :aria-label="s.name" :title="s.name" @click="place([i])">
-        <svg :viewBox="`0 0 ${s.box} ${s.box}`" aria-hidden="true">
-          <path v-for="(p, j) in s.parts" :key="j" :d="p.d" :fill="p.paint === 'fill' ? p.color : 'none'" :fill-rule="p.evenodd ? 'evenodd' : undefined" :stroke="p.paint === 'stroke' ? p.color : 'none'" :stroke-width="p.paint === 'stroke' ? s.box / 25 : undefined" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-      </button>
-    </div>
-
-    <details class="group" @toggle="onStudioToggle">
-      <summary>Studio drawings</summary>
-      <p v-if="studioState === 'loading'" class="hint-text" role="status">Loading…</p>
-      <p v-else-if="studioState === 'failed'" class="hint-text" role="status">The studio drawings could not be loaded. Reload the page to try again.</p>
-      <div v-if="studioMod" class="stamp-grid">
-        <button v-for="(s, i) in studio" :key="i" type="button" class="stamp-btn" :aria-label="s.name" :title="s.name" @click="place([useStamp(s)])">
-          <svg :viewBox="`0 0 ${s.box} ${s.box}`" aria-hidden="true">
-            <path v-for="(p, j) in s.parts" :key="j" :d="p.d" :fill="p.paint === 'fill' ? p.color : 'none'" :fill-rule="p.evenodd ? 'evenodd' : undefined" :stroke="p.paint === 'stroke' ? p.color : 'none'" :stroke-width="p.paint === 'stroke' ? s.box / 25 : undefined" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-      </div>
-      <button v-if="studioMod" type="button" class="btn group-end" @click="seed++">Other drawings</button>
-    </details>
-
-    <details class="group" @toggle="onMathToggle">
-      <summary>Math patterns</summary>
-      <p v-if="mathState === 'loading'" class="hint-text" role="status">Loading…</p>
-      <p v-else-if="mathState === 'failed'" class="hint-text" role="status">The math patterns could not be loaded. Reload the page to try again.</p>
-      <template v-if="mathMod">
-        <div class="field">
-          <label for="math-family">Family</label>
-          <select id="math-family" v-model="mathFamily">
-            <option v-for="f in mathMod.patternStampList()" :key="f.family" :value="f.family">{{ f.label }}</option>
-          </select>
-        </div>
+    <details open>
+      <summary class="card-head">
+        <h2 id="stamps-h">Shapes</h2>
+        <span class="card-sum">{{ design.items.length }} in this tile</span>
+      </summary>
+      <div class="card-body">
+        <h3 class="stamp-h">In this tile · click to add at the center</h3>
         <div class="stamp-grid">
-          <button v-for="(s, i) in mathStamps" :key="i" type="button" class="stamp-btn" :aria-label="s.name" :title="s.name" @click="place([useStamp(s)])">
+          <button v-for="(s, i) in design.stamps" :key="i" type="button" class="stamp-btn" :class="{ on: selected?.stamp === i }" :aria-label="s.name" :title="s.name" @click="place([i])">
             <svg :viewBox="`0 0 ${s.box} ${s.box}`" aria-hidden="true">
-              <path v-for="(p, j) in s.parts" :key="j" :d="p.d" fill="none" :stroke="p.color" :stroke-width="s.box / 50" stroke-linecap="round" stroke-linejoin="round" />
+              <path v-for="(p, j) in s.parts" :key="j" :d="p.d" :fill="p.paint === 'fill' ? p.color : 'none'" :fill-rule="p.evenodd ? 'evenodd' : undefined" :stroke="p.paint === 'stroke' ? p.color : 'none'" :stroke-width="p.paint === 'stroke' ? s.box / 25 : undefined" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </button>
         </div>
-        <button type="button" class="btn group-end" @click="mathSeed++">Other variant</button>
-      </template>
-    </details>
 
-    <details class="group" open>
-      <summary>Your own files</summary>
-      <div class="field">
-        <label for="stamp-files">Add SVG files or an image</label>
-        <input id="stamp-files" class="file-input" type="file" multiple accept="image/*,.svg" @change="onFiles" />
+        <div class="fold-list">
+          <details class="fold" @toggle="onStudioToggle">
+            <summary><span class="fold-name">Studio drawings</span><span class="fold-sum">{{ studioMod ? studio.length : STUDIO_COUNT }}</span></summary>
+            <p v-if="studioState === 'loading'" class="hint-text" role="status">Loading…</p>
+            <p v-else-if="studioState === 'failed'" class="hint-text" role="status">The studio drawings could not be loaded. Reload the page to try again.</p>
+            <div v-if="studioMod" class="stamp-grid">
+              <button v-for="(s, i) in studio" :key="i" type="button" class="stamp-btn" :aria-label="s.name" :title="s.name" @click="place([useStamp(s)])">
+                <svg :viewBox="`0 0 ${s.box} ${s.box}`" aria-hidden="true">
+                  <path v-for="(p, j) in s.parts" :key="j" :d="p.d" :fill="p.paint === 'fill' ? p.color : 'none'" :fill-rule="p.evenodd ? 'evenodd' : undefined" :stroke="p.paint === 'stroke' ? p.color : 'none'" :stroke-width="p.paint === 'stroke' ? s.box / 25 : undefined" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </div>
+            <button v-if="studioMod" type="button" class="btn group-end" @click="seed++">Other drawings</button>
+          </details>
+
+          <details class="fold" @toggle="onMathToggle">
+            <summary><span class="fold-name">Math patterns</span><span class="fold-sum">{{ mathMod ? mathMod.patternStampList().length : MATH_FAMILIES }} families</span></summary>
+            <p v-if="mathState === 'loading'" class="hint-text" role="status">Loading…</p>
+            <p v-else-if="mathState === 'failed'" class="hint-text" role="status">The math patterns could not be loaded. Reload the page to try again.</p>
+            <template v-if="mathMod">
+              <div class="field">
+                <label for="math-family">Family</label>
+                <select id="math-family" v-model="mathFamily">
+                  <option v-for="f in mathMod.patternStampList()" :key="f.family" :value="f.family">{{ f.label }}</option>
+                </select>
+              </div>
+              <div class="stamp-grid">
+                <button v-for="(s, i) in mathStamps" :key="i" type="button" class="stamp-btn" :aria-label="s.name" :title="s.name" @click="place([useStamp(s)])">
+                  <svg :viewBox="`0 0 ${s.box} ${s.box}`" aria-hidden="true">
+                    <path v-for="(p, j) in s.parts" :key="j" :d="p.d" fill="none" :stroke="p.color" :stroke-width="s.box / 50" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+              </div>
+              <button type="button" class="btn group-end" @click="mathSeed++">Other variant</button>
+            </template>
+          </details>
+
+          <details class="fold">
+            <summary><span class="fold-name">Your own files</span><span class="fold-sum plain">SVG or one image</span></summary>
+            <UiFileDrop id="stamp-files" label="Add SVG files or an image" accept="image/*,.svg" multiple @files="onFiles" />
+          </details>
+        </div>
+        <!-- Outside the fold: the result of a file stays readable with the fold closed. -->
+        <p class="hint-text status" role="status">{{ status }}</p>
       </div>
-      <p class="hint-text status" role="status">{{ status }}</p>
     </details>
   </section>
 </template>
 
 <style scoped>
-h3 {
-  margin: 0 0 var(--s1);
-  font-size: 1rem;
+.stamp-h {
+  margin: 0 0 var(--s2);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--muted);
 }
 .status {
-  min-height: 1.2em;
+  margin: 0;
   overflow-wrap: anywhere;
 }
 </style>

@@ -23,6 +23,19 @@ const LAGOON = (PALETTES.find((p) => p.name === 'Lagoon') ?? PALETTES[0]!).color
 // Chosen from `npm run logo -- candidates`: see scripts/make-logo.ts.
 export const LOGO_DEFAULT: LogoOptions = { kind: 'whirl', seed: 1, background: LAGOON[0]!, color: LAGOON[1]! };
 
+// The tool marks in the header use the logo's ink and paper, so the three read as one family.
+export const MARK_COLORS = { background: '#17181C', color: '#F3F2EC' } as const;
+
+// The site's mark: a Truchet tile, two quarter arcs joining the edge midpoints, so the tile repeats.
+export function truchetLogoSvg(o: { ink?: string; paper?: string; size?: number } = {}): string {
+  const { ink = '#17181C', paper = '#F3F2EC', size = 64 } = o;
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24">` +
+    `<rect width="24" height="24" rx="5" fill="${ink}"/>` +
+    `<path d="M12 0A12 12 0 0 1 0 12M24 12A12 12 0 0 0 12 24" fill="none" stroke="${paper}" stroke-width="2.6" stroke-linecap="round"/></svg>`
+  );
+}
+
 // The Wallpaper Studio's mark: a stem with two leaves and a five-petal bloom, in the logo's line style.
 export function studioLogoSvg(o: Pick<LogoOptions, 'background' | 'color'> = LOGO_DEFAULT): string {
   const petals = [0, 72, 144, 216, 288].map((a) => `<ellipse cx="32" cy="11" rx="4" ry="6" transform="rotate(${a} 32 18)"/>`).join('');

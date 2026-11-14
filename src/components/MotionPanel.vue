@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { co2Mg, DRIFT_WATTS, driftMgPerMinute, driftMultiple, GRID_G_PER_KWH } from '@/co2.ts';
 import { MOTION_NONE } from '@/motion.ts';
 import { motion, motionPaused } from '@/state.ts';
+import UiSection from '@/components/UiSection.vue';
 import { exportGzipBytes } from '@/state-export.ts';
 
 const perMinute = Number(driftMgPerMinute().toPrecision(1));
@@ -19,6 +20,18 @@ const DRIFTS = [
   ['xy', 'Diagonal'],
 ] as const;
 
+const summary = computed(() => `rotate ${motion.rotate}° · drift ${DRIFTS.find(([v]) => v === motion.drift)?.[1].toLowerCase()}`);
+
+// The Pause motion button lives here, so the section opens itself whenever drift turns on (an example can start it).
+const startOpen = motion.drift !== 'none';
+const sec = ref<{ $el: HTMLDetailsElement }>();
+watch(
+  () => motion.drift,
+  (d) => {
+    if (d !== 'none' && sec.value) sec.value.$el.open = true;
+  },
+);
+
 function resetMotion(): void {
   Object.assign(motion, MOTION_NONE);
   motionPaused.value = false;
@@ -26,8 +39,7 @@ function resetMotion(): void {
 </script>
 
 <template>
-  <section class="panel" aria-labelledby="motion-h">
-    <h2 id="motion-h">Transform and motion</h2>
+  <UiSection ref="sec" title="Transform and motion" heading-id="motion-h" :summary="summary" :open="startOpen">
     <p class="lede">Rotate, scale, skew, and tilt are static transforms. They cost almost nothing.</p>
 
     <div class="fields">
@@ -72,5 +84,5 @@ function resetMotion(): void {
       <li>Content that moves for more than 5 seconds needs a pause control (<a href="https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html">WCAG 2.2.2</a>). The exported CSS includes a paused state: add the class <code>fp-paused</code>.</li>
       <li>The exported CSS stops the drift for visitors who ask for reduced motion.</li>
     </ul>
-  </section>
+  </UiSection>
 </template>

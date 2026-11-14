@@ -33,8 +33,9 @@ export function shortcutFor(e: Keys, typing: boolean): Shortcut | null {
   return k === 'r' ? 'shuffle' : k === 'f' ? 'fullscreen' : null;
 }
 
+// Inside a dialog (the key panel) the page's single keys stay off.
 export const isTyping = (e: Event): boolean =>
-  !!(e.target as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable="true"]');
+  !!(e.target as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable="true"], dialog');
 
 // Esc leaves full screen by itself. Where the browser has no element full screen (iPhone), nothing happens.
 export function toggleFullscreen(el: Element | null): void {

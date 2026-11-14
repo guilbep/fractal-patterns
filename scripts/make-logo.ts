@@ -1,7 +1,7 @@
-// Writes public/favicon.svg, public/favicon-studio.svg and public/favicon-builder.svg from LOGO_DEFAULT, or with `candidates` a contact sheet to pick the mark from
+// Writes public/favicon.svg (the Truchet tile), public/favicon-studio.svg and public/favicon-builder.svg, or with `candidates` a contact sheet to pick the mark from
 // (to the path given as the next argument, or ./candidates.svg).
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { LOGO_DEFAULT, builderLogoSvg, logoSvg, studioLogoSvg } from '../src/logo.ts';
+import { LOGO_DEFAULT, MARK_COLORS, builderLogoSvg, logoSvg, studioLogoSvg, truchetLogoSvg } from '../src/logo.ts';
 import type { Kind } from '../src/fractal.ts';
 
 const KINDS: Kind[] = ['p4', 'p4m', 'p4g', 'cmm', 'pmm', 'whirl', 'rosette', 'hilbert', 'sierpinski', 'carpet', 'hex', 'herringbone'];
@@ -33,8 +33,8 @@ if (process.argv[2] === 'candidates') {
   console.log(`wrote ${sheet} (${cells.length} candidates)`);
 } else {
   mkdirSync(new URL('../public/', import.meta.url), { recursive: true });
-  writeFileSync(new URL('../public/favicon.svg', import.meta.url), logoSvg(LOGO_DEFAULT) + '\n');
-  writeFileSync(new URL('../public/favicon-studio.svg', import.meta.url), studioLogoSvg() + '\n');
-  writeFileSync(new URL('../public/favicon-builder.svg', import.meta.url), builderLogoSvg() + '\n');
+  writeFileSync(new URL('../public/favicon.svg', import.meta.url), truchetLogoSvg() + '\n');
+  writeFileSync(new URL('../public/favicon-studio.svg', import.meta.url), studioLogoSvg(MARK_COLORS) + '\n');
+  writeFileSync(new URL('../public/favicon-builder.svg', import.meta.url), builderLogoSvg(MARK_COLORS) + '\n');
   console.log('wrote public/favicon.svg, public/favicon-studio.svg and public/favicon-builder.svg');
 }

@@ -2,14 +2,16 @@
 import { computed, ref, watch } from 'vue';
 import { FAMILIES } from '@/fractal.ts';
 import { createHistory } from '@/history.ts';
-import { linkedPalette } from '@/palettes.ts'; // STUDIO-PAL
+import { PALETTES, linkedPalette } from '@/palettes.ts'; // STUDIO-PAL
 import { DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design, WELCOME } from '@/share.ts';
 import {
+  accent,
   applyPalette,
   change,
   changeTo,
   fade,
   fill,
+  hasAccent,
   lastFix,
   layer2,
   layer2Color,
@@ -18,6 +20,7 @@ import {
   layout,
   motion,
   opacity,
+  paletteName,
   params,
   parallax,
   patch,
@@ -61,12 +64,16 @@ export function snapshot(): Design {
     fill: { ...fill },
     layer2Color: layer2Own.value ? layer2Color.value : null,
     change: { dir: change.value, to: changeTo.value },
+    // Only a kind with accent shapes carries its accent color: a palette pick on another kind leaves the link as it was.
+    accent: hasAccent(params.kind) ? accent.value : DESIGN_DEFAULTS.accent,
   };
 }
 
 export function applyDesign(d: Design): void {
   Object.assign(params, { kind: d.kind, seed: d.seed, depth: d.depth, size: d.size, strokeWidth: d.strokeWidth, precision: d.precision });
   Object.assign(roles, { background: d.background, pattern: d.pattern, text: d.text });
+  // The link carries colors, not a palette name: name the curated palette that holds all three, else none ("Custom").
+  paletteName.value = PALETTES.find((p) => [d.background, d.pattern, d.text].every((c) => p.colors.includes(c)))?.name ?? null;
   opacity.value = d.opacity;
   plateMode.value = d.plateMode;
   plateOpacity.value = d.plateOpacity;
@@ -90,6 +97,7 @@ export function applyDesign(d: Design): void {
   Object.assign(fill, d.fill);
   layer2Own.value = d.layer2Color !== null;
   if (d.layer2Color !== null) layer2Color.value = d.layer2Color;
+  if (hasAccent(d.kind)) accent.value = d.accent;
   source.value = 'math';
   lastFix.value = null; // the Fix result no longer describes these colors
 }

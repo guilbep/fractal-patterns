@@ -40,11 +40,15 @@ export interface Design extends Motion {
   readonly fill: FillStyle; // closed shapes filled with a second color
   readonly layer2Color: string | null; // the second layer's own color; null = the pattern color
   readonly change: { readonly dir: ChangeDir; readonly to: number }; // Slow change across the page
+  readonly accent: string; // the color of the shapes a kind marks as accent (fractal.ts)
 }
 // Not in the URL: pinned patchwork cells (a per-session tweak), the palette name (the roles carry the colors),
 // and the image source (the pixels never leave the browser).
 
 const ALL_FAMILIES = (1 << FAMILIES.length) - 1;
+
+// A warm orange, the berry color of the phase 6 board. Also the state's fallback when a palette has no accent.
+export const ACCENT_DEFAULT = '#e07a3f';
 
 export const DESIGN_DEFAULTS: Design = {
   kind: 'tree',
@@ -79,6 +83,7 @@ export const DESIGN_DEFAULTS: Design = {
   fill: { mode: 'none', color: '#c3eaec', opacity: 1 },
   layer2Color: null,
   change: { dir: 'none', to: 0.4 },
+  accent: ACCENT_DEFAULT,
 };
 
 // Field to short key. The insertion order is the order of the encoded string.
@@ -119,7 +124,10 @@ const KEYS: Readonly<Record<keyof Design, string>> = {
   sections: 'sx',
   fill: 'fi',
   layer2Color: 'l2c',
-  change: 'ch', // keep new keys last: older links stay valid
+  change: 'ch',
+  // Written whenever it differs from the default; the page keeps it at the default for a kind without accent
+  // shapes (snapshot in state-share.ts), so a palette pick does not lengthen those links.
+  accent: 'ac', // keep new keys last: older links stay valid
 };
 const FIELDS = Object.keys(KEYS) as (keyof Design)[];
 
@@ -266,7 +274,7 @@ export function decodeDesign(query: string): Design {
     const c = Math.min(hi, Math.max(lo, n));
     return (int ? Math.round(c) : c) + 0; // + 0 turns -0 into 0
   };
-  const color = (f: 'background' | 'pattern' | 'text'): string => {
+  const color = (f: 'background' | 'pattern' | 'text' | 'accent'): string => {
     const s = get(f);
     return /^[0-9a-f]{6}$/i.test(s) ? `#${s.toLowerCase()}` : D[f];
   };
@@ -312,6 +320,7 @@ export function decodeDesign(query: string): Design {
     fill: decodeFill(get('fill')),
     layer2Color: /^[0-9a-f]{6}$/i.test(get('layer2Color')) ? `#${get('layer2Color').toLowerCase()}` : null,
     change: decodeChange(get('change')),
+    accent: color('accent'),
   };
 }
 
@@ -331,4 +340,7 @@ export function sameDesign(a: Design, b: Design): boolean {
 
 // The design a first visit shows: the address has no design yet. Chosen by the owner. It is an ordinary link string,
 // so it goes through the same decoding as a shared link, and Reset still returns to the plain defaults.
-export const WELCOME = 's=2692185587&z=64&w=1&bg=eefaf9&fg=5da09e&tx=062424&v=1&fd=1&vo=6_6_0_b_1_0_0_0';
+// Phase 6: the design board (Desktop-Patterns): Truchet, 96 px tile of 4 x 4 cells, 5 px green curves, the corner
+// dots in the default orange accent (no `ac`), the heading on a cream plate (0.88, radius 10).
+// Never move this into DESIGN_DEFAULTS: links leave out default values, so old Tree links carry no `k`.
+export const WELCOME = 'k=truchet&s=2692185587&d=4&z=96&w=5&bg=f4e9d8&fg=2f6f62&tx=1e2747&o=1&pm=plate&po=0.88&pr=10';

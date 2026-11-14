@@ -1,7 +1,7 @@
 // Seeded pattern tiles: geometry as polylines, serialized through the scene model (src/scene.ts).
 // Every kind is one generator function registered in PATTERNS; the generators live in src/patterns/.
 import { carpet, fold, hilbert, htree, koch, quadtree, sierpinski, tree } from './patterns/fractals.ts';
-import { rosette, spiral, stitch, whirl } from './patterns/lineart.ts';
+import { rosette, spiral, stitch, truchet, truchetAccent, whirl } from './patterns/lineart.ts';
 import { cm, cmm, HEX_ASPECT, p1, p2, p3, p31m, p3m1, p4, p4g, p4m, p6, p6m, pg, pgg, pm, pmg, pmm } from './patterns/symmetry.ts';
 import {
   basket,
@@ -48,6 +48,7 @@ import {
   pipes,
   weave,
 } from './patterns/themes-pipes.ts';
+import { SPRIGS_MAX_DEPTH, sprigs, sprigsAccent } from './patterns/themes-sprigs.ts';
 import { THEME_SKY_MAX_DEPTH, clouds, moons, storm } from './patterns/themes-sky.ts';
 import { THEME_WATER_MAX_DEPTH, rain, ridges, seigaiha } from './patterns/themes-water.ts';
 import { THEME_WILD_MAX_DEPTH, leaves, nest, river, thorns } from './patterns/themes-wild.ts';
@@ -56,6 +57,7 @@ import { PENROSE_ASPECT, PENROSE_MAX_DEPTH, penroseArcs, penroseArcsPath, penros
 import { QUASI_MAX_DEPTH, dodecaEdges, dodecaStars, octaEdges, octaStars } from './quasi.ts';
 import { mulberry32, type Generator, type Pt, type Rng } from './patterns/util.ts';
 import { pathData, sceneToSvg, squareScene } from './scene.ts';
+import { NO_FILL, fillScene } from './fills.ts';
 
 export const FAMILIES = ['fractal', 'line', 'surface', 'symmetry', 'theme', 'quasi'] as const;
 export type Family = (typeof FAMILIES)[number];
@@ -82,6 +84,7 @@ export const KINDS = [
   'whirl',
   'rosette',
   'spiral',
+  'truchet',
   'brick',
   'stack',
   'herringbone',
@@ -139,6 +142,7 @@ export const KINDS = [
   'paths',
   'endlessmaze',
   'endlessrail',
+  'sprigs',
   'octa',
   'octastars',
   'dodeca',
@@ -155,8 +159,11 @@ export type Kind = (typeof KINDS)[number];
 // and one level more either breaks that or only adds sub-pixel detail at size 120.
 // extra: raw path data drawn after the polylines, for parts that are not polylines (arcs).
 type Extra = (rnd: Rng, depth: number, size: number, precision: number) => string;
+// accent: closed shapes filled in the accent color, drawn over the fill layer and under the strokes (fillScene).
+// Like `extra`, it gets its own mulberry32(seed): the same stream the generator starts from, so it can replay the
+// generator's draws to place its shapes, and it never shifts the generator's output.
 const PATTERNS: Readonly<
-  Record<Kind, { family: Family; label: string; maxDepth: number; gen: Generator; aspect?: number; extra?: Extra }>
+  Record<Kind, { family: Family; label: string; maxDepth: number; gen: Generator; aspect?: number; extra?: Extra; accent?: Generator }>
 > = {
   carpet: { family: 'fractal', label: 'Carpet', maxDepth: 3, gen: carpet },
   quadtree: { family: 'fractal', label: 'Quadtree', maxDepth: 6, gen: quadtree },
@@ -170,6 +177,7 @@ const PATTERNS: Readonly<
   whirl: { family: 'line', label: 'Whirl', maxDepth: 16, gen: whirl },
   rosette: { family: 'line', label: 'Rosette', maxDepth: 5, gen: rosette },
   spiral: { family: 'line', label: 'Spirals', maxDepth: 8, gen: spiral },
+  truchet: { family: 'line', label: 'Truchet', maxDepth: 10, gen: truchet, accent: truchetAccent },
   brick: { family: 'surface', label: 'Running bond', maxDepth: 8, gen: brick },
   stack: { family: 'surface', label: 'Stack bond', maxDepth: 8, gen: stack },
   herringbone: { family: 'surface', label: 'Herringbone', maxDepth: 3, gen: herringbone },
@@ -243,6 +251,7 @@ const PATTERNS: Readonly<
   paths: { family: 'theme', label: 'Garden paths', maxDepth: PATHS_MAX_DEPTH, gen: paths },
   endlessmaze: { family: 'theme', label: 'Endless maze', maxDepth: ENDLESSMAZE_MAX_DEPTH, gen: endlessmaze },
   endlessrail: { family: 'theme', label: 'Endless railway', maxDepth: ENDLESSRAIL_MAX_DEPTH, gen: endlessrail },
+  sprigs: { family: 'theme', label: 'Sprigs', maxDepth: SPRIGS_MAX_DEPTH, gen: sprigs, accent: sprigsAccent },
   octa: { family: 'quasi', label: 'Eightfold rhombs', maxDepth: QUASI_MAX_DEPTH, gen: octaEdges },
   octastars: { family: 'quasi', label: 'Eightfold stars', maxDepth: QUASI_MAX_DEPTH, gen: octaStars },
   dodeca: { family: 'quasi', label: 'Twelvefold rhombs', maxDepth: QUASI_MAX_DEPTH, gen: dodecaEdges },
@@ -276,6 +285,7 @@ export interface PatternParams {
   readonly color: string;
   readonly opacity: number;
   readonly compat?: boolean;
+  readonly accent?: string; // the accent color; absent = the stroke color
 }
 
 // Compatible layouts: fixed per depth, so tiles of different seeds can be neighbors (super tile).
@@ -296,6 +306,7 @@ const COMPAT: Partial<Record<Kind, Generator>> = {
   waves: wavesCompat,
 };
 export const hasCompat = (kind: Kind): boolean => kind in COMPAT;
+export const hasAccent = (kind: Kind): boolean => PATTERNS[kind].accent !== undefined;
 
 const clampDepth = (kind: Kind, depth: number) => Math.min(MAX_DEPTH[kind], Math.max(1, Math.floor(depth) || 1));
 
@@ -310,7 +321,23 @@ export function extraPath(p: Pick<PatternParams, 'kind' | 'seed' | 'depth' | 'si
   return extra ? extra(mulberry32(p.seed), clampDepth(p.kind, p.depth), p.size, p.precision) : '';
 }
 
+// The kind's accent shapes ([] for a kind without the hook), in tile coordinates.
+export function accentGeometry(p: Pick<PatternParams, 'kind' | 'seed' | 'depth' | 'size'>): readonly (readonly Pt[])[] {
+  const accent = PATTERNS[p.kind].accent;
+  return accent ? accent(mulberry32(p.seed), clampDepth(p.kind, p.depth), p.size) : [];
+}
+
 export function generate(p: PatternParams): string {
+  const accent = accentGeometry(p);
+  // ponytail: a kind with accent shapes drops a raw `extra` path; no kind has both.
+  if (accent.length > 0)
+    return sceneToSvg(
+      fillScene(geometry(p), { ...p, height: tileHeight(p.size, tileAspect(p.kind)) }, NO_FILL, {
+        polys: accent,
+        color: p.accent ?? p.color,
+      }),
+      p.precision,
+    );
   return svgFromPolylines(geometry(p), p, tileAspect(p.kind), extraPath(p));
 }
 

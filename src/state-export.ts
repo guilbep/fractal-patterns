@@ -3,19 +3,13 @@ import { computed, ref, shallowRef, watch } from 'vue';
 import { APP_NAME, SITE_URL } from '@/app-name.ts';
 import { formatFootprint, gzipSize, sizeLines } from '@/co2.ts';
 import { exportCss, exportJs, exportParallax, type ExportInput } from '@/export.ts';
-import { KIND_LABELS, extraPath, geometry, tileHeight } from '@/fractal.ts';
+import { KIND_LABELS, extraPath, tileHeight } from '@/fractal.ts';
 import { altUnavailable } from '@/alt-export.ts';
-import { patchworkGeometry } from '@/patchwork.ts';
-import { squareScene } from '@/scene.ts';
-import { mirrorTile, withGap, zoomWrap } from '@/spacing.ts';
 import { traceName } from '@/detectors.ts';
 import { scaledSecondSize } from '@/layers.ts';
 import {
   aspect,
   curvesOn,
-  opacity,
-  spacing,
-  traced,
   variantsOn,
   change,
   changeTo,
@@ -37,12 +31,12 @@ import {
   sections,
   svg,
   svgForSeed,
+  tileScene,
   tileSize,
   trace,
   usingImage,
   usingPatchwork,
 } from '@/state.ts';
-import type { Pt } from '@/patterns/util.ts';
 
 // Enough to make the tile again.
 export const exportLabel = computed(() =>
@@ -130,7 +124,7 @@ export const sizeBreakdown = computed(() =>
 export const footprint = computed(() => (exportGzipBytes.value === null ? null : formatFootprint(exportGzipBytes.value)));
 
 // Other formats: the canvas script and the paint worklet, a view on the current design.
-// The scene repeats the plain-tile pipeline of state.ts (tileFor is private there): math, patchwork, or traced polylines, then mirror, zoom, gap.
+// The scene is the plain tile of state.ts with its fill and accent layers.
 export const altFormat = ref<'canvas' | 'worklet'>('canvas');
 export const altOpen = ref(false); // nothing is computed while the group is collapsed
 export const altReason = computed(() =>
@@ -141,24 +135,7 @@ export const altReason = computed(() =>
     layer2: layer2.value,
   }),
 );
-const altScene = computed(() => {
-  const size = params.size;
-  let polys: readonly (readonly Pt[])[] =
-    usingImage.value && traced.value
-      ? traced.value
-      : usingPatchwork.value
-        ? patchworkGeometry({ ...patch, seed: params.seed, depth: params.depth, size })
-        : geometry(params);
-  let w = size;
-  // Spacing applies to a square tile only, as in the preview.
-  if (aspect.value === 1) {
-    if (spacing.mirror) polys = mirrorTile(polys, size);
-    if (spacing.zoom !== 1) polys = zoomWrap(polys, size, spacing.zoom);
-    if (spacing.gap > 0) ({ polys, size: w } = withGap(polys, size, spacing.gap));
-  }
-  const scene = squareScene(polys, { size: w, strokeWidth: params.strokeWidth, color: roles.pattern, opacity: opacity.value });
-  return { ...scene, height: tileHeight(w, aspect.value) };
-});
+const altScene = tileScene;
 // The canvas export code loads when the group first opens.
 const canvasExport = shallowRef<typeof import('@/canvas-export.ts') | null>(null);
 watch(

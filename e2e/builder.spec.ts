@@ -147,6 +147,7 @@ test('fill the tile with a 5 by 3 grid, then undo', async ({ page }) => {
 });
 
 test('Half-drop changes the stage viewBox', async ({ page }) => {
+  await page.getByRole('heading', { name: 'Tile', exact: true }).click();
   await page.getByLabel('Repeat').selectOption({ label: 'Half-drop' });
   await expect(stage(page)).toHaveAttribute('viewBox', '-240 -120 960 480');
 });
@@ -154,13 +155,14 @@ test('Half-drop changes the stage viewBox', async ({ page }) => {
 test('an example changes the background, and Undo restores it', async ({ page }) => {
   await startAgain(page);
   const bg = (await stored(page))!.background;
-  await page.getByLabel('Examples').selectOption({ label: 'Scales' });
+  await page.getByLabel('Example', { exact: true }).selectOption({ label: 'Scales' });
   await expect.poll(async () => (await stored(page))!.background).not.toBe(bg);
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect.poll(async () => (await stored(page))!.background).toBe(bg);
 });
 
 test('Download SVG gives a clean svg file', async ({ page }) => {
+  await page.getByRole('button', { name: 'Use it…' }).click();
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download SVG' }).click()]);
   expect(download.suggestedFilename()).toMatch(/\.svg$/);
   const text = await readFile(await download.path(), 'utf8');
@@ -198,7 +200,7 @@ test('keyboard selects shapes', async ({ page }) => {
 test('snap places a dragged shape on the grid', async ({ page }) => {
   await startAgain(page);
   await page.getByLabel('Snap').check();
-  await expect(page.getByLabel('Grid')).toHaveValue('8');
+  await expect(page.getByRole('radio', { name: '8' })).toBeChecked();
   const s = await pickShape(page);
   const x0 = (await stored(page))!.items.find((it) => it.id === s.id)!.x;
   const dx = 47 * s.perUnit;
@@ -236,6 +238,7 @@ test('multi-select moves a group', async ({ page }) => {
 
 test('mirror repeat drags a mirrored copy', async ({ page }) => {
   await startAgain(page);
+  await page.getByRole('heading', { name: 'Tile', exact: true }).click();
   await page.getByLabel('Repeat').selectOption({ label: 'Mirror' });
   await expect(stage(page)).toHaveAttribute('viewBox', '-240 -240 960 960');
   // A copy flipped in x only, on top at its own center, inside the stage.

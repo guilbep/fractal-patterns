@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import {
+  badgeText,
   formatKb,
   co2Mg,
   DRIFT_WATTS,
@@ -13,6 +14,7 @@ import {
   GRID_G_PER_KWH,
   gzipSize,
   rawSize,
+  weightGrade,
 } from './co2.ts';
 import { generate, KINDS, MAX_DEPTH } from './fractal.ts';
 
@@ -143,4 +145,14 @@ test('weightGrade boundaries', async () => {
   );
   assert.equal(gradeLine(1987), 'Weight grade A: under 2 KB compressed.');
   assert.equal(gradeLine(30000), 'Weight grade E: 20 KB compressed or more.');
+});
+
+test('badgeText: one wording for the size badge on every page', () => {
+  const t = badgeText(2917);
+  assert.equal(t.size, '2.8 kB');
+  assert.equal(`≈ ${t.co2}`, formatFootprint(2917).split(' / ')[0]);
+  assert.equal(t.grade, weightGrade(2917).grade);
+  assert.equal(t.grade, 'B');
+  assert.deepEqual(badgeText(null), { grade: null, size: 'compressing', co2: '' });
+  assert.deepEqual(badgeText('unknown'), { grade: null, size: 'gzip size unknown', co2: '' });
 });

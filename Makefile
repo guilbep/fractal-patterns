@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install dev lint format format-check typecheck test build preview perf ci clean logo e2e
+.PHONY: help install dev lint format format-check typecheck test build preview perf ci clean logo e2e contrast
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-13s %s\n", $$1, $$2}'
@@ -30,6 +30,9 @@ build: ## Build the site into dist
 
 logo: ## Write public/favicon.svg from the logo mark (src/logo.ts)
 	npm run logo
+
+contrast: ## Print the contrast ratios of the color tokens in src/css/app.css, fail under 4.5 (text) or 3 (non-text)
+	node scripts/check-contrast.ts
 
 preview: build ## Build, then serve dist locally
 	npx vite preview

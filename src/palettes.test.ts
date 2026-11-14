@@ -26,11 +26,11 @@ const ALL = ALL_SPECS.map((s, i) => ({
 }));
 const hueDist = (a: number, b: number) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b));
 
-test('there are 24 curated palettes, 16 light and 8 dark, more cool bases than warm', () => {
-  assert.equal(PALETTES.length, 24);
+test('there are 25 curated palettes, 17 light and 8 dark, more cool bases than warm', () => {
+  assert.equal(PALETTES.length, 25);
   assert.equal(PALETTE_SPECS.filter((s) => s.dark).length, 8);
   const cool = PALETTE_SPECS.filter((s) => s.hue >= 180 && s.hue <= 280).length;
-  assert.ok(cool > 24 - cool, `${cool} cool`);
+  assert.ok(cool > 25 - cool, `${cool} cool`);
 });
 
 test('names are unique, non-empty, and new', () => {

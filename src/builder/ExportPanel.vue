@@ -1,19 +1,13 @@
 <script setup lang="ts">
-// The builder's export: size badge, the shared actions, and the design as a JSON file.
-import { computed, ref } from 'vue';
+// The builder's export, in Use it › Website background: size badge, the shared actions, and the design as a JSON file.
+import { ref } from 'vue';
 import ExportActions from '@/components/ExportActions.vue';
 import SizeBadge from '@/components/SizeBadge.vue';
-import { tileCss } from '@/export-file.ts';
-import { repeatCell } from '@/studio/model.ts';
-import { parseDesign, toStudio } from './design.ts';
+import { css } from './builder-css.ts';
+import { parseDesign } from './design.ts';
 import { commit, design, svg } from './store.ts';
 
 const MAX_BYTES = 5 * 1024 * 1024;
-
-const css = computed(() => {
-  const cell = repeatCell(toStudio(design.value));
-  return tileCss(svg.value, cell.width, cell.height, design.value.background);
-});
 
 function downloadDesign(): void {
   const url = URL.createObjectURL(new Blob([JSON.stringify(design.value)], { type: 'application/json' }));
@@ -48,8 +42,7 @@ async function openDesign(e: Event): Promise<void> {
 </script>
 
 <template>
-  <section class="panel" aria-labelledby="export-h">
-    <h2 id="export-h">Export</h2>
+  <div class="builder-export">
     <p class="export-stats"><SizeBadge :svg="svg" /></p>
     <ExportActions :svg="svg" :css="css" file-name="pattern-builder" :css-box="false" />
     <details class="group">
@@ -63,7 +56,7 @@ async function openDesign(e: Event): Promise<void> {
       </div>
       <p class="copy-status" role="status" aria-live="polite">{{ openStatus }}</p>
     </details>
-  </section>
+  </div>
 </template>
 
 <style scoped>

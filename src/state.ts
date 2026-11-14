@@ -4,11 +4,14 @@ import {
   FAMILIES,
   KINDS,
   MAX_DEPTH,
+  accentGeometry,
   extraPath,
   generate,
   geometry,
+  hasAccent,
   svgFromPolylines,
   tileAspect,
+  tileHeight,
   type Family,
   type Kind,
 } from '@/fractal.ts';
@@ -28,7 +31,8 @@ import { MOTION_NONE, type Motion } from '@/motion.ts';
 import { imageSuperTileExpanded, imageSuperTileSvg, superTileBytes } from '@/supertile.ts';
 import { VARIANT_DEFAULTS, variantTile, variantsActive, type VariantOptions } from '@/variants.ts';
 import { LAYER2_DEFAULTS, layerSpots, type Layer2Settings } from '@/layers.ts';
-import { fillScene, splitClosed, type FillStyle } from '@/fills.ts';
+import { NO_FILL, fillScene, splitClosed, type FillStyle } from '@/fills.ts';
+import { ACCENT_DEFAULT } from '@/share.ts';
 import { sceneToSvg } from '@/scene.ts';
 import type { ChangeDir } from '@/fade.ts';
 import { LAYOUT_EXAMPLES, randomLayout, randomRepetition } from '@/random-design.ts';
@@ -70,9 +74,13 @@ export const fill = reactive<{ -readonly [K in keyof FillStyle]: FillStyle[K] }>
   opacity: 1,
 });
 // The second layer's own color, used only when layer2Own is on; it follows the palette's accent (the 4th).
-const accentOf = (p: Palette | null): string => p?.colors[3] ?? '#e07a5f';
+// The palettes carry a saturated accent there (paletteLch in palettes.ts), so the accent shapes follow it too.
+const accentOf = (p: Palette | null): string => p?.colors[3] ?? ACCENT_DEFAULT;
 export const layer2Own = ref(false);
 export const layer2Color = ref(accentOf(DEFAULT_PALETTE));
+// The color of the shapes a kind marks as accent (fractal.ts); shown in the panel only for such a kind.
+export const accent = ref(accentOf(DEFAULT_PALETTE));
+export { hasAccent };
 // The last random palette, kept so the fill color and the off-palette note work while it is selected.
 const randomColors = ref<Palette | null>(null);
 export const palette = computed(
@@ -292,35 +300,53 @@ export const usingPatchwork = computed(() => !usingImage.value && layout.value =
 export const aspect = computed(() => (usingImage.value || usingPatchwork.value ? 1 : tileAspect(params.kind)));
 
 // One pipeline for every source: base polylines, mirror, zoom, gap. The gap gives the final tile size.
-type Tile = { polys: readonly (readonly Pt[])[]; size: number; extra?: string };
+// `accent`: the accent shapes, through the same spacing as the strokes; only for a single math pattern.
+type Polys = readonly (readonly Pt[])[];
+type Tile = { polys: Polys; size: number; extra?: string; accent?: Polys };
 function tileFor(seed: number): Tile {
   const size = params.size;
-  let polys: readonly (readonly Pt[])[] =
+  const single = !(usingImage.value && traced.value) && !usingPatchwork.value;
+  let polys: Polys =
     usingImage.value && traced.value
       ? traced.value
       : usingPatchwork.value
         ? patchworkGeometry({ ...patchParams.value, seed })
         : geometry({ ...params, seed });
+  let accentPolys: Polys = single ? accentGeometry({ ...params, seed }) : [];
   // ponytail: spacing assumes a square tile; skipped for a rectangular kind until a ticket asks.
   // A rectangular kind is a single math pattern here; its raw path (Penrose arcs) rides along untransformed.
   // ponytail: a square kind with `extra` would lose it under spacing; none has one yet.
-  if (aspect.value !== 1) return { polys, size, extra: extraPath({ ...params, seed }) };
-  if (spacing.mirror) polys = mirrorTile(polys, size);
-  if (spacing.zoom !== 1) polys = zoomWrap(polys, size, spacing.zoom);
-  return spacing.gap > 0 ? withGap(polys, size, spacing.gap) : { polys, size };
+  if (aspect.value !== 1) return { polys, size, extra: extraPath({ ...params, seed }), accent: accentPolys };
+  const space = (p: Polys): Tile => {
+    if (spacing.mirror) p = mirrorTile(p, size);
+    if (spacing.zoom !== 1) p = zoomWrap(p, size, spacing.zoom);
+    return spacing.gap > 0 ? withGap(p, size, spacing.gap) : { polys: p, size };
+  };
+  const t = space(polys);
+  return accentPolys.length > 0 ? { ...t, accent: space(accentPolys).polys } : t;
 }
 const tile = computed(() => tileFor(params.seed));
+// ponytail: a tile with accent shapes drops a raw `extra` path; no kind has both.
+const sceneFor = (t: Tile, color = roles.pattern) =>
+  fillScene(
+    t.polys,
+    { size: t.size, height: tileHeight(t.size, aspect.value), strokeWidth: params.strokeWidth, color, opacity: opacity.value },
+    fillOn.value ? fill : NO_FILL,
+    t.accent?.length ? { polys: t.accent, color: accent.value } : undefined,
+  );
 const tileSvg = (t: Tile, color = roles.pattern) =>
-  fillOn.value
-    ? sceneToSvg(
-        fillScene(t.polys, { size: t.size, strokeWidth: params.strokeWidth, color, opacity: opacity.value }, fill),
-        params.precision,
-      )
+  fillOn.value || t.accent?.length
+    ? sceneToSvg(sceneFor(t, color), params.precision)
     : svgFromPolylines(t.polys, { ...params, size: t.size, color, opacity: opacity.value }, aspect.value, t.extra);
+// The plain tile as layers (fill, accent, strokes): the canvas script and the paint worklet draw this.
+export const tileScene = computed(() => sceneFor(tile.value));
 // Fills need plain polylines: not the variants super tile, not the curve tile, not a kind with a raw `extra` path.
 export const fillAvailable = computed(() => !variantsOn.value && !curvesOn.value && aspect.value === 1);
 const fillOn = computed(() => fill.mode !== 'none' && fillAvailable.value);
 export const closedShapes = computed(() => splitClosed(tile.value.polys).closed.length);
+// Accent shapes on the tile: drawn by tileSvg, so not in the variants super tile or the curve tile.
+// ponytail: the super tile and the curve tile skip the accent; add it there when a ticket asks.
+const accentShown = computed(() => !variantsOn.value && curveSvg.value === null && (tile.value.accent?.length ?? 0) > 0);
 
 // Smooth curves: the traced tile from traceCurves.
 // ponytail: spacing (mirror, zoom, gap) is skipped in this mode, it works on polylines; combine it when a ticket asks.
@@ -480,6 +506,7 @@ export const checkedRoles = computed(() => ({
   fill: fillOn.value && closedShapes.value > 0 ? fill.color : null,
   fillOpacity: fill.opacity,
   second: layer2.value && layer2Own.value ? { color: layer2Color.value, strength: layer2Settings.opacity } : null,
+  accent: accentShown.value ? accent.value : null,
 }));
 
 export const contrast = computed(() => {
@@ -493,13 +520,16 @@ export const contrast = computed(() => {
   const onFill =
     r.fill === null
       ? null
-      : worstAt({ ...r, background: blend(r.fill, r.background, r.fillOpacity), fill: null }, opacity.value, spots.value);
+      : worstAt({ ...r, background: blend(r.fill, r.background, r.fillOpacity), fill: null, accent: null }, opacity.value, spots.value);
+  // Text on the accent alone and on a stroke over it, without a plate; null when no accent shape shows.
+  const onAccent = r.accent === null ? null : worstAt({ ...r, background: r.accent, fill: null, accent: null }, opacity.value, spots.value);
   // The paragraph's surface: the plate in 'plate' and 'split', the bare pattern in 'direct'.
   const worst = plateMode.value === 'direct' ? direct : onPlate;
   return {
     textOnBackground,
     textOnPattern,
     onFill,
+    onAccent,
     direct,
     onPlate,
     heading: textLevel(direct, true),
@@ -515,7 +545,14 @@ export const contrast = computed(() => {
       onFill:
         r.fill === null
           ? null
-          : apcaWorst({ ...r, background: blend(r.fill, r.background, r.fillOpacity), fill: null }, opacity.value, 0, spots.value),
+          : apcaWorst(
+              { ...r, background: blend(r.fill, r.background, r.fillOpacity), fill: null, accent: null },
+              opacity.value,
+              0,
+              spots.value,
+            ),
+      onAccent:
+        r.accent === null ? null : apcaWorst({ ...r, background: r.accent, fill: null, accent: null }, opacity.value, 0, spots.value),
     },
   };
 });
@@ -523,6 +560,11 @@ export const contrast = computed(() => {
 // Truncated, never rounded up: 4.499 shows as 4.49, so a failing ratio never reads as 4.50.
 export function ratioText(r: number): string {
   return (Math.floor(r * 100) / 100).toFixed(2);
+}
+
+// The toolbar chip's short form, one decimal, rounded down so a ratio just under a threshold never shows as passing it.
+export function ratioShort(r: number): string {
+  return (Math.floor(r * 10) / 10).toFixed(1);
 }
 
 export const rawBytes = computed(() => rawSize(svg.value));
@@ -588,6 +630,11 @@ export function setLayer2Color(hex: string): void {
   layer2Color.value = hex.toLowerCase();
 }
 
+export function setAccentColor(hex: string): void {
+  lastFix.value = null;
+  accent.value = hex.toLowerCase();
+}
+
 export function setFillColor(hex: string): void {
   lastFix.value = null;
   fill.color = hex.toLowerCase();
@@ -601,6 +648,7 @@ export function applyPalette(p: Palette): void {
   paletteName.value = p.name;
   fill.color = softOf(p);
   layer2Color.value = accentOf(p);
+  accent.value = accentOf(p);
   setRoles(paletteRoles(p.colors));
 }
 

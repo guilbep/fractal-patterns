@@ -123,3 +123,79 @@ test('real tiles: size and time against even strokes', () => {
     console.log(row.join(' | '));
   }
 });
+
+// Degree of every vertex of the tile's lines, modulo the tile; duplicate segments count once.
+function degrees(polys: Poly[]): Map<string, number> {
+  const k = ([x, y]: Pt) =>
+    `${Math.round((((x % size) + size) % size) * 1e3) % (size * 1e3)},${Math.round((((y % size) + size) % size) * 1e3) % (size * 1e3)}`;
+  const segs = new Set<string>();
+  const deg = new Map<string, number>();
+  for (const p of polys)
+    for (let i = 1; i < p.length; i++) {
+      const [a, b] = [k(p[i - 1]!), k(p[i]!)];
+      const id = [a, b, k([(p[i - 1]![0] + p[i]![0]) / 2, (p[i - 1]![1] + p[i]![1]) / 2])].sort().join('|');
+      if (a === b || segs.has(id)) continue;
+      segs.add(id);
+      for (const v of [a, b]) deg.set(v, (deg.get(v) ?? 0) + 1);
+    }
+  return Object.assign(deg, { key: k }) as Map<string, number>;
+}
+const keyOf = ([x, y]: Pt) =>
+  `${Math.round((((x % size) + size) % size) * 1e3) % (size * 1e3)},${Math.round((((y % size) + size) % size) * 1e3) % (size * 1e3)}`;
+
+test('tree: no pinch at forks, free tips taper', () => {
+  const polys = wrap(geometry({ kind: 'tree', seed: 1, depth: 5, size }) as Poly[], size);
+  const deg = degrees(polys);
+  const cs = centrelines(polys, size, opts());
+  let forks = 0;
+  let tips = 0;
+  const ratios: number[] = [];
+  for (const [v, d] of deg) {
+    // Every centreline point within 1 px of the vertex.
+    const near = cs.flatMap((c) =>
+      c.base.flatMap((p, i) => {
+        const [x, y] = v.split(',').map((n) => +n / 1e3) as [number, number];
+        const dx = ((p[0] - x + size * 1.5) % size) - size / 2;
+        const dy = ((p[1] - y + size * 1.5) % size) - size / 2;
+        return Math.hypot(dx, dy) <= 1 ? [{ c, hw: c.hw[i]!, end: i === 0 || i === c.base.length - 1 }] : [];
+      }),
+    );
+    if (d >= 3) {
+      forks++;
+      const parent = Math.max(...near.filter((n) => !n.end).map((n) => n.hw));
+      const thinnest = Math.min(...near.map((n) => n.hw));
+      ratios.push(thinnest / parent);
+      assert.ok(thinnest >= 0.7 * parent, `fork ${v}: ${thinnest} / ${parent}`);
+    } else if (d === 1) {
+      tips++;
+      for (const n of near.filter((n) => n.end)) assert.ok(n.hw <= 0.25 * Math.max(...n.c.hw), `tip ${v}: ${n.hw}`);
+    }
+  }
+  assert.ok(forks > 3 && tips > 3, `${forks} forks, ${tips} tips`);
+  console.log(`tree: ${cs.length} strands, ${forks} forks (thinnest / parent >= ${Math.min(...ratios).toFixed(2)}), ${tips} tips`);
+});
+
+test('koch: whole curves, no necks away from free ends', () => {
+  const polys = wrap(geometry({ kind: 'koch', seed: 1, depth: 4, size }) as Poly[], size);
+  const deg = degrees(polys);
+  const w = opts().width;
+  const cs = centrelines(polys, size, opts());
+  assert.ok(cs.length <= 6, `${cs.length} strands`);
+  let worst = Infinity;
+  for (const c of cs) {
+    const sorted = [...c.hw].sort((a, b) => a - b);
+    const median = sorted[sorted.length >> 1]!;
+    const s: number[] = [0];
+    for (let i = 1; i < c.base.length; i++)
+      s.push(s[i - 1]! + Math.hypot(c.base[i]![0] - c.base[i - 1]![0], c.base[i]![1] - c.base[i - 1]![1]));
+    const L = s[s.length - 1]!;
+    const free0 = !c.closed && deg.get(keyOf(c.base[0]!)) === 1;
+    const free1 = !c.closed && deg.get(keyOf(c.base[c.base.length - 1]!)) === 1;
+    c.hw.forEach((h, i) => {
+      if ((free0 && s[i]! < 4 * w) || (free1 && L - s[i]! < 4 * w)) return;
+      worst = Math.min(worst, h / median);
+    });
+  }
+  assert.ok(worst >= 0.6, `thinnest / median ${worst}`);
+  console.log(`koch: ${cs.length} strands (${cs.filter((c) => c.closed).length} closed), thinnest / median ${worst.toFixed(2)}`);
+});

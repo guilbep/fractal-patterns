@@ -63,3 +63,55 @@ test('interlace on: line style gives its reason and the tile is the interlace on
   assert.equal(lineStyle.value, 'even');
   assert.equal(interlace.on, false);
 });
+
+test('hexagonal tile: lines are as wide across a horizontal line as across a vertical one', async () => {
+  const { lineOutlines } = await import('./linestyle-tile.ts');
+  const size = 120;
+  const aspect = 1 / Math.sqrt(3); // star-hex: width / height
+  const H = size / aspect;
+  // Widest cross-section of the outlines along a line through c, perpendicular to the axis 0 (x) or 1 (y).
+  const widest = (polys: (readonly (readonly [number, number])[])[], axis: 0 | 1, from: number, to: number, c: number) => {
+    let best = 0;
+    for (let t = from; t <= to; t += 0.5) {
+      const vs: number[] = [];
+      for (const p of polys)
+        for (let i = 0; i < p.length; i++) {
+          const a = p[i]!;
+          const b = p[(i + 1) % p.length]!;
+          if ((a[axis] - t) * (b[axis] - t) > 0 || a[axis] === b[axis]) continue;
+          const v = a[1 - axis]! + ((t - a[axis]) / (b[axis] - a[axis])) * (b[1 - axis]! - a[1 - axis]!);
+          if (Math.abs(v - c) < 10) vs.push(v);
+        }
+      if (vs.length) best = Math.max(best, Math.max(...vs) - Math.min(...vs));
+    }
+    return best;
+  };
+  // Both lines are 0.8 of the squeezed square long, so their profiles match on average over seeds.
+  let across = 0;
+  let along = 0;
+  for (let seed = 1; seed <= 20; seed++) {
+    const o = { size, aspect, width: 2, style: 'brush' as const, seed };
+    const hz = lineOutlines(
+      [
+        [
+          [0.1 * size, H / 2],
+          [0.9 * size, H / 2],
+        ],
+      ],
+      o,
+    );
+    const vt = lineOutlines(
+      [
+        [
+          [size / 2, 0.1 * H],
+          [size / 2, 0.9 * H],
+        ],
+      ],
+      o,
+    );
+    across += widest(hz, 0, 0.1 * size, 0.9 * size, H / 2);
+    along += widest(vt, 1, 0.1 * H, 0.9 * H, size / 2);
+  }
+  console.log(`hex: widest across a horizontal line ${(across / 20).toFixed(2)}, across a vertical line ${(along / 20).toFixed(2)}`);
+  assert.ok(Math.abs(across / along - 1) <= 0.1, `${across / along}`);
+});

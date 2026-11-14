@@ -1,8 +1,7 @@
 // Line styles: 'even' keeps stroked polylines; 'brush' and 'hand' turn each line into a filled outline
-// whose width swells and tapers. Lines are first rejoined into strands across the tile edges, so only
-// real ends taper and the seams never pinch.
+// whose width swells and tapers. Lines are first rejoined into strands across the tile edges and through
+// joints and forks, so only free tips taper and the seams never pinch.
 import { simplify } from '../simplify.ts';
-import { strands } from './interlace.ts';
 import { TAU, type Poly, type Pt } from './util.ts';
 
 export type LineStyle = 'even' | 'brush' | 'hand';
@@ -23,6 +22,116 @@ export interface Centreline {
   hw: number[];
   closed: boolean;
   shift: Pt;
+}
+
+// A strand of the vertex graph. free0 / free1: the start / end is a free tip (degree 1), not a fork root.
+interface Strand {
+  pieces: Poly[];
+  closed: boolean;
+  free0: boolean;
+  free1: boolean;
+  forks: number[]; // arc lengths where the strand passes through a fork
+}
+
+// Points match modulo the tile on a 1e-6 * size grid, as in interlace.ts.
+function vertexKey([x, y]: Pt, size: number): string {
+  const eps = 1e-6 * size;
+  const S = Math.round(size / eps);
+  const q = (v: number) => ((Math.round(v / eps) % S) + S) % S;
+  return `${q(x)},${q(y)}`;
+}
+
+// Like strands() in interlace.ts, but duplicate segments (wrap() copies lines lying on a tile edge) count once,
+// and at an odd vertex the straightest pairs pass through while the branch left over starts there (a fork root).
+function strands(polys: Poly[], size: number): Strand[] {
+  const ea: Pt[] = [];
+  const eb: Pt[] = [];
+  const keyOf: string[] = [];
+  const byKey = new Map<string, number[]>();
+  const dup = new Set<string>();
+  for (const p of polys)
+    for (let i = 1; i < p.length; i++) {
+      const a = p[i - 1]!;
+      const b = p[i]!;
+      if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 1e-6 * size) continue;
+      const ka = vertexKey(a, size);
+      const kb = vertexKey(b, size);
+      const km = vertexKey([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], size);
+      const id = ka < kb ? `${ka}|${km}|${kb}` : `${kb}|${km}|${ka}`;
+      if (dup.has(id)) continue;
+      dup.add(id);
+      const e = ea.length;
+      ea.push(a);
+      eb.push(b);
+      keyOf.push(ka, kb);
+      byKey.set(ka, [...(byKey.get(ka) ?? []), 2 * e]);
+      byKey.set(kb, [...(byKey.get(kb) ?? []), 2 * e + 1]);
+    }
+  const pt = (x: number) => (x & 1 ? eb : ea)[x >> 1]!;
+  const dir = (x: number): Pt => {
+    const [ax, ay] = pt(x);
+    const [bx, by] = pt(x ^ 1);
+    const l = Math.hypot(bx - ax, by - ay);
+    return [(bx - ax) / l, (by - ay) / l];
+  };
+  const partner = new Map<number, number>();
+  for (const ends of byKey.values()) {
+    const left = [...ends];
+    const ds = new Map(left.map((x) => [x, dir(x)]));
+    while (left.length > 1) {
+      // Greedy: the pair closest to opposite directions.
+      let bi = 0;
+      let bj = 1;
+      let best = Infinity;
+      for (let i = 0; i < left.length; i++)
+        for (let j = i + 1; j < left.length; j++) {
+          const [ux, uy] = ds.get(left[i]!)!;
+          const [vx, vy] = ds.get(left[j]!)!;
+          const d = ux * vx + uy * vy;
+          if (d < best) [best, bi, bj] = [d, i, j];
+        }
+      partner.set(left[bi]!, left[bj]!);
+      partner.set(left[bj]!, left[bi]!);
+      left.splice(bj, 1);
+      left.splice(bi, 1);
+    }
+  }
+  const free = (x: number) => byKey.get(keyOf[x]!)!.length === 1;
+  const seen = new Uint8Array(ea.length);
+  const out: Strand[] = [];
+  const eps = 1e-6 * size;
+  const walk = (start: number): Strand => {
+    const pieces: Poly[] = [];
+    const forks: number[] = [];
+    let piece: Poly | null = null;
+    let s = 0;
+    let x = start;
+    for (;;) {
+      seen[x >> 1] = 1;
+      const a = pt(x);
+      const b = pt(x ^ 1);
+      const last = piece?.[piece.length - 1];
+      if (!piece || !last || Math.hypot(last[0] - a[0], last[1] - a[1]) > eps) {
+        piece = [a];
+        pieces.push(piece);
+      }
+      piece.push(b);
+      s += Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const y = partner.get(x ^ 1);
+      if (y === start) return { pieces, closed: true, free0: false, free1: false, forks };
+      if (y === undefined || seen[y >> 1]) return { pieces, closed: false, free0: free(start), free1: free(x ^ 1), forks };
+      if (byKey.get(keyOf[x ^ 1]!)!.length > 2) forks.push(s);
+      x = y;
+    }
+  };
+  // Open chains first (from an unpaired end), then the remaining closed loops.
+  for (let e = 0; e < ea.length; e++) {
+    if (seen[e]) continue;
+    if (!partner.has(2 * e)) out.push(walk(2 * e));
+    else if (!partner.has(2 * e + 1)) out.push(walk(2 * e + 1));
+  }
+  for (let e = 0; e < ea.length; e++) if (!seen[e]) out.push(walk(2 * e));
+  return out;
 }
 
 const smooth = (t: number) => {
@@ -119,14 +228,22 @@ export function centrelines(polys: Poly[], size: number, o: BrushOptions): Centr
         return [p[0] + d * nm[i]![0], p[1] + d * nm[i]![1]];
       });
     }
-    // Brush tapers to 15 % over 4 widths; hand tapers more gently.
+    // Brush tapers to 15 % over 4 widths; hand tapers more gently. Only free tips taper: a branch leaving a
+    // fork is profiled as if it went on as long again behind the fork, so it starts at its full swell there.
     const [tipMin, tipLen] = hand ? [0.4, 3 * w] : [0.15, 4 * w];
-    const amp = (swell - 1) * Math.min(1, L / (20 * w));
+    // A short twig still starts full at its fork: the taper of a tip fits between the tip and the nearest fork.
+    const forks = [...st.forks, ...(st.free0 ? [] : [0]), ...(st.free1 ? [] : [L])];
+    const len0 = Math.min(tipLen, ...forks);
+    const len1 = Math.min(tipLen, ...forks.map((f) => L - f));
+    const pre = st.free0 ? 0 : L;
+    const span = pre + L + (st.free1 ? 0 : L);
+    const amp = (swell - 1) * Math.min(1, span / (20 * w));
     const hw = s.map((si) => {
       if (st.closed) return (w / 2) * (1 + (swell - 1) * (0.5 + 0.5 * wave(si / L)));
-      const taper = tipMin + (1 - tipMin) * smooth(Math.min(si, L - si) / tipLen);
+      const tip = Math.min(st.free0 ? si / len0 : Infinity, st.free1 ? (L - si) / len1 : Infinity);
+      const taper = tipMin + (1 - tipMin) * smooth(tip);
       // One swell over the stroke, peaking mid-way, lightly modulated by the seeded wave.
-      const bump = Math.sin((Math.PI * si) / L) * (0.85 + 0.15 * wave(si / L));
+      const bump = Math.sin((Math.PI * (pre + si)) / span) * (0.85 + 0.15 * wave(si / L));
       return (w / 2) * taper * (1 + amp * bump * taper);
     });
     out.push({ base, pts, hw, closed: st.closed, shift });
@@ -183,8 +300,13 @@ function outline(c: Centreline): Pt[] {
 
 // Closed outlines to FILL with the nonzero rule (they overlap at crossings and between copies).
 export function brushOutlines(polys: Poly[], size: number, o: BrushOptions): Poly[] {
+  return outlineCentrelines(centrelines(polys, size, o), size, size);
+}
+
+// Outlines of centrelines on a W x H tile: one copy for every tile shift that lands on the tile, cut to it.
+export function outlineCentrelines(cs: Centreline[], W: number, H: number): Poly[] {
   const out: Poly[] = [];
-  for (const c of centrelines(polys, size, o)) {
+  for (const c of cs) {
     const shape = simplify(outline(c), 0.1);
     let x0 = Infinity,
       y0 = Infinity,
@@ -196,12 +318,12 @@ export function brushOutlines(polys: Poly[], size: number, o: BrushOptions): Pol
       y0 = Math.min(y0, y);
       y1 = Math.max(y1, y);
     }
-    // A copy for every tile shift that lands on the tile, cut to the tile.
-    for (let i = Math.ceil(-x1 / size); i <= Math.floor((size - x0) / size); i++)
-      for (let j = Math.ceil(-y1 / size); j <= Math.floor((size - y0) / size); j++) {
+    for (let i = Math.ceil(-x1 / W); i <= Math.floor((W - x0) / W); i++)
+      for (let j = Math.ceil(-y1 / H); j <= Math.floor((H - y0) / H); j++) {
         const cut = clipToTile(
-          shape.map(([x, y]): Pt => [x + i * size, y + j * size]),
-          size,
+          shape.map(([x, y]): Pt => [x + i * W, y + j * H]),
+          W,
+          H,
         );
         if (cut.length >= 3) out.push(cut.map(([x, y]): Pt => [r1(x), r1(y)]));
       }
@@ -211,13 +333,13 @@ export function brushOutlines(polys: Poly[], size: number, o: BrushOptions): Pol
 
 // Sutherland-Hodgman against the four tile edges. A concave shape cut in two keeps a zero-width
 // seam along the edge; that adds no area to a fill.
-function clipToTile(poly: Pt[], size: number): Pt[] {
+function clipToTile(poly: Pt[], W: number, H: number): Pt[] {
   let cur = poly;
   for (const [axis, edge, sign] of [
     [0, 0, 1],
-    [0, size, -1],
+    [0, W, -1],
     [1, 0, 1],
-    [1, size, -1],
+    [1, H, -1],
   ] as const) {
     const keep = (v: number) => sign * (v - edge) >= 0;
     const next: Pt[] = [];

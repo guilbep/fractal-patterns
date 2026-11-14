@@ -17,6 +17,21 @@ export interface Dla {
   parent: Int32Array;
 }
 
+// A uniform random direction from basic arithmetic and sqrt only (both exact in IEEE 754), so the growth is the same
+// on every platform. Math.sin/cos/hypot may differ in the last bit between JavaScript engines, and DLA is chaotic: a
+// one-bit difference grew a different coral on the CI runner than on a Mac.
+function direction(rnd: () => number): [number, number] {
+  for (;;) {
+    const x = rnd() * 2 - 1;
+    const y = rnd() * 2 - 1;
+    const r2 = x * x + y * y;
+    if (r2 > 1e-12 && r2 <= 1) {
+      const r = Math.sqrt(r2);
+      return [x / r, y / r];
+    }
+  }
+}
+
 export function growDla(o: DlaOptions): Dla {
   const L = o.side ?? 320;
   const r = o.radius;
@@ -53,7 +68,9 @@ export function growDla(o: DlaOptions): Dla {
     for (let i = -sp; i <= sp; i++) {
       for (let j = -sp; j <= sp; j++) {
         for (const q of grid[((((kx + i) % G) + G) % G) * G + ((((ky + j) % G) + G) % G)]!) {
-          const d = Math.hypot(wd(X[q]! - x), wd(Y[q]! - y));
+          const ex = wd(X[q]! - x);
+          const ey = wd(Y[q]! - y);
+          const d = Math.sqrt(ex * ex + ey * ey);
           if (d < bd) {
             bd = d;
             best = q;
@@ -78,7 +95,7 @@ export function growDla(o: DlaOptions): Dla {
       if (k >= 0 && gap < eps) {
         const dx = wd(x - X[k]!);
         const dy = wd(y - Y[k]!);
-        const h = Math.hypot(dx, dy) || 1;
+        const h = Math.sqrt(dx * dx + dy * dy) || 1;
         const sx = X[k]! + (dx / h) * d2r;
         const sy = Y[k]! + (dy / h) * d2r;
         near(md(sx), md(sy), d2r - 1e-6);
@@ -87,9 +104,9 @@ export function growDla(o: DlaOptions): Dla {
           break;
         }
         // Slip: a short hop sideways, kept only if it lands clear.
-        const a = rnd() * 2 * Math.PI;
-        const nx = md(x + r * Math.cos(a));
-        const ny = md(y + r * Math.sin(a));
+        const [cx, cy] = direction(rnd);
+        const nx = md(x + r * cx);
+        const ny = md(y + r * cy);
         near(nx, ny, d2r);
         if (best < 0) {
           x = nx;
@@ -97,10 +114,10 @@ export function growDla(o: DlaOptions): Dla {
         }
         continue;
       }
-      const a = rnd() * 2 * Math.PI;
+      const [cx, cy] = direction(rnd);
       const step = Math.max(gap, eps);
-      x = md(x + step * Math.cos(a));
-      y = md(y + step * Math.sin(a));
+      x = md(x + step * cx);
+      y = md(y + step * cy);
     }
   }
   return { x: Float32Array.from(X), y: Float32Array.from(Y), parent };
@@ -169,7 +186,9 @@ function beside(pts: Pt[], off: number): Pt[] {
   return pts.map(([px, py], i): Pt => {
     const a = pts[Math.max(0, i - 1)]!;
     const b = pts[Math.min(pts.length - 1, i + 1)]!;
-    const h = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    const ex = b[0] - a[0];
+    const ey = b[1] - a[1];
+    const h = Math.sqrt(ex * ex + ey * ey) || 1;
     return [px - ((b[1] - a[1]) / h) * off, py + ((b[0] - a[0]) / h) * off];
   });
 }

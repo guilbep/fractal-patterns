@@ -757,3 +757,22 @@ test('Interlace: il, iw and ig round trip, last, absent when off; old links unch
   assert.ok(!sameDesign(decodeDesign('il=1'), decodeDesign('')));
   assert.ok(!sameDesign(decodeDesign('il=1'), decodeDesign('il=1&ig=2')));
 });
+
+test('line style: ls round trip, absent at even, old links unchanged', () => {
+  assert.equal(decodeDesign('k=truchet').lineStyle, undefined);
+  assert.equal(decodeDesign('k=truchet&ls=b').lineStyle, 'brush');
+  assert.equal(decodeDesign('k=truchet&ls=h').lineStyle, 'hand');
+  for (const junk of ['ls=', 'ls=x', 'ls=brush', 'ls=toString']) assert.equal(decodeDesign(junk).lineStyle, undefined, junk);
+  for (const q of ['ls=b', 'k=truchet&s=5&ls=h', 'k=star-488&d=2&il=1&ls=b']) assert.equal(encodeDesign(decodeDesign(q)), q);
+  // Last in the link, after the newest keys.
+  assert.ok(encodeDesign({ ...decodeDesign('k=star-488&il=1'), lineStyle: 'hand' }).endsWith('il=1&ls=h'));
+  assert.ok(!encodeDesign(decodeDesign('k=truchet&s=1')).includes('ls='));
+  assert.ok(sameDesign(decodeDesign('ls=b'), decodeDesign('ls=b')));
+  assert.ok(!sameDesign(decodeDesign('ls=b'), decodeDesign('ls=h')));
+  assert.ok(!sameDesign(decodeDesign('ls=b'), decodeDesign('')));
+  // Old links decode and encode as before.
+  for (const q of ['k=star-488&d=2&il=1&iw=8', 'rc=2&il=1&iw=2&ig=8', WELCOME]) {
+    assert.equal(decodeDesign(q).lineStyle, undefined, q);
+    assert.equal(encodeDesign(decodeDesign(q)), q);
+  }
+});

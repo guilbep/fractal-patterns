@@ -64,6 +64,8 @@ export interface Design extends Motion {
   readonly regions?: { readonly mode: 'shape' | 'neighbours'; readonly k: number };
   // Over-under interlace (il, iw, ig). Optional and set only when on, like colorSym. Ribbon width and gap in px.
   readonly interlace?: { readonly width: number; readonly gap: number };
+  // Line style (ls: b brush, h hand). Optional and set only when not even, like colorSym.
+  readonly lineStyle?: 'brush' | 'hand';
 }
 
 // The interlace defaults and ranges, shared with state.ts: a link leaves out iw and ig at these values.
@@ -171,6 +173,7 @@ const KEYS: Readonly<Record<keyof Design, string>> = {
   angle: 'ca', // a star kind only
   regions: 'rc', // rc=1 by shape, 2 neighbours differ; also rk, the colour count, when not 4
   interlace: 'il', // il=1; also iw and ig when not the defaults
+  lineStyle: 'ls', // b brush, h hand; absent = even
 };
 const FIELDS = Object.keys(KEYS) as (keyof Design)[];
 
@@ -418,6 +421,10 @@ export function encodeDesign(d: Design): string {
       pairs.push(...encodeInterlace(d.interlace));
       continue;
     }
+    if (f === 'lineStyle') {
+      if (d.lineStyle) pairs.push([KEYS[f], d.lineStyle[0]!]);
+      continue;
+    }
     if (f === 'texture') {
       const te = d.texture ? encodeTexture(d.texture) : null;
       if (te) pairs.push([KEYS[f], te]);
@@ -484,6 +491,7 @@ export function decodeDesign(query: string): Design {
   const colorSym = decodeColorSym(q);
   const regions = decodeRegions(q);
   const interlace = decodeInterlace(q);
+  const lineStyle = get('lineStyle') === 'b' ? 'brush' : get('lineStyle') === 'h' ? 'hand' : undefined;
   const texture = decodeTexture(q.get(KEYS.texture));
   // Clamped and rounded; ignored for a kind that is not a star pattern.
   const angle = isStarKind(kind) ? clampAngle(get('angle').trim() === '' ? NaN : Number(get('angle'))) : CONTACT_ANGLE.default;
@@ -539,6 +547,7 @@ export function decodeDesign(query: string): Design {
     ...(angle !== CONTACT_ANGLE.default ? { angle } : {}),
     ...(regions ? { regions } : {}),
     ...(interlace ? { interlace } : {}),
+    ...(lineStyle ? { lineStyle } : {}),
   };
 }
 

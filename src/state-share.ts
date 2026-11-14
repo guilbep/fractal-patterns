@@ -39,6 +39,7 @@ import {
   plateRadius,
   regions,
   interlace,
+  lineStyle,
   roles,
   sections,
   source,
@@ -93,6 +94,7 @@ export function snapshot(): Design {
     // Off leaves it out, like Color symmetry.
     ...(regions.mode !== 'off' ? { regions: { mode: regions.mode, k: regions.k } } : {}),
     ...(interlace.on ? { interlace: { width: interlace.width, gap: interlace.gap } } : {}),
+    ...(lineStyle.value !== 'even' ? { lineStyle: lineStyle.value } : {}),
   };
 }
 
@@ -136,6 +138,7 @@ export function applyDesign(d: Design): void {
   contactAngle.value = d.angle ?? CONTACT_ANGLE.default;
   Object.assign(regions, d.regions ?? { mode: 'off', k: 4 });
   Object.assign(interlace, d.interlace ? { on: true, ...d.interlace } : INTERLACE_DEFAULTS);
+  lineStyle.value = d.lineStyle ?? 'even';
   source.value = 'math';
   lastFix.value = null; // the Fix result no longer describes these colors
 }

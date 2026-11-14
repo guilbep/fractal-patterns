@@ -482,16 +482,30 @@ function tileFor(seed: number, polys: Polys = rawFor(seed)): Tile {
   return space(polys, size);
 }
 const tile = computed(() => tileFor(params.seed, raw.value));
-const sceneFor = (t: Tile, color = roles.pattern) =>
-  fillScene(
+const sceneFor = (t: Tile, color = roles.pattern) => {
+  const s = fillScene(
     t.polys,
     { size: t.size, height: tileHeight(t.size, aspect.value), strokeWidth: params.strokeWidth, color, opacity: opacity.value },
     fillOn.value ? fill : NO_FILL,
   );
+  // Line style: the stroked lines become filled outlines, non-zero so overlapping outlines join.
+  const b = styledLines(t);
+  return b
+    ? {
+        ...s,
+        layers: s.layers.map((l) =>
+          l.paint.mode === 'stroke'
+            ? { polys: b, paint: { mode: 'fill' as const, color, opacity: opacity.value, width: 0, rule: 'nonzero' as const } }
+            : l,
+        ),
+      }
+    : s;
+};
 const tileSvg = (t: Tile, color = roles.pattern): string => {
-  const s = fillOn.value
-    ? sceneToSvg(sceneFor(t, color), params.precision)
-    : svgFromPolylines(t.polys, { ...params, size: t.size, color, opacity: opacity.value }, aspect.value, t.extra);
+  const s =
+    fillOn.value || styledLines(t)
+      ? sceneToSvg(sceneFor(t, color), params.precision)
+      : svgFromPolylines(t.polys, { ...params, size: t.size, color, opacity: opacity.value }, aspect.value, t.extra);
   // The coloured regions go first, under the lines; only on the current tile (the second layer's seed has other regions).
   // Interlace: the ribbons replace the lines, over the regions.
   const r = t === tile.value ? regionPaths.value : '';
@@ -751,6 +765,40 @@ const ribbons = computed(() =>
       })
     : '',
 );
+
+// Lines with character (patterns/linestyle.ts): 'brush' swells and tapers each line, 'hand' wobbles it a little first;
+// drawn as filled outlines. Even by default.
+export type LineStyle = 'even' | 'brush' | 'hand';
+export const lineStyle = ref<LineStyle>('even');
+// Where region colours are off, so is the line style (regionsOffReason, reworded by LineStyleControl.vue), and while
+// Interlace is on ('interlace': it draws ribbons). '' when available.
+export const lineStyleOffReason = computed(() => (interlaceActive.value ? 'interlace' : regionsOffReason.value));
+const lineStyleActive = computed(() => lineStyle.value !== 'even' && !lineStyleOffReason.value);
+const lineStyleMod = shallowRef<typeof import('@/linestyle-tile.ts') | null>(null);
+let lineStyleLoad: Promise<void> | undefined;
+export function lineStyleReady(): Promise<void> {
+  lineStyleLoad ??= import('@/linestyle-tile.ts').then((m) => {
+    lineStyleMod.value = m;
+  });
+  return lineStyleLoad;
+}
+watch(lineStyleActive, (on) => on && void lineStyleReady(), { immediate: true });
+const outlinesOf = (t: Tile): Poly[] | null =>
+  lineStyleActive.value && lineStyleMod.value
+    ? lineStyleMod.value.lineOutlines(t.polys, {
+        size: t.size,
+        aspect: aspect.value,
+        width: params.strokeWidth,
+        style: lineStyle.value as 'brush' | 'hand',
+        seed: params.seed,
+      })
+    : null;
+// The current tile's outlines, found again only when its lines, the width, the style or the seed change.
+const tileOutlines = computed(() => outlinesOf(tile.value));
+// Null while even, unavailable or loading: the tile keeps its stroked lines.
+function styledLines(t: Tile): Poly[] | null {
+  return t === tile.value ? tileOutlines.value : outlinesOf(t);
+}
 
 // Grain: a fine noise under the pattern, over the background color, its own tile size (grain.ts). Off by default.
 export const grain = reactive<{ -readonly [K in keyof Grain]: Grain[K] }>({ ...GRAIN_DEFAULTS });
@@ -1287,4 +1335,5 @@ export function reset(): void {
   Object.assign(texture, TEXTURE_DEFAULTS);
   Object.assign(regions, REGIONS_DEFAULTS);
   Object.assign(interlace, INTERLACE_DEFAULTS);
+  lineStyle.value = 'even';
 }

@@ -3,7 +3,7 @@ import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue';
 import { CONTACT_ANGLE, FAMILIES, FAMILY_LABELS, KINDS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH, isStarKind, tileHeight, type Kind } from '@/fractal.ts';
 import { SIZE_MAX, SIZE_MIN, SIZE_PRESETS, markedPreset } from '@/sizes.ts';
 import { LIB_TABS, kindsForTab, parseLibTab, tabForKind, type LibTab } from '@/library.ts';
-import { MAX_SEED, bandColors, chooseKind, contactAngle, aspect, tileSize, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, patchworkOffReason, usingImage, usingPatchwork, imageShuffles, wheelStatus, growStatus, regions, regionColors, regionsInfo, regionsOffReason, interlace, interlaceOffReason, weave, type RegionMode } from '@/state.ts';
+import { MAX_SEED, bandColors, chooseKind, contactAngle, aspect, tileSize, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, patchworkOffReason, usingImage, usingPatchwork, imageShuffles, wheelStatus, growStatus, regions, regionColors, regionsInfo, regionsOffReason, interlace, interlaceOffReason, weave, lineStyle, lineStyleOffReason, type LineStyle, type RegionMode } from '@/state.ts';
 import { patchKind } from '@/patchwork.ts';
 import AccentShapes from '@/components/AccentShapes.vue';
 import '@/css/library.css';
@@ -12,6 +12,7 @@ import '@/css/sizes.css';
 // Loads when a symmetry kind is first shown: the controls are not in the start JavaScript.
 const ColorSymmetryPanel = defineAsyncComponent(() => import('@/components/ColorSymmetryPanel.vue'));
 const RegionsControl = defineAsyncComponent(() => import('@/components/RegionsControl.vue'));
+const LineStyleControl = defineAsyncComponent(() => import('@/components/LineStyleControl.vue'));
 const InterlaceControl = defineAsyncComponent(() => import('@/components/InterlaceControl.vue'));
 
 // Patchwork cells are square: rectangular kinds are not offered.
@@ -147,6 +148,7 @@ const galleryVars = computed(() => ({ '--lib-bg': roles.background, '--lib-fg': 
         <label for="stroke">Stroke width <output for="stroke">{{ params.strokeWidth }} px</output></label>
         <input id="stroke" v-model.number="params.strokeWidth" type="range" min="0.5" max="6" step="0.5">
       </div>
+      <LineStyleControl :value="lineStyle" :reason="lineStyleOffReason" @set="lineStyle = $event as LineStyle" />
       <div v-if="isStarKind(params.kind) && !usingImage && !usingPatchwork" class="field">
         <label for="angle">Contact angle <output for="angle">{{ contactAngle }}°</output></label>
         <input id="angle" v-model.number="contactAngle" type="range" :min="CONTACT_ANGLE.min" :max="CONTACT_ANGLE.max" step="1">

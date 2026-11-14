@@ -830,3 +830,58 @@
   flex-basis: 100%;
   margin: 0;
 }
+/* Precision loupe (PrecisionLoupe.vue): the region at 8× beside a full-tile thumbnail; stacks under 600 px. */
+.loupe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3, 12px);
+  align-items: flex-start;
+  margin-block: var(--s2, 8px) var(--s3, 12px);
+}
+.loupe-view {
+  flex: none;
+  max-inline-size: 100%;
+  height: auto;
+  border: 1px solid var(--border, currentColor);
+}
+.loupe-view path,
+.loupe-thumb path,
+.loupe-marker {
+  vector-effect: non-scaling-stroke;
+}
+.loupe-exact {
+  stroke: #9aa0a6;
+  stroke-width: 1;
+}
+.loupe-rounded {
+  stroke-width: 2;
+  stroke-opacity: 0.85;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.loupe-thin {
+  stroke-width: 1;
+}
+.loupe-side {
+  flex: 1 1 10rem;
+  min-inline-size: 0;
+}
+.loupe-thumb {
+  display: block;
+  touch-action: none;
+  cursor: crosshair;
+  border: 1px solid var(--border, currentColor);
+}
+.loupe-marker {
+  stroke: #e8590c;
+  stroke-width: 2;
+}
+.loupe-readout,
+.loupe-note {
+  margin: var(--s2, 8px) 0 0;
+}
+@media (max-width: 599px) {
+  .loupe {
+    flex-direction: column;
+  }
+}

@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { fileName, params, svgHref, usingImage } from '@/state.ts';
 import { exportHtml } from '@/export.ts';
 import { copyText } from '@/clipboard.ts';
+import PrecisionLoupe from '@/components/PrecisionLoupe.vue';
 import { GRADE_SCALE, weightGrade } from '@/co2.ts';
 import { altBytes, exportGzipBytes, altFormat, altGzip, altOpen, altReason, altText, cssBytes, exportScript, exportText, footprint, gzipped, scriptBytes, sizeBreakdown, scriptCount, scriptEvent, scriptOn } from '@/state-export.ts';
 
@@ -31,6 +32,7 @@ async function copy(text: string): Promise<void> {
       <label for="precision">Coordinate precision <output for="precision">{{ params.precision }} {{ params.precision === 1 ? 'decimal' : 'decimals' }}</output></label>
       <input id="precision" v-model.number="params.precision" type="range" min="0" max="3" step="1">
     </div>
+    <PrecisionLoupe />
     <dl class="stats">
       <div v-for="line in sizeBreakdown" :key="line" class="wide"><dt>{{ line.slice(0, line.indexOf(':')) }}</dt><dd>{{ line.slice(line.indexOf(':') + 2) }}</dd></div>
       <div v-if="exportGzipBytes !== null" class="wide"><dt>Weight grade</dt><dd>{{ weightGrade(exportGzipBytes).grade }}. {{ GRADE_SCALE }}</dd></div>

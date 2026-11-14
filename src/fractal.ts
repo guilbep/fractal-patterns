@@ -163,7 +163,10 @@ type Extra = (rnd: Rng, depth: number, size: number, precision: number) => strin
 // Like `extra`, it gets its own mulberry32(seed): the same stream the generator starts from, so it can replay the
 // generator's draws to place its shapes, and it never shifts the generator's output.
 const PATTERNS: Readonly<
-  Record<Kind, { family: Family; label: string; maxDepth: number; gen: Generator; aspect?: number; extra?: Extra; accent?: Generator }>
+  Record<
+    Kind,
+    { family: Family; label: string; maxDepth: number; gen: Generator; aspect?: number; extra?: Extra; accent?: Generator; stroke?: number }
+  >
 > = {
   carpet: { family: 'fractal', label: 'Carpet', maxDepth: 3, gen: carpet },
   quadtree: { family: 'fractal', label: 'Quadtree', maxDepth: 6, gen: quadtree },
@@ -251,7 +254,7 @@ const PATTERNS: Readonly<
   paths: { family: 'theme', label: 'Garden paths', maxDepth: PATHS_MAX_DEPTH, gen: paths },
   endlessmaze: { family: 'theme', label: 'Endless maze', maxDepth: ENDLESSMAZE_MAX_DEPTH, gen: endlessmaze },
   endlessrail: { family: 'theme', label: 'Endless railway', maxDepth: ENDLESSRAIL_MAX_DEPTH, gen: endlessrail },
-  sprigs: { family: 'theme', label: 'Sprigs', maxDepth: SPRIGS_MAX_DEPTH, gen: sprigs, accent: sprigsAccent },
+  sprigs: { family: 'theme', label: 'Sprigs', maxDepth: SPRIGS_MAX_DEPTH, gen: sprigs, accent: sprigsAccent, stroke: 1 },
   octa: { family: 'quasi', label: 'Eightfold rhombs', maxDepth: QUASI_MAX_DEPTH, gen: octaEdges },
   octastars: { family: 'quasi', label: 'Eightfold stars', maxDepth: QUASI_MAX_DEPTH, gen: octaStars },
   dodeca: { family: 'quasi', label: 'Twelvefold rhombs', maxDepth: QUASI_MAX_DEPTH, gen: dodecaEdges },
@@ -270,6 +273,8 @@ const byKind = <T>(f: (k: Kind) => T): Readonly<Record<Kind, T>> => Object.fromE
 export const KIND_LABELS: Readonly<Record<Kind, string>> = byKind((k) => PATTERNS[k].label);
 export const KIND_FAMILY: Readonly<Record<Kind, Family>> = byKind((k) => PATTERNS[k].family);
 export const MAX_DEPTH: Readonly<Record<Kind, number>> = byKind((k) => PATTERNS[k].maxDepth);
+// The stroke width applied when a visitor chooses the kind; null keeps the current one. Links never use it.
+export const preferredStroke = (kind: Kind): number | null => PATTERNS[kind].stroke ?? null;
 // Tile width / height; 1 for a square tile.
 export const tileAspect = (kind: Kind): number => PATTERNS[kind].aspect ?? 1;
 // Tile height for a width and an aspect, rounded to 3 decimals as in the SVG attributes.

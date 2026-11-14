@@ -13,6 +13,7 @@ import {
   generate,
   geometry,
   hasCompat,
+  preferredStroke,
   tileAspect,
   type Kind,
   type PatternParams,
@@ -1008,4 +1009,9 @@ test('Penrose arcs: one <path>, arcs as A commands; edges unchanged; other kinds
     [3852, 4200862368],
     [23246, 1796574155],
   ]);
+});
+
+test('preferredStroke: Sprigs prefers fine lines, other kinds keep the stroke', () => {
+  assert.equal(preferredStroke('sprigs'), 1);
+  assert.equal(preferredStroke('tree'), null);
 });

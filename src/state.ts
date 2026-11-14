@@ -9,6 +9,7 @@ import {
   generate,
   geometry,
   hasAccent,
+  preferredStroke,
   svgFromPolylines,
   tileAspect,
   tileHeight,
@@ -576,6 +577,15 @@ export function reseed(): void {
   params.seed = randomSeed();
 }
 
+// A visitor's kind choice (not link decoding or undo): the kind, then its preferred stroke if it has one.
+// Only on an actual change, so re-picking the current kind keeps a stroke set by hand. Same tick as the kind: one undo entry.
+export function chooseKind(kind: Kind): void {
+  if (kind === params.kind) return;
+  params.kind = kind;
+  const w = preferredStroke(kind);
+  if (w !== null) params.strokeWidth = w;
+}
+
 // A different kind, a new seed, a single layout, and a sensible Repetition tab (random-design.ts).
 // Colors, plate, spacing, motion, soft fade, sections, and parallax stay. All changes land in one tick,
 // so the debounced undo history (state-share.ts) records the click as one entry.
@@ -584,7 +594,7 @@ export function randomPattern(): void {
   layout.value = 'single';
   const others = KINDS.filter((k) => k !== params.kind);
   const kind = others[randomSeed() % others.length] ?? params.kind;
-  params.kind = kind;
+  chooseKind(kind);
   params.seed = randomSeed();
   params.depth = Math.max(Math.min(params.depth, MAX_DEPTH[kind]), Math.min(2, MAX_DEPTH[kind]));
   const r = randomRepetition(kind, Math.random);

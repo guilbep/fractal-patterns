@@ -3,6 +3,7 @@ import { computed, reactive, ref, shallowRef, watch } from 'vue';
 import {
   FAMILIES,
   KINDS,
+  KIND_FAMILY,
   MAX_DEPTH,
   extraPath,
   generate,
@@ -42,6 +43,9 @@ import type { ChangeDir } from '@/fade.ts';
 import { LAYOUT_EXAMPLES, randomLayout, randomRepetition } from '@/random-design.ts';
 import { preferred } from '@/preferred.ts';
 import { GRAIN_DEFAULTS, grainColor, grainSvg, type Grain } from '@/grain.ts';
+import { colorSym, orderedColors } from '@/color-sym.ts';
+import { farrisGrid } from '@/patterns/farris.ts';
+import { bandsDocument, bandsSvg } from '@/patterns/farris-bands.ts';
 
 export const MAX_SEED = 0xffffffff;
 
@@ -328,6 +332,35 @@ export const usingPatchwork = computed(() => !usingImage.value && layout.value =
 // Tile width / height: only a single math pattern of a rectangular kind is not square.
 export const aspect = computed(() => (usingImage.value || usingPatchwork.value ? 1 : tileAspect(params.kind)));
 
+// Color symmetry: a single symmetry kind drawn as a Farris colour field. The base tile is then the bands document;
+// stroke, fill and Reduce repetition do not apply, grain and accent still compose on top.
+export const colorSymActive = computed(
+  () => colorSym.on && KIND_FAMILY[params.kind] === 'symmetry' && !usingImage.value && !usingPatchwork.value,
+);
+// The last 8 tiles, so dragging an unrelated control does not rebuild the field.
+const bandsCache = new Map<string, string>();
+function bandsTile(seed: number): string {
+  const size = params.size;
+  const fiveColors = palette.value?.colors ?? [roles.background, roles.pattern, fill.color, accent.value, roles.text];
+  const colors = orderedColors(fiveColors, colorSym.order);
+  const { waves, detail, balance } = colorSym;
+  // ponytail: render 'wheel' draws bands too until the wheel renderer lands.
+  const key = [params.kind, seed, waves, detail, balance, size, ...colors].join();
+  let doc = bandsCache.get(key);
+  if (doc === undefined) {
+    const { body } = bandsSvg(farrisGrid({ group: params.kind, seed, waves, detail }, 64), { colors, size, balance });
+    // A hex kind's tile is size x size·√3: the field is sampled squeezed into the square, so stretch it back.
+    const h = tileHeight(size, aspect.value);
+    doc =
+      h === size
+        ? bandsDocument(body, size)
+        : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${h}" width="${size}" height="${h}"><g transform="scale(1 ${h / size})">${body}</g></svg>`;
+    bandsCache.set(key, doc);
+    if (bandsCache.size > 8) bandsCache.delete(bandsCache.keys().next().value!);
+  }
+  return doc;
+}
+
 // One pipeline for every source: base polylines, mirror, zoom, gap. The gap gives the final tile size.
 type Polys = readonly (readonly Pt[])[];
 type Tile = { polys: Polys; size: number; extra?: string };
@@ -494,6 +527,7 @@ export const variantsOn = computed(
   () =>
     variantsActive({ variants: variants.value, kind: params.kind, layout: layout.value, usingImage: usingImage.value }) &&
     !curvesOn.value &&
+    !colorSymActive.value &&
     // An image varied its picture before Applies to reached it: with the accent off, it still does.
     (varyApplies.value !== 'accent' || (usingImage.value && !accentLayer.on)),
 );
@@ -534,11 +568,18 @@ export const grainOut = computed(() => (grain.on ? grainSvg(grain) : null));
 
 // The base layer's tile edge: the CSS export's first background.
 export const baseTileSize = computed(() =>
-  variantsOn.value ? variantOptions.cells * params.size : curveSvg.value !== null ? params.size : tile.value.size,
+  colorSymActive.value
+    ? params.size
+    : variantsOn.value
+      ? variantOptions.cells * params.size
+      : curveSvg.value !== null
+        ? params.size
+        : tile.value.size,
 );
 // The tile for any seed with the current settings; a traced image gives the same tile for every seed.
 // `color` draws the strokes in another color (the second layer's own color).
 export function svgForSeed(seed: number, color = roles.pattern): string {
+  if (colorSymActive.value) return bandsTile(seed);
   if (variantsOn.value) return superSvg(seed, color);
   if (curveSvg.value !== null) return recolor(curveSvg.value, color);
   return tileSvg(seed === params.seed ? tile.value : tileFor(seed), color);

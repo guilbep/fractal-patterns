@@ -1176,6 +1176,13 @@ dd {
   gap: 0 var(--s4);
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
 }
+/* A select keeps the width of its longest option; without this the field overflows into the next column. */
+.fields > * {
+  min-width: 0;
+}
+.fields select {
+  max-width: 100%;
+}
 .seed-row {
   display: flex;
   gap: var(--s2);

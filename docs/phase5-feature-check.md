@@ -353,3 +353,102 @@ To make sure of these, a person must look in a browser.
 - A screen reader on the destination cards, whose radio buttons are visually hidden.
 - The "Send to my phone (QR)" button: a screen reader says it is not available.
 - The session memory: the last destination comes back after a reload, and not in a new tab.
+
+# Phase 5c feature check
+
+This section checks the phone layout, the folded sections and the Builder coach of branch `phase5c`, commit `3b3afad`.
+The rule is the same: every feature survives.
+
+Method. I read the diff `phase5b..phase5c` (23 files) and every changed component and style sheet.
+The rows below list only the items that phase 5c touches, and the new items.
+The other rows of the 5a and 5b checks are still true: phase 5c did not change their files, or changed other lines.
+Line numbers are for commit `3b3afad`.
+"Phones" means a window narrower than 600 px. Wider windows look as in phase 5b, except the folded sections.
+
+## Counts, phase 5c
+
+| Status | Rows |
+| --- | --- |
+| Kept as is | 6 |
+| Moved | 10 |
+| Changed | 17 |
+| New | 5 |
+| Missing | 0 |
+
+## Rows, phase 5c
+
+| Feature | Status | Where now |
+| --- | --- | --- |
+| Patterns toolbar: "Shuffle", "Undo", "Redo", "Use it…" | moved to the phone bottom bar, cells Shuffle · Undo · Redo · Palette · Use it; same disabled rules, labels and key titles | `src/App.vue:231-239`, `src/components/BottomBar.vue` |
+| Patterns "Random pattern", "Reset", "Copy CSS", "Copy link" | moved on phones to the palette sheet, group "More"; the sheet has its own status line for the copy texts | `src/App.vue:240-251` |
+| Palette strip (Patterns and Studio toolbar) | moved on phones to the palette sheet; the bar's Palette cell shows four squares of the palette | `src/App.vue:240-241`, `src/studio/StudioApp.vue:452-453`, `src/components/PaletteSheet.vue` |
+| Patterns contrast chip and size badge | moved on phones to the preview corner, one chip per row; in the 150 px strip only the contrast chip shows, top right | `src/App.vue:274-281`, `src/css/app.css:330-350` |
+| Studio toolbar: "Shuffle", "Undo", "Redo", "Use it…" | moved to the phone bottom bar, the same five cells as Patterns | `src/studio/StudioApp.vue:443-451` |
+| Studio "Copy CSS" | moved on phones to the palette sheet ("More") and to Use it › Website background | `src/studio/StudioApp.vue:452-460,486-510` |
+| Studio size badge | moved on phones to the preview corner chips | `src/studio/StudioApp.vue:472` |
+| Builder "Undo", "Redo", "Start again" | moved to the phone bottom bar | `src/builder/BuilderApp.vue:150-153` |
+| Builder "Open an example" | moved on phones to the bar's Examples cell, a native select named "Examples"; same five examples | `src/builder/BuilderApp.vue:154-157` |
+| Builder size badge and "Copy CSS" | moved on phones to Use it › Website background (the export card) | `src/builder/BuilderApp.vue:149,160-176` |
+| Builder example load error | kept as is; it is outside the hidden toolbar groups, so it also shows on phones | `src/builder/BuilderApp.vue:146` |
+| "?" button, full screen and T buttons, corner hint | kept as is; "?" stays in the header, full screen and T stay in the preview corner | `src/components/SiteHeader.vue`, `src/css/app.css:356-359` |
+| Toolbar stays in view, narrow-screen wrapping | changed: on phones the toolbar has no height and its groups hide; its live regions stay in the page | `src/css/app.css:317-329` |
+| "Use it…" on the three pages | changed: on phones it opens a bottom sheet (modal dialog); Patterns and Studio move their one panel into it, so its choices stay | `src/App.vue:142-146,252-255,320`, `src/studio/StudioApp.vue:374-381,486`, `src/builder/BuilderApp.vue:52-55,160-176` |
+| Six tabs, arrow keys | changed: on phones a 3 × 2 grid, still one tablist; Down and Up also step in reading order; the "Use it" tab opens the sheet on a click, arrow keys only focus it | `src/App.vue:126-147,296`, `src/css/app.css:759-790` |
+| `fp-tab` (session) | changed: on phones a stored `use` opens the Pattern tab, because "Use it" is a sheet there | `src/App.vue:107-115` |
+| Heading and caption "Pattern: …" | changed: on phones the short caption hides; the full sentence stays for screen readers | `src/css/app.css:350-356` |
+| Repetition card | changed: a folded section, open at load, now titled "Reduce repetition" (was "Repetition"); summary "on · strength · N by N", "off" or "not available" | `src/components/RepetitionPanel.vue:78-90,95` |
+| "More ways to hide the repeat" | changed: its own folded section, closed; heading h3 to h2; summary lists what is on, or "none" | `src/components/RepetitionPanel.vue:183` |
+| Layout "Examples" | changed: a folded section, open; summary "random · 4 examples" | `src/components/LayoutPresets.vue:8` |
+| Spacing | changed: a folded section, closed; summary zoom, gap and mirror | `src/components/SpacingPanel.vue:9,13` |
+| Transform and motion | changed: a folded section, closed; it opens itself when drift turns on, so "Pause motion" stays in view | `src/components/MotionPanel.vue:23-33,42` |
+| Colors and contrast | changed: a folded section, open; summary of the contrast result | `src/components/ColorPanel.vue:62` |
+| Text plate modes, opacity, radius, blur | changed: a folded section "Text plate", closed, with a summary | `src/components/ColorPanel.vue:157` |
+| APCA Lc, "Raise to Lc N", guidance fold | changed: a folded section "APCA™ Lc value"; the "Raise to Lc" result sits next to its button; the "informational" tag moved to the value line | `src/components/ColorPanel.vue:182-224` |
+| "Start from a palette" | changed: a folded section, summary the palette name or "custom colors"; group headings h4 to h3 | `src/components/ColorPanel.vue:226-244` |
+| "Second opinion" | changed: a folded section, summary "cvd N/M · L* N" | `src/components/VisionPanel.vue:48-56` |
+| Image tab controls | changed: "From image" is a folded section, open; the detector and trace controls are a second section "Trace options", shown once an image is loaded, as before | `src/components/ImagePanel.vue:49,114` |
+| Form fields in two columns | changed: a field stays in its grid column; the Image tab's Edge detector no longer overlaps Threshold (older bug) | `src/css/app.css:1297-1303` |
+| Phone preview | new: 270 px, the controls sheet overlaps it by 12 px; scrolling into the controls leaves a 150 px strip | `src/css/app.css:696-810`, `src/App.vue:80-86` |
+| Phone bottom bar | new: five cells on each page, no scroll; body padding keeps content above it | `src/components/BottomBar.vue:22-23` |
+| Palette sheet | new: a modal dialog; Esc, Close and a backdrop click close it, and focus returns to the opener | `src/components/PaletteSheet.vue` |
+| Builder first-run coach | new: three steps (the wrap, the handle, the folds), Skip, Next, Done and Esc; non-modal; it never shows over a changed design or a design opened from a file | `src/builder/BuilderCoach.vue`, `src/builder/coach.ts` |
+| `fp-builder-coach-v1` | new: stored key, value `done` after Skip, Done or Esc | `src/builder/coach.ts:3` |
+| Link keys of the three pages | kept as is (files not changed in 5c) | `src/state-share.ts`, `src/studio/studio-share.ts` |
+| Other stored keys (`fp-shortcut`, `fp-builder-design-v1`, `fp-builder-snap-v1`, `fp-lib`, `fp-use…`) | kept as is | see the 5a and 5b rows |
+| Export outputs (Patterns CSS, HTML, script, Studio CSS, Builder CSS and SVG) | kept as is (files not changed in 5c) | `src/export.ts`, `src/builder/builder-css.ts` |
+| Builder sections, Studio folds | kept as is (files not changed in 5c); the Builder column fits 1440 × 900 with only Shapes open | `src/builder/StampPanel.vue`, `src/studio/StudioApp.vue` |
+
+## Missing, phase 5c
+
+None found.
+
+Search method: for each control the phone layout hides, I looked for its phone place: the bottom bar, a sheet, the preview corner or Use it.
+Each one has one. Every folded section keeps all its controls; only the open or closed state at load changed.
+
+## Points for the owner, phase 5c
+
+- The APCA "Raise to Lc" result moved inside its folded section, next to its button. You accepted this.
+- Headings changed level (h4 to h3, h3 to h2) to keep the heading order inside the new sections.
+- The Repetition section title is now "Reduce repetition". The tab name stays "Repetition".
+- The phone Colors tab uses the desktop card, not the board's compact role rows.
+- The size chip text includes "CO₂", so the two chips cannot share one row at 360 px. They stack, one per row.
+- The "Use it" sheet is taller than the Builder board's short sheet, because it holds the full panel.
+- On phones the Builder coach sits at the top of the controls sheet, not over the preview.
+- The Builder checks the phone width once at load. A window that widens later keeps the phone Use it sheet and coach place.
+- The preview shrinks while the page scrolls into the controls, not when a section opens.
+- Without scroll-driven animations (Firefox, older Safari) the strip shows the bottom 150 px of the preview. The same happens with reduced motion.
+- No existing e2e selector changed. The new tests are `e2e/phone.spec.ts` and `e2e/builder-coach.spec.ts`.
+- The phone tests run at 375 px. The 360 px screenshots show no sideways scroll. Nothing checks 402 px.
+
+## Not checked by reading code, phase 5c
+
+To make sure of these, a person must look in a browser.
+
+- The bottom bar and sheets on a real iPhone and Android phone, with the safe area at the bottom.
+- The 270 to 150 px shrink while scrolling, in Chrome, Safari and Firefox.
+- A screen reader on the palette sheet and the Use it sheet: the title is read, focus returns to the opener.
+- The 3 × 2 tab grid with a screen reader: it is still announced as tabs.
+- The contrast of the folded section summaries and the coach card, in light and dark mode.
+- The coach with the keyboard: Tab order, Esc, and focus after Done.
+- The native Examples select on iOS and Android.
+- Touch targets of at least 44 px in the bottom bar and the sheets.

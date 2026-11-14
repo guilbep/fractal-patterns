@@ -699,7 +699,14 @@ const ribbonSurface = computed(() => (ribbons.value ? [blend(ribbonFill.value, r
 // No crossing (the lines only touch): the tile keeps its lines.
 const ribbons = computed(() =>
   weave.value?.cs.length
-    ? interlaceMod.value!.weaveSvg(weave.value, { ...interlace, fill: ribbonFill.value, stroke: roles.pattern, opacity: opacity.value })
+    ? interlaceMod.value!.weaveSvg(weave.value, {
+        ...interlace,
+        fill: ribbonFill.value,
+        stroke: roles.pattern,
+        opacity: opacity.value,
+        background: roles.background,
+        accent: accent.value,
+      })
     : '',
 );
 

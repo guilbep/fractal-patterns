@@ -152,7 +152,7 @@ const galleryVars = computed(() => ({ '--lib-bg': roles.background, '--lib-fg': 
     </div>
 
     <RegionsControl :reason="regionsOffReason" :mode="regions.mode" :k="regions.k" :colors="regionColors" :note="regionsInfo?.note ?? ''" @mode="regions.mode = $event as RegionMode" @k="regions.k = $event" />
-    <InterlaceControl :reason="interlaceOffReason" :touch="weave?.cs.length === 0" :odd="weave?.odd.length ?? 0" v-bind="interlace" @set="Object.assign(interlace, $event)" />
+    <InterlaceControl :reason="interlaceOffReason" :touch="weave?.cs.length === 0" :odd="weave?.odd.length ?? 0" :auto="weave?.auto ?? 0" v-bind="interlace" @set="Object.assign(interlace, $event)" />
 
     <details class="lib-patchwork pattern-card" :open="patchOpen" @toggle="patchOpen = ($event.target as HTMLDetailsElement).open">
       <summary>Patchwork</summary>

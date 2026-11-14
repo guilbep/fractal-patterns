@@ -7,7 +7,7 @@ import { INTERLACE_DEFAULTS } from '@/share.ts';
 // reason: interlaceOffReason in state.ts ('fill', or a region colour reason, said here for interlace); touch: no crossing.
 // auto: the ribbon width by density (autoWidth in interlace-tile.ts), used while the width is the default (no iw in the link).
 const props = defineProps<{ on: boolean; width: number; gap: number; odd: number; reason: string; touch: boolean; auto?: number }>();
-const isAuto = computed(() => props.width === INTERLACE_DEFAULTS.width && props.auto !== undefined);
+const isAuto = computed(() => props.width === INTERLACE_DEFAULTS.width && (props.auto ?? 0) > 0);
 const emit = defineEmits<{ set: [value: { on?: boolean; width?: number; gap?: number }] }>();
 const said = computed(() =>
   props.reason === 'fill'

@@ -2,7 +2,7 @@
 // Loaded on demand from ColorPanel. Page state comes only through props (importing state.ts here would split the start chunks).
 import { computed } from 'vue';
 import { GRAIN_AMOUNT, GRAIN_SIZE, GRAIN_TILE, type Grain } from '@/grain.ts';
-import { ROUTES, TEXTURE_KINDS, TEXTURE_LABELS, toneApplies, type Texture, type TextureKind } from '@/texture.ts';
+import { ROUTES, TEXTURE_LABELS, toneApplies, type Texture, type TextureKind } from '@/texture.ts';
 import UiSegmented from './UiSegmented.vue';
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
@@ -24,18 +24,29 @@ const sizeFlip = GRAIN_SIZE[0] + GRAIN_SIZE[1];
 const grainSizeText = computed(() => (props.grain.size >= 0.9 ? 'fine' : props.grain.size >= 0.6 ? 'medium' : 'coarse'));
 const grainBytes = computed(() => (props.grainSvg ? new TextEncoder().encode(props.grainSvg).length : 0));
 const num = (e: Event) => Number((e.target as HTMLInputElement).value);
+// Weight groups by each kind's default route at strength 40 % (baked WebP, live filter or vector SVG, gzip bytes).
+const GROUPS: { grade: string; band: 'good' | 'mid'; label: string; kinds: (TextureKind | 'none')[] }[] = [
+  { grade: 'A+', band: 'good', label: 'under 1 kB', kinds: ['none', 'grain', 'sand', 'riso', 'terrazzo', 'washi'] },
+  { grade: 'A', band: 'good', label: 'under 2 kB', kinds: ['linen', 'plaster'] },
+  { grade: 'B', band: 'mid', label: 'under 5 kB', kinds: ['stipple', 'paper', 'coldpress', 'kraft'] },
+];
+const kindId = (k: TextureKind | 'none') => (k === 'grain' ? 'grain' : k === 'none' ? undefined : `texture-${k}`);
 </script>
 
 <template>
   <fieldset class="plate-group texture-group">
     <legend>Texture</legend>
-    <div class="radios texture-kinds">
-      <label class="radio"><input type="radio" name="texture-kind" value="none" :checked="current === 'none'" @change="emit('kind', 'none')"> None</label>
-      <label v-for="k in TEXTURE_KINDS" :key="k" class="radio">
-        <input :id="k === 'grain' ? 'grain' : `texture-${k}`" type="radio" name="texture-kind" :value="k" :checked="current === k" :aria-describedby="k === 'grain' ? 'grain-hint' : undefined" @change="emit('kind', k)">
-        {{ TEXTURE_LABELS[k] }}
-      </label>
+    <div v-for="(g, i) in GROUPS" :key="g.grade" class="texture-band" role="group" :aria-labelledby="`texture-band-${i}`">
+      <p :id="`texture-band-${i}`" class="texture-band-h"><span class="grade-chip" :class="g.band">{{ g.grade }}</span> {{ g.label }}</p>
+      <div class="radios texture-kinds">
+        <label v-for="k in g.kinds" :key="k" class="radio">
+          <input :id="kindId(k)" type="radio" name="texture-kind" :value="k" :checked="current === k" :aria-describedby="k === 'grain' ? 'grain-hint' : undefined" @change="emit('kind', k)">
+          {{ k === 'none' ? 'None' : TEXTURE_LABELS[k] }}
+        </label>
+      </div>
+      <p v-if="i === 0" class="hint-text">Grain, Sand and Riso are live: almost no bytes, but the browser redraws them while they are visible.</p>
     </div>
+    <p class="hint-text">Weights at strength 40 %. A baked Sand or Riso is heavier (shown in the size badge).</p>
     <p id="grain-hint" class="hint-text">Grain: a fine noise behind the pattern. Its own repeat hides the tile's.</p>
 
     <div v-if="grain.on" class="layer2-group grain-group" role="group" aria-labelledby="grain-h">
@@ -80,6 +91,13 @@ const num = (e: Event) => Number((e.target as HTMLInputElement).value);
   display: flex;
   flex-wrap: wrap;
   gap: 0 var(--s2);
+}
+.texture-band-h {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  margin: var(--s2) 0 0;
+  font-weight: 600;
 }
 .texture-kinds .radio,
 .texture-group .btn {

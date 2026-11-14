@@ -4,7 +4,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useBarHeight } from '@/bar-height.ts';
 import SiteHeader from '@/components/SiteHeader.vue';
 import SponsorBanner from '@/components/SponsorBanner.vue';
-import { isTyping } from '@/shortcuts.ts';
+import { isTyping, readShortcut, shortcutFor, toggleFullscreen } from '@/shortcuts.ts';
 import { copyText } from '@/clipboard.ts';
 import SizeBadge from '@/components/SizeBadge.vue';
 import ToolIcon from '@/components/ToolIcon.vue';
@@ -116,14 +116,37 @@ async function openExample(e: Event): Promise<void> {
   commit(example.make());
 }
 
+// Full screen: the finished pattern tiled over the screen, not the editor. The background is set only while it is open.
+const fullEl = ref<HTMLElement | null>(null);
+const full = ref(false);
+const fullStyle = computed(() =>
+  full.value ? { background: `${design.value.background} url("${svgHref.value}") 0 0 / ${cell.value.width}px ${cell.value.height}px repeat` } : undefined,
+);
+const onFullChange = (): void => void (full.value = !!fullEl.value && document.fullscreenElement === fullEl.value);
+const fullscreen = (): void => toggleFullscreen(fullEl.value);
+// ponytail: read once, like the Patterns page; the switch lives in the Patterns and Studio key panels (one stored choice).
+const shortcutOn = readShortcut();
+
 function onKey(e: KeyboardEvent): void {
+  // F flips in the tile editor, so there it is not full screen.
+  if (shortcutOn && shortcutFor(e, isTyping(e)) === 'fullscreen' && !(e.target as Element | null)?.closest?.('.tile-editor')) {
+    e.preventDefault();
+    fullscreen();
+    return;
+  }
   if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z' || isTyping(e)) return;
   e.preventDefault();
   if (e.shiftKey) redo();
   else undo();
 }
-onMounted(() => window.addEventListener('keydown', onKey));
-onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
+onMounted(() => {
+  window.addEventListener('keydown', onKey);
+  document.addEventListener('fullscreenchange', onFullChange);
+});
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKey);
+  document.removeEventListener('fullscreenchange', onFullChange);
+});
 </script>
 
 <template>
@@ -188,6 +211,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <BuilderCoach v-if="!phone" :hidden="useOpen" />
       <!-- Use it draws its device preview here; the editor stays underneath (hidden). -->
       <div v-show="useOpen" id="use-preview" class="use-stage"></div>
+      <div class="hero-actions builder-actions">
+        <button type="button" class="hero-btn" aria-label="Full screen" title="Full screen (F)" :aria-keyshortcuts="shortcutOn ? 'F' : undefined" @click="fullscreen"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" /></svg></button>
+      </div>
     </div>
     <div class="controls" @keydown="onUseKey">
       <BuilderCoach v-if="phone" :hidden="useOpen" />
@@ -216,6 +242,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       </template>
     </div>
   </main>
+  <!-- Outside the stage: Use it hides the stage's children. Shown only in full screen (builder.css). -->
+  <div ref="fullEl" class="builder-full" :style="fullStyle"></div>
   <footer class="site-footer">
     <p><a href="https://github.com/guilbep/patterns">Source on GitHub</a></p>
     <SponsorBanner />

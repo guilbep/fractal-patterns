@@ -10,9 +10,10 @@ import { KIND_LABELS, tileHeight } from '@/fractal.ts';
 import UseIt from '@/components/UseIt.vue';
 import { DESTINATIONS, takeUse, type Destination } from '@/use-it.ts';
 import { SAMPLE_LABELS } from '@/samples.ts';
-import { activeSample, contrast, palette, layer2, variantsOn, fileName, motionPaused, params, patch, roles, svg, usingPatchwork, plateMode, plateStyle, randomPattern, ratioShort, ratioText, reseed, reset, svgHref, trace, traced, usingImage, imageShuffles, tileSize, aspect, variantOptions } from '@/state.ts';
+import { activeSample, contrast, palette, layer2, variantsOn, fileName, motionPaused, params, patch, roles, svg, usingPatchwork, plateMode, plateStyle, randomPattern, ratioShort, ratioText, reseed, reset, svgHref, trace, traced, usingImage, imageShuffles, tileSize, baseTileSize, aspect, variantOptions, accentEditing } from '@/state.ts';
 import { exportGzipBytes, exportText, gzipped, sizeBreakdown } from '@/state-export.ts';
 import SizeBadge from '@/components/SizeBadge.vue';
+import AccentEditor from '@/components/AccentEditor.vue';
 import ToolIcon from '@/components/ToolIcon.vue';
 import ColorPanel from '@/components/ColorPanel.vue';
 import VisionPanel from '@/components/VisionPanel.vue';
@@ -50,9 +51,9 @@ const captionShort = computed(() => {
   const what = usingImage.value ? 'Traced image' : usingPatchwork.value ? `Patchwork ${patch.cells}×${patch.cells}` : KIND_LABELS[params.kind];
   return usingImage.value ? `${what} · ${params.size} px` : `${what} · ${params.size} px · seed ${params.seed}`;
 });
-// The one-tile marker: one tile of the pattern layer; with variants, one cell of the super tile.
+// The one-tile marker: one tile of the base layer (not the composed file); with variants, one cell of its super tile.
 const tileVars = computed(() => {
-  const w = variantsOn.value ? tileSize.value / variantOptions.cells : tileSize.value;
+  const w = variantsOn.value ? baseTileSize.value / variantOptions.cells : baseTileSize.value;
   return { '--tile-w': `${w}px`, '--tile-h': `${tileHeight(w, aspect.value)}px` };
 });
 
@@ -272,7 +273,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     <!-- A fast second click must shuffle again, not select the sample text. A drag still selects it. -->
     <div class="hero fp-pattern" :class="{ 'fp-paused': motionPaused }" :style="tileVars" @click="reseed" @mousedown="$event.detail > 1 && $event.preventDefault()">
       <!-- One tile at the preview scale, on the seams of the pattern layer (it starts at 0,0 of the hero). -->
-      <span class="one-tile" aria-hidden="true"></span>
+      <!-- Edit shapes (Pattern › Accent shapes) turns the marker into an edit area over the accent shapes of that tile. -->
+      <AccentEditor v-if="accentEditing" />
+      <span v-else class="one-tile" aria-hidden="true"></span>
       <!-- The plate sits on the wrapper in 'plate' mode, on the paragraph in 'split', nowhere in 'direct'. -->
       <div class="hero-text" :class="{ 'hero-plate': plateMode === 'plate', 'text-off': !textOn }" :style="plateMode === 'plate' ? plateStyle : undefined">
         <h1>{{ APP_NAME }}</h1>

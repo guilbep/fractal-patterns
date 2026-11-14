@@ -7,6 +7,8 @@ export interface Paint {
   readonly color: string;
   readonly opacity: number;
   readonly width: number;
+  // A fill's rule; absent = even-odd. Non-zero joins overlapping shapes and keeps a hole drawn the other way round.
+  readonly rule?: 'nonzero';
 }
 export interface SceneLayer {
   readonly polys: readonly (readonly Pt[])[];
@@ -21,7 +23,7 @@ export interface Scene {
   readonly layers: readonly SceneLayer[];
 }
 
-function num(n: number, precision: number): string {
+export function num(n: number, precision: number): string {
   let s = n.toFixed(precision);
   if (s.includes('.')) s = s.replace(/\.?0+$/, '');
   return s === '-0' ? '0' : s;
@@ -60,7 +62,7 @@ export function pathData(polys: readonly (readonly Pt[])[], precision: number): 
 }
 
 // Every sub-path closed: a fill needs a closed outline.
-const closedPathData = (polys: readonly (readonly Pt[])[], precision: number): string =>
+export const closedPathData = (polys: readonly (readonly Pt[])[], precision: number): string =>
   polys
     .map((poly) => pathData([poly], precision))
     .map((d) => (d && !d.endsWith('z') ? d + 'z' : d))
@@ -74,7 +76,7 @@ export function sceneToSvg(scene: Scene, precision: number): string {
     out +=
       paint.mode === 'stroke'
         ? `<path d="${d ?? pathData(polys, precision)}" fill="none" stroke="${paint.color}" stroke-width="${paint.width}" stroke-opacity="${paint.opacity}" stroke-linecap="round"/>`
-        : `<path d="${d ?? closedPathData(polys, precision)}" fill="${paint.color}" fill-opacity="${paint.opacity}" fill-rule="evenodd"/>`;
+        : `<path d="${d ?? closedPathData(polys, precision)}" fill="${paint.color}" fill-opacity="${paint.opacity}" fill-rule="${paint.rule ?? 'evenodd'}"/>`;
   }
   return out + '</svg>';
 }
@@ -127,8 +129,24 @@ export function drawScene(ctx: CanvasLike, scene: Scene): void {
       const last = rest[rest.length - 1];
       if (fill || (last && last[0] === first[0] && last[1] === first[1])) ctx.closePath();
     }
-    if (fill) ctx.fill('evenodd');
+    if (fill) ctx.fill(paint.rule ?? 'evenodd');
     else ctx.stroke();
   }
   ctx.globalAlpha = 1;
+}
+
+// Layers of different tile sizes in one SVG of `width` by `height` (a common multiple of every layer's size), the first
+// at the bottom. A layer of the full size is nested as is; a smaller one repeats through a <pattern>. For the
+// downloaded SVG and the PNG, which take one tile.
+export function composeSvg(layers: readonly { svg: string; width: number; height: number }[], width: number, height: number): string {
+  let defs = '';
+  let body = '';
+  layers.forEach((l, i) => {
+    if (l.width === width && l.height === height) body += l.svg;
+    else {
+      defs += `<pattern id="fp-l${i}" width="${l.width}" height="${l.height}" patternUnits="userSpaceOnUse">${l.svg}</pattern>`;
+      body += `<rect width="${width}" height="${height}" fill="url(#fp-l${i})"/>`;
+    }
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${defs ? `<defs>${defs}</defs>` : ''}${body}</svg>`;
 }

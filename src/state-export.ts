@@ -8,7 +8,11 @@ import { altUnavailable } from '@/alt-export.ts';
 import { traceName } from '@/detectors.ts';
 import { scaledSecondSize } from '@/layers.ts';
 import {
+  accentOut,
+  accentVaried,
   aspect,
+  baseSvg,
+  baseTileSize,
   curvesOn,
   variantsOn,
   change,
@@ -29,10 +33,9 @@ import {
   rawBytes,
   roles,
   sections,
-  svg,
   svgForSeed,
+  svgWithAccent,
   tileScene,
-  tileSize,
   trace,
   usingImage,
   usingPatchwork,
@@ -49,9 +52,19 @@ export const exportLabel = computed(() =>
 
 const exportInput = computed<ExportInput>(() => ({
   source: SITE_URL,
-  svg: svg.value,
-  tileSize: tileSize.value,
-  ...(aspect.value !== 1 ? { tileHeight: tileHeight(tileSize.value, aspect.value) } : {}),
+  svg: baseSvg.value,
+  tileSize: baseTileSize.value,
+  ...(aspect.value !== 1 ? { tileHeight: tileHeight(baseTileSize.value, aspect.value) } : {}),
+  // The accent layer on top, with its own size; absent when no accent shape shows, so the CSS stays as before.
+  ...(accentOut.value
+    ? {
+        accent: {
+          svg: accentOut.value.svg,
+          tileSize: accentOut.value.width,
+          ...(aspect.value !== 1 ? { tileHeight: accentOut.value.height } : {}),
+        },
+      }
+    : {}),
   background: roles.background,
   text: roles.text,
   plate: { mode: plateMode.value, opacity: plateOpacity.value, radius: plateRadius.value, blur: plateBlur.value },
@@ -64,10 +77,12 @@ const exportInput = computed<ExportInput>(() => ({
         second: {
           ...layer2Settings,
           // With its own color the second tile is drawn in it; else in the pattern color, byte-identical to before.
-          svg: svgForSeed((params.seed + 1) >>> 0, layer2Own.value ? layer2Color.value : roles.pattern),
-          tileSize: scaledSecondSize(tileSize.value, layer2Settings.scale),
+          svg: svgWithAccent((params.seed + 1) >>> 0, layer2Own.value ? layer2Color.value : roles.pattern),
+          tileSize: scaledSecondSize(baseTileSize.value, layer2Settings.scale),
           // The second layer keeps the aspect of the first.
-          ...(aspect.value !== 1 ? { tileHeight: tileHeight(scaledSecondSize(tileSize.value, layer2Settings.scale), aspect.value) } : {}),
+          ...(aspect.value !== 1
+            ? { tileHeight: tileHeight(scaledSecondSize(baseTileSize.value, layer2Settings.scale), aspect.value) }
+            : {}),
         },
       }
     : {}),
@@ -131,7 +146,7 @@ export const altReason = computed(() =>
   altUnavailable({
     curves: curvesOn.value,
     extra: aspect.value !== 1 ? extraPath(params) : '',
-    variants: variantsOn.value,
+    variants: variantsOn.value || accentVaried.value,
     layer2: layer2.value,
   }),
 );

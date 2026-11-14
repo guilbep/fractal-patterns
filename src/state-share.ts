@@ -7,12 +7,15 @@ import { takeUse } from '@/use-it.ts';
 import { DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design, WELCOME } from '@/share.ts';
 import {
   accent,
+  accentDrawn,
+  accentLayer,
+  accentMoves,
+  accentVary,
   applyPalette,
   change,
   changeTo,
   fade,
   fill,
-  hasAccent,
   lastFix,
   layer2,
   layer2Color,
@@ -35,6 +38,7 @@ import {
   spacing,
   variantOptions,
   variants,
+  varyApplies,
 } from '@/state.ts';
 
 export function snapshot(): Design {
@@ -65,8 +69,13 @@ export function snapshot(): Design {
     fill: { ...fill },
     layer2Color: layer2Own.value ? layer2Color.value : null,
     change: { dir: change.value, to: changeTo.value },
-    // Only a kind with accent shapes carries its accent color: a palette pick on another kind leaves the link as it was.
-    accent: hasAccent(params.kind) ? accent.value : DESIGN_DEFAULTS.accent,
+    // Only a shown accent layer carries its color: a palette pick without one leaves the link as it was.
+    accent: accentLayer.on ? accent.value : DESIGN_DEFAULTS.accent,
+    // A patchwork links the layer it draws ('own' as a dot on a grid). An image is not in the link: its math design
+    // keeps the stored layer, so the link reloads that kind as it was.
+    accentLayer: layout.value === 'patchwork' ? { ...accentDrawn.value } : { ...accentLayer },
+    accentVary: { applies: varyApplies.value, ...accentVary },
+    accentMoves: accentMoves.value,
   };
 }
 
@@ -98,7 +107,12 @@ export function applyDesign(d: Design): void {
   Object.assign(fill, d.fill);
   layer2Own.value = d.layer2Color !== null;
   if (d.layer2Color !== null) layer2Color.value = d.layer2Color;
-  if (hasAccent(d.kind)) accent.value = d.accent;
+  Object.assign(accentLayer, d.accentLayer); // a new place, snap or amount clears the moves (state.ts), so they come after
+  accentMoves.value = d.accentMoves;
+  const { applies, ...vary } = d.accentVary;
+  Object.assign(accentVary, vary);
+  varyApplies.value = applies;
+  if (d.accentLayer.on) accent.value = d.accent;
   source.value = 'math';
   lastFix.value = null; // the Fix result no longer describes these colors
 }

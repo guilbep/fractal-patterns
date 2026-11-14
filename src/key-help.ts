@@ -28,6 +28,7 @@ const KEYS: Record<Page, [string, string][]> = {
     ['Delete', 'Remove'],
     ['PageUp / PageDown', 'Bring forward / send backward'],
     ['Ctrl/Cmd + A', 'Select all shapes'],
+    ['F (outside the tile editor)', 'Full screen: the pattern, tiled'],
     ['Esc', 'Clear the selection'],
     ['Ctrl/Cmd + Z', 'Undo'],
     ['Ctrl/Cmd + Shift + Z', 'Redo'],
@@ -55,7 +56,14 @@ let sw: HTMLButtonElement | null = null;
 
 function build(o: Options): HTMLDialogElement {
   const d = el('dialog', { class: 'key-help', 'aria-labelledby': 'key-help-h' }, el('h2', { id: 'key-help-h' }, 'Keyboard shortcuts'));
-  if (o.page === 'builder') d.append(el('p', { class: 'muted' }, 'The single keys act only while the tile editor has focus.'));
+  if (o.page === 'builder')
+    d.append(
+      el(
+        'p',
+        { class: 'muted' },
+        'The single keys act only while the tile editor has focus, except F, which opens full screen from anywhere else on the page.',
+      ),
+    );
   const body = el('tbody');
   for (const [k, a] of KEYS[o.page]) body.append(el('tr', {}, el('th', { scope: 'row' }, el('kbd', {}, k)), el('td', {}, a)));
   d.append(el('table', {}, body));

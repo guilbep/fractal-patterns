@@ -4,6 +4,7 @@ import { FAMILIES, FAMILY_LABELS, KINDS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH, ti
 import { SIZE_MAX, SIZE_MIN, SIZE_PRESETS, markedPreset } from '@/sizes.ts';
 import { LIB_TABS, kindsForTab, parseLibTab, tabForKind, type LibTab } from '@/library.ts';
 import { MAX_SEED, chooseKind, aspect, tileSize, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, squareKind, usingImage, usingPatchwork, imageShuffles } from '@/state.ts';
+import AccentShapes from '@/components/AccentShapes.vue';
 import '@/css/library.css';
 import '@/css/sizes.css';
 
@@ -174,5 +175,7 @@ const galleryVars = computed(() => ({ '--lib-bg': roles.background, '--lib-fg': 
         <button type="button" class="btn" :disabled="Object.keys(patch.pinned).length === 0" @click="patch.pinned = {}">Clear pins</button>
       </div>
     </details>
+
+    <AccentShapes />
   </section>
 </template>

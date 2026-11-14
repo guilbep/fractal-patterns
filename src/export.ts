@@ -28,12 +28,33 @@ export interface ExportInput {
   readonly change?: { readonly dir: ChangeDir; readonly to: number };
   readonly parallax?: boolean; // the two layers move at different speeds on scroll; needs `second`
   readonly sections?: boolean; // helper classes fp-a, fp-b, fp-c that turn the pattern per section
+  // The accent layer: its own tile drawn over the first layer, in the same pseudo-element, a whole number of first tiles.
+  readonly accent?: { readonly svg: string; readonly tileSize: number; readonly tileHeight?: number };
+}
+
+// The first layer's lines with the accent tile listed on top: two background images, each with its own size.
+// A drift moves both by one accent tile (a whole number of first tiles, so both stay seamless) in as many times the
+// duration, so the speed on screen does not change. Without an accent the lines are returned as they are.
+function withAccent(lines: string[], i: ExportInput): string[] {
+  if (!i.accent) return lines;
+  const k = i.accent.tileSize / i.tileSize;
+  const ay =
+    i.accent.tileHeight !== undefined && i.accent.tileHeight !== i.accent.tileSize ? 'var(--fp-accent-size-y)' : 'var(--fp-accent-size)';
+  const sec = (t: string) => `${Math.round(Number(t) * k * 1000) / 1000}s`;
+  return lines.map((l, j) => {
+    if (l === '  background-image: var(--fp-tile);') return '  background-image: var(--fp-accent), var(--fp-tile);';
+    if (l.startsWith('  background-size: var(--fp-size) ')) return `  background-size: var(--fp-accent-size) ${ay}, ${l.slice(19)}`;
+    if (k === 1) return l;
+    if (lines[j - 1] === '@keyframes fp-drift {')
+      return l.replaceAll('var(--fp-size-y)', ay).replaceAll('var(--fp-size)', 'var(--fp-accent-size)');
+    return l.replace(/fp-drift (\d+(?:\.\d+)?)s/, (_, t: string) => `fp-drift ${sec(t)}`);
+  });
 }
 
 // The parallax block for a class and a scroll timeline: the export uses .fp-pattern and the root scroller,
 // the page's demo box its own class and named timeline. Empty without a second layer or without parallax.
 export function exportParallax(i: ExportInput, cls = 'fp-pattern', timeline = 'scroll(root)'): string[] {
-  return i.second && i.parallax ? parallaxBlock(i.motion, i.second, cls, timeline, i.sections === true) : [];
+  return i.second && i.parallax ? withAccent(parallaxBlock(i.motion, i.second, cls, timeline, i.sections === true), i) : [];
 }
 
 // Inserting a space breaks every comment delimiter and cannot create a new one.
@@ -57,6 +78,12 @@ export function exportCss(i: ExportInput): string {
     `  --fp-tile: url("${svgToDataUri(i.svg)}");`,
     `  --fp-size: ${size}px;`,
     ...(rect ? [`  --fp-size-y: ${scaledSize(i.tileHeight!, i.motion)}px;`] : []),
+    ...(i.accent
+      ? [`  --fp-accent: url("${svgToDataUri(i.accent.svg)}");`, `  --fp-accent-size: ${scaledSize(i.accent.tileSize, i.motion)}px;`]
+      : []),
+    ...(i.accent?.tileHeight !== undefined && i.accent.tileHeight !== i.accent.tileSize
+      ? [`  --fp-accent-size-y: ${scaledSize(i.accent.tileHeight, i.motion)}px;`]
+      : []),
     ...(i.second ? [`  --fp-tile-2: url("${svgToDataUri(i.second.svg)}");`, `  --fp-size-2: ${size2}px;`] : []),
     ...(rect2 ? [`  --fp-size-2-y: ${scaledSize(i.second!.tileHeight!, i.motion)}px;`] : []),
     '  position: relative;',
@@ -65,21 +92,24 @@ export function exportCss(i: ExportInput): string {
     '  background-color: var(--fp-bg);',
     '  color: var(--fp-ink);',
     '}',
-    ...motionLayer(
-      i.motion,
-      'var(--fp-tile)',
-      'var(--fp-size)',
-      i.second
-        ? {
-            ...i.second,
-            image: 'var(--fp-tile-2)',
-            s: 'var(--fp-size-2)',
-            ...(rect2 ? { sy: 'var(--fp-size-2-y)' } : {}),
-            parallax: i.parallax === true,
-          }
-        : undefined,
-      i.sections === true,
-      rect ? 'var(--fp-size-y)' : 'var(--fp-size)',
+    ...withAccent(
+      motionLayer(
+        i.motion,
+        'var(--fp-tile)',
+        'var(--fp-size)',
+        i.second
+          ? {
+              ...i.second,
+              image: 'var(--fp-tile-2)',
+              s: 'var(--fp-size-2)',
+              ...(rect2 ? { sy: 'var(--fp-size-2-y)' } : {}),
+              parallax: i.parallax === true,
+            }
+          : undefined,
+        i.sections === true,
+        rect ? 'var(--fp-size-y)' : 'var(--fp-size)',
+      ),
+      i,
     ),
     ...(i.fade
       ? [

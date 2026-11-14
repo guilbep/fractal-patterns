@@ -95,7 +95,7 @@ test('Patterns on a phone: the Use it tab opens the sheet, Esc closes it, the pr
   await page.keyboard.press('Escape');
   await expect(sheet).toBeHidden();
   await expect(useTab).toBeFocused();
-  await expect(page.getByRole('tab', { name: 'Pattern' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: 'Pattern', exact: true })).toHaveAttribute('aria-selected', 'true');
 });
 
 test('Patterns on a phone: the 150 px strip shows only the contrast chip', async ({ page }) => {
@@ -116,7 +116,7 @@ test('Patterns on a phone: the six tabs are a 3 × 2 grid with arrow keys in rea
   const y4 = (await tabs.nth(3).boundingBox())!.y;
   expect(y3).toBe(y1);
   expect(y4).toBeGreaterThan(y1 + 30);
-  const pattern = page.getByRole('tab', { name: 'Pattern' });
+  const pattern = page.getByRole('tab', { name: 'Pattern', exact: true });
   await pattern.click();
   await page.keyboard.press('ArrowRight');
   const repetition = page.getByRole('tab', { name: /^Repetition/ });

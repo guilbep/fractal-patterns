@@ -55,11 +55,13 @@ import { THEME_WILD_MAX_DEPTH, leaves, nest, river, thorns } from './patterns/th
 import { circuit, maze, topo } from './patterns/themes.ts';
 import { PENROSE_ASPECT, PENROSE_MAX_DEPTH, penroseArcs, penroseArcsPath, penroseBoth, penroseEdges } from './penrose.ts';
 import { QUASI_MAX_DEPTH, dodecaEdges, dodecaStars, octaEdges, octaStars } from './quasi.ts';
-import { mulberry32, type Generator, type Pt, type Rng } from './patterns/util.ts';
+import { starGeneratorAt } from './patterns/stars.ts';
+import { TILING_LABELS, type TilingId } from './patterns/tilings.ts';
+import { mulberry32, wrap, type Generator, type Pt, type Rng } from './patterns/util.ts';
 import { pathData, sceneToSvg, squareScene } from './scene.ts';
 import { NO_FILL, fillScene } from './fills.ts';
 
-export const FAMILIES = ['fractal', 'line', 'surface', 'symmetry', 'theme', 'quasi'] as const;
+export const FAMILIES = ['fractal', 'line', 'surface', 'symmetry', 'theme', 'quasi', 'star'] as const;
 export type Family = (typeof FAMILIES)[number];
 
 export const FAMILY_LABELS: Readonly<Record<Family, string>> = {
@@ -69,6 +71,7 @@ export const FAMILY_LABELS: Readonly<Record<Family, string>> = {
   symmetry: 'Symmetry groups',
   theme: 'Themes',
   quasi: 'Quasicrystals',
+  star: 'Star patterns',
 };
 
 export const KINDS = [
@@ -152,6 +155,11 @@ export const KINDS = [
   'p31m',
   'p6',
   'p6m',
+  'star-square',
+  'star-hex',
+  'star-488',
+  'star-3636',
+  'star-4612',
 ] as const;
 export type Kind = (typeof KINDS)[number];
 
@@ -163,10 +171,47 @@ type Extra = (rnd: Rng, depth: number, size: number, precision: number) => strin
 // accent: closed shapes filled in the accent color, drawn over the fill layer and under the strokes (fillScene).
 // Like `extra`, it gets its own mulberry32(seed): the same stream the generator starts from, so it can replay the
 // generator's draws to place its shapes, and it never shifts the generator's output.
+// Hankin star patterns (patterns/stars.ts), one kind per tiling. The contact angle is a parameter (PatternParams.angle),
+// so `star` builds the generator for it. The generator draws whole polygons squeezed into a square; wrap() makes it
+// seamless, and a hexagonal tiling is stretched back to a 1 by sqrt(3) tile, as hexWallpaper does for the hex symmetry kinds.
+export const CONTACT_ANGLE = { min: 20, max: 85, default: 78 } as const;
+export const clampAngle = (deg: number = CONTACT_ANGLE.default): number =>
+  Number.isFinite(deg) ? Math.round(Math.min(CONTACT_ANGLE.max, Math.max(CONTACT_ANGLE.min, deg))) : CONTACT_ANGLE.default;
+const HEX_TILINGS: readonly TilingId[] = ['hex', '3636', '4612'];
+function starKind(id: TilingId) {
+  const hexagonal = HEX_TILINGS.includes(id);
+  const star = (angle: number): Generator => {
+    const g = starGeneratorAt(id, angle);
+    return (rnd, depth, size) => {
+      const polys = wrap(g(rnd, depth, size), size);
+      return hexagonal ? polys.map((p) => p.map(([x, y]): Pt => [x, y / HEX_ASPECT])) : polys;
+    };
+  };
+  const label = `${TILING_LABELS[id].split(' ')[0]} stars`;
+  return {
+    family: 'star' as const,
+    label,
+    maxDepth: 3,
+    gen: star(CONTACT_ANGLE.default),
+    star,
+    ...(hexagonal ? { aspect: HEX_ASPECT } : {}),
+  };
+}
+
 const PATTERNS: Readonly<
   Record<
     Kind,
-    { family: Family; label: string; maxDepth: number; gen: Generator; aspect?: number; extra?: Extra; accent?: Generator; large?: true }
+    {
+      family: Family;
+      label: string;
+      maxDepth: number;
+      gen: Generator;
+      aspect?: number;
+      extra?: Extra;
+      accent?: Generator;
+      large?: true;
+      star?: (angle: number) => Generator;
+    }
   >
 > = {
   carpet: { family: 'fractal', label: 'Carpet', maxDepth: 3, gen: carpet },
@@ -267,6 +312,11 @@ const PATTERNS: Readonly<
   p31m: { family: 'symmetry', label: 'p31m third turn, mirrors off center', maxDepth: 3, gen: p31m, aspect: HEX_ASPECT },
   p6: { family: 'symmetry', label: 'p6 sixth turn', maxDepth: 3, gen: p6, aspect: HEX_ASPECT },
   p6m: { family: 'symmetry', label: 'p6m sixth turn and mirrors', maxDepth: 2, gen: p6m, aspect: HEX_ASPECT },
+  'star-square': starKind('square'),
+  'star-hex': starKind('hex'),
+  'star-488': starKind('488'),
+  'star-3636': starKind('3636'),
+  'star-4612': starKind('4612'),
 };
 
 const byKind = <T>(f: (k: Kind) => T): Readonly<Record<Kind, T>> => Object.fromEntries(KINDS.map((k) => [k, f(k)])) as Record<Kind, T>;
@@ -291,6 +341,7 @@ export interface PatternParams {
   readonly compat?: boolean;
   readonly accent?: string; // the accent color; absent = the stroke color
   readonly period?: number; // large tile: the tile is size * period px; 1 (default) for kinds without `large`
+  readonly angle?: number; // star kinds: the contact angle in degrees (CONTACT_ANGLE); other kinds ignore it
 }
 
 // Compatible layouts: fixed per depth, so tiles of different seeds can be neighbors (super tile).
@@ -321,8 +372,13 @@ export const hasLargeTile = (kind: Kind): boolean => PATTERNS[kind].large === tr
 export const clampPeriod = (kind: Kind, period = 1): number =>
   hasLargeTile(kind) ? Math.min(MAX_PERIOD, Math.max(1, Math.floor(period) || 1)) : 1;
 
-export function geometry(p: Pick<PatternParams, 'kind' | 'seed' | 'depth' | 'size' | 'compat' | 'period'>): readonly (readonly Pt[])[] {
-  const gen = (p.compat && COMPAT[p.kind]) || PATTERNS[p.kind].gen;
+export const isStarKind = (kind: Kind): boolean => PATTERNS[kind].star !== undefined;
+
+export function geometry(
+  p: Pick<PatternParams, 'kind' | 'seed' | 'depth' | 'size' | 'compat' | 'period' | 'angle'>,
+): readonly (readonly Pt[])[] {
+  const { star, gen: plain } = PATTERNS[p.kind];
+  const gen = (p.compat && COMPAT[p.kind]) || (star ? star(clampAngle(p.angle)) : plain);
   return gen(mulberry32(p.seed), clampDepth(p.kind, p.depth), p.size, clampPeriod(p.kind, p.period));
 }
 

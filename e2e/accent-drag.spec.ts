@@ -10,7 +10,7 @@ const move = (page: Page, i: number) => {
 };
 
 async function openEditor(page: Page) {
-  await page.getByRole('tab', { name: 'Pattern' }).click();
+  await page.getByRole('tab', { name: 'Pattern', exact: true }).click();
   await page.getByRole('heading', { name: 'Accent shapes' }).click();
   await page.getByRole('button', { name: 'Edit shapes' }).click();
   const editor = page.getByRole('group', { name: 'Accent shapes, one tile' });

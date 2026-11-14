@@ -1,6 +1,6 @@
 // A design as a short URL query string, and back. The query is untrusted input: decodeDesign never throws
 // and every field falls back to its default or is clamped to its range.
-import { FAMILIES, KINDS, MAX_DEPTH, type Kind } from './fractal.ts';
+import { CONTACT_ANGLE, FAMILIES, KINDS, MAX_DEPTH, clampAngle, isStarKind, type Kind } from './fractal.ts';
 import { LAYER2_DEFAULTS, type Layer2Settings } from './layers.ts';
 import { MOTION_NONE, type Motion } from './motion.ts';
 import { canVary, shiftsFor } from './supertile.ts';
@@ -57,6 +57,9 @@ export interface Design extends Motion {
   readonly colorSym?: ColorSym;
   // A texture other than grain (texture.ts). Optional and set only when on, like colorSym.
   readonly texture?: Texture;
+  // A star kind's contact angle in whole degrees (CONTACT_ANGLE in fractal.ts). Optional and set only when not the default,
+  // like colorSym, so other designs compare and decode unchanged.
+  readonly angle?: number;
 }
 
 // Which layer Reduce repetition varies. A kind whose base cannot vary (supertile.ts) varies its accent by default.
@@ -158,6 +161,7 @@ const KEYS: Readonly<Record<keyof Design, string>> = {
   grain: 'gr',
   colorSym: 'cs', // also cw cd cb cm co (encodeColorSym); keep new keys last: older links stay valid
   texture: 'te',
+  angle: 'ca', // a star kind only
 };
 const FIELDS = Object.keys(KEYS) as (keyof Design)[];
 
@@ -385,6 +389,10 @@ export function encodeDesign(d: Design): string {
       if (av) pairs.push([KEYS[f], av]);
       continue;
     }
+    if (f === 'angle') {
+      if (d.angle !== undefined && isStarKind(d.kind)) pairs.push([KEYS[f], String(d.angle)]);
+      continue;
+    }
     if (f === 'variantOptions') {
       const vo = encodeVO(d.variantOptions);
       if (vo) pairs.push([KEYS[f], vo]);
@@ -421,6 +429,8 @@ export function decodeDesign(query: string): Design {
   const av = decodeAV(get('accentVary'));
   const colorSym = decodeColorSym(q);
   const texture = decodeTexture(q.get(KEYS.texture));
+  // Clamped and rounded; ignored for a kind that is not a star pattern.
+  const angle = isStarKind(kind) ? clampAngle(get('angle').trim() === '' ? NaN : Number(get('angle'))) : CONTACT_ANGLE.default;
   const bool = (f: 'mirror' | 'frame' | 'variants' | 'layer2' | 'fade' | 'parallax' | 'sections'): boolean =>
     get(f) === '1' ? true : get(f) === '0' ? false : D[f];
   return {
@@ -470,6 +480,7 @@ export function decodeDesign(query: string): Design {
     grain: texture ? GRAIN_DEFAULTS : decodeGrain(get('grain')),
     ...(colorSym ? { colorSym } : {}),
     ...(texture ? { texture } : {}),
+    ...(angle !== CONTACT_ANGLE.default ? { angle } : {}),
   };
 }
 

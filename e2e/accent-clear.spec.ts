@@ -6,7 +6,7 @@ const image = (page: Page) =>
 
 test('Pattern › Accent shapes: Keep clear of the lines reaches the link, survives a reload, and moves the shapes', async ({ page }) => {
   await page.goto('/index.html#k=truchet&s=7&d=4&z=96&w=5&al=1_d_15_100_g_4');
-  await page.getByRole('tab', { name: 'Pattern' }).click();
+  await page.getByRole('tab', { name: 'Pattern', exact: true }).click();
   await page.getByRole('heading', { name: 'Accent shapes' }).click();
   const sw = page.getByRole('switch', { name: 'Keep clear of the lines' });
   await expect(sw).toHaveAttribute('aria-checked', 'false');
@@ -16,7 +16,7 @@ test('Pattern › Accent shapes: Keep clear of the lines reaches the link, survi
   await expect(page).toHaveURL(/al=1_d_15_100_g_4_1(&|$)/);
   await expect.poll(() => image(page)).not.toBe(before);
   await page.reload();
-  await page.getByRole('tab', { name: 'Pattern' }).click();
+  await page.getByRole('tab', { name: 'Pattern', exact: true }).click();
   await page.getByRole('heading', { name: 'Accent shapes' }).click();
   await expect(page.getByRole('switch', { name: 'Keep clear of the lines' })).toHaveAttribute('aria-checked', 'true');
 });

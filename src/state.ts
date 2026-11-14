@@ -4,6 +4,7 @@ import {
   FAMILIES,
   KINDS,
   KIND_FAMILY,
+  CONTACT_ANGLE,
   MAX_DEPTH,
   extraPath,
   generate,
@@ -73,6 +74,8 @@ export const params = reactive({
 });
 export const roles = reactive<{ -readonly [K in keyof Roles]: string }>({ ...paletteRoles(DEFAULT_PALETTE.colors) });
 export const opacity = ref(DEFAULTS.opacity);
+// A star kind's contact angle in degrees (fractal.ts); the other kinds ignore it.
+export const contactAngle = ref<number>(CONTACT_ANGLE.default);
 export const paletteName = ref<string | null>(DEFAULT_PALETTE.name);
 export const plateMode = ref<PlateMode>(PLATE_DEFAULTS.plateMode);
 export const plateOpacity = ref(PLATE_DEFAULTS.plateOpacity);
@@ -425,7 +428,7 @@ function rawFor(seed: number): Polys {
     ? traced.value
     : usingPatchwork.value
       ? patchworkGeometry({ ...patchParams.value, seed })
-      : geometry({ ...params, seed });
+      : geometry({ ...params, seed, angle: contactAngle.value });
 }
 const raw = computed(() => rawFor(params.seed));
 function tileFor(seed: number, polys: Polys = rawFor(seed)): Tile {
@@ -1092,6 +1095,7 @@ export function reset(): void {
   const { opacity: o, ...rest } = DEFAULTS;
   Object.assign(params, { ...rest, seed: INITIAL_SEED });
   opacity.value = o;
+  contactAngle.value = CONTACT_ANGLE.default;
   plateMode.value = PLATE_DEFAULTS.plateMode;
   plateOpacity.value = PLATE_DEFAULTS.plateOpacity;
   plateRadius.value = PLATE_DEFAULTS.plateRadius;

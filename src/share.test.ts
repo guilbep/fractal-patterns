@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { KINDS, MAX_DEPTH } from './fractal.ts';
+import { FAMILIES, KINDS, MAX_DEPTH } from './fractal.ts';
 import { createHistory } from './history.ts';
 import { LAYER2_DEFAULTS } from './layers.ts';
 import { VARIANT_DEFAULTS, type VariantOptions } from './variants.ts';
@@ -204,7 +204,7 @@ function assertValid(d: Design, label: string): void {
   assert.ok(['single', 'patchwork'].includes(d.layout), label);
   assert.ok(Number.isInteger(d.cells) && inRange(d.cells, 2, 4), label);
   assert.equal(typeof d.frame, 'boolean', label);
-  assert.ok(Number.isInteger(d.families) && inRange(d.families, 1, 63), label);
+  assert.ok(Number.isInteger(d.families) && inRange(d.families, 1, (1 << FAMILIES.length) - 1), label);
   assert.equal(typeof d.variants, 'boolean', label);
   assert.equal(typeof d.layer2, 'boolean', label);
   assert.equal(typeof d.fade, 'boolean', label);
@@ -322,7 +322,9 @@ test('hostile patchwork values fall back or clamp', () => {
   assert.equal(decodeDesign('c=99').cells, 4);
   assert.equal(decodeDesign('c=abc').cells, 3);
   assert.equal(decodeDesign('fa=0').families, DESIGN_DEFAULTS.families);
-  assert.equal(decodeDesign('fa=999').families, 63);
+  assert.equal(decodeDesign('fa=999').families, 127);
+  // Likewise a link from before Star patterns keeps its six families.
+  assert.equal(decodeDesign('fa=63').families, 63);
   // A link from before the Quasicrystals family keeps its five families: the new family is the next bit.
   assert.equal(decodeDesign('fa=31').families, 31);
   assert.equal(decodeDesign('l=x').layout, 'single');
@@ -678,4 +680,27 @@ test('te: a texture round-trips, written last; absent when off; te wins over a t
   assert.deepEqual(both.grain, GRAIN_DEFAULTS);
   assert.equal(both.texture?.kind, 'terrazzo');
   assert.equal(decodeDesign('k=hex&gr=12_0.75_d').grain.on, true);
+});
+
+test('ca: a star kind contact angle round-trips, written last; absent at 78; old links and other kinds give 78; clamped to 20..85', () => {
+  const link = 'k=star-488&s=3&d=3&te=paper.40.4.1.d.b&ca=40';
+  const d = decodeDesign(link);
+  assert.equal(d.angle, 40);
+  assert.equal(encodeDesign(d), link);
+  assert.ok(sameDesign(d, decodeDesign(link)));
+  assert.ok(!sameDesign(d, decodeDesign('k=star-488&s=3&d=3&te=paper.40.4.1.d.b')));
+  // 78 is the default: no key, no field.
+  assert.equal(decodeDesign('k=star-488&ca=78').angle, undefined);
+  assert.equal(encodeDesign(decodeDesign('k=star-488&d=3&ca=78')), 'k=star-488&d=3');
+  // An old link has no ca; a kind that is not a star pattern ignores it.
+  assert.equal(decodeDesign('k=star-hex&s=5').angle, undefined);
+  assert.equal(decodeDesign(`#${WELCOME}`).angle, undefined);
+  assert.equal(decodeDesign('k=tree&ca=40').angle, undefined);
+  assert.ok(!encodeDesign({ ...decodeDesign('k=tree'), angle: 40 }).includes('ca='));
+  // Clamped and rounded; junk gives the default.
+  assert.equal(decodeDesign('k=star-hex&ca=5').angle, 20);
+  assert.equal(decodeDesign('k=star-hex&ca=200').angle, 85);
+  assert.equal(decodeDesign('k=star-hex&ca=40.6').angle, 41);
+  assert.equal(decodeDesign('k=star-hex&ca=x').angle, undefined);
+  assert.equal(decodeDesign('k=star-hex&ca=').angle, undefined);
 });

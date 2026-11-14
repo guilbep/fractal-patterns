@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { FAMILIES, KINDS, MAX_DEPTH, geometry, tileAspect, type Kind } from '../fractal.ts';
+import { FAMILIES, KINDS, MAX_DEPTH, geometry, isStarKind, tileAspect, type Kind } from '../fractal.ts';
 import { safePathData } from '../motifgrid.ts';
 import { MAX_DENSE, patternStamp, patternStampList } from './pattern-stamps.ts';
 
@@ -26,7 +26,7 @@ function oldPath(kind: Kind): string | null {
 }
 
 test('patternStamp: the 65 kinds that worked before keep the same path', () => {
-  const old = KINDS.filter((k) => !DENSE.includes(k));
+  const old = KINDS.filter((k) => !DENSE.includes(k) && !isStarKind(k)); // the Star patterns came later
   assert.equal(old.length, 65);
   for (const kind of old) assert.equal(patternStamp(kind, 1)?.parts[0]?.d, oldPath(kind), kind);
 });
@@ -52,7 +52,7 @@ test('patternStamp: every kind gives one clean stroke part inside the box', () =
     }
   }
   assert.equal(MAX_DENSE, 20000);
-  assert.equal(KINDS.length - missing.length, 80, missing.join(', '));
+  assert.equal(KINDS.length - missing.length, 85, missing.join(', '));
 });
 
 test('patternStamp: deterministic, and the seed matters', () => {

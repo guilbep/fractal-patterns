@@ -6,7 +6,7 @@ const images = (page: Page) =>
 
 test('Patchwork: Accent shapes draw on a grid, without the kind’s own, and the link keeps them', async ({ page }) => {
   await page.goto('/index.html#k=truchet&s=7&l=patchwork');
-  await page.getByRole('tab', { name: 'Pattern' }).click();
+  await page.getByRole('tab', { name: 'Pattern', exact: true }).click();
   await page.getByRole('heading', { name: 'Accent shapes' }).click();
   await expect.poll(() => images(page)).toBe(1);
   await page.getByRole('switch', { name: 'Show accent shapes' }).click();
@@ -25,7 +25,7 @@ test('Image sample: Accent shapes draw scattered triangles over the traced tile,
   await page.goto('/index.html#k=tree&s=1');
   await page.getByRole('tab', { name: 'Image' }).click();
   await page.getByRole('button', { name: 'Brick wall' }).click();
-  await page.getByRole('tab', { name: 'Pattern' }).click();
+  await page.getByRole('tab', { name: 'Pattern', exact: true }).click();
   await page.getByRole('heading', { name: 'Accent shapes' }).click();
   await page.getByRole('switch', { name: 'Show accent shapes' }).click();
   await page.getByRole('button', { name: 'Triangle', exact: true }).click();

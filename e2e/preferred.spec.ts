@@ -18,7 +18,7 @@ test('Preferred: Carpet then a symmetry card apply their values, and one Undo re
   await expect(depth(page)).toHaveText('2 of 3');
   await page.getByRole('tab', { name: /^Repetition/ }).click();
   await expect(page.getByRole('switch', { name: 'Reduce repetition' })).toBeChecked();
-  await page.getByRole('tab', { name: 'Pattern' }).click();
+  await page.getByRole('tab', { name: 'Pattern', exact: true }).click();
   await page.waitForTimeout(400); // the history commits after a 300 ms pause
   await card(page, /^Symmetry/, 'p2 half turn')();
   await expect(stroke(page)).toHaveText('0.5 px');

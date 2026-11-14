@@ -88,6 +88,11 @@ export const MEASURED_DEPTH: Readonly<Record<Kind, number>> = {
   p31m: 1,
   p6: 1,
   p6m: 1,
+  'star-square': 3,
+  'star-hex': 2,
+  'star-488': 2,
+  'star-3636': 2,
+  'star-4612': 1,
 };
 
 // Set by hand after the contact sheet, each with its reason.
@@ -96,7 +101,7 @@ const DEPTH_OVERRIDES: Partial<Record<Kind, number>> = {
   sierpinski: 2, // at depth 1 (0.074) it is one split triangle, not yet recognizable; depth 2 is 0.116, still in the band
 };
 
-const FAMILY_STROKE: Readonly<Record<Family, number>> = { fractal: 1, line: 1, surface: 1, symmetry: 0.5, theme: 1, quasi: 1 };
+const FAMILY_STROKE: Readonly<Record<Family, number>> = { fractal: 1, line: 1, surface: 1, symmetry: 0.5, theme: 1, quasi: 1, star: 1 };
 const STROKE_OVERRIDES: Partial<Record<Kind, number>> = {
   truchet: 5, // drawn bold on purpose
   koch: 1.5, // never reaches the band (0.036 at its last depth): a wider line makes up the ink

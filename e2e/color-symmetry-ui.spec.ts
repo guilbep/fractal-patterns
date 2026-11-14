@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test('Pattern › Color symmetry: the switch shows its controls on a symmetry kind', async ({ page }) => {
   await page.goto('/index.html#k=p4m&s=1');
-  await page.getByRole('tab', { name: 'Pattern' }).click();
+  await page.getByRole('tab', { name: 'Pattern', exact: true }).click();
   const mode = page.getByRole('radiogroup', { name: 'Draw the group with' });
   const lines = mode.getByRole('radio', { name: 'Lines' });
   const color = mode.getByRole('radio', { name: 'Color symmetry' });
@@ -43,7 +43,7 @@ test('Pattern › Color symmetry: the switch shows its controls on a symmetry ki
 
 test('Pattern › Color symmetry: no switch on a tree', async ({ page }) => {
   await page.goto('/index.html#k=tree&s=1');
-  await page.getByRole('tab', { name: 'Pattern' }).click();
+  await page.getByRole('tab', { name: 'Pattern', exact: true }).click();
   await expect(page.getByRole('radio', { name: 'Lines' })).toHaveCount(0);
   await expect(page.getByRole('radiogroup', { name: 'Draw the group with' })).toHaveCount(0);
 });

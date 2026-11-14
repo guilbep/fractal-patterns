@@ -10,7 +10,7 @@ const urls = (s: string) => s.split('url(').length - 1;
 
 test('Pattern › Accent shapes: the switch, Ring, On a grid and Snap 4 reach the link and the preview', async ({ page }) => {
   await page.goto('/index.html#k=hex&s=1');
-  await page.getByRole('tab', { name: 'Pattern' }).click();
+  await page.getByRole('tab', { name: 'Pattern', exact: true }).click();
   await page.getByRole('heading', { name: 'Accent shapes' }).click();
   const ring = page.getByRole('button', { name: 'Ring', exact: true });
   await expect(ring).toBeDisabled();

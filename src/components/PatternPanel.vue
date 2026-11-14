@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue';
-import { FAMILIES, FAMILY_LABELS, KINDS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH, tileAspect, tileHeight, type Kind } from '@/fractal.ts';
+import { CONTACT_ANGLE, FAMILIES, FAMILY_LABELS, KINDS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH, isStarKind, tileAspect, tileHeight, type Kind } from '@/fractal.ts';
 import { SIZE_MAX, SIZE_MIN, SIZE_PRESETS, markedPreset } from '@/sizes.ts';
 import { LIB_TABS, kindsForTab, parseLibTab, tabForKind, type LibTab } from '@/library.ts';
-import { MAX_SEED, bandColors, chooseKind, aspect, tileSize, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, squareKind, usingImage, usingPatchwork, imageShuffles, wheelStatus } from '@/state.ts';
+import { MAX_SEED, bandColors, chooseKind, contactAngle, aspect, tileSize, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, squareKind, usingImage, usingPatchwork, imageShuffles, wheelStatus } from '@/state.ts';
 import AccentShapes from '@/components/AccentShapes.vue';
 import '@/css/library.css';
 import '@/css/sizes.css';
@@ -142,6 +142,10 @@ const galleryVars = computed(() => ({ '--lib-bg': roles.background, '--lib-fg': 
       <div class="field">
         <label for="stroke">Stroke width <output for="stroke">{{ params.strokeWidth }} px</output></label>
         <input id="stroke" v-model.number="params.strokeWidth" type="range" min="0.5" max="6" step="0.5">
+      </div>
+      <div v-if="isStarKind(params.kind) && !usingImage && !usingPatchwork" class="field">
+        <label for="angle">Contact angle <output for="angle">{{ contactAngle }}°</output></label>
+        <input id="angle" v-model.number="contactAngle" type="range" :min="CONTACT_ANGLE.min" :max="CONTACT_ANGLE.max" step="1">
       </div>
     </div>
 

@@ -9,15 +9,19 @@ import {
   KIND_FAMILY,
   KIND_LABELS,
   MAX_DEPTH,
+  CONTACT_ANGLE,
+  clampAngle,
   extraPath,
   generate,
   geometry,
   hasCompat,
+  isStarKind,
   tileAspect,
   type Kind,
   type PatternParams,
 } from './fractal.ts';
 import { PENROSE_ASPECT } from './penrose.ts';
+import { HEX_ASPECT } from './patterns/symmetry.ts';
 
 const base = { seed: 1, depth: 3, size: 120, strokeWidth: 1, precision: 1, color: '#336699', opacity: 0.5 } as const;
 const params = (kind: PatternParams['kind'], over: Partial<PatternParams> = {}): PatternParams => ({ ...base, kind, ...over });
@@ -40,7 +44,8 @@ test('deterministic', () => {
 });
 
 test('seed matters', () => {
-  for (const kind of KINDS) {
+  // The star patterns have no randomness: the tiling and the contact angle fix them (patterns/stars.ts).
+  for (const kind of KINDS.filter((k) => !isStarKind(k))) {
     assert.notEqual(generate(params(kind, { seed: 1 })), generate(params(kind, { seed: 2 })), kind);
   }
 });
@@ -145,7 +150,7 @@ test('source hygiene', () => {
 });
 
 test('families', () => {
-  assert.deepEqual([...FAMILIES], ['fractal', 'line', 'surface', 'symmetry', 'theme', 'quasi']);
+  assert.deepEqual([...FAMILIES], ['fractal', 'line', 'surface', 'symmetry', 'theme', 'quasi', 'star']);
   assert.equal(FAMILY_LABELS.quasi, 'Quasicrystals');
   for (const kind of ['penrose', 'penrosearcs', 'penroseboth', 'octa', 'octastars', 'dodeca', 'dodecastars'] as const)
     assert.equal(KIND_FAMILY[kind], 'quasi', kind);
@@ -206,7 +211,7 @@ test('families', () => {
 });
 
 test('all kinds are registered', () => {
-  assert.equal(KINDS.length, 80);
+  assert.equal(KINDS.length, 85);
   const ids = [
     'carpet',
     'quadtree',
@@ -288,6 +293,11 @@ test('all kinds are registered', () => {
     'p31m',
     'p6',
     'p6m',
+    'star-square',
+    'star-hex',
+    'star-488',
+    'star-3636',
+    'star-4612',
   ];
   for (const id of ids) assert.ok((KINDS as readonly string[]).includes(id), id);
   for (const kind of [
@@ -808,6 +818,36 @@ const PINS: Readonly<Record<PatternParams['kind'], readonly (readonly [number, n
     [25657, 3765041639],
     [25657, 3765041639],
   ],
+  'star-square': [
+    [536, 2466681657],
+    [935, 706368132],
+    [536, 2466681657],
+    [935, 706368132],
+  ],
+  'star-hex': [
+    [1232, 2226217279],
+    [2370, 1531067477],
+    [1232, 2226217279],
+    [2370, 1531067477],
+  ],
+  'star-488': [
+    [1074, 903206489],
+    [2342, 64654326],
+    [1074, 903206489],
+    [2342, 64654326],
+  ],
+  'star-3636': [
+    [1966, 2851391023],
+    [4131, 602338913],
+    [1966, 2851391023],
+    [4131, 602338913],
+  ],
+  'star-4612': [
+    [5272, 3569011977],
+    [11428, 3370812395],
+    [5272, 3569011977],
+    [11428, 3370812395],
+  ],
 };
 
 // The compatible layouts (compat: true) of the kinds that have one.
@@ -958,7 +998,7 @@ test('distinct outputs over seeds 1..12 at depth 2, free and compatible', () => 
 const PENROSE_KINDS = ['penrose', 'penrosearcs', 'penroseboth'] as const;
 
 test('tileAspect: 1 for every square kind, PENROSE_ASPECT for the Penrose kinds, 1 / sqrt(3) for the hexagonal groups', () => {
-  const hex: readonly string[] = ['p3', 'p3m1', 'p31m', 'p6', 'p6m'];
+  const hex: readonly string[] = ['p3', 'p3m1', 'p31m', 'p6', 'p6m', 'star-hex', 'star-3636', 'star-4612'];
   for (const kind of KINDS)
     assert.equal(
       tileAspect(kind),
@@ -1008,4 +1048,25 @@ test('Penrose arcs: one <path>, arcs as A commands; edges unchanged; other kinds
     [3852, 4200862368],
     [23246, 1796574155],
   ]);
+});
+
+test('Star patterns: one kind per tiling, hexagonal tiles like the hex symmetry kinds, the contact angle clamped', () => {
+  const stars = ['star-square', 'star-hex', 'star-488', 'star-3636', 'star-4612'] as const;
+  assert.equal(FAMILY_LABELS.star, 'Star patterns');
+  assert.equal(FAMILIES.at(-1), 'star');
+  assert.deepEqual(
+    KINDS.filter((k) => KIND_FAMILY[k] === 'star'),
+    [...stars],
+  );
+  assert.equal(KIND_LABELS['star-488'], '4.8.8 stars');
+  for (const k of stars) assert.equal(MAX_DEPTH[k], 3, k);
+  assert.deepEqual(stars.map(tileAspect), [1, HEX_ASPECT, 1, HEX_ASPECT, HEX_ASPECT]);
+  assert.deepEqual(KINDS.filter(isStarKind), [...stars]);
+  const at = (angle?: number) => generate(params('star-488', angle === undefined ? {} : { angle }));
+  assert.equal(at(), at(CONTACT_ANGLE.default));
+  assert.notEqual(at(40), at());
+  assert.equal(at(5), at(20));
+  assert.equal(at(99), at(85));
+  assert.equal(generate(params('tree', { angle: 40 })), generate(params('tree')));
+  assert.deepEqual([clampAngle(40.4), clampAngle(NaN), clampAngle(-3), clampAngle(200)], [40, 78, 20, 85]);
 });

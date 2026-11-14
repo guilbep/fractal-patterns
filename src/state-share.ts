@@ -1,7 +1,7 @@
 // The design in the URL hash, and an undo history over it. Pins, the palette name, and the image stay out (see share.ts).
 import { computed, ref, watch } from 'vue';
 import { COLOR_SYM_DEFAULTS, colorSym } from '@/color-sym.ts';
-import { FAMILIES } from '@/fractal.ts';
+import { CONTACT_ANGLE, FAMILIES, isStarKind } from '@/fractal.ts';
 import { createHistory } from '@/history.ts';
 import { PALETTES, linkedPalette } from '@/palettes.ts'; // STUDIO-PAL
 import { takeUse } from '@/use-it.ts';
@@ -14,6 +14,7 @@ import {
   accentMoves,
   accentVary,
   applyPalette,
+  contactAngle,
   change,
   changeTo,
   fade,
@@ -85,6 +86,8 @@ export function snapshot(): Design {
     ...(colorSym.on ? { colorSym: { ...colorSym } } : {}),
     // Off (or grain, which travels as gr) leaves it out, like Color symmetry.
     ...(texture.on && texture.kind !== 'grain' ? { texture: { ...texture } } : {}),
+    // A star kind only, and only when not the default (share.ts).
+    ...(isStarKind(params.kind) && contactAngle.value !== CONTACT_ANGLE.default ? { angle: contactAngle.value } : {}),
   };
 }
 
@@ -125,6 +128,7 @@ export function applyDesign(d: Design): void {
   Object.assign(grain, d.grain);
   Object.assign(colorSym, d.colorSym ?? COLOR_SYM_DEFAULTS);
   Object.assign(texture, d.texture ?? TEXTURE_DEFAULTS);
+  contactAngle.value = d.angle ?? CONTACT_ANGLE.default;
   source.value = 'math';
   lastFix.value = null; // the Fix result no longer describes these colors
 }

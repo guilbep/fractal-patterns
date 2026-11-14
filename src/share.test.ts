@@ -704,3 +704,29 @@ test('ca: a star kind contact angle round-trips, written last; absent at 78; old
   assert.equal(decodeDesign('k=star-hex&ca=x').angle, undefined);
   assert.equal(decodeDesign('k=star-hex&ca=').angle, undefined);
 });
+
+test('Color each region: rc and rk round trip, last, absent when off; old links unchanged; clamped', () => {
+  const on = (q: string) => decodeDesign(q).regions;
+  assert.deepEqual(on('k=p4m&rc=1'), { mode: 'shape', k: 4 });
+  assert.deepEqual(on('k=p4m&rc=2&rk=3'), { mode: 'neighbours', k: 3 });
+  for (const q of ['rc=1', 'k=p4m&d=2&rc=2&rk=2', 'rc=1&rk=3']) assert.equal(encodeDesign(decodeDesign(q)), q);
+  // The keys go last, after older ones.
+  assert.ok(encodeDesign({ ...decodeDesign('k=star-488&ca=60'), regions: { mode: 'shape', k: 2 } }).endsWith('ca=60&rc=1&rk=2'));
+  // Off: no field, no key; rk alone is ignored.
+  assert.equal(on('k=p4m'), undefined);
+  assert.equal(on('k=p4m&rc=0'), undefined);
+  assert.equal(on('k=p4m&rc=x&rk=2'), undefined);
+  assert.equal(encodeDesign(decodeDesign('k=p4m&d=2&rk=2')), 'k=p4m&d=2');
+  // Old links decode and encode as before.
+  assert.equal(on(`#${WELCOME}`), undefined);
+  assert.equal(encodeDesign(decodeDesign(WELCOME)), WELCOME);
+  // rk clamped to 2..4 and rounded; junk gives 4.
+  assert.equal(on('rc=1&rk=9')!.k, 4);
+  assert.equal(on('rc=1&rk=1')!.k, 2);
+  assert.equal(on('rc=1&rk=2.6')!.k, 3);
+  assert.equal(on('rc=1&rk=x')!.k, 4);
+  // Compared by value: on and off differ, the colour count counts.
+  assert.ok(sameDesign(decodeDesign('rc=2&rk=3'), decodeDesign('rc=2&rk=3')));
+  assert.ok(!sameDesign(decodeDesign('rc=2'), decodeDesign('')));
+  assert.ok(!sameDesign(decodeDesign('rc=2'), decodeDesign('rc=2&rk=3')));
+});

@@ -37,6 +37,7 @@ import {
   plateMode,
   plateOpacity,
   plateRadius,
+  regions,
   roles,
   sections,
   source,
@@ -88,6 +89,8 @@ export function snapshot(): Design {
     ...(texture.on && texture.kind !== 'grain' ? { texture: { ...texture } } : {}),
     // A star kind only, and only when not the default (share.ts).
     ...(isStarKind(params.kind) && contactAngle.value !== CONTACT_ANGLE.default ? { angle: contactAngle.value } : {}),
+    // Off leaves it out, like Color symmetry.
+    ...(regions.mode !== 'off' ? { regions: { mode: regions.mode, k: regions.k } } : {}),
   };
 }
 
@@ -129,6 +132,7 @@ export function applyDesign(d: Design): void {
   Object.assign(colorSym, d.colorSym ?? COLOR_SYM_DEFAULTS);
   Object.assign(texture, d.texture ?? TEXTURE_DEFAULTS);
   contactAngle.value = d.angle ?? CONTACT_ANGLE.default;
+  Object.assign(regions, d.regions ?? { mode: 'off', k: 4 });
   source.value = 'math';
   lastFix.value = null; // the Fix result no longer describes these colors
 }

@@ -60,6 +60,8 @@ export interface Design extends Motion {
   // A star kind's contact angle in whole degrees (CONTACT_ANGLE in fractal.ts). Optional and set only when not the default,
   // like colorSym, so other designs compare and decode unchanged.
   readonly angle?: number;
+  // Color each region (rc, rk). Optional and set only when on, like colorSym. k: the number of colours, 2 to 4.
+  readonly regions?: { readonly mode: 'shape' | 'neighbours'; readonly k: number };
 }
 
 // Which layer Reduce repetition varies. A kind whose base cannot vary (supertile.ts) varies its accent by default.
@@ -162,6 +164,7 @@ const KEYS: Readonly<Record<keyof Design, string>> = {
   colorSym: 'cs', // also cw cd cb cm co (encodeColorSym); keep new keys last: older links stay valid
   texture: 'te',
   angle: 'ca', // a star kind only
+  regions: 'rc', // rc=1 by shape, 2 neighbours differ; also rk, the colour count, when not 4
 };
 const FIELDS = Object.keys(KEYS) as (keyof Design)[];
 
@@ -340,6 +343,19 @@ function decodeColorSym(q: URLSearchParams): ColorSym | undefined {
   if (cb === '0' || cb === '1') c.balance = cb === '1';
   return c;
 }
+// Color each region: rc=1|2, and rk only when not the default 4; nothing when off.
+function encodeRegions(r: Design['regions']): [string, string][] {
+  if (!r) return [];
+  return [['rc', r.mode === 'shape' ? '1' : '2'], ...(r.k !== 4 ? [['rk', String(r.k)] as [string, string]] : [])];
+}
+// Off (undefined) unless rc is 1 or 2; rk is rounded and clamped to 2..4, anything else gives 4.
+function decodeRegions(q: URLSearchParams): Design['regions'] {
+  const rc = q.get('rc');
+  if (rc !== '1' && rc !== '2') return undefined;
+  const s = q.get('rk')?.trim();
+  const k = s && Number.isFinite(+s) ? Math.round(Math.min(4, Math.max(2, +s))) : 4;
+  return { mode: rc === '1' ? 'shape' : 'neighbours', k };
+}
 const sameFields = <T extends object>(a: T, b: T): boolean => (Object.keys(a) as (keyof T)[]).every((k) => a[k] === b[k]);
 
 export function encodeDesign(d: Design): string {
@@ -362,6 +378,10 @@ export function encodeDesign(d: Design): string {
     }
     if (f === 'colorSym') {
       pairs.push(...encodeColorSym(d.colorSym));
+      continue;
+    }
+    if (f === 'regions') {
+      pairs.push(...encodeRegions(d.regions));
       continue;
     }
     if (f === 'texture') {
@@ -428,6 +448,7 @@ export function decodeDesign(query: string): Design {
   const layout = oneOf('layout', ['single', 'patchwork'], D.layout);
   const av = decodeAV(get('accentVary'));
   const colorSym = decodeColorSym(q);
+  const regions = decodeRegions(q);
   const texture = decodeTexture(q.get(KEYS.texture));
   // Clamped and rounded; ignored for a kind that is not a star pattern.
   const angle = isStarKind(kind) ? clampAngle(get('angle').trim() === '' ? NaN : Number(get('angle'))) : CONTACT_ANGLE.default;
@@ -481,6 +502,7 @@ export function decodeDesign(query: string): Design {
     ...(colorSym ? { colorSym } : {}),
     ...(texture ? { texture } : {}),
     ...(angle !== CONTACT_ANGLE.default ? { angle } : {}),
+    ...(regions ? { regions } : {}),
   };
 }
 
@@ -496,13 +518,15 @@ export function sameDesign(a: Design, b: Design): boolean {
             ? encodeChange(a[f]) === encodeChange(b[f])
             : f === 'grain'
               ? encodeGrain(a[f]) === encodeGrain(b[f])
-              : f === 'colorSym'
-                ? String(encodeColorSym(a[f])) === String(encodeColorSym(b[f]))
-                : f === 'texture'
-                  ? (a[f] ? encodeTexture(a[f]) : null) === (b[f] ? encodeTexture(b[f]) : null)
-                  : f === 'accentLayer' || f === 'accentVary'
-                    ? sameFields(a[f], b[f])
-                    : a[f] === b[f],
+              : f === 'regions'
+                ? String(encodeRegions(a[f])) === String(encodeRegions(b[f]))
+                : f === 'colorSym'
+                  ? String(encodeColorSym(a[f])) === String(encodeColorSym(b[f]))
+                  : f === 'texture'
+                    ? (a[f] ? encodeTexture(a[f]) : null) === (b[f] ? encodeTexture(b[f]) : null)
+                    : f === 'accentLayer' || f === 'accentVary'
+                      ? sameFields(a[f], b[f])
+                      : a[f] === b[f],
   );
 }
 

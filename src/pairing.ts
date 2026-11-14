@@ -21,6 +21,8 @@ export type FilledRoles = Roles & {
   readonly texture?: readonly string[] | null;
   // Color symmetry: the colour bands that fill the tile, each one a surface under the text, seen through the plate.
   readonly bands?: readonly string[] | null;
+  // Color each region: the region colours under the lines, each one a surface, bare or under a stroke, through the plate.
+  readonly regions?: readonly string[] | null;
 };
 
 export interface Fix {
@@ -61,6 +63,12 @@ export function textSurfaces(r: FilledRoles, opacity: number, plate: number, spo
       ...textSurfaces({ ...r, texture: null }, opacity, plate, spots),
       ...r.texture.flatMap((c) => textSurfaces({ ...r, texture: null, background: blend(c, r.background, k) }, opacity, plate, spots)),
     ];
+  }
+  // ponytail: a fill or a second layer over a region is not modelled; the region is opaque under the strokes.
+  if (r.regions?.length) {
+    const k = Math.min(1, Math.max(0, plate));
+    const under = r.regions.flatMap((c) => [c, ...spots(opacity).map((o) => blend(r.pattern, c, o))]);
+    return [...textSurfaces({ ...r, regions: null }, opacity, plate, spots), ...under.map((c) => blend(r.background, c, k))];
   }
   if (r.bands?.length) {
     const k = Math.min(1, Math.max(0, plate));

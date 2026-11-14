@@ -446,10 +446,14 @@ const sceneFor = (t: Tile, color = roles.pattern) =>
     { size: t.size, height: tileHeight(t.size, aspect.value), strokeWidth: params.strokeWidth, color, opacity: opacity.value },
     fillOn.value ? fill : NO_FILL,
   );
-const tileSvg = (t: Tile, color = roles.pattern) =>
-  fillOn.value
+const tileSvg = (t: Tile, color = roles.pattern): string => {
+  const s = fillOn.value
     ? sceneToSvg(sceneFor(t, color), params.precision)
     : svgFromPolylines(t.polys, { ...params, size: t.size, color, opacity: opacity.value }, aspect.value, t.extra);
+  // The coloured regions go first, under the lines; only on the current tile (the second layer's seed has other regions).
+  const r = t === tile.value ? regionPaths.value : '';
+  return r ? s.replace('>', `>${r}`) : s;
+};
 // The accent shapes, filled non-zero: overlapping shapes join, and a ring's reversed inner loop stays a hole.
 const accentPaint = (polys: Polys): SceneLayer => ({
   polys,
@@ -612,6 +616,43 @@ export const variantBytes = computed(() => {
     plain: rawSize(tileSvg(tile.value)),
   };
 });
+
+// Color each region (patterns/regions.ts): every closed region between the lines filled, under them. Off by default.
+// 'shape': regions of the same size and corner count share a colour; 'neighbours': regions that touch differ.
+export type RegionMode = 'off' | 'shape' | 'neighbours';
+const REGIONS_DEFAULTS = { mode: 'off' as RegionMode, k: 4 };
+export const regions = reactive({ ...REGIONS_DEFAULTS });
+// Line kinds only, on the plain square tile: not an image, a patchwork, Color symmetry or the variants super tile.
+export const regionsAvailable = computed(
+  () => !usingImage.value && !usingPatchwork.value && !colorSymActive.value && !variantsOn.value && aspect.value === 1,
+);
+export const regionsActive = computed(() => regions.mode !== 'off' && regionsAvailable.value);
+// The region code loads with the first coloured tile, to keep it out of the start JS.
+const regionsMod = shallowRef<typeof import('@/regions-tile.ts') | null>(null);
+let regionsLoad: Promise<void> | undefined;
+export function regionsReady(): Promise<void> {
+  regionsLoad ??= import('@/regions-tile.ts').then((m) => {
+    regionsMod.value = m;
+  });
+  return regionsLoad;
+}
+watch(regionsActive, (on) => on && void regionsReady(), { immediate: true });
+// Past either limit the tile keeps its lines only. The time is the desktop budget; tests lift it (machine-dependent).
+export const REGION_LIMITS = { faces: 2000, ms: 60 };
+// The faces of the drawn tile, found again only when the tile's polylines change (not on a colour, mode or count change).
+const regionFaces = computed(() =>
+  regionsActive.value && regionsMod.value ? regionsMod.value.findRegions(tile.value.polys, tile.value.size, REGION_LIMITS) : null,
+);
+// The colours used, `k` of them (regionPalette in regions-tile.ts says which); empty until the code is in.
+export const regionColors = computed(
+  () => regionsMod.value?.regionPalette([...paletteColors.value, fill.color, accent.value], roles, regions.k) ?? [],
+);
+// The drawn regions with the count, the time, and a note when the colours do not suffice or the regions are skipped.
+// Null when off or until the code is in.
+export const regionsInfo = computed(
+  () => regionFaces.value && regionsMod.value!.colourRegions(regionFaces.value, regions.mode, regions.k, regionColors.value),
+);
+const regionPaths = computed(() => regionsInfo.value?.svg ?? '');
 
 // Grain: a fine noise under the pattern, over the background color, its own tile size (grain.ts). Off by default.
 export const grain = reactive<{ -readonly [K in keyof Grain]: Grain[K] }>({ ...GRAIN_DEFAULTS });
@@ -892,6 +933,7 @@ export const checkedRoles = computed(() => ({
   accent: accentShown.value ? accent.value : null,
   grain: grain.on && grain.amount > 0 ? { color: grainColor(grain.tone), opacity: grain.amount / 100 } : null,
   bands: colorSymActive.value ? bandColors.value : null,
+  regions: regionPaths.value ? regionColors.value : null,
   texture: textureSurfaces.value,
 }));
 
@@ -1125,4 +1167,5 @@ export function reset(): void {
   sections.value = false;
   Object.assign(grain, GRAIN_DEFAULTS);
   Object.assign(texture, TEXTURE_DEFAULTS);
+  Object.assign(regions, REGIONS_DEFAULTS);
 }

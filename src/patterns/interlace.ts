@@ -1,11 +1,20 @@
 // Interlace: join wrapped pieces into strands on the torus, find crossings,
 // alternate over/under along each strand, draw ribbons with gaps at under-passages.
-import type { Poly, Pt } from './util.ts';
+import { TAU, type Poly, type Pt } from './util.ts';
 
 // pieces: consecutive polylines of the strand; a jump between pieces is a tile-edge crossing.
+// joins: where the strand goes straight through a vertex shared with other lines.
 export interface Strand {
   pieces: Poly[];
   closed: boolean;
+  joins?: Join[];
+}
+export interface Join {
+  at: string; // vertex key, the same for every passage through that vertex
+  p: Pt;
+  s: number;
+  din: Pt; // direction in
+  dout: Pt; // direction out
 }
 export interface Passage {
   strand: number;
@@ -19,63 +28,117 @@ export interface Crossing {
 }
 export type OverUnder = Map<number, 'a' | 'b'>;
 
-// Endpoints are matched modulo the tile (x = size is x = 0) on a 1e-3 grid.
-function endKey([x, y]: Pt, size: number): string {
-  const S = Math.round(size * 1e3);
-  const q = (v: number) => ((Math.round(v * 1e3) % S) + S) % S;
+// Points are matched modulo the tile (x = size is x = 0) on a grid of 1e-6 * size.
+// ponytail: grid snap, two points within eps can still round apart; cluster if that ever shows.
+function vertexKey([x, y]: Pt, size: number): string {
+  const eps = 1e-6 * size;
+  const S = Math.round(size / eps);
+  const q = (v: number) => ((Math.round(v / eps) % S) + S) % S;
   return `${q(x)},${q(y)}`;
 }
 
+// Graph of all segments; at each vertex the ends are paired as straightest continuations,
+// so strands go straight through crossings that sit on shared vertices (Hankin stars).
 export function strands(polys: Poly[], size: number): Strand[] {
-  const pieces = polys.filter((p) => p.length >= 2);
-  // End e = 2 * piece + (0 start | 1 end). Join only where exactly two ends meet:
-  // ponytail: a junction of 3+ ends stays open; following straight through it is a later step.
+  // Edge e has ends 2e (at a) and 2e + 1 (at b).
+  const ea: Pt[] = [];
+  const eb: Pt[] = [];
+  const keyOf: string[] = [];
   const byKey = new Map<string, number[]>();
-  pieces.forEach((p, i) => {
-    for (const [e, pt] of [
-      [2 * i, p[0]!],
-      [2 * i + 1, p[p.length - 1]!],
-    ] as const) {
-      const k = endKey(pt, size);
-      byKey.set(k, [...(byKey.get(k) ?? []), e]);
+  for (const p of polys)
+    for (let i = 1; i < p.length; i++) {
+      const ka = vertexKey(p[i - 1]!, size);
+      const kb = vertexKey(p[i]!, size);
+      // A segment across the whole tile has both ends on one vertex: drop only true zero lengths.
+      if (Math.hypot(p[i]![0] - p[i - 1]![0], p[i]![1] - p[i - 1]![1]) < 1e-6 * size) continue;
+      const e = ea.length;
+      ea.push(p[i - 1]!);
+      eb.push(p[i]!);
+      keyOf.push(ka, kb);
+      byKey.set(ka, [...(byKey.get(ka) ?? []), 2 * e]);
+      byKey.set(kb, [...(byKey.get(kb) ?? []), 2 * e + 1]);
     }
-  });
+  const pt = (x: number) => (x & 1 ? eb : ea)[x >> 1]!;
+  // Unit direction leaving the vertex along end x's edge.
+  const dir = (x: number): Pt => {
+    const [ax, ay] = pt(x);
+    const [bx, by] = pt(x ^ 1);
+    const l = Math.hypot(bx - ax, by - ay);
+    return [(bx - ax) / l, (by - ay) / l];
+  };
   const partner = new Map<number, number>();
-  for (const ends of byKey.values()) {
-    if (ends.length !== 2) continue;
-    partner.set(ends[0]!, ends[1]!);
-    partner.set(ends[1]!, ends[0]!);
+  const crossing = new Set<string>(); // vertices of degree 4+
+  for (const [k, ends] of byKey) {
+    // Degree 3 or odd: the ends stay open.
+    if (ends.length % 2) continue;
+    if (ends.length > 2) crossing.add(k);
+    const left = [...ends];
+    const ds = new Map(left.map((x) => [x, dir(x)]));
+    while (left.length) {
+      // Greedy: the pair closest to opposite directions.
+      let bi = 0;
+      let bj = 1;
+      let best = Infinity;
+      for (let i = 0; i < left.length; i++)
+        for (let j = i + 1; j < left.length; j++) {
+          const [ux, uy] = ds.get(left[i]!)!;
+          const [vx, vy] = ds.get(left[j]!)!;
+          const d = ux * vx + uy * vy;
+          if (d < best) [best, bi, bj] = [d, i, j];
+        }
+      const x = left[bi]!;
+      const y = left[bj]!;
+      partner.set(x, y);
+      partner.set(y, x);
+      left.splice(bj, 1);
+      left.splice(bi, 1);
+    }
   }
-  const seen = new Uint8Array(pieces.length);
+  const seen = new Uint8Array(ea.length);
   const out: Strand[] = [];
-  // Walk from end e (we leave the piece through the end opposite to e).
+  const eps = 1e-6 * size;
+  // Walk entering edges at end x; a new piece starts wherever the coordinates jump (tile edge).
   const walk = (start: number): Strand => {
-    const chain: Poly[] = [];
-    let e = start;
+    const pieces: Poly[] = [];
+    const joins: Join[] = [];
+    let piece: Poly | null = null;
+    let s = 0;
+    let x = start;
     let closed = false;
     for (;;) {
-      const i = e >> 1;
-      seen[i] = 1;
-      const p = pieces[i]!;
-      chain.push(e & 1 ? [...p].reverse() : p);
-      const next = partner.get(e ^ 1);
-      if (next === undefined) break;
-      if (next >> 1 === start >> 1) {
+      seen[x >> 1] = 1;
+      const a = pt(x);
+      const b = pt(x ^ 1);
+      const last = piece?.[piece.length - 1];
+      if (!piece || !last || Math.hypot(last[0] - a[0], last[1] - a[1]) > eps) {
+        piece = [a];
+        pieces.push(piece);
+      }
+      piece.push(b);
+      s += Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const y = partner.get(x ^ 1);
+      if (y === undefined) break;
+      const k = keyOf[x ^ 1]!;
+      if (crossing.has(k)) {
+        const [ix, iy] = dir(x ^ 1);
+        joins.push({ at: k, p: b, s, din: [-ix, -iy], dout: dir(y) });
+      }
+      if (y === start) {
         closed = true;
         break;
       }
-      if (seen[next >> 1]) break;
-      e = next;
+      if (seen[y >> 1]) break;
+      x = y;
     }
-    return { pieces: chain, closed };
+    return joins.length ? { pieces, closed, joins } : { pieces, closed };
   };
   // Open chains first (from a free end), then the remaining closed loops.
-  for (let i = 0; i < pieces.length; i++) {
-    if (seen[i]) continue;
-    if (!partner.has(2 * i)) out.push(walk(2 * i));
-    else if (!partner.has(2 * i + 1)) out.push(walk(2 * i + 1));
+  for (let e = 0; e < ea.length; e++) {
+    if (seen[e]) continue;
+    if (!partner.has(2 * e)) out.push(walk(2 * e));
+    else if (!partner.has(2 * e + 1)) out.push(walk(2 * e + 1));
   }
-  for (let i = 0; i < pieces.length; i++) if (!seen[i]) out.push(walk(2 * i));
+  for (let e = 0; e < ea.length; e++) if (!seen[e]) out.push(walk(2 * e));
   return out;
 }
 
@@ -103,8 +166,7 @@ function segments(list: Strand[]): Seg[] {
   return segs;
 }
 
-// Proper crossings only: both parameters strictly inside, so touching ends and shared vertices do not count.
-// ponytail: a crossing exactly on a vertex or on the tile edge is missed; split segments there if it matters.
+// Proper crossings (both parameters strictly inside), plus the crossings strands() recorded on shared vertices.
 export function crossings(list: Strand[]): Crossing[] {
   const segs = segments(list).sort((u, v) => Math.min(u.ax, u.bx) - Math.min(v.ax, v.bx));
   const out: Crossing[] = [];
@@ -135,6 +197,23 @@ export function crossings(list: Strand[]): Crossing[] {
       });
     }
   }
+  // Crossings on shared vertices: two passages through one vertex cross when their directions interleave.
+  const at = new Map<string, [number, Join][]>();
+  list.forEach((st, i) => {
+    for (const j of st.joins ?? []) at.set(j.at, [...(at.get(j.at) ?? []), [i, j]]);
+  });
+  const ang = ([x, y]: Pt, from: number) => (((Math.atan2(y, x) - from) % TAU) + TAU) % TAU;
+  for (const list of at.values())
+    for (let i = 0; i < list.length; i++)
+      for (let k = i + 1; k < list.length; k++) {
+        const [sa, ja] = list[i]!;
+        const [sb, jb] = list[k]!;
+        // Angles from ja's way back, counter-clockwise: jb's two directions must sit on either side of ja's way out.
+        const back = Math.atan2(-ja.din[1], -ja.din[0]);
+        const o = ang(ja.dout, back);
+        if (ang([-jb.din[0], -jb.din[1]], back) < o === ang(jb.dout, back) < o) continue;
+        out.push({ id: out.length, p: ja.p, a: { strand: sa, s: ja.s }, b: { strand: sb, s: jb.s } });
+      }
   return out;
 }
 

@@ -149,3 +149,57 @@ test('speed on real tiles', () => {
     assert.ok(ms < 500, `${name} ${ms} ms`);
   }
 });
+
+test('X through a shared vertex: one crossing there, alternation consistent', () => {
+  const st = strands(
+    [
+      [
+        [10, 20],
+        [50, 40],
+        [90, 60],
+      ],
+      [
+        [10, 60],
+        [50, 40],
+        [90, 20],
+      ],
+    ],
+    S,
+  );
+  assert.equal(st.length, 2);
+  const cs = crossings(st);
+  assert.equal(cs.length, 1);
+  assert.deepEqual(cs[0]!.p, [50, 40]);
+  assert.notEqual(cs[0]!.a.strand, cs[0]!.b.strand);
+  assert.ok(Math.abs(cs[0]!.a.s - Math.hypot(40, 20)) < 1e-9);
+  const { overUnder, odd } = interlace(st, cs);
+  assert.deepEqual(odd, []);
+  // The under strand is cut at the vertex: 2 subpaths in its strokes.
+  const svg = ribbonsSvg(st, cs, overUnder, { width: 4, gap: 3, size: S, fill: '#fff', stroke: '#000' });
+  const ds = [...svg.matchAll(/ d="([^"]*)"/g)].map((m) => (m[1]!.match(/M/g) ?? []).length);
+  assert.deepEqual(ds.sort(), [1, 1, 2, 2]);
+});
+
+const run = (name: string, polys: Poly[]) => {
+  const t0 = performance.now();
+  const st = strands(polys, S);
+  const cs = crossings(st);
+  const { overUnder, odd } = interlace(st, cs);
+  ribbonsSvg(st, cs, overUnder, { width: 4, gap: 3, size: S, fill: '#fff', stroke: '#000' });
+  const ms = performance.now() - t0;
+  console.log(`${name}: strands ${st.length}, crossings ${cs.length}, odd ${odd.length}, ${ms.toFixed(1)} ms`);
+  assert.ok(ms < 500, `${name} ${ms} ms`);
+  return { cs, odd };
+};
+
+test('star tiles weave through shared vertices', () => {
+  for (const id of ['488', 'hex', 'square'] as const) {
+    const { cs, odd } = run(`star ${id}`, wrap(starGenerator(id)(mulberry32(1), 2, S), S));
+    assert.ok(cs.length > 0, id);
+    if (id === 'square') assert.deepEqual(odd, []);
+  }
+});
+
+test('truchet and hex through the vertex graph', () => {
+  for (const kind of ['truchet', 'hex'] as const) run(kind, wrap(geometry({ kind, seed: 1, depth: 3, size: S }) as Poly[], S));
+});

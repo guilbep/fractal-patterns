@@ -4,6 +4,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useBarHeight } from '@/bar-height.ts';
 import SiteHeader from '@/components/SiteHeader.vue';
 import SponsorBanner from '@/components/SponsorBanner.vue';
+import PageFootprint from '@/components/PageFootprint.vue';
 import { isTyping, readShortcut, shortcutFor, toggleFullscreen } from '@/shortcuts.ts';
 import { copyText } from '@/clipboard.ts';
 import SizeBadge from '@/components/SizeBadge.vue';
@@ -246,6 +247,7 @@ onBeforeUnmount(() => {
   <div ref="fullEl" class="builder-full" :style="fullStyle"></div>
   <footer class="site-footer">
     <p><a href="https://github.com/guilbep/patterns">Source on GitHub</a></p>
+    <PageFootprint />
     <SponsorBanner />
   </footer>
 </template>

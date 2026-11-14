@@ -6,6 +6,7 @@ import SiteHeader from '@/components/SiteHeader.vue';
 import { isTyping, readShortcut, shortcutFor, toggleFullscreen, writeShortcut } from '@/shortcuts.ts';
 import { svgToDataUri } from '@/css.ts';
 import SponsorBanner from '@/components/SponsorBanner.vue';
+import PageFootprint from '@/components/PageFootprint.vue';
 import SizeBadge from '@/components/SizeBadge.vue';
 import ToolIcon from '@/components/ToolIcon.vue';
 import UiFileDrop from '@/components/UiFileDrop.vue';
@@ -727,6 +728,7 @@ useBarHeight(head, '--head-h');
   </main>
   <footer class="site-footer">
     <p><a href="https://github.com/guilbep/patterns">Source on GitHub</a></p>
+    <PageFootprint />
     <SponsorBanner />
   </footer>
 </template>

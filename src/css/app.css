@@ -121,6 +121,13 @@ p {
 .site-footer p {
   margin: 0;
 }
+.page-footprint {
+  flex-basis: 100%;
+}
+.page-footprint .mono {
+  font-family: var(--mono);
+  font-size: 0.875em;
+}
 
 /* Layout: sticky toolbar, sticky preview, tabbed controls. --bar-h and --tabs-h come from App.vue. */
 /* Below 64rem the toolbar, the preview and the tab bar stay; the tab content scrolls under them. */

@@ -30,6 +30,7 @@ import { copyText } from '@/clipboard.ts';
 import { migrateTab, type TabId } from '@/shell.ts';
 import '@/css/shell.css';
 import SponsorBanner from '@/components/SponsorBanner.vue';
+import PageFootprint from '@/components/PageFootprint.vue';
 import BottomBar from '@/components/BottomBar.vue';
 import PaletteSheet from '@/components/PaletteSheet.vue';
 
@@ -354,6 +355,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   <footer class="site-footer">
     <p>The app builds the palettes by rule in the OKLCH color space, from studies of color preference. Contrast follows WCAG 2.2: <a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html">1.4.3</a>, <a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-enhanced.html">1.4.6</a>, <a href="https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html">1.4.11</a>.</p>
     <p><a href="https://github.com/guilbep/patterns">Source on GitHub</a></p>
+    <PageFootprint />
     <SponsorBanner />
   </footer>
 </template>

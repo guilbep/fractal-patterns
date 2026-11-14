@@ -10,6 +10,7 @@ import {
   generate,
   geometry,
   hasAccent,
+  isGrown,
   svgFromPolylines,
   tileAspect,
   tileHeight,
@@ -422,15 +423,46 @@ function space(p: Polys, size: number): Tile {
   if (spacing.zoom !== 1) p = zoomWrap(p, size, spacing.zoom);
   return spacing.gap > 0 ? withGap(p, size, spacing.gap) : { polys: p, size };
 }
+// A grown kind (Turing stripes and spots, coral, frost) takes 50 to 170 ms, so it grows in the shared heavy worker.
+// The last tile stays drawn until the new one lands.
+const grownOn = computed(() => isGrown(params.kind) && !usingImage.value && !usingPatchwork.value);
+const grown = shallowRef<{ key: string; polys: Polys } | null>(null);
+export const growStatus = ref<'' | 'growing'>('');
+const grownKey = () => [params.kind, params.seed, params.depth, params.size].join();
+watch(
+  () => (grownOn.value ? { kind: params.kind, seed: params.seed, depth: params.depth, size: params.size } : null),
+  async (args) => {
+    if (!args) return void (growStatus.value = '');
+    const key = grownKey();
+    if (grown.value?.key === key) return;
+    growStatus.value = 'growing';
+    try {
+      const { heavy } = await (heavyLoad ??= import('@/heavy/client.ts'));
+      grown.value = { key, polys: await heavy.run('growTile', args, { key, slot: 'grow' }) };
+      growStatus.value = '';
+    } catch (err) {
+      // A newer request took the slot: it clears the status when it lands.
+      if ((err as Error).name !== 'AbortError') {
+        growStatus.value = '';
+        throw err;
+      }
+    }
+  },
+  { immediate: true },
+);
 // The base polylines before spacing: the traced image, the patchwork, or the kind.
+// ponytail: a grown kind draws its one landed tile for every seed (second layer, accent clear); growing one per seed would flood the worker.
 function rawFor(seed: number): Polys {
   return usingImage.value && traced.value
     ? traced.value
     : usingPatchwork.value
       ? patchworkGeometry({ ...patchParams.value, seed })
-      : geometry({ ...params, seed, angle: contactAngle.value });
+      : grownOn.value
+        ? (grown.value?.polys ?? [])
+        : geometry({ ...params, seed, angle: contactAngle.value });
 }
-const raw = computed(() => rawFor(params.seed));
+// While a grown kind grows, the previous tile stays.
+const raw = computed<Polys>((prev) => (grownOn.value && grown.value?.key !== grownKey() && prev ? prev : rawFor(params.seed)));
 function tileFor(seed: number, polys: Polys = rawFor(seed)): Tile {
   const size = params.size;
   // ponytail: spacing assumes a square tile; skipped for a rectangular kind until a ticket asks.
@@ -946,16 +978,35 @@ export const fileName = computed(() =>
 // The gallery paints the colors and opacity through custom properties, so a color change regenerates nothing.
 // ponytail: one Map for the current seed, cleared on a seed change; no LRU.
 const previewCache = new Map<Kind, string>();
+const previewsLanded = ref(0);
+const previewsGrowing = new Set<string>();
+async function growPreview(kind: Kind, seed: number) {
+  const key = [kind, seed, 1, 64].join();
+  if (previewsGrowing.has(key)) return;
+  previewsGrowing.add(key);
+  const { heavy } = await (heavyLoad ??= import('@/heavy/client.ts'));
+  const polys = await heavy.run('growTile', { kind, seed, depth: 1, size: 64 }, { key });
+  previewsGrowing.delete(key);
+  if (seed !== previewSeed || previewCache.has(kind)) return;
+  const tile = svgFromPolylines(polys, { size: 64, strokeWidth: 1, precision: 1, color: '#000000', opacity: 1 });
+  previewCache.set(kind, `url("${svgToDataUri(tile)}")`);
+  previewsLanded.value++;
+}
 let previewSeed = NaN;
 export function previews(kinds: readonly Kind[]): { kind: Kind; mask: string }[] {
   const seed = params.seed; // read inside the caller's render: a seed change re-renders the gallery
+  void previewsLanded.value; // and a grown card landing
   if (seed !== previewSeed) {
     previewCache.clear();
     previewSeed = seed;
   }
   return kinds.map((kind) => {
     let mask = previewCache.get(kind);
-    if (mask === undefined) {
+    if (mask === undefined && isGrown(kind)) {
+      // A grown kind's card grows at depth 1 in the heavy worker; it is blank until then.
+      void growPreview(kind, seed);
+      mask = `url("${svgToDataUri(svgFromPolylines([], { size: 64, strokeWidth: 1, precision: 1, color: '#000000', opacity: 1 }))}")`;
+    } else if (mask === undefined) {
       const tile = generate({
         kind,
         seed,

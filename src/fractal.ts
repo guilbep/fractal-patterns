@@ -160,6 +160,10 @@ export const KINDS = [
   'star-488',
   'star-3636',
   'star-4612',
+  'turing-stripes',
+  'turing-spots',
+  'coral',
+  'frost',
 ] as const;
 export type Kind = (typeof KINDS)[number];
 
@@ -198,6 +202,31 @@ function starKind(id: TilingId) {
   };
 }
 
+// The grown kinds' generators stay out of the start JS: the heavy task (heavy/tasks.ts) hands them over with useGrown,
+// and Node (the tests) loads them at module start, through paths the bundler does not follow.
+// ponytail: on the page's main thread a call draws nothing ([]): the favicon, byte estimates, patchwork and Builder stamps
+// of a grown kind stay empty. Growing them there would block 50 to 170 ms; ask them through the heavy task when one needs it.
+type GrownKind = 'turing-stripes' | 'turing-spots' | 'coral' | 'frost';
+let grownGens: Record<GrownKind, Generator> | null = null;
+export function useGrown(r: typeof import('./patterns/reaction.ts'), d: typeof import('./patterns/dla.ts')): void {
+  grownGens ??= {
+    'turing-stripes': r.reactionGenerator('stripes'),
+    'turing-spots': r.reactionGenerator('spots'),
+    coral: d.dlaGenerator('coral'),
+    frost: d.dlaGenerator('frost'),
+  };
+}
+// ponytail: Node's require of an ES module (Node 22.12 and up); the page and the worker never run this branch.
+const nodeProcess = (globalThis as { process?: { getBuiltinModule?: (id: string) => any } }).process;
+if (nodeProcess?.getBuiltinModule) {
+  const require = nodeProcess.getBuiltinModule('module').createRequire(import.meta.url);
+  useGrown(require('./patterns/reaction.ts'), require('./patterns/dla.ts'));
+}
+const grownGen =
+  (kind: GrownKind): Generator =>
+  (...a) =>
+    grownGens ? grownGens[kind](...a) : [];
+
 const PATTERNS: Readonly<
   Record<
     Kind,
@@ -211,6 +240,7 @@ const PATTERNS: Readonly<
       accent?: Generator;
       large?: true;
       star?: (angle: number) => Generator;
+      grown?: true;
     }
   >
 > = {
@@ -317,6 +347,11 @@ const PATTERNS: Readonly<
   'star-488': starKind('488'),
   'star-3636': starKind('3636'),
   'star-4612': starKind('4612'),
+  // Patterns from nature: 50 to 170 ms each on a desktop, so the page grows them in the heavy worker (state.ts).
+  'turing-stripes': { family: 'theme', label: 'Turing stripes', maxDepth: 3, gen: grownGen('turing-stripes'), grown: true },
+  'turing-spots': { family: 'theme', label: 'Turing spots', maxDepth: 3, gen: grownGen('turing-spots'), grown: true },
+  coral: { family: 'theme', label: 'Coral', maxDepth: 4, gen: grownGen('coral'), grown: true },
+  frost: { family: 'theme', label: 'Frost', maxDepth: 4, gen: grownGen('frost'), grown: true },
 };
 
 const byKind = <T>(f: (k: Kind) => T): Readonly<Record<Kind, T>> => Object.fromEntries(KINDS.map((k) => [k, f(k)])) as Record<Kind, T>;
@@ -372,6 +407,7 @@ export const hasLargeTile = (kind: Kind): boolean => PATTERNS[kind].large === tr
 export const clampPeriod = (kind: Kind, period = 1): number =>
   hasLargeTile(kind) ? Math.min(MAX_PERIOD, Math.max(1, Math.floor(period) || 1)) : 1;
 
+export const isGrown = (kind: Kind): boolean => PATTERNS[kind].grown === true;
 export const isStarKind = (kind: Kind): boolean => PATTERNS[kind].star !== undefined;
 
 export function geometry(

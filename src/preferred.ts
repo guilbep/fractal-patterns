@@ -93,6 +93,10 @@ export const MEASURED_DEPTH: Readonly<Record<Kind, number>> = {
   'star-488': 2,
   'star-3636': 2,
   'star-4612': 1,
+  'turing-stripes': 3,
+  'turing-spots': 3,
+  coral: 2,
+  frost: 2,
 };
 
 // Set by hand after the contact sheet, each with its reason.

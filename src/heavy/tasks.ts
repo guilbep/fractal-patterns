@@ -7,6 +7,12 @@ export const TASKS = {
   },
   farrisWheel: async (args: import('../patterns/farris-wheel-task.ts').WheelArgs) =>
     (await import('../patterns/farris-wheel-task.ts')).farrisWheel(args),
+  // A grown kind's polylines (Turing stripes and spots, coral, frost): 50 to 170 ms on a desktop.
+  growTile: async (args: { kind: import('../fractal.ts').Kind; seed: number; depth: number; size: number }) => {
+    const [f, r, d] = await Promise.all([import('../fractal.ts'), import('../patterns/reaction.ts'), import('../patterns/dla.ts')]);
+    f.useGrown(r, d);
+    return f.geometry(args);
+  },
   bakeTexture: async (args: import('../textures/bake.ts').BakeArgs) => (await import('../textures/bake.ts')).bakeTexture(args),
 };
 

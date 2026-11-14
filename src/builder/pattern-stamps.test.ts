@@ -25,9 +25,9 @@ function oldPath(kind: Kind): string | null {
   return null;
 }
 
-test('patternStamp: the 65 kinds that worked before keep the same path', () => {
+test('patternStamp: the 69 kinds that worked before keep the same path', () => {
   const old = KINDS.filter((k) => !DENSE.includes(k) && !isStarKind(k)); // the Star patterns came later
-  assert.equal(old.length, 65);
+  assert.equal(old.length, 69);
   for (const kind of old) assert.equal(patternStamp(kind, 1)?.parts[0]?.d, oldPath(kind), kind);
 });
 
@@ -52,7 +52,7 @@ test('patternStamp: every kind gives one clean stroke part inside the box', () =
     }
   }
   assert.equal(MAX_DENSE, 20000);
-  assert.equal(KINDS.length - missing.length, 85, missing.join(', '));
+  assert.equal(KINDS.length - missing.length, 89, missing.join(', '));
 });
 
 test('patternStamp: deterministic, and the seed matters', () => {

@@ -15,6 +15,7 @@ import {
   generate,
   geometry,
   hasCompat,
+  isGrown,
   isStarKind,
   tileAspect,
   type Kind,
@@ -211,7 +212,7 @@ test('families', () => {
 });
 
 test('all kinds are registered', () => {
-  assert.equal(KINDS.length, 85);
+  assert.equal(KINDS.length, 89);
   const ids = [
     'carpet',
     'quadtree',
@@ -298,6 +299,10 @@ test('all kinds are registered', () => {
     'star-488',
     'star-3636',
     'star-4612',
+    'turing-stripes',
+    'turing-spots',
+    'coral',
+    'frost',
   ];
   for (const id of ids) assert.ok((KINDS as readonly string[]).includes(id), id);
   for (const kind of [
@@ -848,7 +853,49 @@ const PINS: Readonly<Record<PatternParams['kind'], readonly (readonly [number, n
     [5272, 3569011977],
     [11428, 3370812395],
   ],
+  'turing-stripes': [
+    [1230, 1472259793],
+    [1601, 1209228194],
+    [1158, 249375839],
+    [1677, 1993771033],
+  ],
+  'turing-spots': [
+    [1722, 2468118110],
+    [2836, 3688046897],
+    [1849, 3666312681],
+    [3100, 163320925],
+  ],
+  coral: [
+    [8874, 3515586222],
+    [28242, 799286456],
+    [8937, 182352727],
+    [27909, 2774783216],
+  ],
+  frost: [
+    [8927, 3483899798],
+    [28257, 515028373],
+    [9024, 3814427952],
+    [28157, 167643768],
+  ],
 };
+
+test('the patterns from nature are Themes kinds, grown in the heavy worker', () => {
+  const nature = ['turing-stripes', 'turing-spots', 'coral', 'frost'] as const;
+  assert.deepEqual(
+    nature.map((k) => KIND_LABELS[k]),
+    ['Turing stripes', 'Turing spots', 'Coral', 'Frost'],
+  );
+  assert.deepEqual(
+    nature.map((k) => [KIND_FAMILY[k], MAX_DEPTH[k]]),
+    [
+      ['theme', 3],
+      ['theme', 3],
+      ['theme', 4],
+      ['theme', 4],
+    ],
+  );
+  assert.deepEqual(KINDS.filter(isGrown), [...nature]);
+});
 
 // The compatible layouts (compat: true) of the kinds that have one.
 const COMPAT_KINDS = [

@@ -3,7 +3,7 @@ import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue';
 import { CONTACT_ANGLE, FAMILIES, FAMILY_LABELS, KINDS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH, isStarKind, tileAspect, tileHeight, type Kind } from '@/fractal.ts';
 import { SIZE_MAX, SIZE_MIN, SIZE_PRESETS, markedPreset } from '@/sizes.ts';
 import { LIB_TABS, kindsForTab, parseLibTab, tabForKind, type LibTab } from '@/library.ts';
-import { MAX_SEED, bandColors, chooseKind, contactAngle, aspect, tileSize, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, squareKind, usingImage, usingPatchwork, imageShuffles, wheelStatus, regions, regionColors, regionsInfo, regionsOffReason, interlace, interlaceOffReason, weave, type RegionMode } from '@/state.ts';
+import { MAX_SEED, bandColors, chooseKind, contactAngle, aspect, tileSize, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, squareKind, usingImage, usingPatchwork, imageShuffles, wheelStatus, growStatus, regions, regionColors, regionsInfo, regionsOffReason, interlace, interlaceOffReason, weave, type RegionMode } from '@/state.ts';
 import AccentShapes from '@/components/AccentShapes.vue';
 import '@/css/library.css';
 import '@/css/sizes.css';
@@ -125,6 +125,7 @@ const galleryVars = computed(() => ({ '--lib-bg': roles.background, '--lib-fg': 
       <div class="field">
         <label for="depth">Depth <output for="depth">{{ Math.min(params.depth, depthMax) }} of {{ depthMax }}</output></label>
         <input id="depth" :disabled="usingImage" v-model.number="params.depth" type="range" min="1" :max="depthMax" step="1">
+        <p id="grow-status" class="hint-text" role="status" aria-live="polite">{{ growStatus === 'growing' ? 'Growing…' : '' }}</p>
       </div>
       <div class="field">
         <label for="seed">Seed</label>

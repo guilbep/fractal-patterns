@@ -4,7 +4,8 @@ export type Pt = readonly [number, number];
 export type Poly = Pt[];
 export type Rng = () => number;
 // One kind = one generator: seeded rng, clamped depth, tile size in px -> polylines inside [0, size].
-export type Generator = (rnd: Rng, depth: number, size: number) => Poly[];
+// period (large tile kinds only, integer >= 1): draw a tile of size * period px with the features of `size`.
+export type Generator = (rnd: Rng, depth: number, size: number, period?: number) => Poly[];
 
 export function mulberry32(seed: number): Rng {
   let a = seed >>> 0;

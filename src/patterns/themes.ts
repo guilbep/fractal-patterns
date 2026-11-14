@@ -6,32 +6,46 @@ import { TAU, wrap, type Generator, type Poly, type Pt, type Rng } from './util.
 const pick = <T>(rnd: Rng, xs: readonly T[]): T => xs[Math.floor(rnd() * xs.length)] as T;
 
 // Contour lines of a periodic height field, by marching squares on an N x N sample grid.
-export const topo: Generator = (rnd, depth, size) => {
-  const N = 48;
-  const terms = Array.from({ length: 4 + Math.floor(rnd() * 3) }, () => {
+// period m: the field has m x m times the terms over an m times larger tile, with frequencies whose
+// wavelength stays in the range of m = 1 (i + j >= m), so the contours keep their spacing and the large
+// tile holds no repeat. m = 1 draws exactly what it always drew.
+export const topo: Generator = (rnd, depth, size, m = 1) => {
+  const N = 48 * m;
+  const terms = Array.from({ length: (4 + Math.floor(rnd() * 3)) * m * m }, () => {
     let i = 0;
     let j = 0;
-    while (i === 0 && j === 0) {
-      i = Math.floor(rnd() * 4);
-      j = Math.floor(rnd() * 4);
+    while (i + j < m) {
+      i = Math.floor(rnd() * 4 * m);
+      j = Math.floor(rnd() * 4 * m);
     }
-    return { i, j, a: (0.4 + rnd() * 0.6) / (i + j), p: rnd() * TAU, q: rnd() * TAU };
+    return { i, j, a: ((0.4 + rnd() * 0.6) * m) / (i + j), p: rnd() * TAU, q: rnd() * TAU };
   });
   // Sampled by index mod N, so column N equals column 0 exactly and the crossings match.
+  // The sines are computed once per term and row (the same values as inline, so the same sums).
+  const sx = terms.map((t) => Array.from({ length: N }, (_, x) => Math.sin((TAU * t.i * x) / N + t.p)));
+  const sy = terms.map((t) => Array.from({ length: N }, (_, y) => Math.sin((TAU * t.j * y) / N + t.q)));
   const f = Array.from({ length: N }, (_, x) =>
-    Array.from({ length: N }, (_, y) =>
-      terms.reduce((s, t) => s + t.a * Math.sin((TAU * t.i * x) / N + t.p) * Math.sin((TAU * t.j * y) / N + t.q), 0),
-    ),
+    Array.from({ length: N }, (_, y) => terms.reduce((s, t, k) => s + t.a * sx[k]![x]! * sy[k]![y]!, 0)),
   );
   const v = (x: number, y: number): number => f[x % N]![y % N]!;
   const flat = f.flat();
-  const lo = Math.min(...flat);
-  const hi = Math.max(...flat);
+  const lo = flat.reduce((a, b) => Math.min(a, b));
+  const hi = flat.reduce((a, b) => Math.max(a, b));
   const L = 2 + 2 * depth;
-  const c = size / N;
+  // Level spacing from the mean range over the m x m squares of one tile each (at m = 1, hi - lo):
+  // the range of the whole large field grows with its area, which would space the lines wider.
+  let R = 0;
+  for (let u = 0; u < N; u += 48)
+    for (let w = 0; w < N; w += 48) {
+      const sub = f.slice(u, u + 48).flatMap((col) => col.slice(w, w + 48));
+      R += sub.reduce((a, b) => Math.max(a, b)) - sub.reduce((a, b) => Math.min(a, b));
+    }
+  R /= m * m;
+  const K = Math.round(((hi - lo) / R) * (L + 1)) - 1;
+  const c = (size * m) / N;
   const out: Poly[] = [];
-  for (let k = 1; k <= L; k++) {
-    const level = lo + ((hi - lo) * k) / (L + 1);
+  for (let k = 1; k <= K; k++) {
+    const level = lo + (R * k) / (L + 1);
     // Points sit on cell edges: 'h x y' is the edge (x,y)-(x+1,y), 'v x y' is (x,y)-(x,y+1).
     const pts = new Map<string, Pt>();
     const adj = new Map<string, string[]>();
@@ -125,8 +139,10 @@ export const topo: Generator = (rnd, depth, size) => {
 
 // Toroidal grid, cell (i, j) spans [i c + c/2, (i+1) c + c/2] so no wall lies on the tile border.
 // wall[0] = vertical wall left of cell (i, j), wall[1] = horizontal wall above it.
-export const maze: Generator = (rnd, depth, size) => {
-  const n = 4 + 2 * depth;
+// period m: an m times wider grid of the same cells.
+export const maze: Generator = (rnd, depth, cell, m = 1) => {
+  const size = cell * m;
+  const n = (4 + 2 * depth) * m;
   const c = size / n;
   const id = (i: number, j: number) => (((i % n) + n) % n) * n + (((j % n) + n) % n);
   const walls = [new Uint8Array(n * n).fill(1), new Uint8Array(n * n).fill(1)];

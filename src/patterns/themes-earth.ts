@@ -202,8 +202,10 @@ function clipCell({ v, lab }: Cell, p: Pt, q: Pt, label: string): Cell {
 }
 
 // Cracked earth: a toroidal Voronoi diagram, each shared edge drawn once with a seeded wobble.
-export const cracks: Generator = (rnd, depth, size) => {
-  const n = 6 + 7 * depth;
+// period m: m x m times the cells on an m times larger torus, the same mean cell size.
+export const cracks: Generator = (rnd, depth, cell, m = 1) => {
+  const size = cell * m;
+  const n = (6 + 7 * depth) * m * m;
   const minD = (0.75 * size) / Math.sqrt(n);
   const pts = scatter(rnd, n, minD, size);
   const copies = pts.flatMap((q, j) => OFFSETS.map(([i, k]) => ({ j, i, k, q: [q[0] + i * size, q[1] + k * size] as Pt })));

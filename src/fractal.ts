@@ -159,11 +159,15 @@ export type Kind = (typeof KINDS)[number];
 // and one level more either breaks that or only adds sub-pixel detail at size 120.
 // extra: raw path data drawn after the polylines, for parts that are not polylines (arcs).
 type Extra = (rnd: Rng, depth: number, size: number, precision: number) => string;
+// large: the generator takes a period (see Generator) and draws a larger tile with the same features.
 // accent: closed shapes filled in the accent color, drawn over the fill layer and under the strokes (fillScene).
 // Like `extra`, it gets its own mulberry32(seed): the same stream the generator starts from, so it can replay the
 // generator's draws to place its shapes, and it never shifts the generator's output.
 const PATTERNS: Readonly<
-  Record<Kind, { family: Family; label: string; maxDepth: number; gen: Generator; aspect?: number; extra?: Extra; accent?: Generator }>
+  Record<
+    Kind,
+    { family: Family; label: string; maxDepth: number; gen: Generator; aspect?: number; extra?: Extra; accent?: Generator; large?: true }
+  >
 > = {
   carpet: { family: 'fractal', label: 'Carpet', maxDepth: 3, gen: carpet },
   quadtree: { family: 'fractal', label: 'Quadtree', maxDepth: 6, gen: quadtree },
@@ -204,15 +208,15 @@ const PATTERNS: Readonly<
   p4: { family: 'symmetry', label: 'p4 quarter turn', maxDepth: 3, gen: p4 },
   p4m: { family: 'symmetry', label: 'p4m quarter turn and mirrors', maxDepth: 2, gen: p4m },
   p4g: { family: 'symmetry', label: 'p4g quarter turn and glides', maxDepth: 2, gen: p4g },
-  topo: { family: 'theme', label: 'Topography', maxDepth: 5, gen: topo },
-  maze: { family: 'theme', label: 'Maze', maxDepth: 13, gen: maze },
+  topo: { family: 'theme', label: 'Topography', maxDepth: 5, gen: topo, large: true },
+  maze: { family: 'theme', label: 'Maze', maxDepth: 13, gen: maze, large: true },
   circuit: { family: 'theme', label: 'Circuit', maxDepth: 5, gen: circuit },
   seigaiha: { family: 'theme', label: 'Waves (seigaiha)', maxDepth: THEME_WATER_MAX_DEPTH.seigaiha, gen: seigaiha },
   rain: { family: 'theme', label: 'Rain', maxDepth: THEME_WATER_MAX_DEPTH.rain, gen: rain },
   ridges: { family: 'theme', label: 'Mountain ridges', maxDepth: THEME_WATER_MAX_DEPTH.ridges, gen: ridges },
   stars: { family: 'theme', label: 'Constellations', maxDepth: THEME_EARTH_MAX_DEPTH.stars, gen: stars },
   roots: { family: 'theme', label: 'Roots', maxDepth: THEME_EARTH_MAX_DEPTH.roots, gen: roots },
-  cracks: { family: 'theme', label: 'Cracked earth', maxDepth: THEME_EARTH_MAX_DEPTH.cracks, gen: cracks },
+  cracks: { family: 'theme', label: 'Cracked earth', maxDepth: THEME_EARTH_MAX_DEPTH.cracks, gen: cracks, large: true },
   knot: { family: 'theme', label: 'Knotwork', maxDepth: THEME_CRAFT_MAX_DEPTH.knot, gen: knot },
   roof: { family: 'theme', label: 'Roof tiles', maxDepth: THEME_CRAFT_MAX_DEPTH.roof, gen: roof },
   feathers: { family: 'theme', label: 'Feathers', maxDepth: THEME_AIR_MAX_DEPTH.feathers, gen: feathers },
@@ -286,6 +290,7 @@ export interface PatternParams {
   readonly opacity: number;
   readonly compat?: boolean;
   readonly accent?: string; // the accent color; absent = the stroke color
+  readonly period?: number; // large tile: the tile is size * period px; 1 (default) for kinds without `large`
 }
 
 // Compatible layouts: fixed per depth, so tiles of different seeds can be neighbors (super tile).
@@ -310,9 +315,15 @@ export const hasAccent = (kind: Kind): boolean => PATTERNS[kind].accent !== unde
 
 const clampDepth = (kind: Kind, depth: number) => Math.min(MAX_DEPTH[kind], Math.max(1, Math.floor(depth) || 1));
 
-export function geometry(p: Pick<PatternParams, 'kind' | 'seed' | 'depth' | 'size' | 'compat'>): readonly (readonly Pt[])[] {
+export const MAX_PERIOD = 6;
+export const hasLargeTile = (kind: Kind): boolean => PATTERNS[kind].large === true;
+// Like the depth, a period out of range is clamped; a kind without `large` always draws period 1.
+export const clampPeriod = (kind: Kind, period = 1): number =>
+  hasLargeTile(kind) ? Math.min(MAX_PERIOD, Math.max(1, Math.floor(period) || 1)) : 1;
+
+export function geometry(p: Pick<PatternParams, 'kind' | 'seed' | 'depth' | 'size' | 'compat' | 'period'>): readonly (readonly Pt[])[] {
   const gen = (p.compat && COMPAT[p.kind]) || PATTERNS[p.kind].gen;
-  return gen(mulberry32(p.seed), clampDepth(p.kind, p.depth), p.size);
+  return gen(mulberry32(p.seed), clampDepth(p.kind, p.depth), p.size, clampPeriod(p.kind, p.period));
 }
 
 // The kind's raw path data next to its polylines ('' for most kinds), in tile coordinates.
@@ -338,7 +349,8 @@ export function generate(p: PatternParams): string {
       }),
       p.precision,
     );
-  return svgFromPolylines(geometry(p), p, tileAspect(p.kind), extraPath(p));
+  // ponytail: no large kind has accent or extra, so only this path scales the tile by the period.
+  return svgFromPolylines(geometry(p), { ...p, size: p.size * clampPeriod(p.kind, p.period) }, tileAspect(p.kind), extraPath(p));
 }
 
 // `aspect` (width / height) other than 1 gives a tile of `size` by `size / aspect`.

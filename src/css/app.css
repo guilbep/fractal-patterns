@@ -1487,3 +1487,33 @@ select {
 .drop input[type='file'] {
   width: 100%;
 }
+/* Edit shapes: the one-tile marker as an edit area (AccentEditor.vue). Above the hero text, takes pointer and touch. */
+.one-tile.accent-editor {
+  z-index: 3;
+  overflow: visible;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: default;
+}
+.accent-editor-outline {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1;
+  stroke-dasharray: 3 2;
+  pointer-events: none;
+}
+.accent-editor-outline.selected {
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-dasharray: none;
+}
+.accent-editor-hit {
+  fill: transparent;
+  stroke: transparent;
+  stroke-linejoin: round;
+  cursor: grab;
+  outline: none;
+}
+.accent-editor-hit:active {
+  cursor: grabbing;
+}

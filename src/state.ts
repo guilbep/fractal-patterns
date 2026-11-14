@@ -21,6 +21,7 @@ import type { Poly, Pt } from '@/patterns/util.ts';
 import { accentDefaults, accentEffective, accentShapes, type AccentLayer } from '@/accent-layer.ts';
 import { accentSvg } from '@/accent-svg.ts';
 import { keepClear } from '@/accent-clear.ts';
+import { applyMoves, decodeMoves } from '@/accent-moves.ts';
 import { ACCENT_VARY_DEFAULTS, varyAccent, type AccentVary } from '@/accent-vary.ts';
 import { traceCall, type TraceChoice } from '@/detectors.ts';
 import { sampleImage, type Sample } from '@/samples.ts';
@@ -90,6 +91,21 @@ export { hasAccent };
 export const accentLayer = reactive<{ -readonly [K in keyof AccentLayer]: AccentLayer[K] }>({ ...accentDefaults(DEFAULTS.kind) });
 // The accent's own variation over a super tile (accent-vary.ts), used when Reduce repetition applies to the accent.
 export const accentVary = reactive<{ -readonly [K in keyof AccentVary]: AccentVary[K] }>({ ...ACCENT_VARY_DEFAULTS });
+// Accent shapes moved by hand: the encoded `am` value (accent-moves.ts), in the link and the undo history.
+export const accentMoves = ref('');
+// The move of the drag in progress: drawn at once, but kept out of the link and the history until the drag ends (one undo step).
+export const accentDrag = shallowRef<{ index: number; d: Pt } | null>(null);
+// The Edit shapes overlay on the one-tile marker: view state only, not in the link.
+export const accentEditing = ref(false);
+// A new place, snap or amount (or kind) gives other shapes at the same indexes: the moves no longer apply. Sync, so
+// applyDesign can set the layer and then its moves; a new shape, size or seed keeps them.
+watch([() => accentLayer.place, () => accentLayer.snap, () => accentLayer.amount], () => (accentMoves.value = ''), { flush: 'sync' });
+const movesNow = computed(() => {
+  const m = decodeMoves(accentMoves.value);
+  const g = accentDrag.value;
+  if (g) m.set(g.index, g.d);
+  return m;
+});
 // Which layer Reduce repetition (the `variants` switch) varies. Reset with the kind: the accent for a kind whose base cannot vary.
 export const varyApplies = ref<VaryApplies>(appliesDefault(DEFAULTS.kind));
 export type { VaryApplies };
@@ -367,34 +383,52 @@ export const closedShapes = computed(() => splitClosed(tile.value.polys).closed.
 export const accentOwnOk = computed(() => !usingImage.value && !usingPatchwork.value);
 // The layer drawn and linked: over an image or a patchwork, 'own' becomes a dot on a grid; accentLayer keeps 'own'.
 export const accentDrawn = computed(() => accentEffective(accentLayer, accentOwnOk.value));
-// The accent shapes of one tile at the current seed. Through the same spacing as the strokes, except over a base
-// super tile, a rectangular tile, or the curve tile, which skip spacing.
-function accentFor(seed: number): { polys: Polys; width: number; height: number } | null {
+// The accent shapes of one tile at the current seed, before spacing: `shapes` as generated, `polys` as drawn (moved by
+// hand, then the others kept clear of the lines), same indexes. Null when no shape shows.
+function accentPlaced(seed: number): { shapes: Poly[]; polys: Poly[]; width: number; height: number; unspaced: boolean } | null {
   const size = params.size;
-  let polys: Polys = accentShapes(params.kind, accentDrawn.value, { seed, depth: params.depth, size });
-  if (polys.length === 0) return null;
+  const height = tileHeight(size, aspect.value);
+  const shapes = accentShapes(params.kind, accentDrawn.value, { seed, depth: params.depth, size });
+  if (shapes.length === 0) return null;
+  const moves = movesNow.value;
+  let polys = moves.size ? applyMoves(shapes, moves, size, height) : shapes;
   const unspaced = variantsOn.value || curvesOn.value || aspect.value !== 1;
   if (accentDrawn.value.clear && clearAvailable.value && !variantsOn.value) {
     // Cleared before spacing, against the base before spacing: zoom cuts shapes at the tile edge, keepClear needs them
     // whole. Mirror and zoom scale both layers alike, so the drawn stroke and the 1 px gap are scaled back by `k`.
     // ponytail: skipped over a base super tile, whose cells differ, and a rectangular kind's raw `extra` path (Penrose arcs).
+    // A shape moved by hand stays where it was put: only the others are kept clear.
     const base = (seed === params.seed ? raw.value : rawFor(seed)).filter((p) => p.length >= 2);
     const k = unspaced ? 1 : (spacing.mirror ? 0.5 : 1) * Math.min(4, Math.max(0.25, spacing.zoom));
-    if (base.length)
-      polys = keepClear(polys as Poly[], base as Poly[], {
-        size,
-        height: tileHeight(size, aspect.value),
-        strokeWidth: params.strokeWidth / k,
-        gap: 1 / k,
-      });
+    const free = polys.map((_, i) => i).filter((i) => !moves.has(i));
+    if (base.length && free.length) {
+      const cleared = keepClear(
+        free.map((i) => polys[i]!),
+        base as Poly[],
+        { size, height, strokeWidth: params.strokeWidth / k, gap: 1 / k },
+      );
+      polys = polys.slice();
+      free.forEach((i, j) => (polys[i] = cleared[j]!));
+    }
   }
-  if (unspaced) return { polys, width: size, height: tileHeight(size, aspect.value) };
-  const t = space(polys, size);
+  return { shapes, polys, width: size, height, unspaced };
+}
+function accentFor(seed: number, placed = accentPlaced(seed)): { polys: Polys; width: number; height: number } | null {
+  if (!placed) return null;
+  const { polys, width, height, unspaced } = placed;
+  if (unspaced) return { polys, width, height };
+  const t = space(polys, width);
   return { polys: t.polys, width: t.size, height: t.size };
 }
+export const accentEdit = computed(() => accentPlaced(params.seed));
+// The overlay draws the tile before spacing: it matches the preview only where spacing is not applied.
+export const accentEditable = computed(
+  () => accentEdit.value !== null && (accentEdit.value.unspaced || (spacing.zoom === 1 && spacing.gap === 0 && !spacing.mirror)),
+);
+watch(accentEditable, (ok) => ok || (accentEditing.value = false));
 // Keep clear of the lines needs the base as polylines: not the curve tile (a finished SVG).
 export const clearAvailable = computed(() => !curvesOn.value);
-const accentTile = computed(() => accentFor(params.seed));
+const accentTile = computed(() => accentFor(params.seed, accentEdit.value));
 const accentShown = computed(() => accentTile.value !== null);
 // Reduce repetition reaches the accent: the switch is on and it applies to the accent or both, and shapes show.
 export const accentVaried = computed(() => variants.value && varyApplies.value !== 'base' && accentTile.value !== null);
@@ -402,9 +436,11 @@ export const accentVaried = computed(() => variants.value && varyApplies.value !
 export const accentOut = computed(() => {
   const t = accentTile.value;
   if (!t) return null;
-  const v = accentVaried.value
-    ? varyAccent(t.polys as Poly[], t.width, t.height, accentVary, params.seed)
-    : { places: undefined, width: t.width, height: t.height };
+  // Paused while editing, so the overlay sits on the shapes; the variation then starts from the moved places.
+  const v =
+    accentVaried.value && !accentEditing.value
+      ? varyAccent(t.polys as Poly[], t.width, t.height, accentVary, params.seed)
+      : { places: undefined, width: t.width, height: t.height };
   return {
     svg: accentSvg(t.polys as Poly[], v.places, v.width, v.height, accent.value, params.precision),
     width: v.width,
@@ -691,6 +727,7 @@ export function chooseKind(kind: Kind): void {
   const w = preferredStroke(kind);
   if (w !== null) params.strokeWidth = w;
   Object.assign(accentLayer, accentDefaults(kind));
+  accentMoves.value = '';
   // With the switch already on, it keeps varying the base only, as before the accent layer (and as a v=1 link without av).
   varyApplies.value = variants.value ? 'base' : appliesDefault(kind);
 }
@@ -825,6 +862,7 @@ export function reset(): void {
   variants.value = false;
   resetVariants();
   Object.assign(accentLayer, accentDefaults(DEFAULTS.kind));
+  accentMoves.value = '';
   Object.assign(accentVary, ACCENT_VARY_DEFAULTS);
   varyApplies.value = appliesDefault(DEFAULTS.kind);
   layer2.value = false;

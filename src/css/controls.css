@@ -819,3 +819,14 @@
   min-height: 44px;
   padding-inline: 1.125rem;
 }
+/* Accent shapes: Edit shapes, Reset positions and their hint (AccentShapes.vue). */
+.accent-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2, 8px);
+  align-items: center;
+}
+.accent-edit .hint-text {
+  flex-basis: 100%;
+  margin: 0;
+}

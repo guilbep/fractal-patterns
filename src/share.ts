@@ -6,6 +6,7 @@ import { MOTION_NONE, type Motion } from './motion.ts';
 import { canVary, shiftsFor } from './supertile.ts';
 import { accentDefaults, decodeAccentLayer, encodeAccentLayer, type AccentLayer } from './accent-layer.ts';
 import { ACCENT_VARY_DEFAULTS, type AccentVary } from './accent-vary.ts';
+import { decodeMoves, encodeMoves } from './accent-moves.ts';
 import { VARIANT_DEFAULTS, type VariantOptions } from './variants.ts';
 import type { FillStyle } from './fills.ts';
 import { CHANGE_MAX, CHANGE_MIN, type ChangeDir } from './fade.ts';
@@ -45,6 +46,7 @@ export interface Design extends Motion {
   readonly accent: string; // the color of the accent shapes
   readonly accentLayer: AccentLayer; // simple shapes over any kind (accent-layer.ts); the default depends on the kind
   readonly accentVary: AccentVary & { readonly applies: VaryApplies }; // what Reduce repetition varies, and the accent's variation
+  readonly accentMoves: string; // accent shapes moved by hand, the encoded `am` value (accent-moves.ts); '' when none
 }
 
 // Which layer Reduce repetition varies. A kind whose base cannot vary (supertile.ts) varies its accent by default.
@@ -94,6 +96,7 @@ export const DESIGN_DEFAULTS: Design = {
   accent: ACCENT_DEFAULT,
   accentLayer: accentDefaults('tree'),
   accentVary: { applies: 'base', ...ACCENT_VARY_DEFAULTS },
+  accentMoves: '',
 };
 
 // Field to short key. The insertion order is the order of the encoded string.
@@ -139,7 +142,8 @@ const KEYS: Readonly<Record<keyof Design, string>> = {
   // shapes (snapshot in state-share.ts), so a palette pick does not lengthen those links.
   accent: 'ac',
   accentLayer: 'al', // encodeAccentLayer: written only when it differs from the kind's defaults (off in patchwork)
-  accentVary: 'av', // keep new keys last: older links stay valid
+  accentVary: 'av',
+  accentMoves: 'am', // keep new keys last: older links stay valid
 };
 const FIELDS = Object.keys(KEYS) as (keyof Design)[];
 
@@ -388,6 +392,7 @@ export function decodeDesign(query: string): Design {
     // In patchwork the kind is not drawn: the defaults are off (accentDefaults). No rectangular kind has its own accent.
     accentLayer: decodeAccentLayer(kind, get('accentLayer') || null, layout === 'patchwork'),
     accentVary: av ?? { applies: get('variants') === '1' ? 'base' : appliesDefault(kind), ...ACCENT_VARY_DEFAULTS },
+    accentMoves: encodeMoves(decodeMoves(get('accentMoves'))),
   };
 }
 

@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { ACCENT_PLACES, ACCENT_SHAPES, ACCENT_SNAPS, type AccentPlace, type AccentShape, type AccentSnap } from '@/accent-layer.ts';
 import { BASIC_STAMPS } from '@/builder/stamps.ts';
-import { accent, accentDrawn, accentLayer, accentOwnOk, clearAvailable, hasAccent, params } from '@/state.ts';
+import { accent, accentDrawn, accentEditable, accentEditing, accentLayer, accentMoves, accentOwnOk, clearAvailable, hasAccent, params, variantsOn } from '@/state.ts';
 import UiSection from '@/components/UiSection.vue';
 import UiSegmented from '@/components/UiSegmented.vue';
 import UiSwitch from '@/components/UiSwitch.vue';
@@ -62,9 +62,18 @@ const openTab = (id: string) => document.getElementById(`tab-${id}`)?.click();
       v-model="accentLayer.clear"
       class="accent-clear"
       label="Keep clear of the lines"
-      :hint="clearAvailable ? 'Moves each shape to the nearest spot that does not touch the pattern.' : 'Not available with smooth curves.'"
+      :hint="!clearAvailable ? 'Not available with smooth curves.' : variantsOn ? 'Not used while the pattern itself varies.' : 'Moves each shape to the nearest spot that does not touch the pattern.'"
       :disabled="off || !clearAvailable"
     />
+    <div class="accent-edit">
+      <button id="accent-edit" type="button" class="btn secondary" :disabled="off || !accentEditable" @click="accentEditing = !accentEditing">{{ accentEditing ? 'Done' : 'Edit shapes' }}</button>
+      <button v-if="accentMoves" type="button" class="btn quiet" :disabled="off" @click="accentMoves = ''">Reset positions</button>
+      <p id="accent-edit-help" class="hint-text">
+        <template v-if="!off && !accentEditable">Not available with Layout spacing (zoom, gap or mirror).</template>
+        <template v-else-if="accentEditing">Drag a shape in the dashed square of the preview: every copy moves.{{ accentDrawn.place === 'grid' ? ' It snaps to the grid; hold Shift to move freely.' : '' }} Or Tab to a shape and use the arrow keys (Shift: 10 px). Esc or Done to finish.</template>
+        <template v-else>Place the shapes by hand in the preview, for example away from a line.</template>
+      </p>
+    </div>
     <p class="hint-text">
       Color: Accent, in the <button type="button" class="link-btn" @click="openTab('colors')">Colors tab</button>. To vary the shapes across tiles,
       <button type="button" class="link-btn" @click="openTab('repetition')">open Repetition</button>.

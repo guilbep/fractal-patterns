@@ -9,6 +9,7 @@ import {
   accent,
   accentDrawn,
   accentLayer,
+  accentMoves,
   accentVary,
   applyPalette,
   change,
@@ -74,6 +75,7 @@ export function snapshot(): Design {
     // keeps the stored layer, so the link reloads that kind as it was.
     accentLayer: layout.value === 'patchwork' ? { ...accentDrawn.value } : { ...accentLayer },
     accentVary: { applies: varyApplies.value, ...accentVary },
+    accentMoves: accentMoves.value,
   };
 }
 
@@ -105,7 +107,8 @@ export function applyDesign(d: Design): void {
   Object.assign(fill, d.fill);
   layer2Own.value = d.layer2Color !== null;
   if (d.layer2Color !== null) layer2Color.value = d.layer2Color;
-  Object.assign(accentLayer, d.accentLayer);
+  Object.assign(accentLayer, d.accentLayer); // a new place, snap or amount clears the moves (state.ts), so they come after
+  accentMoves.value = d.accentMoves;
   const { applies, ...vary } = d.accentVary;
   Object.assign(accentVary, vary);
   varyApplies.value = applies;

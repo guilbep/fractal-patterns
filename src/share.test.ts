@@ -93,11 +93,16 @@ function randomDesign(r: () => number, force?: 'patchwork'): Design {
             drop: int(0, 60),
             turn: int(0, 100),
           },
+    accentMoves: r() < 0.5 ? '' : `${int(0, 63)}.${int(-300, 300) || 1}.${int(-300, 300)}`,
   };
 }
 
 // The accent fields a design without them had: the kind's defaults (koch: off, base).
-const NO_ACCENT = { accentLayer: accentDefaults('koch'), accentVary: { applies: 'base', ...ACCENT_VARY_DEFAULTS } } as const;
+const NO_ACCENT = {
+  accentLayer: accentDefaults('koch'),
+  accentVary: { applies: 'base', ...ACCENT_VARY_DEFAULTS },
+  accentMoves: '',
+} as const;
 
 function randomVO(r: () => number): VariantOptions {
   const [cells, count] = (
@@ -165,6 +170,7 @@ const FULL: Design = {
   accent: '#123456',
   accentLayer: { on: true, shape: 'ring', size: 22, amount: 60, place: 'seed', snap: 12, clear: false },
   accentVary: { applies: 'both', cells: 4, move: 20, scale: 10, drop: 15, turn: 50 },
+  accentMoves: '0.42.-10',
 };
 
 function assertValid(d: Design, label: string): void {
@@ -238,8 +244,9 @@ test('a design with every field non-default stays short', () => {
   const s = encodeDesign(FULL);
   // 177 before the variants key, + '&v=1', + '&l2=1&fd=1', + '&l2s=100_100_-180_2.95_0.55_3.85' (32), + '&px=1' (5),
   // + '&vo=6_6_1_h_1_0.55_0.55_0.45_3' (30), + '&sx=1' (5), + '&fi=a_c3eaec_0.55' (17), + '&l2c=e07a5f' (11),
-  // + '&ch=a_0.55' (10), + '&ac=123456' (10), + '&al=1_r_22_60_s_12' (18), + '&av=ab_4_20_10_15_50' (20)
-  assert.ok(s.length <= 350, `${s.length}`);
+  // + '&ch=a_0.55' (10), + '&ac=123456' (10), + '&al=1_r_22_60_s_12' (18), + '&av=ab_4_20_10_15_50' (20),
+  // + '&am=0.42.-10' (12)
+  assert.ok(s.length <= 362, `${s.length}`);
   assert.deepEqual(decodeDesign(s), FULL);
 });
 
@@ -524,7 +531,9 @@ test('fill: key fi last, compact, round-trips, omitted when off, malformed gives
   for (const bad of ['x_abcdef_1', 'c_abcde_1', 'c_abcdef_', 'c_abcdef_NaN', 'c_abcdef', 'c_abcdef_1_2', ''])
     assert.deepEqual(decodeDesign(`fi=${bad}`).fill, DESIGN_DEFAULTS.fill, bad);
   assert.deepEqual(decodeDesign('k=fern&sx=1').fill, DESIGN_DEFAULTS.fill);
-  assert.ok(encodeDesign(FULL).endsWith('&sx=1&fi=a_c3eaec_0.55&l2c=e07a5f&ch=a_0.55&ac=123456&al=1_r_22_60_s_12&av=ab_4_20_10_15_50'));
+  assert.ok(
+    encodeDesign(FULL).endsWith('&sx=1&fi=a_c3eaec_0.55&l2c=e07a5f&ch=a_0.55&ac=123456&al=1_r_22_60_s_12&av=ab_4_20_10_15_50&am=0.42.-10'),
+  );
   assert.deepEqual(decodeDesign(encodeDesign(FULL)).fill, FULL.fill);
 });
 
@@ -640,4 +649,12 @@ test('patchwork: the accent defaults are off, al round-trips, old patchwork link
   }
   // 'own' does not exist over a patchwork: such a value gives the off defaults.
   assert.equal(decodeDesign('k=truchet&l=patchwork&al=1_o_15_100_o_8').accentLayer.on, false);
+});
+
+test('am: moved accent shapes are written last, only when there are moves, and cleaned on decode', () => {
+  const d = decodeDesign('k=hex&s=1&al=1_d_15_100_g_4&am=3.20.-5_bad_0.42.10');
+  assert.equal(d.accentMoves, '0.42.10_3.20.-5');
+  assert.ok(encodeDesign(d).endsWith('&al=1_d_15_100_g_4&am=0.42.10_3.20.-5'));
+  assert.ok(!encodeDesign(decodeDesign('k=hex&s=1&al=1_d_15_100_g_4')).includes('am='));
+  assert.equal(decodeDesign('k=hex&am=x').accentMoves, '');
 });

@@ -1,7 +1,7 @@
 // Seeded pattern tiles: geometry as polylines, serialized through the scene model (src/scene.ts).
 // Every kind is one generator function registered in PATTERNS; the generators live in src/patterns/.
 import { carpet, fold, hilbert, htree, koch, quadtree, sierpinski, tree } from './patterns/fractals.ts';
-import { rosette, spiral, stitch, whirl } from './patterns/lineart.ts';
+import { rosette, spiral, stitch, truchet, whirl } from './patterns/lineart.ts';
 import { cm, cmm, HEX_ASPECT, p1, p2, p3, p31m, p3m1, p4, p4g, p4m, p6, p6m, pg, pgg, pm, pmg, pmm } from './patterns/symmetry.ts';
 import {
   basket,
@@ -83,6 +83,7 @@ export const KINDS = [
   'whirl',
   'rosette',
   'spiral',
+  'truchet',
   'brick',
   'stack',
   'herringbone',
@@ -174,6 +175,7 @@ const PATTERNS: Readonly<
   whirl: { family: 'line', label: 'Whirl', maxDepth: 16, gen: whirl },
   rosette: { family: 'line', label: 'Rosette', maxDepth: 5, gen: rosette },
   spiral: { family: 'line', label: 'Spirals', maxDepth: 8, gen: spiral },
+  truchet: { family: 'line', label: 'Truchet', maxDepth: 10, gen: truchet },
   brick: { family: 'surface', label: 'Running bond', maxDepth: 8, gen: brick },
   stack: { family: 'surface', label: 'Stack bond', maxDepth: 8, gen: stack },
   herringbone: { family: 'surface', label: 'Herringbone', maxDepth: 3, gen: herringbone },

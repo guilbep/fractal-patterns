@@ -138,3 +138,47 @@ export function spiral(rnd: Rng, depth: number, size: number): Poly[] {
   }
   return wrap(out, size);
 }
+
+// Truchet (Smith tiles): depth x depth square cells, each with two quarter arcs of radius half a
+// cell, centred on two opposite corners, so every arc joins two edge midpoints and the arcs run on
+// across cells. Seed: each cell turned 0 or 90 degrees. A small closed 12-gon sits on every cell
+// corner (Fill colours it). The grid is offset by a fifth of a cell so no dot sits on the tile edge,
+// no arc only touches it (a touch would cut the stroke flat) and no arc sample lands on it (a
+// quarter would, at 60 degrees, and leave a doubled point); wrap() carries arcs across.
+export function truchet(rnd: Rng, depth: number, size: number): Poly[] {
+  const n = depth;
+  const c = size / n;
+  const off = c / 5;
+  const r = c / 2;
+  const k = Math.max(4, Math.ceil(c / 3));
+  const arcs: Poly[] = [];
+  const dots: Poly[] = [];
+  // Quarter arc around corner (x, y) from angle a0 (in quarter turns); endpoints exact on the grid.
+  const arc = (x: number, y: number, a0: number): Poly => {
+    const poly: Poly = [];
+    for (let s = 0; s <= k; s++) {
+      const a = ((a0 + s / k) * Math.PI) / 2;
+      poly.push(
+        s === 0 || s === k
+          ? [x + r * Math.round(Math.cos(a)), y + r * Math.round(Math.sin(a))]
+          : [x + r * Math.cos(a), y + r * Math.sin(a)],
+      );
+    }
+    return poly;
+  };
+  for (let j = 0; j < n; j++) {
+    for (let i = 0; i < n; i++) {
+      const x = i * c + off;
+      const y = j * c + off;
+      if (rnd() < 0.5) arcs.push(arc(x, y, 0), arc(x + c, y + c, 2));
+      else arcs.push(arc(x + c, y, 1), arc(x, y + c, 3));
+      dots.push(
+        Array.from({ length: 13 }, (_, s): Pt => [
+          x + 0.08 * c * Math.cos((TAU * (s % 12)) / 12),
+          y + 0.08 * c * Math.sin((TAU * (s % 12)) / 12),
+        ]),
+      );
+    }
+  }
+  return [...wrap(arcs, size), ...dots];
+}

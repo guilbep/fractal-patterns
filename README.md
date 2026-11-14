@@ -60,15 +60,15 @@ The Pattern Builder is a third page, `builder.html`. You place, rotate and color
 
 ### Pattern library
 
-The page draws 78 pattern kinds in six families:
+The page draws 80 pattern kinds in six families:
 
 | Family | Kinds | Names |
 | --- | --- | --- |
 | Fractals | 8 | Carpet, Quadtree, Tree, Folded curve, Hilbert curve, Koch lattice, Sierpinski, H-tree |
-| Line art | 4 | Curve stitching, Whirl, Rosette, Spirals |
+| Line art | 5 | Curve stitching, Whirl, Rosette, Spirals, Truchet |
 | Surfaces | 13 | Running bond, Stack bond, Herringbone, Basket weave, Honeycomb, Triangular net, Nested boxes, Dot grid, Hatch, Crosshatch, Zigzag, Fish scales, Waves |
 | Symmetry groups | 17 | p1 translation, p2 half turn, pm mirror, pg glide, cm mirror and glide, pmm two mirrors, pmg mirror and glide, pgg two glides, cmm two mirrors, centered, p4 quarter turn, p4m quarter turn and mirrors, p4g quarter turn and glides, p3 third turn, p3m1 third turn and mirrors, p31m third turn, mirrors off center, p6 sixth turn, p6m sixth turn and mirrors |
-| Themes | 29 | Topography, Maze, Circuit, Waves (seigaiha), Rain, Mountain ridges, Constellations, Roots, Cracked earth, Knotwork, Roof tiles, Feathers, Chain and fence, Pipes, Chladni figures, Clouds, Moons, Storm, Leaves, River, Thorns, Nest, Railway, Quilt, Lanterns, Basketwork, Garden paths, Endless maze, Endless railway |
+| Themes | 30 | Topography, Maze, Circuit, Waves (seigaiha), Rain, Mountain ridges, Constellations, Roots, Cracked earth, Knotwork, Roof tiles, Feathers, Chain and fence, Pipes, Chladni figures, Clouds, Moons, Storm, Leaves, River, Thorns, Nest, Railway, Quilt, Lanterns, Basketwork, Garden paths, Endless maze, Endless railway, Sprigs |
 
 Endless maze differs from Maze in two ways: it has no short period, because it is built from Wang tiles, and it is not a true maze, so loops and closed rooms can occur.
 Endless railway differs from Railway in that its tracks are built from Wang tiles: they turn, branch at switches, cross, and end at buffer stops, instead of two wavy tracks across the tile.
@@ -184,7 +184,7 @@ A traced tile repeats without a seam only with Mirror or with a source image tha
 
 ### Colors
 
-The page has 24 palettes: 16 light and 8 dark. The app generates them by rule in the OKLCH color space. OKLCH describes a color by its lightness, chroma and hue, in steps that look even to the eye. Each palette has five colors: paper, ink, stroke, accent and soft. The default palette is Lagoon. The "Random palette" button draws a new palette inside the same rules.
+The page has 25 palettes: 17 light and 8 dark. The app generates them by rule in the OKLCH color space. OKLCH describes a color by its lightness, chroma and hue, in steps that look even to the eye. Each palette has five colors: paper, ink, stroke, accent and soft. The default palette is Lagoon. The "Random palette" button draws a new palette inside the same rules.
 
 The rules follow two studies of color preference:
 
@@ -390,7 +390,7 @@ The controls:
 
 - Seed and Shuffle.
 - Theme: Floral, Sea or Orchard.
-- Palette: the same 24 palettes as the pattern page.
+- Palette: the same 25 palettes as the pattern page.
 - Density: 0 to 100%.
 - Tile size: 200 to 500 px in steps of 20.
 - Large tile: one tile of twice the width and height, with about four times the plants at the same motif size. The picture comes back four times less often, so the repeat is harder to see. The SVG is about four times as large (Straight repeat, seed 1 to 5, density 0.5: about 13 kB becomes about 35 kB).

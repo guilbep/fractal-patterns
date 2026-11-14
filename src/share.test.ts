@@ -500,16 +500,30 @@ test('the second layer color: l2c only when on, last, round trip; an old hash de
 
 test('the welcome design is a valid link that survives a round trip', () => {
   const d = decodeDesign(`#${WELCOME}`);
+  assert.equal(d.kind, 'truchet');
   assert.equal(d.seed, 2692185587);
-  assert.equal(d.size, 64);
-  assert.equal(d.variants, true);
-  assert.equal(d.fade, true);
+  assert.equal(d.depth, 6);
+  assert.equal(d.size, 256);
+  assert.deepEqual(d.fill, { mode: 'closed', color: '#ce4700', opacity: 1 });
   assert.equal(encodeDesign(d), WELCOME);
+});
+
+test('the welcome design never changes the defaults: an old link without k is still a Tree', () => {
+  assert.equal(DESIGN_DEFAULTS.kind, 'tree');
+  const oldWelcome = 's=2692185587&z=64&w=1&bg=eefaf9&fg=5da09e&tx=062424&v=1&fd=1&vo=6_6_0_b_1_0_0_0';
+  const current = 'k=truchet&s=2692185587&d=6&z=256&w=3&bg=f1f9f3&fg=5ea478&tx=112418&o=1&fi=c_ce4700_1';
+  assert.equal(WELCOME, current);
+  for (const old of ['s=7&v=1', '', oldWelcome, current.replace('k=truchet&', '')]) assert.equal(decodeDesign(old).kind, 'tree', old);
 });
 
 test('the accent: ac only when not the default, last, round trip; old links decode to the default and encode unchanged', () => {
   assert.equal(DESIGN_DEFAULTS.accent, ACCENT_DEFAULT);
-  for (const old of [WELCOME, 'k=brick&s=7&v=1', 'k=brick&s=7&v=1&l2=1&fd=1']) {
+  for (const old of [
+    WELCOME,
+    's=2692185587&z=64&w=1&bg=eefaf9&fg=5da09e&tx=062424&v=1&fd=1&vo=6_6_0_b_1_0_0_0',
+    'k=brick&s=7&v=1',
+    'k=brick&s=7&v=1&l2=1&fd=1',
+  ]) {
     const d = decodeDesign(old);
     assert.equal(d.accent, ACCENT_DEFAULT, old);
     assert.equal(encodeDesign(d), old, old);

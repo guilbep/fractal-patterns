@@ -10,7 +10,7 @@ For each changed file I read every hunk and checked that no label, state, key or
 An item in a file that the diff does not touch is "kept as is", with no line cited.
 Line numbers are for commit `b070045`.
 
-Two checks hold the Studio unchanged without genes:
+Three checks hold the Studio unchanged without genes:
 
 - If a gene is absent, `band(r, g)` in `src/studio/genes.ts:36` returns the random draw `r` itself. So every draw in `motifs.ts`, `motifs-sea.ts`, `motifs-orchard.ts` and `compose.ts` is the same as before.
 - If the color roles gene is absent, `composeColors(palette, genes)` keeps the old color roles (`src/studio/compose.ts:1057`).

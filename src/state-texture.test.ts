@@ -78,3 +78,36 @@ test('one texture layer: setTextureKind and the grain switch are exclusive', () 
   assert.equal(checkedRoles.value.texture, null);
   assert.equal(textureOut.value, null);
 });
+
+// The file's tile edge, from the composed SVG's root.
+const fileTile = () => /^<svg[^>]* width="([\d.]+)" height="([\d.]+)"/.exec(svg.value)!.slice(1).map(Number);
+
+test('the file draws the texture at its own tile, not at the texture tile', async () => {
+  at('p4m');
+  setTextureKind('paper');
+  texture.route = 'live';
+  await textureReady();
+  const [w, h] = fileTile();
+  assert.equal(w, h);
+  assert.notEqual(w, 257);
+  assert.ok(!svg.value.includes('<pattern id="fp-l0" width="257"'));
+  assert.ok(svg.value.includes(`viewBox="0 0 ${w} ${w}" width="${w}" height="${w}"><filter`));
+  setTextureKind('terrazzo');
+  assert.ok(!svg.value.includes('width="241"'));
+  assert.ok(svg.value.includes(`<rect width="${w}" height="${w}" fill="${roles.background}"/>`));
+});
+
+test('a hex kind: the texture fills the non-square file tile', async () => {
+  at('p6m');
+  setTextureKind('paper');
+  texture.route = 'live';
+  await textureReady();
+  const [w, h] = fileTile();
+  assert.notEqual(w, h);
+  assert.ok(
+    svg.value.includes(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${w}" preserveAspectRatio="none">`,
+    ),
+  );
+  assert.ok(!svg.value.includes('width="257"'));
+});

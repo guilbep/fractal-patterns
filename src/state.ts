@@ -739,6 +739,30 @@ export function svgForSeed(seed: number, color = roles.pattern): string {
 // The base layer alone, for the CSS export (its accent is a second background).
 export const baseSvg = computed(() => svgForSeed(params.seed));
 const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
+// The texture redrawn at the file's tile, so the file edge does not cut it (the CSS export keeps its own tile).
+// Live and vector wrap at any square size; a non-square file stretches the w x w tile to w x h, and baked stretches its
+// 256 px image: a periodic tile stretched once still wraps.
+// ponytail: stretched on non-square kinds (hex is 1:√3); snap live frequencies to w and h apart if the stretch shows.
+function textureAt(tx: { svg: string; tile: number }, w: number, h: number): string {
+  const m = texMods.value;
+  const [svg, s] =
+    texture.route === 'live' && m
+      ? [m[0].liveTextureSvg(texture.kind as LiveKind, { ...texture, tile: w }), w]
+      : texture.route === 'vector' && m
+        ? [
+            m[1].vectorTexture(texture.kind as VectorKind, {
+              ...texture,
+              size: w,
+              background: roles.background,
+              colors: paletteColors.value,
+            }).svg,
+            w,
+          ]
+        : [tx.svg, tx.tile];
+  return s === w && w === h
+    ? svg
+    : `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${s} ${s}" preserveAspectRatio="none">${svg}</svg>`;
+}
 // One tile with both layers, for the downloaded SVG and the PNG: the base, and the accent on top, over a common
 // multiple of both repeats (counted in cells, so a fractional cell size stays exact). Without an accent: the base alone.
 const composed = computed(() => {
@@ -747,12 +771,11 @@ const composed = computed(() => {
   const bh = tileHeight(bw, aspect.value);
   // The grain at the file's own tile size, stitched, at the bottom: the file stays seamless, but there the grain
   // repeats with the tile. ponytail: a 257 px grain layer would need a tile of 257 times the pattern tile.
-  // ponytail: the texture repeats at its own tile, so the file edge cuts it; redraw it at the file size if that shows.
   const tx = textureOut.value;
   const under = grain.on
     ? (w: number, h: number) => [{ svg: grainSvg(grain, w, h), width: w, height: h }]
     : tx
-      ? () => [{ svg: tx.svg, width: tx.tile, height: tx.tile }]
+      ? (w: number, h: number) => [{ svg: textureAt(tx, w, h), width: w, height: h }]
       : () => [];
   if (!a)
     return {

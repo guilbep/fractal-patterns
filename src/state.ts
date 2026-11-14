@@ -8,7 +8,6 @@ import {
   generate,
   geometry,
   hasAccent,
-  preferredStroke,
   svgFromPolylines,
   tileAspect,
   tileHeight,
@@ -41,6 +40,7 @@ import { ACCENT_DEFAULT, appliesDefault, type VaryApplies } from '@/share.ts';
 import { composeSvg, sceneToSvg, type SceneLayer } from '@/scene.ts';
 import type { ChangeDir } from '@/fade.ts';
 import { LAYOUT_EXAMPLES, randomLayout, randomRepetition } from '@/random-design.ts';
+import { preferred } from '@/preferred.ts';
 
 export const MAX_SEED = 0xffffffff;
 
@@ -719,16 +719,18 @@ export function reseed(): void {
   params.seed = randomSeed();
 }
 
-// A visitor's kind choice (not link decoding or undo): the kind, then its preferred stroke if it has one.
-// Only on an actual change, so re-picking the current kind keeps a stroke set by hand. Same tick as the kind: one undo entry.
+// A visitor's kind choice (not link decoding or undo): the kind, then its preferred stroke, depth, and Reduce repetition (preferred.ts).
+// Only on an actual change, so re-picking the current kind keeps values set by hand. Same tick as the kind: one undo entry.
 export function chooseKind(kind: Kind): void {
   if (kind === params.kind) return;
+  const pref = preferred(kind);
   params.kind = kind;
-  const w = preferredStroke(kind);
-  if (w !== null) params.strokeWidth = w;
+  params.strokeWidth = pref.stroke;
+  params.depth = pref.depth;
+  variants.value = pref.variants;
   Object.assign(accentLayer, accentDefaults(kind));
   accentMoves.value = '';
-  // With the switch already on, it keeps varying the base only, as before the accent layer (and as a v=1 link without av).
+  // Switched on, it varies the base only (as a v=1 link without av); off, the kind's default layer is ready.
   varyApplies.value = variants.value ? 'base' : appliesDefault(kind);
 }
 
@@ -742,9 +744,8 @@ export function randomPattern(): void {
   const kind = others[randomSeed() % others.length] ?? params.kind;
   chooseKind(kind);
   params.seed = randomSeed();
-  params.depth = Math.max(Math.min(params.depth, MAX_DEPTH[kind]), Math.min(2, MAX_DEPTH[kind]));
+  // Depth and the Reduce repetition switch stay as chooseKind set them; only the options are random.
   const r = randomRepetition(kind, Math.random);
-  variants.value = r.variants;
   Object.assign(variantOptions, r.variantOptions);
   layer2.value = r.layer2;
   if (r.layer2Settings) Object.assign(layer2Settings, r.layer2Settings);

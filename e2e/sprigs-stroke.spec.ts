@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-// Sprigs prefers stroke width 1 when a visitor chooses it, but a link is the source of truth:
+// Sprigs prefers stroke width 1 when a visitor chooses it (preferred.ts), but a link is the source of truth:
 // without `w` it opens with the global default, with `w` it keeps that value.
 const stroke = (page: import('@playwright/test').Page) => page.locator('output[for="stroke"]');
 

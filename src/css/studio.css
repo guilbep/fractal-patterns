@@ -353,6 +353,16 @@
     left: 12px;
     bottom: 22px;
   }
+  /* One row, so the 150 px strip keeps most of the wallpaper in view: 12 px chips (as on Patterns) beside the full screen button. */
+  .wall-chips {
+    flex-wrap: nowrap;
+    gap: 6px;
+    max-width: calc(100% - 68px);
+  }
+  .wall-chip {
+    font-size: 12px;
+    white-space: nowrap;
+  }
   .wall-full {
     right: 12px;
     bottom: 22px;

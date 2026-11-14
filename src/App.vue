@@ -71,6 +71,19 @@ const copyCss = () => copyWithStatus(exportText.value, 'Copied', 'Copy failed. C
 // Phones: the Palette cell shows four squares of the current palette and opens the sheet.
 const barSwatches = computed(() => (palette.value?.colors ?? [roles.background, roles.pattern, roles.text]).slice(0, 4));
 const sheet = ref<InstanceType<typeof PaletteSheet> | null>(null);
+// Phones: "Use it" is a bottom sheet over the page (REDESIGN-SPEC §4); the one UseIt panel moves into it (Teleport), so its choices stay.
+const phoneMq = matchMedia('(max-width: 599.98px)');
+const phone = ref(phoneMq.matches);
+phoneMq.addEventListener('change', (e) => (phone.value = e.matches));
+const useSheet = ref<InstanceType<typeof PaletteSheet> | null>(null);
+// Phones: the preview shrinks to a strip once the tabs reach its 150 px bottom; the corner chips then change (app.css).
+const compact = ref(false);
+onMounted(() => {
+  if (!tabBar.value) return;
+  const io = new IntersectionObserver(([e]) => (compact.value = !!e && e.intersectionRatio < 1 && e.boundingClientRect.top < 151), { rootMargin: '-151px 0px 0px 0px', threshold: 1 });
+  io.observe(tabBar.value);
+  onBeforeUnmount(() => io.disconnect());
+});
 
 // Tabs (WAI-ARIA tabs pattern, automatic activation). All panels stay mounted, except Repetition (v-if: its previews cost nothing while closed).
 const TABS: readonly { id: TabId; label: string }[] = [
@@ -90,6 +103,15 @@ function readTab(): TabId {
   }
 }
 const tab = ref<TabId>(readTab());
+// The Use it tab is not a panel on phones: the page keeps the tab it had; a sheet left open on a widened window closes.
+watch(
+  phone,
+  (p) => {
+    if (p && tab.value === 'use') tab.value = 'pattern';
+    if (!p) useSheet.value?.close();
+  },
+  { immediate: true },
+);
 const imageOpened = ref(false);
 watch(tab, (t) => (imageOpened.value ||= t === 'image'), { immediate: true });
 watch(tab, (t) => {
@@ -100,17 +122,25 @@ watch(tab, (t) => {
   }
 });
 function onTabKey(e: KeyboardEvent): void {
-  const i = TABS.findIndex((t) => t.id === tab.value);
+  // From the focused tab: on phones focus can rest on "Use it" while another tab stays selected.
+  const i = TABS.findIndex((t) => `tab-${t.id}` === (e.target as HTMLElement).id);
+  if (i < 0) return;
   // Phones show the tabs as a 3 × 2 grid: Down and Up also step in reading order there.
   const grid = matchMedia('(max-width: 599.98px)').matches;
   const next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TABS.length - 1, ...(grid && { ArrowDown: i + 1, ArrowUp: i - 1 }) }[e.key];
   if (next === undefined) return;
   e.preventDefault();
   const t = TABS[(next + TABS.length) % TABS.length]!;
-  tab.value = t.id;
+  // Phones: arrows only focus "Use it"; Enter or Space opens its sheet (a modal must not open on an arrow key).
+  if (!(phone.value && t.id === 'use')) tab.value = t.id;
   void nextTick(() => document.getElementById(`tab-${t.id}`)?.focus());
 }
-async function useIt(): Promise<void> {
+function selectTab(id: TabId, e: MouseEvent): void {
+  if (phone.value && id === 'use') useSheet.value?.open(e.currentTarget as HTMLElement);
+  else tab.value = id;
+}
+async function useIt(e: MouseEvent): Promise<void> {
+  if (phone.value) return useSheet.value?.open(e.currentTarget as HTMLElement);
   tab.value = 'use';
   await nextTick();
   document.getElementById('tab-use')?.focus();
@@ -134,6 +164,7 @@ function writeUse(id: Destination['id']): void {
 }
 const tileH = computed(() => tileHeight(tileSize.value, aspect.value));
 async function toDepth(): Promise<void> {
+  useSheet.value?.close(false);
   tab.value = 'pattern';
   await nextTick();
   document.getElementById('depth')?.focus();
@@ -204,7 +235,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     <button type="button" aria-label="Palette" title="Palette" aria-haspopup="dialog" @click="sheet?.open($event.currentTarget as HTMLElement)">
       <span class="bar-swatches" aria-hidden="true"><span v-for="(c, i) in barSwatches" :key="i" :style="{ background: c }"></span></span>
     </button>
-    <button type="button" class="ink" @click="useIt"><ToolIcon name="download" />Use it</button>
+    <button type="button" class="ink" aria-haspopup="dialog" @click="useIt"><ToolIcon name="download" />Use it</button>
   </BottomBar>
   <PaletteSheet ref="sheet" title="Palette">
     <PaletteStrip />
@@ -218,12 +249,16 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     <!-- The page's live region is inert behind the modal sheet: this one speaks while the sheet is open. -->
     <p class="sheet-status" role="status">{{ copyStatus }}</p>
   </PaletteSheet>
+  <PaletteSheet ref="useSheet" class="sheet-use" title="Use it">
+    <div id="use-sheet-preview" class="use-stage"></div>
+    <div id="use-sheet-steps"></div>
+  </PaletteSheet>
 
   <main class="layout">
     <!-- ponytail: pointer shortcut only; the Shuffle button is the keyboard path. -->
     <!-- The hero uses the exported .fp-pattern class itself, so what you see is what you copy. -->
     <component :is="'style'">{{ exportText }}</component>
-    <div ref="stage" class="stage" :class="{ 'stage-use': tab === 'use' }">
+    <div ref="stage" class="stage" :class="{ 'stage-use': tab === 'use', 'stage-compact': compact }">
     <ShortcutHint :on="shortcutOn" />
     <!-- A fast second click must shuffle again, not select the sample text. A drag still selects it. -->
     <div class="hero fp-pattern" :class="{ 'fp-paused': motionPaused }" :style="tileVars" @click="reseed" @mousedown="$event.detail > 1 && $event.preventDefault()">
@@ -258,7 +293,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
     <div class="controls">
       <div ref="tabBar" class="tabs" role="tablist" aria-label="Controls" @keydown="onTabKey">
-        <button v-for="t in TABS" :id="`tab-${t.id}`" :key="t.id" type="button" role="tab" class="tab" :aria-selected="tab === t.id" :aria-controls="`panel-${t.id}`" :tabindex="tab === t.id ? 0 : -1" @click="tab = t.id">{{ t.label }}<span v-if="t.id === 'repetition' && (variantsOn || layer2)" class="tab-on"><span aria-hidden="true"></span><span class="visually-hidden">on</span></span></button>
+        <button v-for="t in TABS" :id="`tab-${t.id}`" :key="t.id" type="button" role="tab" class="tab" :aria-selected="tab === t.id" :aria-controls="`panel-${t.id}`" :tabindex="tab === t.id ? 0 : -1" :aria-haspopup="phone && t.id === 'use' ? 'dialog' : undefined" @click="selectTab(t.id, $event)">{{ t.label }}<span v-if="t.id === 'repetition' && (variantsOn || layer2)" class="tab-on"><span aria-hidden="true"></span><span class="visually-hidden">on</span></span></button>
       </div>
       <div v-show="tab === 'pattern'" id="panel-pattern" class="tabpanel" role="tabpanel" aria-labelledby="tab-pattern">
         <PatternPanel />
@@ -282,6 +317,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <ImagePanel v-if="imageOpened" />
       </div>
       <div v-show="tab === 'use'" id="panel-use" class="tabpanel" role="tabpanel" aria-labelledby="tab-use">
+        <Teleport defer to="#use-sheet-steps" :disabled="!phone">
         <UseIt
           :svg="svg"
           :tile-width="tileSize"
@@ -291,11 +327,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           :svg-href="svgHref"
           :svg-file-name="fileName"
           :initial="useInitial"
-          preview-target="#use-preview"
+          :preview-target="phone ? '#use-sheet-preview' : '#use-preview'"
           @destination="writeUse"
         >
           <template #web><OutputPanel @depth="toDepth" /></template>
         </UseIt>
+        </Teleport>
       </div>
     </div>
   </main>

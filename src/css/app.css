@@ -734,6 +734,17 @@ kbd {
   .hero-actions {
     bottom: 22px;
   }
+  /* The 150 px strip (design board Mobile-Sheet): only the contrast chip, top right, clear of the plate; the size chip
+     shows again at full height. --strip-top: where the strip starts inside the stage (the sticky stage keeps 270 px here). */
+  .stage-compact .phone-chips {
+    top: calc(var(--strip-top, 120px) + 6px);
+    right: 6px;
+    bottom: auto;
+    left: auto;
+  }
+  .stage-compact .phone-chips .size-badge {
+    display: none;
+  }
   .controls {
     background: var(--surface);
     min-height: calc(100dvh - 150px);
@@ -778,6 +789,7 @@ kbd {
 @supports (animation-timeline: scroll()) {
   @media (max-width: 599.98px) and (prefers-reduced-motion: no-preference) {
     .stage:not(.stage-use) {
+      --strip-top: 0px;
       top: 0;
       animation: stage-shrink linear both;
       animation-timeline: scroll(root);

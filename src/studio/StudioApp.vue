@@ -362,7 +362,20 @@ const THEME_THUMBS: Record<Theme, string> = {
 const useOpen = ref(false);
 const useOpened = ref(false);
 const useBtn = ref<HTMLButtonElement | null>(null);
-async function useIt(): Promise<void> {
+// Phones: "Use it" is a bottom sheet over the page (REDESIGN-SPEC §4); the one UseIt panel moves into it (Teleport), so its choices stay.
+const phoneMq = matchMedia('(max-width: 599.98px)');
+const phone = ref(phoneMq.matches);
+phoneMq.addEventListener('change', (e) => {
+  phone.value = e.matches;
+  if (e.matches) useOpen.value = false;
+  else useSheet.value?.close();
+});
+const useSheet = ref<InstanceType<typeof PaletteSheet> | null>(null);
+async function useIt(e: MouseEvent): Promise<void> {
+  if (phone.value) {
+    useOpened.value = true;
+    return useSheet.value?.open(e.currentTarget as HTMLElement);
+  }
   useOpen.value = useOpened.value = true;
   await nextTick();
   // The step heading is a legend inside the shared panel: made focusable here so focus lands on "1 · What is it for?".
@@ -434,7 +447,7 @@ useBarHeight(head, '--head-h');
     <button type="button" aria-label="Palette" title="Palette" aria-haspopup="dialog" @click="sheet?.open($event.currentTarget as HTMLElement)">
       <span class="bar-swatches" aria-hidden="true"><span v-for="(c, i) in design.palette.colors.slice(0, 4)" :key="i" :style="{ background: c }"></span></span>
     </button>
-    <button ref="barUseBtn" type="button" class="ink" @click="useIt"><ToolIcon name="download" />Use it</button>
+    <button ref="barUseBtn" type="button" class="ink" aria-haspopup="dialog" @click="useIt"><ToolIcon name="download" />Use it</button>
   </BottomBar>
   <PaletteSheet ref="sheet" title="Palette">
     <PaletteStrip :colors="design.palette.colors" :name="design.palette.name" @previous="stepPal(-1)" @next="stepPal(1)" @random="rollPal" />
@@ -444,6 +457,10 @@ useBarHeight(head, '--head-h');
     </div>
     <!-- The page's live region is inert behind the modal sheet: this one speaks while the sheet is open. -->
     <p class="sheet-status" role="status">{{ copyStatus }}</p>
+  </PaletteSheet>
+  <PaletteSheet ref="useSheet" class="sheet-use" title="Use it">
+    <div id="use-sheet-preview" class="use-stage"></div>
+    <div id="use-sheet-steps" class="studio-use"></div>
   </PaletteSheet>
 
   <main class="layout">
@@ -466,6 +483,7 @@ useBarHeight(head, '--head-h');
     <div class="controls studio-controls">
       <div v-if="useOpened" v-show="useOpen" class="studio-use" @keydown.esc="closeUse">
         <button type="button" class="btn quiet use-back" @click="closeUse"><span aria-hidden="true">‹&nbsp;</span>Back to the design</button>
+        <Teleport defer to="#use-sheet-steps" :disabled="!phone">
         <UseIt
           :svg="svg"
           :tile-width="cell.width"
@@ -475,7 +493,7 @@ useBarHeight(head, '--head-h');
           :svg-href="uri"
           :svg-file-name="fileName"
           :initial="useInitial"
-          preview-target="#use-preview"
+          :preview-target="phone ? '#use-sheet-preview' : '#use-preview'"
           @destination="writeUse"
         >
           <template #web>
@@ -484,13 +502,14 @@ useBarHeight(head, '--head-h');
                 <button type="button" class="btn primary" @click="copyCss">{{ copyStatus === 'Copied' ? 'Copied' : 'Copy CSS' }}</button>
                 <a class="btn" :href="uri" :download="fileName">Download SVG</a>
               </div>
-              <!-- The toolbar's live region announces the status; this line only shows it. -->
-              <p v-if="copyStatus" class="use-it-note">{{ copyStatus }}</p>
+              <!-- The toolbar's live region announces the status; in the phone sheet it is inert behind the modal, so this line speaks. -->
+              <p v-if="copyStatus || phone" class="use-it-note" :role="phone ? 'status' : undefined">{{ copyStatus }}</p>
               <label for="use-css-out">CSS rule</label>
               <textarea id="use-css-out" class="code" readonly rows="6" :value="css" @focus="($event.target as HTMLTextAreaElement).select()"></textarea>
             </div>
           </template>
         </UseIt>
+        </Teleport>
       </div>
       <section v-if="showCss" class="panel" aria-labelledby="css-h">
         <h2 id="css-h">CSS</h2>

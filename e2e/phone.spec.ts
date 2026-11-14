@@ -46,17 +46,65 @@ test('Patterns on a phone: Shuffle, the palette sheet, its More items and Use it
   await expect(sheet).toBeHidden();
   await expect(paletteCell).toBeFocused();
 
+  // Use it is a bottom sheet on phones (REDESIGN-SPEC §4), not the tab.
   await bar.getByRole('button', { name: 'Use it', exact: true }).tap();
-  await expect(page.getByRole('tab', { name: 'Use it' })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.locator('#panel-use')).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Use it' }).locator('.use-it-panel')).toBeVisible();
 });
 
-test('Studio and Builder on a phone: Use it opens the Use it view', async ({ page }) => {
-  for (const file of ['studio.html', 'builder.html']) {
+for (const file of ['index.html', 'studio.html', 'builder.html'])
+  test(`${file} on a phone: Use it opens a bottom sheet that keeps its choices`, async ({ page }) => {
     await page.goto('/' + file);
-    await page.locator('.bottom-bar').getByRole('button', { name: 'Use it', exact: true }).tap();
-    await expect(page.locator('.controls .use-it-panel')).toBeVisible();
-  }
+    const cell = page.locator('.bottom-bar').getByRole('button', { name: 'Use it', exact: true });
+    await cell.tap();
+    const sheet = page.getByRole('dialog', { name: 'Use it' });
+    await expect(sheet).toBeVisible();
+    await expect(sheet.locator('.use-it-dest', { hasText: 'Website background' })).toBeVisible();
+    // The device preview is in the sheet, above the steps.
+    await expect(sheet.locator('.use-it-preview')).toBeVisible();
+    if (file === 'index.html') await expect(sheet.getByRole('button', { name: 'Copy CSS' })).toBeVisible();
+    await sheet.locator('.use-it-dest', { hasText: 'Phone wallpaper' }).tap();
+    await sheet.getByRole('button', { name: 'Close' }).tap();
+    await expect(sheet).toBeHidden();
+    await expect(cell).toBeFocused();
+    await cell.tap();
+    await expect(sheet.getByRole('radio', { name: /Phone wallpaper/ })).toBeChecked();
+    const [sw, cw] = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]);
+    expect(sw).toBe(cw);
+  });
+
+test('Builder on a phone: Download SVG in the Use it sheet gives pattern-builder.svg', async ({ page }) => {
+  await page.goto('/builder.html');
+  await page.locator('.bottom-bar').getByRole('button', { name: 'Use it', exact: true }).tap();
+  const sheet = page.getByRole('dialog', { name: 'Use it' });
+  await sheet.locator('.use-it-dest', { hasText: 'Website background' }).tap();
+  const download = page.waitForEvent('download');
+  await sheet
+    .getByRole('button', { name: 'Download SVG' })
+    .or(sheet.getByRole('link', { name: 'Download SVG' }))
+    .first()
+    .click();
+  expect((await download).suggestedFilename()).toBe('pattern-builder.svg');
+});
+
+test('Patterns on a phone: the Use it tab opens the sheet, Esc closes it, the previous tab stays', async ({ page }) => {
+  await page.goto('/index.html');
+  const useTab = page.getByRole('tab', { name: 'Use it' });
+  await useTab.tap();
+  const sheet = page.getByRole('dialog', { name: 'Use it' });
+  await expect(sheet).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(sheet).toBeHidden();
+  await expect(useTab).toBeFocused();
+  await expect(page.getByRole('tab', { name: 'Pattern' })).toHaveAttribute('aria-selected', 'true');
+});
+
+test('Patterns on a phone: the 150 px strip shows only the contrast chip', async ({ page }) => {
+  await page.goto('/index.html');
+  const chips = page.locator('.phone-chips');
+  await expect(chips.locator('.size-badge')).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, 600));
+  await expect(chips.locator('.size-badge')).toBeHidden();
+  await expect(chips.locator('.bar-chip')).toBeInViewport();
 });
 
 test('Patterns on a phone: the six tabs are a 3 × 2 grid with arrow keys in reading order', async ({ page }) => {
@@ -79,9 +127,12 @@ test('Patterns on a phone: the six tabs are a 3 × 2 grid with arrow keys in rea
   await expect(page.getByRole('tab', { name: 'Layout' })).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('ArrowUp');
   await expect(repetition).toHaveAttribute('aria-selected', 'true');
+  // On phones an arrow key only focuses "Use it" (it opens a modal sheet); Enter opens it.
   await page.keyboard.press('End');
-  await expect(page.getByRole('tab', { name: 'Use it' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('tab', { name: 'Use it' })).toBeFocused();
+  await expect(repetition).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('dialog', { name: 'Use it' })).toBeVisible();
 });
 
 for (const file of ['index.html', 'studio.html', 'builder.html'])

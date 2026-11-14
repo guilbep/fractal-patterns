@@ -9,6 +9,7 @@ import { copyText } from '@/clipboard.ts';
 import SizeBadge from '@/components/SizeBadge.vue';
 import ToolIcon from '@/components/ToolIcon.vue';
 import BottomBar from '@/components/BottomBar.vue';
+import PaletteSheet from '@/components/PaletteSheet.vue';
 import UseIt from '@/components/UseIt.vue';
 import { DESTINATIONS, type Destination } from '@/use-it.ts';
 import { repeatCell } from '@/studio/model.ts';
@@ -46,7 +47,11 @@ async function copyCss(): Promise<void> {
 // "Use it…": the shared Use it view replaces the sections; the stage shows the device preview. Not stored, not in the link.
 const useOpen = ref(false);
 const useBtn = ref<HTMLButtonElement | null>(null);
-async function useIt(): Promise<void> {
+// Phones: "Use it" is a bottom sheet over the page (REDESIGN-SPEC §4). The panel lives in it from the start (still one instance),
+// so its choices stay between openings.
+const useSheet = ref<InstanceType<typeof PaletteSheet> | null>(null);
+async function useIt(e: MouseEvent): Promise<void> {
+  if (phone) return useSheet.value?.open(e.currentTarget as HTMLElement);
   useOpen.value = true;
   await nextTick();
   const legend = document.querySelector<HTMLElement>('.controls .use-it-panel legend');
@@ -150,8 +155,25 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <option value="" disabled selected>Examples</option>
       <option v-for="x in EXAMPLE_LIST" :key="x.id" :value="x.id">{{ x.label }}</option>
     </select>
-    <button ref="barUseBtn" type="button" class="ink" @click="useIt"><ToolIcon name="download" />Use it</button>
+    <button ref="barUseBtn" type="button" class="ink" aria-haspopup="dialog" @click="useIt"><ToolIcon name="download" />Use it</button>
   </BottomBar>
+  <PaletteSheet v-if="phone" ref="useSheet" class="sheet-use" title="Use it">
+    <div id="use-sheet-preview" class="use-stage"></div>
+    <UseIt
+      :svg="svg"
+      :tile-width="cell.width"
+      :tile-height="cell.height"
+      :background="design.background"
+      base-name="pattern-builder"
+      :svg-href="svgHref"
+      svg-file-name="pattern-builder.svg"
+      :initial="readUse()"
+      preview-target="#use-sheet-preview"
+      @destination="writeUse"
+    >
+      <template #web><ExportPanel /></template>
+    </UseIt>
+  </PaletteSheet>
 
   <main class="layout">
     <div class="stage" :class="{ 'stage-use': useOpen }">
@@ -168,7 +190,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <ItemPanel />
         <TilePanel />
       </div>
-      <template v-if="useOpen">
+      <template v-if="useOpen && !phone">
         <button type="button" class="btn quiet use-back" @click="closeUse">‹ Back to the design</button>
         <UseIt
           :svg="svg"

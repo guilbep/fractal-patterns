@@ -10,18 +10,22 @@ function open(from: HTMLElement): void {
   opener = from;
   dlg.value?.showModal();
 }
-const close = (): void => dlg.value?.close();
+// close(false): the caller moves focus itself (the close event comes a task later and would take it back).
+function close(back = true): void {
+  if (!back) opener = null;
+  dlg.value?.close();
+}
 defineExpose({ open, close });
 </script>
 
 <template>
   <!-- A click on the backdrop lands on the dialog itself (the content fills its box), so it closes. -->
-  <dialog ref="dlg" class="sheet" :aria-labelledby="headId" @close="opener?.focus()" @click.self="close">
+  <dialog ref="dlg" class="sheet" :aria-labelledby="headId" @close="opener?.focus()" @click.self="close()">
     <div class="sheet-body">
       <span class="sheet-handle" aria-hidden="true"></span>
       <div class="sheet-head">
         <h2 :id="headId">{{ title }}</h2>
-        <button type="button" class="sheet-close" aria-label="Close" @click="close"><span aria-hidden="true">×</span></button>
+        <button type="button" class="sheet-close" aria-label="Close" @click="close()"><span aria-hidden="true">×</span></button>
       </div>
       <slot />
     </div>
@@ -130,5 +134,32 @@ defineExpose({ open, close });
   margin: 0;
   color: var(--muted);
   font-size: 0.875rem;
+}
+/* "Use it" on phones (design board Mobile-Builder): taller, a 20 px title, the device preview above the steps. */
+.sheet.sheet-use {
+  max-height: 92dvh;
+  overscroll-behavior: contain;
+  box-shadow: 0 -4px 20px rgba(23, 24, 28, 0.2);
+}
+.sheet-use::backdrop {
+  background: rgba(23, 24, 28, 0.4);
+}
+.sheet-use .sheet-handle {
+  width: 36px;
+}
+.sheet-use .sheet-head h2 {
+  font-size: 1.25rem;
+}
+.sheet-use .use-stage {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  height: 200px;
+  padding: 8px;
+  border-radius: 10px;
+}
+.sheet-use .use-it-panel,
+.sheet-use .studio-use {
+  min-width: 0;
 }
 </style>

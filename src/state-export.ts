@@ -16,6 +16,8 @@ import {
   aspect,
   baseSvg,
   colorSymActive,
+  wheel,
+  wheelOn,
   baseTileSize,
   curvesOn,
   variantsOn,
@@ -153,9 +155,12 @@ export const exportGzipBytes = computed(() =>
   gzipped.value && gzipped.value !== 'unknown' ? gzipped.value.css + gzipped.value.script : null,
 );
 // The size breakdown: the size badge tooltip and the Export tab.
-export const sizeBreakdown = computed(() =>
-  sizeLines({ css: cssBytes.value, svg: rawBytes.value, script: scriptBytes.value, gz: gzipped.value }),
-);
+export const sizeBreakdown = computed(() => {
+  const lines = sizeLines({ css: cssBytes.value, svg: rawBytes.value, script: scriptBytes.value, gz: gzipped.value });
+  const w = wheel.value;
+  if (wheelOn.value && w) lines.push(`Tile: ${w.type === 'image/webp' ? 'WebP' : 'PNG'} image, ${(w.bytes / 1024).toFixed(2)} KB`);
+  return lines;
+});
 export const footprint = computed(() => (exportGzipBytes.value === null ? null : formatFootprint(exportGzipBytes.value)));
 
 // Other formats: the canvas script and the paint worklet, a view on the current design.

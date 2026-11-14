@@ -14,7 +14,7 @@ const RENDERS = [
 ];
 // The page state comes in as props: importing state.ts here would make the bundler split the start chunks (about 1.2 KB more
 // start JavaScript on every page, measured), because this panel is loaded on demand.
-const props = defineProps<{ kind: string; swatches: readonly string[]; patchwork: boolean }>();
+const props = defineProps<{ kind: string; swatches: readonly string[]; patchwork: boolean; growing: boolean }>();
 const emit = defineEmits<{ recipe: [] }>();
 const on = computed(() => colorSym.on && !props.patchwork);
 const step = (d: number) => (colorSym.order = (colorSym.order + d + ORDERS) % ORDERS);
@@ -46,6 +46,7 @@ const step = (d: number) => (colorSym.order = (colorSym.order + d + ORDERS) % OR
       <label class="radio"><input id="cs-balance" v-model="colorSym.balance" type="checkbox"> Balance color areas</label>
       <UiSegmented :model-value="colorSym.render" label="Render" name="cs-render" :options="RENDERS" @update:model-value="colorSym.render = $event as ColorRender" />
       <p v-if="colorSym.render === 'wheel'" class="hint-text">An image tile: heavier than bands, shown in the size badge.</p>
+      <p v-if="colorSym.render === 'wheel'" role="status" aria-live="polite" class="hint-text">{{ growing ? 'Growing…' : '' }}</p>
       <ColorSymHowItsMade :group="kind" :waves="colorSym.waves" :detail="colorSym.detail" :balance="colorSym.balance" :render="colorSym.render" />
     </template>
   </div>

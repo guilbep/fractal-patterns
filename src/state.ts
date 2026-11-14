@@ -356,9 +356,46 @@ export const bandColors = computed(() =>
   orderedColors(palette.value?.colors ?? [roles.background, roles.pattern, fill.color, accent.value, roles.text], colorSym.order),
 );
 // null until the tile code is in: the caller draws the Lines tile for that frame.
-// ponytail: render 'wheel' draws bands too until the wheel renderer lands.
 const bandsTile = (seed: number): string | null =>
   farris.value?.bandsTile(params.kind, seed, params.size, tileHeight(params.size, aspect.value), bandColors.value, colorSym) ?? null;
+
+// The "Smooth wheel" image, grown in the shared heavy worker. The last one stays drawn while the next one grows.
+export const wheel = shallowRef<{ dataUrl: string; type: 'image/webp' | 'image/png'; bytes: number; seam: number } | null>(null);
+export const wheelStatus = ref<'' | 'growing'>('');
+export const wheelOn = computed(() => colorSymActive.value && colorSym.render === 'wheel');
+let heavyLoad: Promise<typeof import('@/heavy/client.ts')> | undefined;
+watch(
+  () =>
+    wheelOn.value
+      ? { group: params.kind, seed: params.seed, waves: colorSym.waves, detail: colorSym.detail, colors: [...bandColors.value] }
+      : null,
+  async (args) => {
+    if (!args) return;
+    const key = [args.group, args.seed, args.waves, args.detail, ...args.colors].join();
+    wheelStatus.value = 'growing';
+    try {
+      const { heavy } = await (heavyLoad ??= import('@/heavy/client.ts'));
+      wheel.value = await heavy.run('farrisWheel', args, { key, slot: 'wheel' });
+      wheelStatus.value = '';
+    } catch (err) {
+      // A newer request took the slot: it clears the status when it lands.
+      if ((err as Error).name !== 'AbortError') {
+        wheelStatus.value = '';
+        throw err;
+      }
+    }
+  },
+  { immediate: true, deep: true },
+);
+// The wheel at the tile size; a hex kind's square image is stretched to size x h, as the bands are.
+// ponytail: other seeds (previews) draw bands; growing a wheel per preview would flood the worker.
+const wheelTile = (seed: number): string | null => {
+  const w = wheel.value;
+  if (!wheelOn.value || !w || seed !== params.seed) return null;
+  const size = params.size;
+  const h = tileHeight(size, aspect.value);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${h}" width="${size}" height="${h}"><image href="${w.dataUrl}" width="${size}" height="${h}" preserveAspectRatio="none"/></svg>`;
+};
 
 // One pipeline for every source: base polylines, mirror, zoom, gap. The gap gives the final tile size.
 type Polys = readonly (readonly Pt[])[];
@@ -578,7 +615,7 @@ export const baseTileSize = computed(() =>
 // The tile for any seed with the current settings; a traced image gives the same tile for every seed.
 // `color` draws the strokes in another color (the second layer's own color).
 export function svgForSeed(seed: number, color = roles.pattern): string {
-  const bands = colorSymActive.value ? bandsTile(seed) : null;
+  const bands = colorSymActive.value ? (wheelTile(seed) ?? bandsTile(seed)) : null;
   if (bands !== null) return bands;
   if (variantsOn.value) return superSvg(seed, color);
   if (curveSvg.value !== null) return recolor(curveSvg.value, color);

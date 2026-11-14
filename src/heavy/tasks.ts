@@ -5,6 +5,8 @@ export const TASKS = {
     if (args.delayMs) await new Promise((r) => setTimeout(r, args.delayMs));
     return { text: args.text };
   },
+  farrisWheel: async (args: import('../patterns/farris-wheel-task.ts').WheelArgs) =>
+    (await import('../patterns/farris-wheel-task.ts')).farrisWheel(args),
 };
 
 export type TaskName = keyof typeof TASKS;

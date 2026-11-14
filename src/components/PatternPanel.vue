@@ -3,7 +3,7 @@ import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue';
 import { FAMILIES, FAMILY_LABELS, KINDS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH, tileAspect, tileHeight, type Kind } from '@/fractal.ts';
 import { SIZE_MAX, SIZE_MIN, SIZE_PRESETS, markedPreset } from '@/sizes.ts';
 import { LIB_TABS, kindsForTab, parseLibTab, tabForKind, type LibTab } from '@/library.ts';
-import { MAX_SEED, bandColors, chooseKind, aspect, tileSize, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, squareKind, usingImage, usingPatchwork, imageShuffles } from '@/state.ts';
+import { MAX_SEED, bandColors, chooseKind, aspect, tileSize, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, squareKind, usingImage, usingPatchwork, imageShuffles, wheelStatus } from '@/state.ts';
 import AccentShapes from '@/components/AccentShapes.vue';
 import '@/css/library.css';
 import '@/css/sizes.css';
@@ -113,7 +113,7 @@ const galleryVars = computed(() => ({ '--lib-bg': roles.background, '--lib-fg': 
       </div>
     </fieldset>
 
-    <ColorSymmetryPanel v-if="KIND_FAMILY[params.kind] === 'symmetry' && !usingImage" :kind="params.kind" :swatches="bandColors" :patchwork="usingPatchwork" @recipe="reseed" />
+    <ColorSymmetryPanel v-if="KIND_FAMILY[params.kind] === 'symmetry' && !usingImage" :kind="params.kind" :swatches="bandColors" :patchwork="usingPatchwork" :growing="wheelStatus === 'growing'" @recipe="reseed" />
 
     <div class="fields pattern-card">
       <fieldset class="size-presets" role="radiogroup" aria-label="Tile size, px">

@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import UiSwitch from '@/components/UiSwitch.vue';
+import { INTERLACE_DEFAULTS } from '@/share.ts';
 
 // The ranges are decodeInterlace's in share.ts. The page state comes in as props: importing state.ts here would split the start chunks (see RegionsControl.vue).
 // reason: interlaceOffReason in state.ts ('fill', or a region colour reason, said here for interlace); touch: no crossing.
-const props = defineProps<{ on: boolean; width: number; gap: number; odd: number; reason: string; touch: boolean }>();
+// auto: the ribbon width by density (autoWidth in interlace-tile.ts), used while the width is the default (no iw in the link).
+const props = defineProps<{ on: boolean; width: number; gap: number; odd: number; reason: string; touch: boolean; auto?: number }>();
+const isAuto = computed(() => props.width === INTERLACE_DEFAULTS.width && props.auto !== undefined);
 const emit = defineEmits<{ set: [value: { on?: boolean; width?: number; gap?: number }] }>();
 const said = computed(() =>
   props.reason === 'fill'
@@ -23,8 +26,8 @@ const said = computed(() =>
     <p v-if="said" class="hint-text">{{ said }}</p>
     <template v-else-if="on">
       <div class="field">
-        <label for="il-width">Ribbon width <output for="il-width">{{ width }} px</output></label>
-        <input id="il-width" :value="width" type="range" min="2" max="16" step="0.5" @input="emit('set', { width: +($event.target as HTMLInputElement).value })">
+        <label for="il-width">Ribbon width <output for="il-width">{{ isAuto ? `auto · ${auto} px` : `${width} px` }}</output></label>
+        <input id="il-width" :value="isAuto ? auto : width" type="range" min="2" max="16" step="0.5" @input="emit('set', { width: +($event.target as HTMLInputElement).value })">
       </div>
       <div class="field">
         <label for="il-gap">Gap <output for="il-gap">{{ gap }} px</output></label>

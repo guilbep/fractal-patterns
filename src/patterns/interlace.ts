@@ -321,25 +321,86 @@ function strandPath(st: Strand, rawCuts: [number, number][]): string {
 
 export interface RibbonStyle {
   width: number;
-  gap: number;
+  gap: number; // space left on each side of the over ribbon, outside its outline
   size: number;
   fill: string;
   stroke: string;
 }
 
-// Two strokes per strand: outline (wide) then fill (narrow). 3x3 copies via <use> make the edges seamless.
-export function ribbonsSvg(list: Strand[], cs: Crossing[], overUnder: OverUnder, o: RibbonStyle): string {
+// The outline thickness of a ribbon `width` wide.
+export const outlineOf = (width: number) => Math.max(0.6, 0.18 * width);
+
+const strandLength = (st: Strand) =>
+  st.pieces.reduce((a, p) => a + p.slice(1).reduce((b, q, i) => b + Math.hypot(q[0] - p[i]![0], q[1] - p[i]![1]), 0), 0);
+
+// Unit direction through arc length s: the mean of the segments just before and just after (a crossing on a vertex).
+function tangentAt(st: Strand, s: number, total: number): Pt {
+  const d = 1e-7 * total;
+  let x = 0;
+  let y = 0;
+  for (const q of [s - d, s + d]) {
+    const t = st.closed ? ((q % total) + total) % total : Math.min(Math.max(q, 0), total);
+    let acc = 0;
+    let found = false;
+    for (const p of st.pieces) {
+      for (let i = 1; i < p.length && !found; i++) {
+        const len = Math.hypot(p[i]![0] - p[i - 1]![0], p[i]![1] - p[i - 1]![1]);
+        if (t <= acc + len) {
+          x += (p[i]![0] - p[i - 1]![0]) / len;
+          y += (p[i]![1] - p[i - 1]![1]) / len;
+          found = true;
+        }
+        acc += len;
+      }
+      if (found) break;
+    }
+  }
+  const l = Math.hypot(x, y) || 1;
+  return [x / l, y / l];
+}
+
+// The arc-length intervals cut from each strand: at each under-passage, enough to clear the over ribbon,
+// clear / sin(crossing angle) on each side, but at most 45 % of the way to the strand's previous or next crossing,
+// so two cuts never meet. clear = over half-width + outline + gap.
+export function ribbonCuts(list: Strand[], cs: Crossing[], overUnder: OverUnder, clear: number): [number, number][][] {
+  const totals = list.map(strandLength);
+  const at: number[][] = list.map(() => []);
+  for (const c of cs) {
+    at[c.a.strand]!.push(c.a.s);
+    at[c.b.strand]!.push(c.b.s);
+  }
+  // Distinct passages along each strand (a shared vertex gives the same s more than once).
+  const stops = at.map((l) => l.sort((x, y) => x - y).filter((v, i, a) => !i || v - a[i - 1]! > 1e-6));
   const cuts: [number, number][][] = list.map(() => []);
   for (const c of cs) {
-    const under = overUnder.get(c.id) === 'a' ? c.b : c.a;
-    cuts[under.strand]!.push([under.s - o.gap, under.s + o.gap]);
+    const [under, over] = overUnder.get(c.id) === 'a' ? [c.b, c.a] : [c.a, c.b];
+    const st = list[under.strand]!;
+    const T = totals[under.strand]!;
+    const [ux, uy] = tangentAt(st, under.s, T);
+    const [ox, oy] = tangentAt(list[over.strand]!, over.s, totals[over.strand]!);
+    const h = clear / Math.max(0.1, Math.abs(ux * oy - uy * ox));
+    const l = stops[under.strand]!;
+    const k = l.findIndex((v) => Math.abs(v - under.s) <= 1e-6);
+    const prev = k > 0 ? l[k - 1]! : st.closed && l.length > 1 ? l.at(-1)! - T : -Infinity;
+    const next = k < l.length - 1 ? l[k + 1]! : st.closed && l.length > 1 ? l[0]! + T : Infinity;
+    cuts[under.strand]!.push([under.s - Math.min(h, 0.45 * (under.s - prev)), under.s + Math.min(h, 0.45 * (next - under.s))]);
   }
-  const inner = Math.max(0, o.width - 2 * Math.max(1, o.width / 6));
+  return cuts;
+}
+
+// Two strokes per strand: outline (wide) then fill (narrow). The fill stops short of an open strand's ends by the
+// outline, so the outline closes across them. 3x3 copies via <use> make the edges seamless.
+export function ribbonsSvg(list: Strand[], cs: Crossing[], overUnder: OverUnder, o: RibbonStyle): string {
+  const ol = outlineOf(o.width);
+  const cuts = ribbonCuts(list, cs, overUnder, o.width / 2 + ol + o.gap);
+  const inner = Math.max(0, o.width - 2 * ol);
   const body = list
     .map((st, i) => {
       const d = strandPath(st, cuts[i]!);
       if (!d) return '';
-      return `<path d="${d}" stroke="${o.stroke}" stroke-width="${r1(o.width)}"/><path d="${d}" stroke="${o.fill}" stroke-width="${r1(inner)}"/>`;
+      const T = strandLength(st);
+      const fd = st.closed ? d : strandPath(st, [...cuts[i]!, [-1, ol], [T - ol, T + 1]]);
+      return `<path d="${d}" stroke="${o.stroke}" stroke-width="${r1(o.width)}"/><path d="${fd}" stroke="${o.fill}" stroke-width="${r1(inner)}"/>`;
     })
     .join('');
   const uses: string[] = [];

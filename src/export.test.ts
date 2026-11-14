@@ -803,3 +803,35 @@ test('grain: one more background image on the element, its own size, under the p
   assert.deepEqual(beforeBlock(out), beforeBlock(css({ drift: 'xy', speed: 10 })));
   assert.ok(!css().includes('fp-grain'));
 });
+
+test('colors: role colors always, fill/accent/grain only when given, the palette in order with its name', () => {
+  const pal = { name: 'Lagoon */', colors: ['#0A1B2C', '#112233', '#445566', '#778899', '#aabbcc'] };
+  const out = exportCss({ ...base, colors: { pattern: '#ABCDEF', opacity: 0.6, palette: pal } });
+  const lines = out.split('\n');
+  assert.ok(lines.includes('  /* Colors of this design. */'));
+  assert.ok(lines.includes('  --fp-background: #f5f5f5;'));
+  assert.ok(lines.includes('  --fp-pattern: #abcdef;'));
+  assert.ok(lines.includes('  --fp-pattern-opacity: 0.6;'));
+  assert.ok(lines.includes('  --fp-text: #12232e;'));
+  assert.ok(lines.includes('  /* Palette: Lagoon * /. */'));
+  const p = pal.colors.map((c, k) => lines.indexOf(`  --fp-palette-${k + 1}: ${c.toLowerCase()};`));
+  assert.ok(
+    p.every((n, k) => n > 0 && (k === 0 || n === p[k - 1]! + 1)),
+    'five palette lines in order',
+  );
+  // Short lines sit before the images, in the same block; --fp-bg and --fp-ink stay.
+  assert.ok(lines.indexOf('  --fp-ink: #12232e;') < lines.indexOf('  /* Colors of this design. */'));
+  assert.ok(p[4]! < lines.findIndex((l) => l.startsWith('  --fp-tile:')));
+  for (const n of ['fill', 'accent-color', 'grain-color']) assert.equal(count(out, `--fp-${n}:`), 0);
+
+  const custom = exportCss({ ...base, colors: { pattern: '#abcdef', opacity: 1, fill: '#C3EAEC', accent: '#ff0000', grain: '#000000' } });
+  assert.equal(count(custom, '--fp-palette-'), 0);
+  assert.equal(count(custom, 'Palette:'), 0);
+  assert.equal(count(custom, '--fp-pattern-opacity'), 0);
+  assert.ok(custom.includes('  --fp-fill: #c3eaec;'));
+  assert.ok(custom.includes('  --fp-accent-color: #ff0000;'));
+  assert.ok(custom.includes('  --fp-grain-color: #000000;'));
+  for (const n of ['background', 'pattern', 'text']) assert.equal(count(custom, `--fp-${n}:`), 1);
+  // Without colors the export is as before.
+  assert.equal(count(exportCss(base), 'Colors of this design'), 0);
+});

@@ -5,11 +5,13 @@ import { formatFootprint, gzipSize, sizeLines } from '@/co2.ts';
 import { exportCss, exportJs, exportParallax, type ExportInput } from '@/export.ts';
 import { KIND_LABELS, extraPath, tileHeight } from '@/fractal.ts';
 import { altUnavailable } from '@/alt-export.ts';
-import { GRAIN_TILE } from '@/grain.ts';
+import { GRAIN_TILE, grainColor } from '@/grain.ts';
 import { traceName } from '@/detectors.ts';
 import { scaledSecondSize } from '@/layers.ts';
 import {
+  accent,
   accentOut,
+  accentShown,
   accentVaried,
   aspect,
   baseSvg,
@@ -19,12 +21,17 @@ import {
   change,
   changeTo,
   fade,
+  fill,
+  fillAvailable,
+  grain,
   grainOut,
   layer2,
   layer2Color,
   layer2Own,
   layer2Settings,
   motion,
+  opacity,
+  palette,
   params,
   parallax,
   patch,
@@ -70,6 +77,15 @@ const exportInput = computed<ExportInput>(() => ({
   ...(grainOut.value ? { grain: { svg: grainOut.value, tileSize: GRAIN_TILE } } : {}),
   background: roles.background,
   text: roles.text,
+  colors: {
+    pattern: roles.pattern,
+    opacity: opacity.value,
+    // The same test as the tile's fillOn: a fill that cannot draw (variants, curves, a rectangle) is not in the CSS.
+    ...(fill.mode !== 'none' && fillAvailable.value ? { fill: fill.color } : {}),
+    ...(accentShown.value ? { accent: accent.value } : {}),
+    ...(grain.on ? { grain: grainColor(grain.tone) } : {}),
+    ...(palette.value ? { palette: palette.value } : {}),
+  },
   plate: { mode: plateMode.value, opacity: plateOpacity.value, radius: plateRadius.value, blur: plateBlur.value },
   motion,
   label: exportLabel.value,

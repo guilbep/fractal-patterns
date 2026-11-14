@@ -10,7 +10,7 @@ import { KIND_LABELS, tileHeight } from '@/fractal.ts';
 import UseIt from '@/components/UseIt.vue';
 import { DESTINATIONS, takeUse, type Destination } from '@/use-it.ts';
 import { SAMPLE_LABELS } from '@/samples.ts';
-import { activeSample, contrast, palette, layer2, variantsOn, fileName, motionPaused, params, patch, roles, svg, usingPatchwork, plateMode, plateStyle, randomPattern, ratioShort, ratioText, reseed, reset, svgHref, trace, traced, usingImage, imageShuffles, tileSize, baseTileSize, aspect, variantOptions, accentEditing } from '@/state.ts';
+import { activeSample, contrast, grain, palette, layer2, variantsOn, fileName, motionPaused, params, patch, roles, svg, usingPatchwork, plateMode, plateStyle, randomPattern, ratioShort, ratioText, reseed, reset, svgHref, trace, traced, usingImage, imageShuffles, tileSize, baseTileSize, aspect, variantOptions, accentEditing } from '@/state.ts';
 import { exportGzipBytes, exportText, gzipped, sizeBreakdown } from '@/state-export.ts';
 import SizeBadge from '@/components/SizeBadge.vue';
 import AccentEditor from '@/components/AccentEditor.vue';
@@ -305,7 +305,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
     <div class="controls">
       <div ref="tabBar" class="tabs" role="tablist" aria-label="Controls" @keydown="onTabKey">
-        <button v-for="t in TABS" :id="`tab-${t.id}`" :key="t.id" type="button" role="tab" class="tab" :aria-selected="tab === t.id" :aria-controls="`panel-${t.id}`" :tabindex="tab === t.id ? 0 : -1" :aria-haspopup="phone && t.id === 'use' ? 'dialog' : undefined" @click="selectTab(t.id, $event)">{{ t.label }}<span v-if="t.id === 'repetition' && (variantsOn || layer2)" class="tab-on"><span aria-hidden="true"></span><span class="visually-hidden">on</span></span></button>
+        <button v-for="t in TABS" :id="`tab-${t.id}`" :key="t.id" type="button" role="tab" class="tab" :aria-selected="tab === t.id" :aria-controls="`panel-${t.id}`" :tabindex="tab === t.id ? 0 : -1" :aria-haspopup="phone && t.id === 'use' ? 'dialog' : undefined" @click="selectTab(t.id, $event)">{{ t.label }}<span v-if="t.id === 'repetition' && (variantsOn || layer2 || grain.on)" class="tab-on"><span aria-hidden="true"></span><span class="visually-hidden">on</span></span></button>
       </div>
       <div v-show="tab === 'pattern'" id="panel-pattern" class="tabpanel" role="tabpanel" aria-labelledby="tab-pattern">
         <PatternPanel />

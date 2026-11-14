@@ -34,6 +34,33 @@ export interface ExportInput {
   // (::before and ::after have z-index -1 in the isolated element). It does not move or turn with the pattern, so a
   // drift never makes it jump, and its own size keeps the two repeats apart.
   readonly grain?: { readonly svg: string; readonly tileSize: number };
+  // The design's colors as custom properties a website can reuse (buttons, headings). Background and text are the
+  // fields above. Fill, accent and grain only when that layer shows; the palette only when one is selected.
+  readonly colors?: {
+    readonly pattern: string;
+    readonly opacity?: number; // the pattern's opacity, kept out of the color
+    readonly fill?: string;
+    readonly accent?: string;
+    readonly grain?: string;
+    readonly palette?: { readonly name: string; readonly colors: readonly string[] };
+  };
+}
+
+function colorLines(i: ExportInput): string[] {
+  const c = i.colors;
+  if (!c) return [];
+  const v = (name: string, hex: string | undefined) => (hex === undefined ? [] : [`  --fp-${name}: ${hex.toLowerCase()};`]);
+  return [
+    '  /* Colors of this design. */',
+    ...v('background', i.background),
+    ...v('pattern', c.pattern),
+    ...(c.opacity !== undefined && c.opacity !== 1 ? [`  --fp-pattern-opacity: ${c.opacity};`] : []),
+    ...v('text', i.text),
+    ...v('fill', c.fill),
+    ...v('accent-color', c.accent),
+    ...v('grain-color', c.grain),
+    ...(c.palette ? [`  /* Palette: ${safe(c.palette.name)}. */`, ...c.palette.colors.flatMap((h, k) => v(`palette-${k + 1}`, h))] : []),
+  ];
 }
 
 // The first layer's lines with the accent tile listed on top: two background images, each with its own size.
@@ -79,6 +106,7 @@ export function exportCss(i: ExportInput): string {
     '.fp-pattern {',
     `  --fp-bg: ${i.background};`,
     `  --fp-ink: ${i.text};`,
+    ...colorLines(i),
     `  --fp-tile: url("${svgToDataUri(i.svg)}");`,
     `  --fp-size: ${size}px;`,
     ...(rect ? [`  --fp-size-y: ${scaledSize(i.tileHeight!, i.motion)}px;`] : []),

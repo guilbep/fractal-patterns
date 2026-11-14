@@ -8,6 +8,11 @@ import { previewOptions } from '@/repetition-previews.ts';
 import { imageOptions, optionsFor } from '@/repetition.ts';
 import { canVary, imageSuperTileSvg, shiftsFor, superTileSvg } from '@/supertile.ts';
 import {
+  accentOut,
+  accentVaried,
+  accentVary,
+  baseCanVary,
+  baseTileSize,
   curvesOn,
   change,
   changeTo,
@@ -30,10 +35,13 @@ import {
   variantOptions,
   variants,
   variantsOn,
+  varyApplies,
+  type VaryApplies,
 } from '@/state.ts';
 import { parallaxDemoCss } from '@/state-export.ts';
 import RoleInput from '@/components/RoleInput.vue';
 import UiSection from '@/components/UiSection.vue';
+import UiSegmented from '@/components/UiSegmented.vue';
 import { STRENGTHS } from '@/variants.ts';
 import type { VariantOptions } from '@/variants.ts';
 
@@ -73,14 +81,27 @@ watch(
 );
 const panelVars = computed(() => ({ '--rp-fg': roles.pattern, '--rp-bg': roles.background }));
 
-const size2 = computed(() => scaledSecondSize(tileSize.value, layer2Settings.scale));
-const repeat = computed(() => repeatDistance(tileSize.value, size2.value));
+// The second layer copies the base layer alone.
+const size2 = computed(() => scaledSecondSize(baseTileSize.value, layer2Settings.scale));
+const repeat = computed(() => repeatDistance(baseTileSize.value, size2.value));
+// The accent layer shows, so Reduce repetition can reach it even where the base cannot vary.
+const accentCan = computed(() => accentOut.value !== null);
+const appliesOptions = computed(() => [
+  { value: 'base', label: 'Base', disabled: !baseCanVary.value },
+  { value: 'accent', label: 'Accent', disabled: !accentCan.value },
+  { value: 'both', label: 'Both', disabled: !baseCanVary.value },
+]);
 const variantsSummary = computed(() => {
-  if (!possible.value) return 'not available';
-  if (!variantsOn.value) return 'off';
+  if (!possible.value && !accentCan.value) return 'not available';
+  if (!variants.value) return 'off';
   const { cells, count } = variantOptions;
-  const strength = STRENGTHS.find((s) => s.cells === cells && s.count === count)?.label.split(':')[0];
-  return ['on', strength, `${cells} by ${cells}`].filter(Boolean).join(' · ');
+  const strength = variantsOn.value && STRENGTHS.find((s) => s.cells === cells && s.count === count)?.label.split(':')[0];
+  const n = variantsOn.value ? cells : accentVary.cells;
+  return [accentCan.value ? varyApplies.value : 'on', strength, `${n} by ${n}`].filter(Boolean).join(' · ');
+});
+const scaleRange = computed(() => {
+  const s = Math.round(accentVary.scale * 0.4);
+  return s === 0 ? 'off' : `${100 - s} to ${100 + s} %`;
 });
 const moreSummary = computed(
   () =>
@@ -94,19 +115,24 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
 <template>
   <UiSection title="Reduce repetition" heading-id="repetition-h" :summary="variantsSummary" open>
     <p v-if="usingImage && curvesOn" id="variants-hint" class="hint-text">Turn off Smooth curves to reduce repetition on an image.</p>
-    <p v-else-if="!usingImage && !canVary(params.kind)" id="variants-hint" class="hint-text">This pattern repeats by design, so variants are not available. Second layer and Soft fade below still work.</p>
+    <p v-else-if="!usingImage && !canVary(params.kind) && !accentCan" id="variants-hint" class="hint-text">This pattern repeats by design, so variants are not available. Second layer and Soft fade below still work.</p>
     <template v-else>
       <label class="rep-switch"><input id="variants" v-model="variants" type="checkbox" role="switch" aria-describedby="variants-hint"> Reduce repetition</label>
       <p id="variants-hint" class="hint-text rep-state">
-        <template v-if="!variantsOn && usingImage">Draws the picture into a grid of cells, each turned, shifted or weighted, so the same tile comes back less often. The edges of a photo do not match, so seams can show.</template>
-        <template v-else-if="!variantsOn">Draws several seeded variants into one larger tile, so the same picture comes back less often.</template>
-        <template v-else>
+        <template v-if="!variantsOn && !accentVaried && usingImage">Draws the picture into a grid of cells, each turned, shifted or weighted, so the same tile comes back less often. The edges of a photo do not match, so seams can show.</template>
+        <template v-else-if="!variantsOn && !accentVaried">Draws several seeded variants into one larger tile, so the same picture comes back less often.</template>
+        <template v-else-if="variantsOn">
           <span id="v-period">The same picture comes back every {{ tileSize.toLocaleString('en') }} px.</span>
           <template v-if="usingImage && imageVariants">{{ ' ' }}{{ imageVariants.length }} {{ imageVariants.length === 1 ? 'picture' : 'pictures' }}.</template>
           <template v-if="!usingImage && hasCompat(params.kind)"> This pattern uses its fixed layout in this mode.</template>
           <template v-if="variantBytes">{{ ' ' }}{{ variantBytes.svg.toLocaleString('en') }} bytes against {{ variantBytes.plain.toLocaleString('en') }} for one tile.</template>
         </template>
       </p>
+      <template v-if="!usingImage">
+        <UiSegmented :model-value="varyApplies" class="v-applies" label="Applies to" name="v-applies" :options="appliesOptions" @update:model-value="varyApplies = $event as VaryApplies" />
+        <p v-if="!baseCanVary" id="v-applies-base" class="hint-text">This pattern must meet at every tile edge, so only the accent shapes can vary.</p>
+        <p v-if="!accentCan" id="v-applies-accent" class="hint-text">Turn on Accent shapes in the Pattern tab first.</p>
+      </template>
       <p v-if="usingImage && !spacing.mirror" id="v-seamless" class="hint-text">
         The edges of a traced picture do not meet. <button type="button" class="btn" @click="spacing.mirror = true">Turn on Seamless edges</button>
       </p>
@@ -176,6 +202,37 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
       </div>
       <div class="out-actions">
         <button type="button" class="btn" @click="resetVariants">Reset variants</button>
+      </div>
+    </div>
+    <div v-if="accentVaried && accentOut" class="variants-group accent-vary" role="group" aria-labelledby="av-h">
+      <h3 id="av-h">What changes from tile to tile</h3>
+      <div class="fields">
+        <div class="field">
+          <label for="av-move">Move <output for="av-move">{{ accentVary.move ? `up to ${accentVary.move} % of its width` : 'off' }}</output></label>
+          <input id="av-move" v-model.number="accentVary.move" type="range" min="0" max="100" step="1">
+        </div>
+        <div class="field">
+          <label for="av-scale">Size <output for="av-scale">{{ scaleRange }}</output></label>
+          <input id="av-scale" v-model.number="accentVary.scale" type="range" min="0" max="100" step="1">
+        </div>
+        <div class="field">
+          <label for="av-drop">Drop out <output for="av-drop">{{ accentVary.drop }} %</output></label>
+          <input id="av-drop" v-model.number="accentVary.drop" type="range" min="0" max="60" step="1">
+        </div>
+        <div class="field">
+          <label for="av-turn">Turn <output for="av-turn">{{ accentVary.turn ? `up to ±${Math.round(accentVary.turn * 1.8)}°` : 'off' }}</output></label>
+          <input id="av-turn" v-model.number="accentVary.turn" type="range" min="0" max="100" step="1">
+        </div>
+      </div>
+      <p id="av-period" class="hint-text">
+        The base tile stays {{ baseTileSize.toLocaleString('en') }} px. The accent shapes repeat only every {{ accentVary.cells }} by {{ accentVary.cells }} tiles,
+        {{ accentOut.width.toLocaleString('en') }} px.
+      </p>
+      <div class="field">
+        <label for="av-cells">Super tile</label>
+        <select id="av-cells" v-model.number="accentVary.cells">
+          <option v-for="n in [2, 3, 4, 5, 6, 7, 8]" :key="n" :value="n">{{ n }} by {{ n }} tiles</option>
+        </select>
       </div>
     </div>
   </UiSection>

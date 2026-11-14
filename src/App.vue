@@ -10,7 +10,7 @@ import { KIND_LABELS, tileHeight } from '@/fractal.ts';
 import UseIt from '@/components/UseIt.vue';
 import { DESTINATIONS, takeUse, type Destination } from '@/use-it.ts';
 import { SAMPLE_LABELS } from '@/samples.ts';
-import { activeSample, contrast, palette, layer2, variantsOn, fileName, motionPaused, params, patch, roles, svg, usingPatchwork, plateMode, plateStyle, randomPattern, ratioShort, ratioText, reseed, reset, svgHref, trace, traced, usingImage, imageShuffles, tileSize, aspect, variantOptions } from '@/state.ts';
+import { activeSample, contrast, palette, layer2, variantsOn, fileName, motionPaused, params, patch, roles, svg, usingPatchwork, plateMode, plateStyle, randomPattern, ratioShort, ratioText, reseed, reset, svgHref, trace, traced, usingImage, imageShuffles, tileSize, baseTileSize, aspect, variantOptions } from '@/state.ts';
 import { exportGzipBytes, exportText, gzipped, sizeBreakdown } from '@/state-export.ts';
 import SizeBadge from '@/components/SizeBadge.vue';
 import ToolIcon from '@/components/ToolIcon.vue';
@@ -50,9 +50,9 @@ const captionShort = computed(() => {
   const what = usingImage.value ? 'Traced image' : usingPatchwork.value ? `Patchwork ${patch.cells}×${patch.cells}` : KIND_LABELS[params.kind];
   return usingImage.value ? `${what} · ${params.size} px` : `${what} · ${params.size} px · seed ${params.seed}`;
 });
-// The one-tile marker: one tile of the pattern layer; with variants, one cell of the super tile.
+// The one-tile marker: one tile of the base layer (not the composed file); with variants, one cell of its super tile.
 const tileVars = computed(() => {
-  const w = variantsOn.value ? tileSize.value / variantOptions.cells : tileSize.value;
+  const w = variantsOn.value ? baseTileSize.value / variantOptions.cells : baseTileSize.value;
   return { '--tile-w': `${w}px`, '--tile-h': `${tileHeight(w, aspect.value)}px` };
 });
 

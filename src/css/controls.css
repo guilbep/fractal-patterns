@@ -746,3 +746,76 @@
 .qr-dialog .btn {
   justify-content: center;
 }
+
+/* Accent shapes (Pattern tab): the shape picker as a 4-column grid of icon buttons, 44 px targets. */
+.accent-shapes .fold-body {
+  display: grid;
+  gap: var(--s3);
+}
+.accent-shape-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.accent-shape-grid legend {
+  grid-column: 1 / -1;
+  margin-bottom: var(--s1);
+  padding: 0;
+}
+.accent-shape {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s1);
+  min-width: 0;
+  min-height: 64px;
+  padding: var(--s1);
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+.accent-shape[aria-pressed='true'] {
+  border: 2px solid var(--accent);
+  font-weight: 600;
+}
+.accent-shape:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.accent-shape:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.accent-snap .ui-segmented-option {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+}
+.accent-vary {
+  display: grid;
+  gap: var(--s3);
+  margin-top: var(--s3);
+}
+.accent-vary h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.accent-vary p {
+  margin: 0;
+}
+/* Repetition › Applies to: the board's 44 px options, with room above and below. */
+.v-applies {
+  margin-block: var(--s3) var(--s1);
+}
+.v-applies .ui-segmented-option {
+  min-height: 44px;
+  padding-inline: 1.125rem;
+}

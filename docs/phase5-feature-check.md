@@ -518,3 +518,14 @@ To make sure of these, a person must look in a browser.
 - The Accent picker and "On the accent" with a screen reader.
 - Sprigs and Truchet exports (CSS, script, worklet, PNG) in Safari and Firefox.
 - The first visit in dark mode.
+
+## Phase 8: accent layer
+
+| Feature | Status | Where now |
+| --- | --- | --- |
+| Accent shapes (Pattern tab) | new: a folded section after Patchwork; switch, Shape (Kind's own only for Truchet and Sprigs, then Dot, Ring, Square, Triangle, Diamond, Drop, Leaf), Size, How many, Where, Snap 4 / 8 / 12 / 16 for On a grid, links to Colors and Repetition; controls stay visible and disabled while the switch is off | `src/components/AccentShapes.vue`, `src/components/PatternPanel.vue` |
+| Reduce repetition (Repetition tab) | changed: shown when the base can vary or accent shapes show (now also for Truchet); new "Applies to" Base / Accent / Both with the reason when an option is disabled | `src/components/RepetitionPanel.vue` |
+| Accent variation | new: Move, Size, Drop out, Turn, the super tile line and a Super tile select 2 to 8, shown when the variation reaches the accent | `src/components/RepetitionPanel.vue` |
+| One-tile marker | changed: outlines one base tile, not the composed file (96 px on Truchet with the accent varied over 576 px) | `src/App.vue`, `e2e/accent-controls.spec.ts` |
+| Second layer size | changed: from the base tile, not the composed file | `src/components/RepetitionPanel.vue` |
+| Link keys `al`, `av` | kept as is: the controls write them through the merged state | `src/share.ts` |

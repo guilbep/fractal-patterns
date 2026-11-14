@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-// No current kind marks accent shapes: the Accent role stays hidden, and a palette pick leaves `ac` out of the link.
+// Hex marks no accent shapes (Truchet and Sprigs do): the Accent role stays hidden, and a palette pick leaves `ac` out of the link.
 test('Accent: hidden for a kind without accent shapes, and no ac key after a palette pick', async ({ page }) => {
   await page.goto('/index.html#k=hex&s=1');
   await page.getByRole('tab', { name: /^Colors/ }).click();

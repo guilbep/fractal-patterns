@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAX_DEPTH, generate, geometry } from '../fractal.ts';
+import { MAX_DEPTH, accentGeometry, generate, geometry, hasAccent } from '../fractal.ts';
 import { isClosed } from '../fills.ts';
 
 const S = 120;
@@ -12,9 +12,21 @@ const on = (v: number, m: number, half = false) => {
   return near(q, Math.round(q));
 };
 
-test('truchet depth 4: 16 closed dots and 32 arcs', () => {
+test('truchet depth 4: 32 arcs, and 16 closed dots in the accent hook', () => {
   const g = geo(1, 4);
-  assert.equal(g.filter(isClosed).length, 16);
+  assert.equal(g.filter(isClosed).length, 0);
+  assert.ok(hasAccent('truchet'));
+  const dots = accentGeometry({ kind: 'truchet', seed: 1, depth: 4, size: S });
+  assert.equal(dots.length, 16);
+  assert.ok(dots.every(isClosed));
+  // Each dot centred on a cell corner of the offset grid, radius 15 % of a cell (the design board: 3.5 on 24).
+  const c = S / 4;
+  for (const d of dots) {
+    const cx = d.slice(0, 12).reduce((a, p) => a + p[0], 0) / 12;
+    const cy = d.slice(0, 12).reduce((a, p) => a + p[1], 0) / 12;
+    assert.ok(on(cx - c / 5, c) && on(cy - c / 5, c), `(${cx}, ${cy})`);
+    assert.ok(near(Math.hypot(d[0]![0] - cx, d[0]![1] - cy), 0.15 * c));
+  }
   // The grid is offset by a fifth of a cell, so wrap() splits an arc at each tile edge crossing: one more
   // piece per crossing, and each crossing leaves two piece ends on the tile edge (one on each side).
   const open = g.filter((p) => !isClosed(p));
@@ -68,6 +80,9 @@ test('truchet tiles with no seam', () => {
 test('truchet is deterministic and seeded', () => {
   assert.deepEqual(geo(7, 4), geo(7, 4));
   assert.notDeepEqual(geo(1, 4), geo(2, 4));
+  // The dots take no draws: the same for every seed.
+  const acc = (seed: number) => accentGeometry({ kind: 'truchet', seed, depth: 4, size: S });
+  assert.deepEqual(acc(1), acc(2));
 });
 
 test('truchet generates an svg', () => {

@@ -6,7 +6,7 @@ const kindOf = (hash: string) => new URLSearchParams(hash.slice(1)).get('k') ?? 
 test('first visit shows Truchet, Reset returns to Tree, an old link without k is a Tree', async ({ page }) => {
   await page.goto('/index.html');
   await expect.poll(() => page.evaluate(() => location.hash)).toContain('k=truchet');
-  await expect(page.getByText(/^Truchet · 256 px/)).toBeVisible();
+  await expect(page.getByText(/^Truchet · 96 px/)).toBeVisible();
 
   await page.getByRole('button', { name: 'Reset', exact: true }).first().click();
   await expect.poll(async () => kindOf(await page.evaluate(() => location.hash))).toBe('tree');

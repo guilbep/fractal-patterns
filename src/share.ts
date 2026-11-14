@@ -340,6 +340,7 @@ export function sameDesign(a: Design, b: Design): boolean {
 
 // The design a first visit shows: the address has no design yet. Chosen by the owner. It is an ordinary link string,
 // so it goes through the same decoding as a shared link, and Reset still returns to the plain defaults.
-// Phase 6: Truchet in the Herbarium palette (palettes.ts), the corner dots filled with its orange accent.
+// Phase 6: the design board (Desktop-Patterns): Truchet, 96 px tile of 4 x 4 cells, 5 px green curves, the corner
+// dots in the default orange accent (no `ac`), the heading on a cream plate (0.88, radius 10).
 // Never move this into DESIGN_DEFAULTS: links leave out default values, so old Tree links carry no `k`.
-export const WELCOME = 'k=truchet&s=2692185587&d=6&z=256&w=3&bg=f1f9f3&fg=5ea478&tx=112418&o=1&fi=c_ce4700_1';
+export const WELCOME = 'k=truchet&s=2692185587&d=4&z=96&w=5&bg=f4e9d8&fg=2f6f62&tx=1e2747&o=1&pm=plate&po=0.88&pr=10';

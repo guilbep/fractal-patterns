@@ -479,14 +479,14 @@ Line numbers are for commit `86372c4`.
 | Feature | Status | Where now |
 | --- | --- | --- |
 | Pattern library tabs and counts | changed: Line art 4 → 5, Themes 29 → 30, All 78 → 80; README table and count follow | `src/fractal.ts:180,254`, `README.md:63-71` |
-| Truchet | new: Line art kind; depth = cells per tile edge (1 to 10); two quarter arcs per cell, turned by the seed; a small closed dot (radius 8 % of a cell) on every cell corner, colored by Fill | `src/patterns/lineart.ts:142-185`, `src/patterns/truchet.test.ts` |
+| Truchet | new: Line art kind; depth = cells per tile edge (1 to 10); two quarter arcs per cell, turned by the seed; a closed dot (radius 15 % of a cell, as on the board) on every cell corner, an accent shape: filled in the Accent color, not stroked | `src/patterns/lineart.ts:142-195`, `src/fractal.ts:180`, `src/patterns/truchet.test.ts` |
 | Sprigs | new: Themes kind, maxDepth 3; leaves are closed shapes (Fill), berries are accent shapes | `src/patterns/themes-sprigs.ts`, `src/fractal.ts:254` |
-| Accent color role | new: picker, hex and palette chips, after Fill, shown only for a kind with accent shapes (today only Sprigs) | `src/components/ColorPanel.vue:96`, `src/components/RoleInput.vue` |
+| Accent color role | new: picker, hex and palette chips, after Fill, shown only for a kind with accent shapes (Truchet and Sprigs) | `src/components/ColorPanel.vue:96`, `src/components/RoleInput.vue` |
 | Contrast "On the accent" | new: a surface in the worst case, in WCAG and APCA lists, shown only when the kind has accent shapes | `src/components/ColorPanel.vue:133,191`, `src/pairing.ts` |
 | Link key `ac` | new: written only for a kind with accent shapes and only when it differs from the default `e07a3f`; last key, so older links stay the same | `src/share.ts:130`, `src/state-share.ts:66-67,97` |
-| Fill (`fi`) | kept as is; it also colors the Truchet dots and the Sprigs leaves | `src/fills.ts` |
+| Fill (`fi`) | kept as is; it also colors the Sprigs leaves (the Truchet dots are accent shapes, so Fill does not reach them) | `src/fills.ts` |
 | Export: canvas script and paint worklet | changed: they now draw the fill and accent layers (an older bug: before phase 6 they drew only the strokes) | `src/state-export.ts:127`, `src/fills.ts` |
-| First visit design (`WELCOME`) | changed: Truchet, Herbarium colors, corner dots filled orange; the old first visit was a Tree with Reduce repetition and fade | `src/share.ts:343-345` |
+| First visit design (`WELCOME`) | changed: Truchet as on the design board (cream, dark green, solid orange accent dots, heading on a plate); the old first visit was a Tree with Reduce repetition and fade | `src/share.ts:343-346` |
 | Defaults (`DESIGN_DEFAULTS`) and old links | kept as is: kind Tree; a link without `k` still opens a Tree (unit and e2e test) | `src/share.ts:53`, `src/share.test.ts`, `e2e/welcome.spec.ts` |
 | Reset | kept as is: Tree, Lagoon, the defaults (e2e test added) | `src/state.ts:689`, `e2e/welcome.spec.ts` |
 | Palettes | changed: 25 (17 light, 8 dark); new "Herbarium", green base hue 155 with the warm accent | `src/palettes.ts:101` |
@@ -500,14 +500,13 @@ None found.
 
 ## Points for the owner, phase 6
 
-- The first visit is `k=truchet&s=2692185587&d=6&z=256&w=3&bg=f1f9f3&fg=5ea478&tx=112418&o=1&fi=c_ce4700_1`. Text contrast 11.00:1 (AA).
+- The first visit is `k=truchet&s=2692185587&d=4&z=96&w=5&bg=f4e9d8&fg=2f6f62&tx=1e2747&o=1&pm=plate&po=0.88&pr=10`, the board's values: 96 px tile of 4 cells (24 px), 5 px stroke, plate 0.88 with radius 10. No `ac`: the board's orange is the default accent. Text contrast 9.50:1 (AA).
 - `DESIGN_DEFAULTS` did not change, so old Tree links without `k` stay Tree. Only `WELCOME` changed.
-- The new first visit has no Reduce repetition and no fade (the board shows neither). Text and plate settings are the defaults, as before.
-- The Truchet dots are 8 % of a cell. The pattern stroke is drawn over the fill, so with a 3 px stroke a dot shows as an orange center in a green ring. The board's dots are larger and fully orange.
-- To show the orange, the first visit uses 6 cells of 43 px and a 3 px stroke. The board has cells of about 24 px and a thicker stroke.
-- The Herbarium paper is a pale green (`#f1f9f3`), not cream: the rules give paper the base hue at low chroma. The stroke `#5ea478` is lighter than the board's dark green.
+- The new first visit has no Reduce repetition and no fade (the board shows neither). The heading and paragraph sit on one plate, as on the board.
+- The Truchet dots are accent shapes of radius 15 % of a cell (the board: 3.5 on a 24 px cell, 14.6 %), drawn solid in the Accent color. An older Truchet link without `ac` shows them in the default orange `#e07a3f`; its `fi` no longer reaches them.
+- The app puts a dot on every cell corner (16 per tile at depth 4); the board's tile has dots on fewer corners, so the board reads a little more open.
 - Herbarium is a warm accent on a green base. The random palettes keep the warm accent for cool bases only.
-- On a first visit the palette strip still says "Lagoon": the link does not carry the palette name, and the page starts on the default palette name.
+- On a first visit the palette strip still says "Lagoon" with Lagoon swatches: the link does not carry the palette name, and the page starts on the default palette name (`src/state.ts:64`). The strip can show "Custom" when the name is null; clearing it on load needs a change in the state files.
 - Sprigs: at depth 3 some berry clusters touch.
 - The accent is not drawn in the Reduce repetition super tile, the curve tile, image mode or patchwork.
 - `e2e/accent.spec.ts` says "No current kind marks accent shapes"; Sprigs now does. The test still checks a kind without accent (`hex`).

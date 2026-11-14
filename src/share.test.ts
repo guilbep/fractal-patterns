@@ -502,18 +502,23 @@ test('the welcome design is a valid link that survives a round trip', () => {
   const d = decodeDesign(`#${WELCOME}`);
   assert.equal(d.kind, 'truchet');
   assert.equal(d.seed, 2692185587);
-  assert.equal(d.depth, 6);
-  assert.equal(d.size, 256);
-  assert.deepEqual(d.fill, { mode: 'closed', color: '#ce4700', opacity: 1 });
+  assert.equal(d.depth, 4);
+  assert.equal(d.size, 96);
+  assert.equal(d.strokeWidth, 5);
+  assert.deepEqual([d.background, d.pattern, d.text, d.accent], ['#f4e9d8', '#2f6f62', '#1e2747', ACCENT_DEFAULT]);
+  assert.equal(d.fill.mode, 'none');
+  assert.deepEqual([d.plateMode, d.plateOpacity, d.plateRadius], ['plate', 0.88, 10]);
   assert.equal(encodeDesign(d), WELCOME);
 });
 
 test('the welcome design never changes the defaults: an old link without k is still a Tree', () => {
   assert.equal(DESIGN_DEFAULTS.kind, 'tree');
   const oldWelcome = 's=2692185587&z=64&w=1&bg=eefaf9&fg=5da09e&tx=062424&v=1&fd=1&vo=6_6_0_b_1_0_0_0';
-  const current = 'k=truchet&s=2692185587&d=6&z=256&w=3&bg=f1f9f3&fg=5ea478&tx=112418&o=1&fi=c_ce4700_1';
+  const phase6 = 'k=truchet&s=2692185587&d=6&z=256&w=3&bg=f1f9f3&fg=5ea478&tx=112418&o=1&fi=c_ce4700_1';
+  const current = 'k=truchet&s=2692185587&d=4&z=96&w=5&bg=f4e9d8&fg=2f6f62&tx=1e2747&o=1&pm=plate&po=0.88&pr=10';
   assert.equal(WELCOME, current);
-  for (const old of ['s=7&v=1', '', oldWelcome, current.replace('k=truchet&', '')]) assert.equal(decodeDesign(old).kind, 'tree', old);
+  for (const old of ['s=7&v=1', '', oldWelcome, phase6.replace('k=truchet&', ''), current.replace('k=truchet&', '')])
+    assert.equal(decodeDesign(old).kind, 'tree', old);
 });
 
 test('the accent: ac only when not the default, last, round trip; old links decode to the default and encode unchanged', () => {

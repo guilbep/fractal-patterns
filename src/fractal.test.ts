@@ -206,7 +206,7 @@ test('families', () => {
 });
 
 test('all kinds are registered', () => {
-  assert.equal(KINDS.length, 78);
+  assert.equal(KINDS.length, 79);
   const ids = [
     'carpet',
     'quadtree',
@@ -220,6 +220,7 @@ test('all kinds are registered', () => {
     'whirl',
     'rosette',
     'spiral',
+    'truchet',
     'brick',
     'stack',
     'herringbone',

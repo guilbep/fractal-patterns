@@ -327,18 +327,19 @@ function tileFor(seed: number): Tile {
 }
 const tile = computed(() => tileFor(params.seed));
 // ponytail: a tile with accent shapes drops a raw `extra` path; no kind has both.
+const sceneFor = (t: Tile, color = roles.pattern) =>
+  fillScene(
+    t.polys,
+    { size: t.size, height: tileHeight(t.size, aspect.value), strokeWidth: params.strokeWidth, color, opacity: opacity.value },
+    fillOn.value ? fill : NO_FILL,
+    t.accent?.length ? { polys: t.accent, color: accent.value } : undefined,
+  );
 const tileSvg = (t: Tile, color = roles.pattern) =>
   fillOn.value || t.accent?.length
-    ? sceneToSvg(
-        fillScene(
-          t.polys,
-          { size: t.size, height: tileHeight(t.size, aspect.value), strokeWidth: params.strokeWidth, color, opacity: opacity.value },
-          fillOn.value ? fill : NO_FILL,
-          t.accent?.length ? { polys: t.accent, color: accent.value } : undefined,
-        ),
-        params.precision,
-      )
+    ? sceneToSvg(sceneFor(t, color), params.precision)
     : svgFromPolylines(t.polys, { ...params, size: t.size, color, opacity: opacity.value }, aspect.value, t.extra);
+// The plain tile as layers (fill, accent, strokes): the canvas script and the paint worklet draw this.
+export const tileScene = computed(() => sceneFor(tile.value));
 // Fills need plain polylines: not the variants super tile, not the curve tile, not a kind with a raw `extra` path.
 export const fillAvailable = computed(() => !variantsOn.value && !curvesOn.value && aspect.value === 1);
 const fillOn = computed(() => fill.mode !== 'none' && fillAvailable.value);

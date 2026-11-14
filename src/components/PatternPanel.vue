@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue';
-import { CONTACT_ANGLE, FAMILIES, FAMILY_LABELS, KINDS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH, isStarKind, tileAspect, tileHeight, type Kind } from '@/fractal.ts';
+import { CONTACT_ANGLE, FAMILIES, FAMILY_LABELS, KINDS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH, isStarKind, tileHeight, type Kind } from '@/fractal.ts';
 import { SIZE_MAX, SIZE_MIN, SIZE_PRESETS, markedPreset } from '@/sizes.ts';
 import { LIB_TABS, kindsForTab, parseLibTab, tabForKind, type LibTab } from '@/library.ts';
-import { MAX_SEED, bandColors, chooseKind, contactAngle, aspect, tileSize, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, squareKind, usingImage, usingPatchwork, imageShuffles, wheelStatus, growStatus, regions, regionColors, regionsInfo, regionsOffReason, interlace, interlaceOffReason, weave, type RegionMode } from '@/state.ts';
+import { MAX_SEED, bandColors, chooseKind, contactAngle, aspect, tileSize, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, patchworkOffReason, usingImage, usingPatchwork, imageShuffles, wheelStatus, growStatus, regions, regionColors, regionsInfo, regionsOffReason, interlace, interlaceOffReason, weave, type RegionMode } from '@/state.ts';
+import { patchKind } from '@/patchwork.ts';
 import AccentShapes from '@/components/AccentShapes.vue';
 import '@/css/library.css';
 import '@/css/sizes.css';
@@ -14,7 +15,7 @@ const RegionsControl = defineAsyncComponent(() => import('@/components/RegionsCo
 const InterlaceControl = defineAsyncComponent(() => import('@/components/InterlaceControl.vue'));
 
 // Patchwork cells are square: rectangular kinds are not offered.
-const squareKinds = KINDS.filter((k) => tileAspect(k) === 1);
+const squareKinds = KINDS.filter(patchKind);
 
 const depthMax = computed(() => (usingPatchwork.value ? patchDepthMax.value : MAX_DEPTH[params.kind]));
 
@@ -160,11 +161,11 @@ const galleryVars = computed(() => ({ '--lib-bg': roles.background, '--lib-fg': 
       <fieldset class="radios">
         <legend>Layout</legend>
         <label class="radio"><input v-model="layout" type="radio" name="layout" value="single"> Single pattern</label>
-        <label class="radio"><input v-model="layout" type="radio" name="layout" value="patchwork" :disabled="!squareKind"> Patchwork</label>
-        <p v-if="!squareKind" class="hint-text">Patchwork: Not available for this pattern yet.</p>
+        <label class="radio"><input v-model="layout" type="radio" name="layout" value="patchwork" :disabled="!!patchworkOffReason"> Patchwork</label>
+        <p v-if="patchworkOffReason" class="hint-text patchwork-off">{{ patchworkOffReason }}</p>
       </fieldset>
 
-      <div v-if="layout === 'patchwork' && squareKind" class="patchwork">
+      <div v-if="layout === 'patchwork' && !patchworkOffReason" class="patchwork">
         <div class="field">
           <label for="cells">Grid size <output for="cells">{{ patch.cells }} by {{ patch.cells }}</output></label>
           <select id="cells" v-model.number="patch.cells">

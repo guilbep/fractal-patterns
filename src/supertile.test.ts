@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { geometry, hasCompat, KINDS, MAX_DEPTH } from './fractal.ts';
+import { geometry, hasCompat, isGrown, KINDS, MAX_DEPTH } from './fractal.ts';
 import type { Pt } from './patterns/util.ts';
 import { pathData } from './scene.ts';
 import {
@@ -442,4 +442,14 @@ test('image super tile, several pictures: two seeds deal different arrangements;
   const withEmpty = imageSuperTileSvg({ ...img, cells: 4 }, [sq(1, 4), [], sq(2, 7)]);
   assert.equal(withEmpty, imageSuperTileSvg({ ...img, cells: 4 }, [sq(1, 4), sq(2, 7)]));
   assert.equal(imageSuperTileSvg({ ...img, cells: 4 }, [pic, []]), imageSuperTileSvg({ ...img, cells: 4 }, pic));
+});
+
+// A grown kind draws nothing on the page's main thread: no estimate may be computed from its empty tile.
+test('grown kinds cannot vary, so no super tile or byte estimate is made for them', () => {
+  const grown = KINDS.filter(isGrown);
+  assert.equal(grown.length, 4);
+  for (const kind of grown) {
+    assert.equal(canVary(kind), false, kind);
+    assert.throws(() => superTileBytes({ ...base, kind }), RangeError, kind);
+  }
 });

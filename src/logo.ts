@@ -1,5 +1,6 @@
 // The app's logo and favicon: one of its own patterns, drawn small and bold on a rounded square.
-import { MAX_DEPTH, geometry, svgFromPolylines, type Kind } from './fractal.ts';
+import { MAX_DEPTH, geometry, isGrown, svgFromPolylines, type Kind } from './fractal.ts';
+import type { Pt } from './patterns/util.ts';
 import { PALETTES } from './palettes.ts';
 
 export interface LogoOptions {
@@ -7,12 +8,19 @@ export interface LogoOptions {
   readonly seed: number;
   readonly background: string;
   readonly color: string;
+  // A grown kind's landed tile (it grows only in the heavy worker), drawn scaled to the favicon.
+  readonly tile?: { readonly polys: readonly (readonly Pt[])[]; readonly size: number } | null;
 }
 
 const SIZE = 64;
 
 export function logoSvg(o: LogoOptions): string {
-  const polys = geometry({ kind: o.kind, seed: o.seed, depth: Math.min(2, MAX_DEPTH[o.kind]), size: SIZE });
+  // A grown kind draws nothing on the page's main thread: its landed tile, else the default mark.
+  const k = o.tile ? SIZE / o.tile.size : 1;
+  const mark = isGrown(o.kind) && !o.tile ? LOGO_DEFAULT : o;
+  const polys = o.tile
+    ? o.tile.polys.map((poly) => poly.map(([x, y]): Pt => [x * k, y * k]))
+    : geometry({ kind: mark.kind, seed: mark.seed, depth: Math.min(2, MAX_DEPTH[mark.kind]), size: SIZE });
   const svg = svgFromPolylines(polys, { size: SIZE, strokeWidth: 4, precision: 1, color: o.color, opacity: 1 });
   const rect = `<rect width="${SIZE}" height="${SIZE}" rx="12" fill="${o.background}"/>`;
   return svg.replace('>', `>${rect}`);

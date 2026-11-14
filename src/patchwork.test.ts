@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { KIND_FAMILY, geometry, type Kind } from './fractal.ts';
+import { KINDS, KIND_FAMILY, geometry, isGrown, type Kind } from './fractal.ts';
 import { cellSeed, generatePatchwork, patchworkCells, patchworkGeometry, type PatchworkParams } from './patchwork.ts';
 
 const base: PatchworkParams = { seed: 1, cells: 3, families: [], pinned: {}, frame: false, depth: 2, size: 120 };
@@ -117,4 +117,18 @@ test('patchwork source has no unseeded randomness', () => {
   const src = readFileSync(join(import.meta.dirname, 'patchwork.ts'), 'utf8');
   assert.ok(!src.includes('Math.random'));
   assert.ok(!src.includes('Date.now'));
+});
+
+// A grown kind draws only in the heavy worker: on the page its cell would be blank.
+test('no cell is a grown kind, auto or pinned', () => {
+  const grown = KINDS.filter(isGrown);
+  assert.equal(grown.length, 4);
+  for (let seed = 1; seed <= 40; seed++)
+    for (const cells of [2, 3, 4])
+      for (const families of [[], ['theme']] as const) {
+        const ks = kinds({ ...base, seed, cells, families: [...families] });
+        assert.ok(!ks.some(isGrown), `${seed} ${cells} ${families}: ${ks}`);
+      }
+  const pinned = kinds({ ...base, pinned: { 0: 'coral', 1: 'frost', 2: 'turing-spots' } });
+  assert.ok(!pinned.some(isGrown), String(pinned));
 });

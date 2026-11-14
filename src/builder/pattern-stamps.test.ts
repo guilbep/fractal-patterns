@@ -1,9 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { FAMILIES, KINDS, MAX_DEPTH, geometry, isStarKind, tileAspect, type Kind } from '../fractal.ts';
+import { FAMILIES, KINDS, MAX_DEPTH, geometry, isGrown, isStarKind, tileAspect, type Kind } from '../fractal.ts';
 import { safePathData } from '../motifgrid.ts';
-import { MAX_DENSE, patternStamp, patternStampList } from './pattern-stamps.ts';
+import { GROWN_NOTE, MAX_DENSE, patternStamp, patternStampList } from './pattern-stamps.ts';
+
+// Scope: the grown kinds (Turing stripes and spots, coral, frost) are not stamps. They draw only in the heavy
+// worker, so on the Builder page their stamp would be empty; the Math patterns fold says so with GROWN_NOTE.
+const GROWN = KINDS.filter(isGrown);
+const STAMP_KINDS = KINDS.filter((k) => !isGrown(k));
 
 // The kinds over 6000 characters at depth 1, or drawn only with curves: they get the MAX_DENSE cap.
 const DENSE = ['scales', 'cm', 'pmm', 'pmg', 'pgg', 'cmm', 'p4', 'p4m', 'p4g', 'p3', 'p3m1', 'p31m', 'p6', 'p6m', 'penrosearcs'];
@@ -25,15 +30,15 @@ function oldPath(kind: Kind): string | null {
   return null;
 }
 
-test('patternStamp: the 69 kinds that worked before keep the same path', () => {
-  const old = KINDS.filter((k) => !DENSE.includes(k) && !isStarKind(k)); // the Star patterns came later
-  assert.equal(old.length, 69);
+test('patternStamp: the 65 kinds that worked before keep the same path (grown kinds left out)', () => {
+  const old = STAMP_KINDS.filter((k) => !DENSE.includes(k) && !isStarKind(k)); // the Star patterns came later
+  assert.equal(old.length, 65);
   for (const kind of old) assert.equal(patternStamp(kind, 1)?.parts[0]?.d, oldPath(kind), kind);
 });
 
-test('patternStamp: every kind gives one clean stroke part inside the box', () => {
+test('patternStamp: every kind but the grown ones gives one clean stroke part inside the box', () => {
   const missing: string[] = [];
-  for (const kind of KINDS) {
+  for (const kind of STAMP_KINDS) {
     const s = patternStamp(kind, 1);
     if (!s) {
       missing.push(kind);
@@ -52,7 +57,13 @@ test('patternStamp: every kind gives one clean stroke part inside the box', () =
     }
   }
   assert.equal(MAX_DENSE, 20000);
-  assert.equal(KINDS.length - missing.length, 89, missing.join(', '));
+  assert.equal(STAMP_KINDS.length - missing.length, 85, missing.join(', '));
+});
+
+test('patternStamp: a grown kind gives no stamp, never an empty one, and the fold says why', () => {
+  assert.deepEqual(GROWN, ['turing-stripes', 'turing-spots', 'coral', 'frost']);
+  for (const kind of GROWN) assert.equal(patternStamp(kind, 1), null, kind);
+  assert.equal(GROWN_NOTE, 'Grown patterns (Turing, Coral, Frost) are not offered as stamps yet.');
 });
 
 test('patternStamp: deterministic, and the seed matters', () => {
@@ -60,14 +71,14 @@ test('patternStamp: deterministic, and the seed matters', () => {
   assert.notDeepEqual(patternStamp('waves', 1), patternStamp('waves', 2));
 });
 
-test('patternStampList: families in order, every kind once, none empty', () => {
+test('patternStampList: families in order, every kind but the grown ones once, none empty', () => {
   const list = patternStampList();
   assert.deepEqual(
     list.map((g) => g.family),
     [...FAMILIES],
   );
   for (const g of list) assert.ok(g.kinds.length > 0, g.family);
-  assert.deepEqual(list.flatMap((g) => g.kinds.map((k) => k.kind)).sort(), [...KINDS].sort());
+  assert.deepEqual(list.flatMap((g) => g.kinds.map((k) => k.kind)).sort(), [...STAMP_KINDS].sort());
 });
 
 test('pattern-stamps.ts: no randomness, clock or DOM', () => {

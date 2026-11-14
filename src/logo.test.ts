@@ -61,3 +61,24 @@ test('each committed public/favicon*.svg equals the output of its function plus 
   ];
   for (const [name, svg] of files) assert.equal(readFileSync(new URL(`../public/${name}`, import.meta.url), 'utf8'), svg + '\n', name);
 });
+
+// A grown kind draws nothing on the page's main thread (Node loads its generator, so the routing is what is tested).
+test('logoSvg for a grown kind: its landed tile, else the default mark, never an empty favicon', () => {
+  const colors = { background: '#101010', color: '#f0f0f0' };
+  const fallback = logoSvg({ ...LOGO_DEFAULT, ...colors });
+  for (const kind of ['turing-stripes', 'turing-spots', 'coral', 'frost'] as const) {
+    assert.equal(logoSvg({ kind, seed: 7, ...colors }), fallback, kind);
+    assert.equal(logoSvg({ kind, seed: 7, ...colors, tile: null }), fallback, kind);
+  }
+  const tile = {
+    size: 128,
+    polys: [
+      [
+        [0, 0],
+        [128, 64],
+      ] as [number, number][],
+    ],
+  };
+  const s = logoSvg({ kind: 'coral', seed: 7, ...colors, tile });
+  assert.ok(/<path d="M0 0l64 32"/.test(s), s);
+});

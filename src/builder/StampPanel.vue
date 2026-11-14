@@ -170,6 +170,7 @@ async function onFiles(files: File[]): Promise<void> {
                   </svg>
                 </button>
               </div>
+              <p class="hint-text grown-note">{{ mathMod.GROWN_NOTE }}</p>
               <button type="button" class="btn group-end" @click="mathSeed++">Other variant</button>
             </template>
           </details>

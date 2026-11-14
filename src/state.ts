@@ -334,7 +334,15 @@ export const usingImage = computed(() => source.value === 'image' && traced.valu
 
 // A rectangular kind (Penrose) has no patchwork yet: the layout falls back to single.
 export const squareKind = computed(() => tileAspect(params.kind) === 1);
-export const usingPatchwork = computed(() => !usingImage.value && layout.value === 'patchwork' && squareKind.value);
+// A grown kind draws only through the heavy worker, so it has no patchwork either.
+export const patchworkOffReason = computed(() =>
+  !squareKind.value
+    ? 'Patchwork: Not available for this pattern yet.'
+    : isGrown(params.kind)
+      ? 'Patchwork mixes quick patterns; this one grows in the background.'
+      : '',
+);
+export const usingPatchwork = computed(() => !usingImage.value && layout.value === 'patchwork' && !patchworkOffReason.value);
 // Tile width / height: only a single math pattern of a rectangular kind is not square.
 export const aspect = computed(() => (usingImage.value || usingPatchwork.value ? 1 : tileAspect(params.kind)));
 
@@ -426,7 +434,9 @@ function space(p: Polys, size: number): Tile {
 // A grown kind (Turing stripes and spots, coral, frost) takes 50 to 170 ms, so it grows in the shared heavy worker.
 // The last tile stays drawn until the new one lands.
 const grownOn = computed(() => isGrown(params.kind) && !usingImage.value && !usingPatchwork.value);
-const grown = shallowRef<{ key: string; polys: Polys } | null>(null);
+const grown = shallowRef<{ key: string; kind: Kind; seed: number; size: number; polys: Polys } | null>(null);
+// The last landed grown tile, for the favicon (main.ts), which draws it only when its kind and seed are the mark's.
+export const landedGrown = computed(() => grown.value);
 export const growStatus = ref<'' | 'growing'>('');
 const grownKey = () => [params.kind, params.seed, params.depth, params.size].join();
 watch(
@@ -438,7 +448,7 @@ watch(
     growStatus.value = 'growing';
     try {
       const { heavy } = await (heavyLoad ??= import('@/heavy/client.ts'));
-      grown.value = { key, polys: await heavy.run('growTile', args, { key, slot: 'grow' }) };
+      grown.value = { key, ...args, polys: await heavy.run('growTile', args, { key, slot: 'grow' }) };
       growStatus.value = '';
     } catch (err) {
       // A newer request took the slot: it clears the status when it lands.

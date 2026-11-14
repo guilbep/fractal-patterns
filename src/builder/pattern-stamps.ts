@@ -10,6 +10,7 @@ import {
   MAX_DEPTH,
   extraPath,
   geometry,
+  isGrown,
   tileAspect,
   type Kind,
 } from '../fractal.ts';
@@ -67,6 +68,7 @@ function curveStamp(kind: Kind, seed: number): Stamp | null {
  * A denser kind is simplified at depth 1 with the smallest tolerance that fits in MAX_DENSE characters.
  */
 export function patternStamp(kind: Kind, seed: number): Stamp | null {
+  if (isGrown(kind)) return null; // drawn only in the heavy worker: empty on the page
   for (let depth = Math.min(2, MAX_DEPTH[kind]); depth >= 1; depth--) {
     const d = pathOf(kind, seed, depth);
     if (d.length > MAX_D) continue;
@@ -81,11 +83,17 @@ export function patternStamp(kind: Kind, seed: number): Stamp | null {
   return null;
 }
 
-/** The kinds grouped by family, in the order of FAMILIES. */
+/** Why the grown kinds are missing from the list, for the Math patterns fold. */
+export const GROWN_NOTE = 'Grown patterns (Turing, Coral, Frost) are not offered as stamps yet.';
+
+/**
+ * The kinds grouped by family, in the order of FAMILIES. The grown kinds are left out: they draw only in the heavy worker.
+ * ponytail: growing them as stamps through heavy.run('growTile') would make the fold async; add when someone asks for them.
+ */
 export function patternStampList(): { family: string; label: string; kinds: { kind: Kind; label: string }[] }[] {
   return FAMILIES.map((family) => ({
     family,
     label: FAMILY_LABELS[family],
-    kinds: KINDS.filter((k) => KIND_FAMILY[k] === family).map((kind) => ({ kind, label: KIND_LABELS[kind] })),
+    kinds: KINDS.filter((k) => KIND_FAMILY[k] === family && !isGrown(k)).map((kind) => ({ kind, label: KIND_LABELS[kind] })),
   }));
 }

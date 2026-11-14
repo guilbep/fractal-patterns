@@ -5,6 +5,7 @@ import {
   KIND_FAMILY,
   MAX_DEPTH,
   geometry,
+  isGrown,
   svgFromPolylines,
   tileAspect,
   type Family,
@@ -44,12 +45,16 @@ export function cellSeed(seed: number, index: number): number {
   return Math.floor(r * 4294967296) >>> 0;
 }
 
+// The kinds a cell can take: square, and drawn on the page's main thread.
+export const patchKind = (k: Kind): boolean => tileAspect(k) === 1 && !isGrown(k);
+
 export function patchworkCells(p: PatchworkParams): PatchCell[] {
   const n = gridOf(p.cells);
   const cs = p.size / n;
   // Seeded shuffle of the allowed kinds; cell i takes entry i, so cells differ until the set runs out (13 surfaces < 16 cells).
   // Square kinds only: a cell is square. A families set with only rectangular kinds falls back to 'tree' below.
-  const allowed = KINDS.filter((k) => tileAspect(k) === 1 && (p.families.length === 0 || p.families.includes(KIND_FAMILY[k])));
+  // Grown kinds (Turing, coral, frost) draw only in the heavy worker: on the page a cell of one would be blank.
+  const allowed = KINDS.filter((k) => patchKind(k) && (p.families.length === 0 || p.families.includes(KIND_FAMILY[k])));
   const rnd = mulberry32(p.seed ^ 0x9e3779b9);
   for (let i = allowed.length - 1; i > 0; i--) {
     const j = Math.floor(rnd() * (i + 1));
@@ -59,7 +64,7 @@ export function patchworkCells(p: PatchworkParams): PatchCell[] {
   for (let index = 0; index < n * n; index++) {
     const s = cellSeed(p.seed, index);
     const pin = p.pinned[index];
-    const kind = (pin && tileAspect(pin) === 1 ? pin : undefined) ?? allowed[index % allowed.length] ?? 'tree';
+    const kind = (pin && patchKind(pin) ? pin : undefined) ?? allowed[index % allowed.length] ?? 'tree';
     const x = (index % n) * cs;
     const y = Math.floor(index / n) * cs;
     const depth = Math.min(p.depth, MAX_DEPTH[kind], depthCap(n));

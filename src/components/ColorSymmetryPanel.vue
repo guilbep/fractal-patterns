@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { DETAIL_MAX, DETAIL_MIN, ORDERS, WAVES_MAX, WAVES_MIN, colorSym, orderedColors, type ColorRender } from '@/color-sym.ts';
-import { palette, reseed, roles, usingPatchwork } from '@/state.ts';
+import { palette, params, reseed, roles, usingPatchwork } from '@/state.ts';
 import UiSegmented from '@/components/UiSegmented.vue';
+import ColorSymHowItsMade from '@/components/ColorSymHowItsMade.vue';
 
 const MODES = [
   { value: 'lines', label: 'Lines' },
@@ -43,6 +44,7 @@ const step = (d: number) => (colorSym.order = (colorSym.order + d + ORDERS) % OR
       <label class="radio"><input id="cs-balance" v-model="colorSym.balance" type="checkbox"> Balance color areas</label>
       <UiSegmented :model-value="colorSym.render" label="Render" name="cs-render" :options="RENDERS" @update:model-value="colorSym.render = $event as ColorRender" />
       <p v-if="colorSym.render === 'wheel'" class="hint-text">An image tile: heavier than bands, shown in the size badge.</p>
+      <ColorSymHowItsMade :group="params.kind" :waves="colorSym.waves" :detail="colorSym.detail" :balance="colorSym.balance" :render="colorSym.render" />
     </template>
   </div>
 </template>

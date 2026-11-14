@@ -70,7 +70,7 @@ onBeforeUnmount(() => document.removeEventListener('click', outside));
       <span class="grade-chip" :class="text.grade ? gradeBand(text.grade) : 'pending'">{{ text.grade }}</span>
       <span class="num">{{ text.size }}<template v-if="text.co2"> · {{ text.co2 }}</template></span>
     </span>
-    <span :id="labelId" class="visually-hidden">{{ label }}</span>
+    <span :id="labelId" class="visually-hidden">{{ label }}{{ onOpen ? ', show the footprint' : '' }}</span>
     <span :id="tipId" class="size-tip" role="tooltip"><span v-for="line in lines" :key="line" class="size-line">{{ line }}</span></span>
   </button>
 </template>

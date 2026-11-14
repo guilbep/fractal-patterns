@@ -28,6 +28,7 @@ const KEYS: Record<Page, [string, string][]> = {
     ['Delete', 'Remove'],
     ['PageUp / PageDown', 'Bring forward / send backward'],
     ['Ctrl/Cmd + A', 'Select all shapes'],
+    ['F (outside the tile editor)', 'Full screen: the pattern, tiled'],
     ['Esc', 'Clear the selection'],
     ['Ctrl/Cmd + Z', 'Undo'],
     ['Ctrl/Cmd + Shift + Z', 'Redo'],

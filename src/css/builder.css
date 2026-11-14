@@ -325,3 +325,21 @@ details[open] > .card-head::after {
     position: static;
   }
 }
+
+/* Full screen: the corner button stays above the editor, the coach and the Use it preview. */
+.stage > .builder-actions {
+  z-index: 4;
+  visibility: visible;
+}
+@media (min-width: 64rem) {
+  .stage > .builder-actions {
+    bottom: calc(var(--s3) + var(--head-h, 0px));
+  }
+}
+/* The tiled pattern exists on screen only in full screen (BuilderApp.vue sets its background then). */
+.builder-full {
+  display: none;
+}
+.builder-full:fullscreen {
+  display: block;
+}

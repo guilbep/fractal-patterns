@@ -531,6 +531,12 @@ function onKey(e: KeyboardEvent): void {
 .stage-hint {
   font-size: 0.875rem;
 }
+/* Below the wide layout, the hint wraps before the Full screen corner button (BuilderApp.vue). */
+@media (max-width: 63.99rem) {
+  .stage-hint {
+    padding-right: 52px;
+  }
+}
 /* The phone stage shows the drag hint; wide screens point to the key panel in the header. */
 .stage-hint-long {
   display: none;

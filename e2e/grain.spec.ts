@@ -15,9 +15,10 @@ test('Grain: the switch adds gr to the link and a second background image, and a
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   await page.goto('/index.html#k=hex&s=1');
   await expect.poll(() => images(page)).toBe(1);
+  await page.getByRole('tab', { name: /^Colors/ }).click();
+  await page.getByRole('radio', { name: 'Grain', exact: true }).check();
   await page.getByRole('tab', { name: /^Repetition/ }).click();
   await page.locator('summary', { hasText: 'More ways to hide the repeat' }).click();
-  await page.getByRole('switch', { name: 'Grain' }).check();
   await expect(page.locator('summary', { hasText: 'More ways to hide the repeat' })).toContainText('grain');
   await expect.poll(() => gr(page)).toBe('12_0.75_d');
   await expect.poll(() => images(page)).toBe(2);

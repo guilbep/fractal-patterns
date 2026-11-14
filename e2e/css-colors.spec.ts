@@ -14,8 +14,7 @@ test('CSS colors: a palette adds --fp-palette-1 and --fp-pattern; grain alone sh
 
   const rep = page.getByRole('tab', { name: /^Repetition/ });
   await expect(rep.locator('.tab-on')).toHaveCount(0);
-  await rep.click();
-  await page.locator('summary', { hasText: 'More ways to hide the repeat' }).click();
-  await page.getByRole('switch', { name: 'Grain' }).check();
+  await page.getByRole('tab', { name: /^Colors/ }).click();
+  await page.getByRole('radio', { name: 'Grain', exact: true }).check();
   await expect(rep.locator('.tab-on')).toHaveCount(1);
 });

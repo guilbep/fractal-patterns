@@ -1,5 +1,5 @@
 // What the page copies: the complete CSS, and an optional script that switches the tile. Reads state.ts only.
-import { computed, ref, shallowRef, watch } from 'vue';
+import { computed, reactive, ref, shallowRef, watch } from 'vue';
 import { APP_NAME, SITE_URL } from '@/app-name.ts';
 import { formatFootprint, gzipSize, sizeLines } from '@/co2.ts';
 import { exportCss, exportJs, exportParallax, type ExportInput } from '@/export.ts';
@@ -31,6 +31,7 @@ import {
   baked,
   grainOut,
   texture,
+  textureOn,
   textureOut,
   layer2,
   layer2Color,
@@ -177,6 +178,35 @@ watch(
   },
   { immediate: true },
 );
+// The live layer (a live texture, or the grain, a live filter): it costs while visible, as the device redraws it.
+const liveLayer = computed<{ svg: string; tile: number } | null>(() => {
+  const t = textureOut.value;
+  if (textureOn.value && texture.route === 'live' && t) return t;
+  return grainOut.value ? { svg: grainOut.value, tile: GRAIN_TILE } : null;
+});
+// The cost model loads when the page is idle; each layer text is measured once on this device.
+const drawCost = shallowRef<typeof import('@/draw-cost.ts') | null>(null);
+const liveMs = reactive(new Map<string, number>()); // ponytail: unbounded, one entry per live layer seen this session
+const whenIdle = (f: () => void): void => void (typeof requestIdleCallback === 'function' ? requestIdleCallback(f) : setTimeout(f, 200));
+if (typeof document !== 'undefined') {
+  whenIdle(() => void import('@/draw-cost.ts').then((m) => (drawCost.value = m)));
+  watch(
+    liveLayer,
+    (l) => {
+      if (!l || liveMs.has(l.svg)) return;
+      whenIdle(async () => {
+        if (liveMs.has(l.svg)) return;
+        const m = await import('@/draw-cost.ts');
+        try {
+          liveMs.set(l.svg, await m.measureSvgRedrawMs(l.svg, l.tile, l.tile));
+        } catch {
+          /* no canvas: the line keeps "measuring…" */
+        }
+      });
+    },
+    { immediate: true },
+  );
+}
 // The size breakdown: the size badge tooltip and the Export tab.
 export const sizeBreakdown = computed(() => {
   const lines = sizeLines({ css: cssBytes.value, svg: rawBytes.value, script: scriptBytes.value, gz: gzipped.value });
@@ -184,6 +214,18 @@ export const sizeBreakdown = computed(() => {
   if (wheelOn.value && w) lines.push(`Tile: ${w.type === 'image/webp' ? 'WebP' : 'PNG'} image, ${(w.bytes / 1024).toFixed(2)} KB`);
   if (textureBytes.value !== null)
     lines.push(`Texture: ${TEXTURE_LABELS[texture.kind]}, ${texture.route} ${(textureBytes.value / 1024).toFixed(2)} KB`);
+  const dc = drawCost.value;
+  const bytes = exportGzipBytes.value;
+  if (dc && bytes !== null) lines.push(dc.costText({ onceBytes: bytes, live: null }).once);
+  const l = liveLayer.value;
+  if (l) {
+    const ms = liveMs.get(l.svg);
+    lines.push(
+      dc && ms !== undefined && bytes !== null
+        ? dc.costText({ onceBytes: bytes, live: { msPerRedraw: ms } }).whileVisible
+        : 'While visible: measuring…',
+    );
+  }
   return lines;
 });
 export const footprint = computed(() => (exportGzipBytes.value === null ? null : formatFootprint(exportGzipBytes.value)));

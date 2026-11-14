@@ -328,7 +328,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         </div>
       </div>
       <div v-show="tab === 'repetition'" id="panel-repetition" class="tabpanel" role="tabpanel" aria-labelledby="tab-repetition">
-        <RepetitionPanel v-if="tab === 'repetition'" />
+        <RepetitionPanel v-if="tab === 'repetition'" @colors="tab = 'colors'" />
       </div>
       <div v-show="tab === 'layout'" id="panel-layout" class="tabpanel" role="tabpanel" aria-labelledby="tab-layout">
         <LayoutPresets />

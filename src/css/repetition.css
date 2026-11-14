@@ -121,3 +121,8 @@
   flex: 1;
   min-width: 0;
 }
+
+/* The grain pointer: a link-button with a full touch target. */
+.rep-pointer .link-btn {
+  min-height: 44px;
+}

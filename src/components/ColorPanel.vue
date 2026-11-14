@@ -1,13 +1,22 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, defineAsyncComponent, ref } from 'vue';
 import { PALETTE_GROUPS } from '@/palettes.ts';
 import '@/css/palettes.css';
 import { largeTarget } from '@/pairing.ts';
 import { APCA_SCORE, APCA_VERSION, lcText, polarity } from '@/apca.ts';
 import '@/css/apca.css';
-import { applyFix, applyPalette, randomPalette, closedShapes, contrast, fill, fillAvailable, accentShown, lastFix, offPalette, opacity, paletteName, params, plateBlur, plateMode, plateOpacity, plateRadius, ratioShort, ratioText, swap, type PlateMode } from '@/state.ts';
+import { applyFix, applyPalette, randomPalette, closedShapes, contrast, fill, fillAvailable, accentShown, lastFix, offPalette, opacity, paletteName, params, plateBlur, plateMode, plateOpacity, plateRadius, ratioShort, ratioText, swap, grain, grainOut, setTextureKind, texture, textureStatus, type PlateMode } from '@/state.ts';
+import type { TextureKind } from '@/texture.ts';
 import RoleInput from './RoleInput.vue';
 import UiSection from './UiSection.vue';
+
+// Loaded on demand, outside the start JS.
+const TexturePanel = defineAsyncComponent(() => import('./TexturePanel.vue'));
+const onKind = (k: TextureKind | 'none'): void => {
+  if (k !== 'none') return setTextureKind(k);
+  grain.on = false;
+  texture.on = false;
+};
 
 const apcaWorstLc = computed(() => (plateMode.value === 'direct' ? contrast.value.apca.direct : contrast.value.apca.onPlate));
 // The levels and reference sizes (Arial or Helvetica, weight 400) from the APCA minimum compliance document.
@@ -72,6 +81,7 @@ const plateSummary = computed(() => (plateMode.value === 'direct' ? PLATE_SHORT.
       <div class="roles">
         <div class="rl-item" :class="{ open: openRole === 'background' }">
           <RoleInput role="background" label="Background" hint="fills the tile" row :open="openRole === 'background'" @toggle="toggleRole('background')" />
+          <TexturePanel :texture="texture" :grain="grain" :grain-svg="grainOut" :status="textureStatus" @kind="onKind" />
         </div>
         <div class="rl-item" :class="{ open: openRole === 'pattern' }">
         <RoleInput role="pattern" label="Pattern" hint="the fractal strokes" row :open="openRole === 'pattern'" :extra="` · ${Math.round(opacity * 100)} %`" @toggle="toggleRole('pattern')" />

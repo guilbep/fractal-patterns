@@ -622,10 +622,22 @@ export const variantBytes = computed(() => {
 export type RegionMode = 'off' | 'shape' | 'neighbours';
 const REGIONS_DEFAULTS = { mode: 'off' as RegionMode, k: 4 };
 export const regions = reactive({ ...REGIONS_DEFAULTS });
-// Line kinds only, on the plain square tile: not an image, a patchwork, Color symmetry or the variants super tile.
-export const regionsAvailable = computed(
-  () => !usingImage.value && !usingPatchwork.value && !colorSymActive.value && !variantsOn.value && aspect.value === 1,
+// Line kinds only, on a single repeating tile of polylines: not an image, a patchwork, Color symmetry, the variants super
+// tile or a kind with raw path data (the Penrose arcs). Why not, in one line for the panel; '' when available.
+export const regionsOffReason = computed(() =>
+  usingImage.value
+    ? 'Region colors work on line patterns; remove the image to use them.'
+    : usingPatchwork.value
+      ? 'Region colors work on a single pattern; choose Single pattern to use them.'
+      : colorSymActive.value
+        ? 'Region colors work on lines; turn off Color symmetry to use them.'
+        : variantsOn.value
+          ? 'Region colors work on a single repeating tile; turn off Reduce repetition to use them.'
+          : tile.value.extra
+            ? 'Region colors do not follow the arcs; choose Penrose rhombs to use them.'
+            : '',
 );
+const regionsAvailable = computed(() => !regionsOffReason.value);
 export const regionsActive = computed(() => regions.mode !== 'off' && regionsAvailable.value);
 // The region code loads with the first coloured tile, to keep it out of the start JS.
 const regionsMod = shallowRef<typeof import('@/regions-tile.ts') | null>(null);
@@ -641,7 +653,9 @@ watch(regionsActive, (on) => on && void regionsReady(), { immediate: true });
 export const REGION_LIMITS = { faces: 2000, ms: 60 };
 // The faces of the drawn tile, found again only when the tile's polylines change (not on a colour, mode or count change).
 const regionFaces = computed(() =>
-  regionsActive.value && regionsMod.value ? regionsMod.value.findRegions(tile.value.polys, tile.value.size, REGION_LIMITS) : null,
+  regionsActive.value && regionsMod.value
+    ? regionsMod.value.findRegions(tile.value.polys, tile.value.size, REGION_LIMITS, aspect.value)
+    : null,
 );
 // The colours used, `k` of them (regionPalette in regions-tile.ts says which); empty until the code is in.
 export const regionColors = computed(

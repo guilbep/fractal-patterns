@@ -7,9 +7,14 @@ import { blend } from '@/contrast.ts';
 export type Regions = ReturnType<typeof findRegions>;
 
 // The faces of the wrapped tile lines; past a limit, a reason and no colouring (the tile keeps its lines only).
-export function findRegions(polys: readonly (readonly Pt[])[], size: number, limits: { faces: number; ms: number }) {
+// A rectangular tile (aspect = width / height, e.g. 1 by sqrt(3)) is squeezed into the size by size square, where wrap()
+// and the arrangement work; a squeeze keeps which regions touch. The loops are stretched back like the lines; the areas
+// stay in the square (only compared with each other).
+export function findRegions(polys: readonly (readonly Pt[])[], size: number, limits: { faces: number; ms: number }, aspect = 1) {
   const t0 = performance.now();
-  const a = arrangement(wrap(polys as Poly[], size), size);
+  const squeezed = aspect === 1 ? (polys as Poly[]) : polys.map((p) => p.map(([x, y]): Pt => [x, y * aspect]));
+  const a = arrangement(wrap(squeezed, size), size);
+  if (aspect !== 1) a.faces = a.faces.map((f) => ({ ...f, loops: f.loops.map((l) => l.map(([x, y]): Pt => [x, y / aspect])) }));
   const ms = performance.now() - t0;
   const reason =
     a.faces.length > limits.faces

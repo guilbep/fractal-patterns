@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { DETECTOR_LABELS, TRACE_GROUPS } from '@/detectors.ts';
 import { MAX_EXTRA_IMAGES, RESOLUTIONS, activeSample, addImages, extraImages, removeExtraImage, curveBytes, image, loadImage, loadSample, rawBytes, removeImage, source, spacing, trace, traced, usingImage } from '@/state.ts';
 import UiFileDrop from './UiFileDrop.vue';
+import UiSection from './UiSection.vue';
 import { SAMPLES, SAMPLE_LABELS, sampleImage, type Sample } from '@/samples.ts';
 
 const painted = new WeakSet<Element>();
@@ -16,6 +17,9 @@ function paint(el: unknown, id: Sample): void {
 
 const contours = computed(() => trace.detector === 'isolines');
 const error = ref('');
+const traceSummary = computed(() =>
+  [DETECTOR_LABELS[trace.detector], contours.value ? `${trace.levels} levels` : `threshold ${trace.threshold.toFixed(2)}`, `${trace.resolution} px`].join(' · '),
+);
 
 async function take(file: File | undefined): Promise<void> {
   if (!file) return;
@@ -42,8 +46,7 @@ async function onPickMore(e: Event): Promise<void> {
 </script>
 
 <template>
-  <section class="panel" aria-labelledby="image-h">
-    <h2 id="image-h">From image</h2>
+  <UiSection title="From image" heading-id="image-h" :summary="image ? (usingImage ? 'image in use' : 'image loaded') : 'no image'" open>
     <p class="lede">Photograph a wall, a floor, or a fabric. The tool traces its edges into a light tile that uses your colors.</p>
     <ul class="image-notes">
       <li>Use only images that you own or have a license for.</li>
@@ -95,52 +98,6 @@ async function onPickMore(e: Event): Promise<void> {
         <button type="button" class="btn" @click="removeImage">Remove image</button>
       </div>
 
-      <div class="fields">
-        <div class="field">
-          <label for="detector">Edge detector <output for="detector">{{ DETECTOR_LABELS[trace.detector] }}</output></label>
-          <select id="detector" v-model="trace.detector">
-            <optgroup v-for="g in TRACE_GROUPS" :key="g.label" :label="g.label">
-              <option v-for="d in g.ids" :key="d" :value="d">{{ DETECTOR_LABELS[d] }}</option>
-            </optgroup>
-          </select>
-        </div>
-        <div v-if="contours" class="field">
-          <label for="levels">Levels <output for="levels">{{ trace.levels }}</output></label>
-          <input id="levels" v-model.number="trace.levels" type="range" min="2" max="8" step="1">
-        </div>
-        <div v-else class="field">
-          <label for="threshold">Threshold <output for="threshold">{{ trace.threshold.toFixed(2) }}</output></label>
-          <input id="threshold" v-model.number="trace.threshold" type="range" min="0.05" max="0.9" step="0.05">
-        </div>
-        <div class="field">
-          <label for="tolerance">Detail <output for="tolerance">{{ trace.tolerance }} px</output></label>
-          <input id="tolerance" v-model.number="trace.tolerance" type="range" min="0.5" max="6" step="0.5">
-        </div>
-        <div class="field">
-          <label for="minlen">Minimum line length <output for="minlen">{{ trace.minLength }} px</output></label>
-          <input id="minlen" v-model.number="trace.minLength" type="range" min="0" max="40" step="1">
-        </div>
-        <div class="field">
-          <label for="fit">Fit</label>
-          <select id="fit" v-model="trace.fit" :disabled="contours" :title="contours ? 'Contour lines always show the whole image.' : undefined">
-            <option value="cover">Fill the tile (crop)</option>
-            <option value="contain">Show the whole image</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="resolution">Resolution <output for="resolution">{{ trace.resolution }} px</output></label>
-          <select id="resolution" v-model.number="trace.resolution">
-            <option v-for="r in RESOLUTIONS" :key="r" :value="r">{{ r }} px on the longer edge</option>
-          </select>
-        </div>
-      </div>
-
-      <label class="radio"><input id="img-seamless" v-model="spacing.mirror" type="checkbox" :disabled="!usingImage || (trace.curves && !contours)" aria-describedby="img-seamless-hint"> Seamless edges (mirror)</label>
-      <p id="img-seamless-hint" class="hint-text">
-        Mirrors the picture left to right and top to bottom, so the edges meet. Each quarter of the tile holds the picture at half size, so the tile size stays the same and the path is about 4 times longer. Same switch as Mirror in Spacing.
-        <template v-if="trace.curves && !contours">{{ ' ' }}Not available with Smooth curves yet.</template>
-      </p>
-
       <dl class="stats">
         <div><dt>Lines kept</dt><dd>{{ traced?.length ?? 0 }}</dd></div>
         <div><dt>SVG size</dt><dd>{{ usingImage ? `${rawBytes.toLocaleString('en')} bytes` : 'not in use' }}</dd></div>
@@ -152,7 +109,55 @@ async function onPickMore(e: Event): Promise<void> {
       <li>A traced tile repeats without a visible seam only when the source image itself repeats, or when Seamless edges is on.</li>
       <li>Traced tiles are heavier than math patterns. Watch the CO2 line and raise Detail or Minimum line length to lighten the tile.</li>
     </ul>
-  </section>
+  </UiSection>
+
+  <UiSection v-if="image" title="Trace options" heading-id="trace-h" :summary="traceSummary">
+  <div class="fields">
+    <div class="field">
+      <label for="detector">Edge detector <output for="detector">{{ DETECTOR_LABELS[trace.detector] }}</output></label>
+      <select id="detector" v-model="trace.detector">
+        <optgroup v-for="g in TRACE_GROUPS" :key="g.label" :label="g.label">
+          <option v-for="d in g.ids" :key="d" :value="d">{{ DETECTOR_LABELS[d] }}</option>
+        </optgroup>
+      </select>
+    </div>
+    <div v-if="contours" class="field">
+      <label for="levels">Levels <output for="levels">{{ trace.levels }}</output></label>
+      <input id="levels" v-model.number="trace.levels" type="range" min="2" max="8" step="1">
+    </div>
+    <div v-else class="field">
+      <label for="threshold">Threshold <output for="threshold">{{ trace.threshold.toFixed(2) }}</output></label>
+      <input id="threshold" v-model.number="trace.threshold" type="range" min="0.05" max="0.9" step="0.05">
+    </div>
+    <div class="field">
+      <label for="tolerance">Detail <output for="tolerance">{{ trace.tolerance }} px</output></label>
+      <input id="tolerance" v-model.number="trace.tolerance" type="range" min="0.5" max="6" step="0.5">
+    </div>
+    <div class="field">
+      <label for="minlen">Minimum line length <output for="minlen">{{ trace.minLength }} px</output></label>
+      <input id="minlen" v-model.number="trace.minLength" type="range" min="0" max="40" step="1">
+    </div>
+    <div class="field">
+      <label for="fit">Fit</label>
+      <select id="fit" v-model="trace.fit" :disabled="contours" :title="contours ? 'Contour lines always show the whole image.' : undefined">
+        <option value="cover">Fill the tile (crop)</option>
+        <option value="contain">Show the whole image</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="resolution">Resolution <output for="resolution">{{ trace.resolution }} px</output></label>
+      <select id="resolution" v-model.number="trace.resolution">
+        <option v-for="r in RESOLUTIONS" :key="r" :value="r">{{ r }} px on the longer edge</option>
+      </select>
+    </div>
+  </div>
+
+  <label class="radio"><input id="img-seamless" v-model="spacing.mirror" type="checkbox" :disabled="!usingImage || (trace.curves && !contours)" aria-describedby="img-seamless-hint"> Seamless edges (mirror)</label>
+  <p id="img-seamless-hint" class="hint-text">
+    Mirrors the picture left to right and top to bottom, so the edges meet. Each quarter of the tile holds the picture at half size, so the tile size stays the same and the path is about 4 times longer. Same switch as Mirror in Spacing.
+    <template v-if="trace.curves && !contours">{{ ' ' }}Not available with Smooth curves yet.</template>
+  </p>
+  </UiSection>
 </template>
 
 <style scoped>

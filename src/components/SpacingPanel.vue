@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import UiSection from '@/components/UiSection.vue';
 import { aspect, curvesOn, resetSpacing, spacing, usingImage, variantsOn } from '@/state.ts';
 
 const off = computed(() => variantsOn.value || curvesOn.value || aspect.value !== 1);
 // Mirror also works on the cells of an image grid (see imageCells).
 const mirrorOff = computed(() => off.value && !(variantsOn.value && usingImage.value));
+const summary = computed(() => `zoom ${spacing.zoom.toFixed(2)}× · gap ${spacing.gap} px · mirror ${spacing.mirror ? 'on' : 'off'}`);
 </script>
 
 <template>
-  <section class="panel" aria-labelledby="spacing-h">
-    <h2 id="spacing-h">Spacing</h2>
+  <UiSection title="Spacing" heading-id="spacing-h" :summary="summary">
     <p v-if="variantsOn" class="hint-text">Not combined with Reduce repetition yet{{ usingImage ? ', except Mirror' : '' }}.</p>
     <p v-if="curvesOn" class="hint-text">Not combined with Smooth curves yet.</p>
     <p v-if="aspect !== 1" class="hint-text">Not available for this pattern yet.</p>
@@ -27,5 +28,5 @@ const mirrorOff = computed(() => off.value && !(variantsOn.value && usingImage.v
     <label class="radio"><input v-model="spacing.mirror" type="checkbox" :disabled="mirrorOff" aria-describedby="mirror-hint"> Mirror</label>
     <p id="mirror-hint" class="hint-text">Makes any tile repeat without a seam. Use it for traced photos.</p>
     <button type="button" class="btn" @click="resetSpacing">Reset spacing</button>
-  </section>
+  </UiSection>
 </template>

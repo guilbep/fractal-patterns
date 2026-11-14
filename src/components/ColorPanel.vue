@@ -7,6 +7,7 @@ import { APCA_SCORE, APCA_VERSION, lcText, polarity } from '@/apca.ts';
 import '@/css/apca.css';
 import { applyFix, applyPalette, randomPalette, closedShapes, contrast, fill, fillAvailable, lastFix, offPalette, opacity, paletteName, plateBlur, plateMode, plateOpacity, plateRadius, ratioText, swap, type PlateMode } from '@/state.ts';
 import RoleInput from './RoleInput.vue';
+import UiSection from './UiSection.vue';
 
 const apcaWorstLc = computed(() => (plateMode.value === 'direct' ? contrast.value.apca.direct : contrast.value.apca.onPlate));
 // The levels and reference sizes (Arial or Helvetica, weight 400) from the APCA minimum compliance document.
@@ -52,11 +53,13 @@ const fixes = computed(() => [
   { name: 'AA', target: 4.5, ok: passes(4.5) },
   { name: 'AAA', target: 7, ok: passes(7) },
 ]);
+const contrastSummary = computed(() => `${ratioText(contrast.value.worst)}:1 · ${contrast.value.normal === 'fail' ? 'fails AA' : contrast.value.normal}`);
+const PLATE_SHORT: Record<PlateMode, string> = { plate: 'plate', split: 'heading on pattern', direct: 'on the pattern' };
+const plateSummary = computed(() => (plateMode.value === 'direct' ? PLATE_SHORT.direct : `${PLATE_SHORT[plateMode.value]} · ${Math.round(plateOpacity.value * 100)} %`));
 </script>
 
 <template>
-  <section class="panel" aria-labelledby="colors-h">
-    <h2 id="colors-h">Colors and contrast</h2>
+  <UiSection title="Colors and contrast" heading-id="colors-h" :summary="contrastSummary" open>
     <p class="lede">Three roles share the tile. The text has to stay readable on both the plain background and the strokes.</p>
 
     <div class="color-grid">
@@ -95,29 +98,6 @@ const fixes = computed(() => [
           <template v-if="offPalette.length">Adjusted: the {{ offPaletteText }} {{ offPalette.length > 1 ? 'colors are' : 'color is' }} not from this palette.</template>
         </p>
         <button type="button" class="btn" @click="swap">Swap background and text</button>
-
-        <fieldset class="plate-group">
-          <legend>Text plate</legend>
-          <div class="radios">
-            <label v-for="m in modes" :key="m.value" class="radio">
-              <input v-model="plateMode" type="radio" name="plate-mode" :value="m.value">
-              {{ m.label }}
-            </label>
-          </div>
-          <div class="field">
-            <label for="plate-opacity">Plate opacity <output for="plate-opacity">{{ Math.round(plateOpacity * 100) }}%</output></label>
-            <input id="plate-opacity" v-model.number="plateOpacity" type="range" min="0" max="1" step="0.01" :disabled="plateMode === 'direct'">
-          </div>
-          <div class="field">
-            <label for="plate-radius">Corner radius <output for="plate-radius">{{ plateRadius }} px</output></label>
-            <input id="plate-radius" v-model.number="plateRadius" type="range" min="0" max="32" step="1" :disabled="plateMode === 'direct'">
-          </div>
-          <div class="field">
-            <label for="plate-blur">Blur behind the plate <output for="plate-blur">{{ plateBlur }} px</output></label>
-            <input id="plate-blur" v-model.number="plateBlur" type="range" min="0" max="12" step="1" aria-describedby="plate-blur-hint" :disabled="plateMode === 'direct'">
-            <p id="plate-blur-hint" class="hint-text">Blur costs rendering work on your visitor's device. Keep it at 0 unless you need it.</p>
-          </div>
-        </fieldset>
       </div>
 
       <div class="contrast" aria-labelledby="contrast-h">
@@ -151,48 +131,6 @@ const fixes = computed(() => [
           <div v-if="contrast.onFill !== null"><dt>On the fill</dt><dd>{{ ratioText(contrast.onFill) }}:1</dd></div>
           <div class="info"><dt>Pattern visibility <span class="tag">informational</span></dt><dd>{{ ratioText(contrast.pattern) }}:1</dd></div>
         </dl>
-        <section class="apca" aria-labelledby="apca-h">
-          <h4 id="apca-h">APCA™ Lc value <span class="tag">informational</span></h4>
-          <p class="apca-lc"><strong>{{ lcText(apcaWorstLc) }}</strong>, {{ polarity(apcaWorstLc) }}, worst case</p>
-          <dl class="surfaces">
-            <div class="info"><dt>On the plate</dt><dd>{{ lcText(contrast.apca.onPlate) }}</dd></div>
-            <div class="info"><dt>Directly on the pattern</dt><dd>{{ lcText(contrast.apca.direct) }}</dd></div>
-            <div v-if="contrast.apca.onFill !== null" class="info"><dt>On the fill</dt><dd>{{ lcText(contrast.apca.onFill) }}</dd></div>
-          </dl>
-          <div class="apca-raise">
-            <label for="apca-target">Raise target</label>
-            <select id="apca-target" v-model.number="apcaTarget">
-              <option v-for="[lc, what] in APCA_TARGETS" :key="lc" :value="lc">Lc {{ lc }}: {{ what }}</option>
-            </select>
-            <button type="button" class="btn" :disabled="apcaReached" @click="applyFix(apcaTarget, 'apca')">
-              {{ apcaReached ? `Lc ${apcaTarget} reached` : `Raise to Lc ${apcaTarget}` }}
-            </button>
-          </div>
-          <p class="fix-msg" role="status">
-            <template v-if="lastFix?.measure === 'apca' && !lastFix.reached">
-              Could not reach Lc {{ lastFix.target }}<template v-if="lastFix.heading !== undefined"> for the paragraph and Lc {{ APCA_SCORE.lower(lastFix.target) }} for the heading</template> with these colors. {{ lastFix.changed }} Best found: <template v-if="lastFix.heading !== undefined">paragraph {{ lcText(lastFix.ratio) }}, heading {{ lcText(lastFix.heading) }}</template><template v-else>{{ lcText(lastFix.ratio) }}</template>, now applied. Try another background or palette.
-            </template>
-            <template v-else-if="lastFix?.measure === 'apca' && lastFix.heading !== undefined">Raised. {{ lastFix.changed }} Paragraph {{ lcText(lastFix.ratio) }}, heading {{ lcText(lastFix.heading) }}.</template>
-            <template v-else-if="lastFix?.measure === 'apca'">Raised. {{ lastFix.changed }} Now {{ lcText(lastFix.ratio) }}.</template>
-          </p>
-          <p class="hint-text">
-            APCA™ is the candidate contrast method for WCAG 3, and is currently in public beta. WCAG 3 is still in development and subject to changes prior to adoption. (<a href="https://www.w3.org/TR/wcag-3.0/#visual-contrast-of-text">WCAG 3 visual contrast of text</a>.) APCA is not part of WCAG 2: the WCAG 2.2 result above is the check of this tool, and Lc is not a pass or fail.
-            Lc is signed: positive for dark text on light, negative for light text on dark. Text is the first color, background the second; if you swap them, check again.
-          </p>
-          <details open>
-            <summary>APCA guidance levels</summary>
-            <ul class="apca-levels">
-              <li v-for="[lc, what] in APCA_LEVELS" :key="lc">Lc {{ lc }}: {{ what }}</li>
-            </ul>
-            <p class="hint-text">Absolute Lc values; sizes for Arial or Helvetica at weight 400. See <a href="https://git.apcacontrast.com/documentation/APCA_in_a_Nutshell">APCA in a Nutshell</a> for other sizes and weights.</p>
-          </details>
-          <p class="hint-text">
-            Computed with apca-w3 {{ APCA_VERSION }}, unmodified, under its <a href="https://github.com/Myndex/apca-w3/blob/master/LICENSE.md">own license</a> (not MIT). APCA™ is a trademark of Myndex Research and Andrew Somers. APCA is a method for predicting text contrast on self-illuminated displays for web-based content. Some use-cases are prohibited by license, including the following: use in medical, clinical evaluation, human safety related, aerospace, transportation, automotive, military applications, are strictly prohibited without a specific license in writing granting such use.
-            <a href="https://git.apcacontrast.com/documentation/WhyAPCA">Why APCA</a> ·
-            <a href="https://git.apcacontrast.com/">APCA documentation</a> ·
-            <a href="https://github.com/Myndex/SAPC-APCA/discussions">APCA discussion forum</a>
-          </p>
-        </section>
         <p v-if="plateMode === 'split'" class="badge heading-line" :class="contrast.heading === 'fail' ? 'fail' : 'pass'">
           <span aria-hidden="true" class="badge-icon">{{ contrast.heading === 'fail' ? '✕' : '✓' }}</span>
           <span>{{ contrast.heading === 'fail' ? 'Fail' : `Pass ${contrast.heading}` }}</span>
@@ -214,12 +152,82 @@ const fixes = computed(() => [
         </p>
       </div>
     </div>
+  </UiSection>
 
-    <h3 id="palettes-h">Start from a palette</h3>
+  <UiSection title="Text plate" heading-id="plate-h" :summary="plateSummary">
+    <fieldset class="plate-group">
+      <legend class="visually-hidden">Text plate</legend>
+      <div class="radios">
+        <label v-for="m in modes" :key="m.value" class="radio">
+          <input v-model="plateMode" type="radio" name="plate-mode" :value="m.value">
+          {{ m.label }}
+        </label>
+      </div>
+      <div class="field">
+        <label for="plate-opacity">Plate opacity <output for="plate-opacity">{{ Math.round(plateOpacity * 100) }}%</output></label>
+        <input id="plate-opacity" v-model.number="plateOpacity" type="range" min="0" max="1" step="0.01" :disabled="plateMode === 'direct'">
+      </div>
+      <div class="field">
+        <label for="plate-radius">Corner radius <output for="plate-radius">{{ plateRadius }} px</output></label>
+        <input id="plate-radius" v-model.number="plateRadius" type="range" min="0" max="32" step="1" :disabled="plateMode === 'direct'">
+      </div>
+      <div class="field">
+        <label for="plate-blur">Blur behind the plate <output for="plate-blur">{{ plateBlur }} px</output></label>
+        <input id="plate-blur" v-model.number="plateBlur" type="range" min="0" max="12" step="1" aria-describedby="plate-blur-hint" :disabled="plateMode === 'direct'">
+        <p id="plate-blur-hint" class="hint-text">Blur costs rendering work on your visitor's device. Keep it at 0 unless you need it.</p>
+      </div>
+    </fieldset>
+  </UiSection>
+
+  <UiSection title="APCA™ Lc value" heading-id="apca-h" :summary="lcText(apcaWorstLc)">
+    <div class="apca">
+      <p class="apca-lc"><strong>{{ lcText(apcaWorstLc) }}</strong>, {{ polarity(apcaWorstLc) }}, worst case <span class="tag">informational</span></p>
+      <dl class="surfaces">
+        <div class="info"><dt>On the plate</dt><dd>{{ lcText(contrast.apca.onPlate) }}</dd></div>
+        <div class="info"><dt>Directly on the pattern</dt><dd>{{ lcText(contrast.apca.direct) }}</dd></div>
+        <div v-if="contrast.apca.onFill !== null" class="info"><dt>On the fill</dt><dd>{{ lcText(contrast.apca.onFill) }}</dd></div>
+      </dl>
+      <div class="apca-raise">
+        <label for="apca-target">Raise target</label>
+        <select id="apca-target" v-model.number="apcaTarget">
+          <option v-for="[lc, what] in APCA_TARGETS" :key="lc" :value="lc">Lc {{ lc }}: {{ what }}</option>
+        </select>
+        <button type="button" class="btn" :disabled="apcaReached" @click="applyFix(apcaTarget, 'apca')">
+          {{ apcaReached ? `Lc ${apcaTarget} reached` : `Raise to Lc ${apcaTarget}` }}
+        </button>
+      </div>
+      <p class="fix-msg" role="status">
+        <template v-if="lastFix?.measure === 'apca' && !lastFix.reached">
+          Could not reach Lc {{ lastFix.target }}<template v-if="lastFix.heading !== undefined"> for the paragraph and Lc {{ APCA_SCORE.lower(lastFix.target) }} for the heading</template> with these colors. {{ lastFix.changed }} Best found: <template v-if="lastFix.heading !== undefined">paragraph {{ lcText(lastFix.ratio) }}, heading {{ lcText(lastFix.heading) }}</template><template v-else>{{ lcText(lastFix.ratio) }}</template>, now applied. Try another background or palette.
+        </template>
+        <template v-else-if="lastFix?.measure === 'apca' && lastFix.heading !== undefined">Raised. {{ lastFix.changed }} Paragraph {{ lcText(lastFix.ratio) }}, heading {{ lcText(lastFix.heading) }}.</template>
+        <template v-else-if="lastFix?.measure === 'apca'">Raised. {{ lastFix.changed }} Now {{ lcText(lastFix.ratio) }}.</template>
+      </p>
+      <p class="hint-text">
+        APCA™ is the candidate contrast method for WCAG 3, and is currently in public beta. WCAG 3 is still in development and subject to changes prior to adoption. (<a href="https://www.w3.org/TR/wcag-3.0/#visual-contrast-of-text">WCAG 3 visual contrast of text</a>.) APCA is not part of WCAG 2: the WCAG 2.2 result above is the check of this tool, and Lc is not a pass or fail.
+        Lc is signed: positive for dark text on light, negative for light text on dark. Text is the first color, background the second; if you swap them, check again.
+      </p>
+      <details open>
+        <summary>APCA guidance levels</summary>
+        <ul class="apca-levels">
+          <li v-for="[lc, what] in APCA_LEVELS" :key="lc">Lc {{ lc }}: {{ what }}</li>
+        </ul>
+        <p class="hint-text">Absolute Lc values; sizes for Arial or Helvetica at weight 400. See <a href="https://git.apcacontrast.com/documentation/APCA_in_a_Nutshell">APCA in a Nutshell</a> for other sizes and weights.</p>
+      </details>
+      <p class="hint-text">
+        Computed with apca-w3 {{ APCA_VERSION }}, unmodified, under its <a href="https://github.com/Myndex/apca-w3/blob/master/LICENSE.md">own license</a> (not MIT). APCA™ is a trademark of Myndex Research and Andrew Somers. APCA is a method for predicting text contrast on self-illuminated displays for web-based content. Some use-cases are prohibited by license, including the following: use in medical, clinical evaluation, human safety related, aerospace, transportation, automotive, military applications, are strictly prohibited without a specific license in writing granting such use.
+        <a href="https://git.apcacontrast.com/documentation/WhyAPCA">Why APCA</a> ·
+        <a href="https://git.apcacontrast.com/">APCA documentation</a> ·
+        <a href="https://github.com/Myndex/SAPC-APCA/discussions">APCA discussion forum</a>
+      </p>
+    </div>
+  </UiSection>
+
+  <UiSection title="Start from a palette" heading-id="palettes-h" :summary="paletteName || 'custom colors'">
     <p class="muted">Picking one assigns the strongest pair to background and text, or on a dark palette the dark paper to the background. The palettes follow studies of color preference: close hues, cool grounds, saturated figures on calm grounds.</p>
     <button type="button" class="btn random-palette" @click="randomPalette">Random palette</button>
     <template v-for="g in PALETTE_GROUPS" :key="g.label">
-      <h4 :id="`palettes-${g.label}`" class="palette-group">{{ g.label }}</h4>
+      <h3 :id="`palettes-${g.label}`" class="palette-group">{{ g.label }}</h3>
       <ul class="palettes" :aria-labelledby="`palettes-${g.label}`">
         <li v-for="p in g.palettes" :key="p.name">
           <button type="button" class="palette" :aria-pressed="paletteName === p.name" @click="applyPalette(p)">
@@ -233,5 +241,5 @@ const fixes = computed(() => [
         </li>
       </ul>
     </template>
-  </section>
+  </UiSection>
 </template>

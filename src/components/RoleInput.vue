@@ -6,7 +6,10 @@ import { accent, fill, layer2Color, palette, roles, setAccentColor, setFillColor
 // 'fill': the color of the filled closed shapes; 'layer2': the second layer's own color; 'accent': the shapes a kind
 // marks as accent. All outside the three roles.
 type Role = keyof Roles | 'fill' | 'layer2' | 'accent';
-const props = defineProps<{ role: Role; label: string; hint: string }>();
+// `row`: the phone summary row (ColorPanel): swatch, name, hex and the palette as one-tap dots; tapping it opens the
+// controls below. Hidden above 600 px by CSS (controls.css), so the desktop card is unchanged.
+const props = defineProps<{ role: Role; label: string; hint: string; row?: boolean; open?: boolean; extra?: string }>();
+defineEmits<{ toggle: [] }>();
 
 // Roles this role must not share a color with: same color hides the pattern or the text.
 const CLASHES: Record<Role, (keyof Roles)[]> = { background: ['pattern', 'text'], pattern: ['background'], text: ['background'], fill: ['background'], layer2: ['background'], accent: ['background'] };
@@ -39,6 +42,25 @@ function onHex(value: string): void {
 </script>
 
 <template>
+  <div v-if="row" class="rl-line">
+    <button type="button" class="rl-head" :aria-expanded="!!open" @click="$emit('toggle')">
+      <span class="rl-swatch" :style="{ backgroundColor: value(role) }"></span>
+      <span class="rl-text"><span class="rl-name">{{ label }}</span> <span class="rl-hex">{{ value(role).toUpperCase() }}{{ extra }}</span></span>
+    </button>
+    <div v-if="palette" class="rl-dots" role="group" :aria-label="`${palette.name} colors for ${label.toLowerCase()}, quick pick`">
+      <button
+        v-for="c in palette.colors"
+        :key="c"
+        type="button"
+        class="rl-dot"
+        :aria-pressed="value(role) === c"
+        :disabled="!!usedBy(c)"
+        :aria-label="usedBy(c) ? `${c}, already used by ${usedBy(c)}` : `Use ${c}`"
+        :title="usedBy(c) ? `${c}, already used by ${usedBy(c)}` : c"
+        @click="set(role, c)"
+      ><span :style="{ backgroundColor: c }"></span></button>
+    </div>
+  </div>
   <fieldset class="role">
     <legend>{{ label }} <span class="muted">{{ hint }}</span></legend>
     <div class="role-row">

@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install dev lint format format-check typecheck test build preview perf ci clean logo e2e contrast
+.PHONY: help install dev lint format format-check typecheck test build preview perf ci clean logo e2e contrast gallery
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-13s %s\n", $$1, $$2}'
@@ -27,6 +27,9 @@ test: ## Run the unit tests with node --test
 
 build: ## Build the site into dist
 	npm run build
+
+gallery: ## Write the Studio gallery (MAP-Elites, about 30 s): public/gallery/studio.json and its tile thumbnails
+	node scripts/studio-gallery.ts
 
 logo: ## Write public/favicon.svg from the logo mark (src/logo.ts)
 	npm run logo

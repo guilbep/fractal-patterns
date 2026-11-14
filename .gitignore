@@ -9,3 +9,5 @@ candidates.svg
 # Playwright output
 test-results/
 playwright-report/
+# Studio gallery thumbnails: written by make gallery (about 1.7 MB); the links in studio.json are committed.
+public/gallery/studio/

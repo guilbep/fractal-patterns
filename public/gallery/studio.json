@@ -1,0 +1,571 @@
+{
+ "cells": [
+  {
+   "density": 0,
+   "curl": 0,
+   "mood": "light warm",
+   "link": "studio.html#s=105834329&r=2&d=0.2&t=o&pn=Lake&ba=1&gr=1&g=f__tCwfiC699cEAA",
+   "score": 3.61,
+   "thumb": "gallery/studio/0.svg",
+   "bytes": 25693
+  },
+  {
+   "density": 0,
+   "curl": 1,
+   "mood": "light warm",
+   "link": "studio.html#s=1510485513&d=0.17&pn=Clay&ba=1&gr=1&g=CAYLYg",
+   "score": 3.26,
+   "thumb": "gallery/studio/1.svg",
+   "bytes": 15675
+  },
+  {
+   "density": 0,
+   "curl": 2,
+   "mood": "light warm",
+   "link": "studio.html#s=1767344225&r=2&d=0.24&pn=Lake&ba=1&gr=1&g=__7LeEweldALB-A",
+   "score": 3.05,
+   "thumb": "gallery/studio/2.svg",
+   "bytes": 24855
+  },
+  {
+   "density": 0,
+   "curl": 3,
+   "mood": "light warm",
+   "link": "studio.html#s=2746687184&r=2&d=0.19&pn=Herbarium&ba=1&gr=1&g=v_7R51LAyVpCsHA",
+   "score": 3.03,
+   "thumb": "gallery/studio/3.svg",
+   "bytes": 23125
+  },
+  {
+   "density": 1,
+   "curl": 0,
+   "mood": "light warm",
+   "link": "studio.html#s=4184519208&r=1&d=0.35&pn=Rose&ba=1&gr=1&g=f__wkQNXwF7aEfBt",
+   "score": 3.4,
+   "thumb": "gallery/studio/4.svg",
+   "bytes": 23758
+  },
+  {
+   "density": 1,
+   "curl": 1,
+   "mood": "light warm",
+   "link": "studio.html#s=3424604300&r=2&d=0.26&t=o&pn=Brick&ba=1&gr=1&g=CGQF9S",
+   "score": 2.41,
+   "thumb": "gallery/studio/5.svg",
+   "bytes": 21298
+  },
+  {
+   "density": 1,
+   "curl": 2,
+   "mood": "light warm",
+   "link": "studio.html#s=1767344225&r=2&d=0.25&pn=Lake&ba=1&gr=1&g=__7JeEoOldBLA-A",
+   "score": 2.48,
+   "thumb": "gallery/studio/6.svg",
+   "bytes": 26436
+  },
+  {
+   "density": 1,
+   "curl": 3,
+   "mood": "light warm",
+   "link": "studio.html#s=1767344225&r=2&d=0.3&pn=Herbarium&ba=1&gr=1&g=v97OdUwJWkCwcA",
+   "score": 2.46,
+   "thumb": "gallery/studio/7.svg",
+   "bytes": 24817
+  },
+  {
+   "density": 2,
+   "curl": 0,
+   "mood": "light warm",
+   "link": "studio.html#s=1761492002&r=1&d=0.67&st=0&t=s&pn=Slate&ba=1&gr=1&g=6_r1oPCkkICf2p",
+   "score": 1.92,
+   "thumb": "gallery/studio/8.svg",
+   "bytes": 27022
+  },
+  {
+   "density": 2,
+   "curl": 1,
+   "mood": "light warm",
+   "link": "studio.html#s=2667900154&r=1&d=0.67&pn=Rose&ba=1&gr=1&g=lv1EAg-mTQmQ",
+   "score": 2.41,
+   "thumb": "gallery/studio/9.svg",
+   "bytes": 29507
+  },
+  {
+   "density": 2,
+   "curl": 2,
+   "mood": "light warm",
+   "link": "studio.html#s=504965550&r=1&d=0.66&pn=Lilac&ba=1&gr=1&g=n3_w2YjABICtBy8",
+   "score": 2.37,
+   "thumb": "gallery/studio/10.svg",
+   "bytes": 27617
+  },
+  {
+   "density": 2,
+   "curl": 3,
+   "mood": "light warm",
+   "link": "studio.html#s=2570899665&r=1&d=0.59&t=o&pn=Rose&ba=1&gr=1&g=56Tc7zlHFn8A",
+   "score": 2.7,
+   "thumb": "gallery/studio/11.svg",
+   "bytes": 28010
+  },
+  {
+   "density": 3,
+   "curl": 0,
+   "mood": "light warm",
+   "link": "studio.html#s=4185980142&r=2&d=0.8&pn=Lilac&ba=1&gr=1&g=ZjdaJR-CnT0",
+   "score": 2.46,
+   "thumb": "gallery/studio/12.svg",
+   "bytes": 30934
+  },
+  {
+   "density": 3,
+   "curl": 1,
+   "mood": "light warm",
+   "link": "studio.html#s=3339989488&r=2&d=0.79&pn=Lake&ba=1&gr=1&g=5k8FX9RED-",
+   "score": 1.92,
+   "thumb": "gallery/studio/13.svg",
+   "bytes": 30531
+  },
+  {
+   "density": 3,
+   "curl": 2,
+   "mood": "light warm",
+   "link": "studio.html#s=2312083795&r=2&d=0.85&pn=Lake&ba=1&gr=1&g=YlfJRF8YRZ",
+   "score": 2.22,
+   "thumb": "gallery/studio/14.svg",
+   "bytes": 30405
+  },
+  {
+   "density": 3,
+   "curl": 3,
+   "mood": "light warm",
+   "link": "studio.html#s=384420583&r=2&d=0.9&st=0&t=s&pn=Lake&ba=1&gr=1&g=__36DxBHBk5Ggvno",
+   "score": 2.02,
+   "thumb": "gallery/studio/15.svg",
+   "bytes": 28529
+  },
+  {
+   "density": 0,
+   "curl": 0,
+   "mood": "light cool",
+   "link": "studio.html#s=2534535416&r=1&d=0.11&st=0&t=s&pn=Dusk&ba=1&gr=1&g=t2zxgw85rmJls",
+   "score": 5.38,
+   "thumb": "gallery/studio/16.svg",
+   "bytes": 19795
+  },
+  {
+   "density": 0,
+   "curl": 1,
+   "mood": "light cool",
+   "link": "studio.html#s=2372525973&r=1&d=0.2&st=0&t=s&pn=Dusk&ba=1&gr=1&g=smzwhw85hkWw",
+   "score": 4.11,
+   "thumb": "gallery/studio/17.svg",
+   "bytes": 24665
+  },
+  {
+   "density": 0,
+   "curl": 2,
+   "mood": "light cool",
+   "link": "studio.html#s=297140643&r=1&d=0.2&pn=Glacier&ba=1&gr=1&g=BpLLebqr",
+   "score": 2.91,
+   "thumb": "gallery/studio/18.svg",
+   "bytes": 23077
+  },
+  {
+   "density": 0,
+   "curl": 3,
+   "mood": "light cool",
+   "link": "studio.html#s=409652338&r=2&d=0.21&pn=Tide&ba=1&gr=1&g=___0LyBUwP9YAyD7E",
+   "score": 3.84,
+   "thumb": "gallery/studio/19.svg",
+   "bytes": 20373
+  },
+  {
+   "density": 1,
+   "curl": 0,
+   "mood": "light cool",
+   "link": "studio.html#s=3773760678&r=1&d=0.47&pn=Tide&ba=1&gr=1&g=evvwclAcD99vdv",
+   "score": 2.84,
+   "thumb": "gallery/studio/20.svg",
+   "bytes": 27501
+  },
+  {
+   "density": 1,
+   "curl": 1,
+   "mood": "light cool",
+   "link": "studio.html#s=2086875718&r=1&d=0.45&st=0&t=s&pn=Dusk&ba=1&gr=1&g=QjACtN",
+   "score": 3.3,
+   "thumb": "gallery/studio/21.svg",
+   "bytes": 22440
+  },
+  {
+   "density": 1,
+   "curl": 2,
+   "mood": "light cool",
+   "link": "studio.html#s=641262200&r=2&d=0.42&pn=Mint&ba=1&gr=1&g=9975qdwsJIUgEnA",
+   "score": 2.21,
+   "thumb": "gallery/studio/22.svg",
+   "bytes": 27095
+  },
+  {
+   "density": 1,
+   "curl": 3,
+   "mood": "light cool",
+   "link": "studio.html#s=2833687876&r=2&d=0.41&pn=Mint&ba=1&gr=1&g=t9zNssJFogEg",
+   "score": 3.48,
+   "thumb": "gallery/studio/23.svg",
+   "bytes": 27647
+  },
+  {
+   "density": 2,
+   "curl": 0,
+   "mood": "light cool",
+   "link": "studio.html#s=384420583&r=2&d=0.64&st=0&t=s&ba=1&gr=1&g=-_31MPbf4j0Eqp4Q",
+   "score": 2.8,
+   "thumb": "gallery/studio/24.svg",
+   "bytes": 26873
+  },
+  {
+   "density": 2,
+   "curl": 1,
+   "mood": "light cool",
+   "link": "studio.html#s=2086875718&r=1&d=0.6&st=0&t=s&pn=Glacier&ba=1&gr=1&g=w3Wu8eKzkNU",
+   "score": 2.07,
+   "thumb": "gallery/studio/25.svg",
+   "bytes": 26168
+  },
+  {
+   "density": 2,
+   "curl": 2,
+   "mood": "light cool",
+   "link": "studio.html#s=1081479027&r=1&d=0.61&t=o&pn=Tide&ba=1&gr=1&g=7_77ezTa0Pf3oCjw",
+   "score": 1.88,
+   "thumb": "gallery/studio/26.svg",
+   "bytes": 27161
+  },
+  {
+   "density": 2,
+   "curl": 3,
+   "mood": "light cool",
+   "link": "studio.html#s=586682846&r=1&d=0.74&t=o&pn=Tide&ba=1&gr=1&g=PvFr01X3qntw",
+   "score": 2.07,
+   "thumb": "gallery/studio/27.svg",
+   "bytes": 27001
+  },
+  {
+   "density": 3,
+   "curl": 0,
+   "mood": "light cool",
+   "link": "studio.html#s=1244186773&r=1&d=0.99&t=o&pn=Tide&ba=1&gr=1&g=Us124xr-93Y",
+   "score": 2.07,
+   "thumb": "gallery/studio/28.svg",
+   "bytes": 29532
+  },
+  {
+   "density": 3,
+   "curl": 1,
+   "mood": "light cool",
+   "link": "studio.html#s=2473668876&r=2&d=0.8&pn=Tide&ba=1&gr=1&g=r94lR3MAlgkC",
+   "score": 1.97,
+   "thumb": "gallery/studio/29.svg",
+   "bytes": 30568
+  },
+  {
+   "density": 3,
+   "curl": 2,
+   "mood": "light cool",
+   "link": "studio.html#s=2473668876&r=2&d=0.94&pn=Tide&ba=1&gr=1&g=v999WcSXYAlQkwE",
+   "score": 2.33,
+   "thumb": "gallery/studio/30.svg",
+   "bytes": 27284
+  },
+  {
+   "density": 3,
+   "curl": 3,
+   "mood": "light cool",
+   "link": "studio.html#s=384420583&r=2&d=0.83&st=0&t=s&pn=Mint&ba=1&gr=1&g=__n5HxA1C4MyDv_Q",
+   "score": 2.09,
+   "thumb": "gallery/studio/31.svg",
+   "bytes": 27819
+  },
+  {
+   "density": 0,
+   "curl": 0,
+   "mood": "dark warm",
+   "link": "studio.html#s=1388806203&r=2&d=0.19&t=o&pn=Midnight&ba=1&gr=1&g=9hfkDYXw_EgU",
+   "score": 3.18,
+   "thumb": "gallery/studio/32.svg",
+   "bytes": 20480
+  },
+  {
+   "density": 0,
+   "curl": 1,
+   "mood": "dark warm",
+   "link": "studio.html#s=3675431919&r=2&d=0.03&t=o&pn=Midnight&ba=1&gr=1&g=-z_hToz5IJ9OMa",
+   "score": 3.55,
+   "thumb": "gallery/studio/33.svg",
+   "bytes": 18879
+  },
+  {
+   "density": 0,
+   "curl": 2,
+   "mood": "dark warm",
+   "link": "studio.html#s=2057356808&r=1&d=0.23&pn=Midnight&ba=1&gr=1&g=BtJKTulb",
+   "score": 3.39,
+   "thumb": "gallery/studio/34.svg",
+   "bytes": 22815
+  },
+  {
+   "density": 0,
+   "curl": 3,
+   "mood": "dark warm",
+   "link": "studio.html#s=2782432973&r=2&d=0.13&pn=Deep+sea&ba=1&gr=1&g=___1LyBUwNZYAHO7E",
+   "score": 4.27,
+   "thumb": "gallery/studio/35.svg",
+   "bytes": 22565
+  },
+  {
+   "density": 1,
+   "curl": 0,
+   "mood": "dark warm",
+   "link": "studio.html#s=4184519208&r=1&pn=Plum&ba=1&gr=1&g=e_vwkVNcCp2h9W0",
+   "score": 2.78,
+   "thumb": "gallery/studio/36.svg",
+   "bytes": 23580
+  },
+  {
+   "density": 1,
+   "curl": 1,
+   "mood": "dark warm",
+   "link": "studio.html#s=1614901213&r=1&d=0.44&pn=Plum&ba=1&gr=1&g=___wZlBbwJveFPpp8",
+   "score": 2.9,
+   "thumb": "gallery/studio/37.svg",
+   "bytes": 25931
+  },
+  {
+   "density": 1,
+   "curl": 2,
+   "mood": "dark warm",
+   "link": "studio.html#s=2057356808&r=1&d=0.27&pn=Midnight&ba=1&gr=1&g=zrVKjeNovL8",
+   "score": 2.99,
+   "thumb": "gallery/studio/38.svg",
+   "bytes": 22791
+  },
+  {
+   "density": 1,
+   "curl": 3,
+   "mood": "dark warm",
+   "link": "studio.html#s=1767344225&r=2&d=0.27&pn=Deep+sea&ba=1&gr=1&g=___m4iVMDWWSCzvx",
+   "score": 2.77,
+   "thumb": "gallery/studio/39.svg",
+   "bytes": 24335
+  },
+  {
+   "density": 2,
+   "curl": 0,
+   "mood": "dark warm",
+   "link": "studio.html#s=881669825&r=1&d=0.53&pn=Plum&ba=1&gr=1&g=e_vwkVNYCr3h9W0",
+   "score": 2.78,
+   "thumb": "gallery/studio/40.svg",
+   "bytes": 28284
+  },
+  {
+   "density": 2,
+   "curl": 1,
+   "mood": "dark warm",
+   "link": "studio.html#s=384420583&r=2&d=0.71&st=0&t=s&pn=Ember&ba=1&gr=1&g=8-unxpqgkHXeA",
+   "score": 1.54,
+   "thumb": "gallery/studio/41.svg",
+   "bytes": 28584
+  },
+  {
+   "density": 2,
+   "curl": 2,
+   "mood": "dark warm",
+   "link": "studio.html#s=384420583&r=2&d=0.73&st=0&t=s&pn=Ember&ba=1&gr=1&g=__n5GhClBoM6Lv-g",
+   "score": 1.92,
+   "thumb": "gallery/studio/42.svg",
+   "bytes": 28816
+  },
+  {
+   "density": 2,
+   "curl": 3,
+   "mood": "dark warm",
+   "link": "studio.html#s=384420583&r=2&d=0.72&st=0&t=s&pn=Ember&ba=1&gr=1&g=X_n5HhKlEmM6Lu",
+   "score": 2.13,
+   "thumb": "gallery/studio/43.svg",
+   "bytes": 28597
+  },
+  {
+   "density": 3,
+   "curl": 0,
+   "mood": "dark warm",
+   "link": "studio.html#s=384420583&r=2&d=0.9&st=0&t=s&pn=Ember&ba=1&gr=1&g=29_nP2Le85F1rh",
+   "score": 1.94,
+   "thumb": "gallery/studio/44.svg",
+   "bytes": 29581
+  },
+  {
+   "density": 3,
+   "curl": 1,
+   "mood": "dark warm",
+   "link": "studio.html#s=384420583&r=2&d=0.8&st=0&t=s&pn=Ember&ba=1&gr=1&g=U8knagkXrg",
+   "score": 1.72,
+   "thumb": "gallery/studio/45.svg",
+   "bytes": 28702
+  },
+  {
+   "density": 3,
+   "curl": 2,
+   "mood": "dark warm",
+   "link": "studio.html#s=384420583&r=2&d=0.79&st=0&t=s&pn=Ember&ba=1&gr=1&g=___5GhX1pTqFOk7do",
+   "score": 2.01,
+   "thumb": "gallery/studio/46.svg",
+   "bytes": 29429
+  },
+  {
+   "density": 3,
+   "curl": 3,
+   "mood": "dark warm",
+   "link": "studio.html#s=384420583&r=2&d=0.87&st=0&t=s&pn=Ember&ba=1&gr=1&g=__35DxBHBi4zcvno",
+   "score": 2.06,
+   "thumb": "gallery/studio/47.svg",
+   "bytes": 28903
+  },
+  {
+   "density": 0,
+   "curl": 1,
+   "mood": "dark cool",
+   "link": "studio.html#s=1203466004&r=2&d=0.14&t=o&pn=Ink&ba=1&gr=1&g=-7_hTlj5JoSmmBg",
+   "score": 3.18,
+   "thumb": "gallery/studio/48.svg",
+   "bytes": 21991
+  },
+  {
+   "density": 0,
+   "curl": 2,
+   "mood": "dark cool",
+   "link": "studio.html#s=181692494&r=1&d=0.12&pn=Ink&ba=1&gr=1&g=_9rz6iSX5uS_FzU",
+   "score": 4.67,
+   "thumb": "gallery/studio/49.svg",
+   "bytes": 23335
+  },
+  {
+   "density": 0,
+   "curl": 3,
+   "mood": "dark cool",
+   "link": "studio.html#s=2057356808&r=1&d=0.08&pn=Ink&ba=1&gr=1&g=_9p3_kmfTk-wsI",
+   "score": 4.11,
+   "thumb": "gallery/studio/50.svg",
+   "bytes": 21632
+  },
+  {
+   "density": 1,
+   "curl": 0,
+   "mood": "dark cool",
+   "link": "studio.html#s=1574033758&r=1&d=0.36&pn=Ink&ba=1&gr=1&g=fvvyciRND4wI8sw",
+   "score": 2.02,
+   "thumb": "gallery/studio/51.svg",
+   "bytes": 25919
+  },
+  {
+   "density": 1,
+   "curl": 1,
+   "mood": "dark cool",
+   "link": "studio.html#s=4189847838&r=1&d=0.31&pn=Pine&ba=1&gr=1&g=fvv0dCNND4wH954",
+   "score": 3.7,
+   "thumb": "gallery/studio/52.svg",
+   "bytes": 23410
+  },
+  {
+   "density": 1,
+   "curl": 2,
+   "mood": "dark cool",
+   "link": "studio.html#s=2337472182&d=0.42&st=0&t=s&pn=Pine&ba=1&gr=1&g=AhNJzEg",
+   "score": 3.43,
+   "thumb": "gallery/studio/53.svg",
+   "bytes": 16133
+  },
+  {
+   "density": 1,
+   "curl": 3,
+   "mood": "dark cool",
+   "link": "studio.html#s=4265382275&r=2&d=0.25&pn=Reef&ba=1&gr=1&g=v93wTrBMWScAYDA",
+   "score": 3.05,
+   "thumb": "gallery/studio/54.svg",
+   "bytes": 19287
+  },
+  {
+   "density": 2,
+   "curl": 0,
+   "mood": "dark cool",
+   "link": "studio.html#s=4154567358&r=1&d=0.74&pn=Ink&ba=1&gr=1&g=___w4FBkePm1Z2oHY",
+   "score": 2.07,
+   "thumb": "gallery/studio/55.svg",
+   "bytes": 28733
+  },
+  {
+   "density": 2,
+   "curl": 1,
+   "mood": "dark cool",
+   "link": "studio.html#s=603619235&r=1&d=0.7&pn=Ink&ba=1&gr=1&g=nD_xpAVBDUB1k",
+   "score": 1.76,
+   "thumb": "gallery/studio/56.svg",
+   "bytes": 32177
+  },
+  {
+   "density": 2,
+   "curl": 2,
+   "mood": "dark cool",
+   "link": "studio.html#s=4198231943&r=1&d=0.72&pn=Ink&ba=1&gr=1&g=___xqwVQT0FwILKFo",
+   "score": 2.11,
+   "thumb": "gallery/studio/57.svg",
+   "bytes": 29560
+  },
+  {
+   "density": 2,
+   "curl": 3,
+   "mood": "dark cool",
+   "link": "studio.html#s=3260125673&r=2&d=0.74&st=0&t=s&pn=Ink&ba=1&gr=1&g=5Oz1zvKPBKcl",
+   "score": 2.39,
+   "thumb": "gallery/studio/58.svg",
+   "bytes": 26573
+  },
+  {
+   "density": 3,
+   "curl": 0,
+   "mood": "dark cool",
+   "link": "studio.html#s=603619235&r=1&d=0.79&pn=Ink&ba=1&gr=1&g=3D_x4wVBDUAmKQ",
+   "score": 2.03,
+   "thumb": "gallery/studio/59.svg",
+   "bytes": 30167
+  },
+  {
+   "density": 3,
+   "curl": 1,
+   "mood": "dark cool",
+   "link": "studio.html#s=2844457460&r=1&d=0.82&pn=Ink&ba=1&gr=1&g=___xpwVQTwFAILKJU",
+   "score": 2.04,
+   "thumb": "gallery/studio/60.svg",
+   "bytes": 30024
+  },
+  {
+   "density": 3,
+   "curl": 2,
+   "mood": "dark cool",
+   "link": "studio.html#s=4198231943&r=1&d=0.79&pn=Ink&ba=1&gr=1&g=___xqwVAT0VwILeFc",
+   "score": 1.82,
+   "thumb": "gallery/studio/61.svg",
+   "bytes": 30506
+  },
+  {
+   "density": 3,
+   "curl": 3,
+   "mood": "dark cool",
+   "link": "studio.html#s=3711929893&r=2&d=0.8&st=0&t=s&pn=Ink&ba=1&gr=1&g=7uz1jvJ6BBrVIQ",
+   "score": 2.09,
+   "thumb": "gallery/studio/62.svg",
+   "bytes": 26282
+  }
+ ]
+}

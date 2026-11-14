@@ -22,6 +22,7 @@ export type FilledRoles = Roles & {
   // Color symmetry: the colour bands that fill the tile, each one a surface under the text, seen through the plate.
   readonly bands?: readonly string[] | null;
   // Color each region: the region colours under the lines, each one a surface, bare or under a stroke, through the plate.
+  // The interlace ribbon fill rides here too (checkedRoles in state.ts), at the stroke opacity over the background.
   readonly regions?: readonly string[] | null;
 };
 

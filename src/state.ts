@@ -38,7 +38,7 @@ import { canVary, imageSuperTileExpanded, imageSuperTileSvg, superTileBytes } fr
 import { VARIANT_DEFAULTS, variantTile, variantsActive, type VariantOptions } from '@/variants.ts';
 import { LAYER2_DEFAULTS, layerSpots, type Layer2Settings } from '@/layers.ts';
 import { NO_FILL, fillScene, splitClosed, type FillStyle } from '@/fills.ts';
-import { ACCENT_DEFAULT, appliesDefault, type VaryApplies } from '@/share.ts';
+import { ACCENT_DEFAULT, INTERLACE_DEFAULTS, appliesDefault, type VaryApplies } from '@/share.ts';
 import { composeSvg, sceneToSvg, type SceneLayer } from '@/scene.ts';
 import type { ChangeDir } from '@/fade.ts';
 import { LAYOUT_EXAMPLES, randomLayout, randomRepetition } from '@/random-design.ts';
@@ -451,8 +451,10 @@ const tileSvg = (t: Tile, color = roles.pattern): string => {
     ? sceneToSvg(sceneFor(t, color), params.precision)
     : svgFromPolylines(t.polys, { ...params, size: t.size, color, opacity: opacity.value }, aspect.value, t.extra);
   // The coloured regions go first, under the lines; only on the current tile (the second layer's seed has other regions).
+  // Interlace: the ribbons replace the lines, over the regions.
   const r = t === tile.value ? regionPaths.value : '';
-  return r ? s.replace('>', `>${r}`) : s;
+  const w = t === tile.value ? ribbons.value : '';
+  return w ? s.slice(0, s.indexOf('>') + 1) + r + w + '</svg>' : r ? s.replace('>', `>${r}`) : s;
 };
 // The accent shapes, filled non-zero: overlapping shapes join, and a ring's reversed inner loop stays a hole.
 const accentPaint = (polys: Polys): SceneLayer => ({
@@ -667,6 +669,39 @@ export const regionsInfo = computed(
   () => regionFaces.value && regionsMod.value!.colourRegions(regionFaces.value, regions.mode, regions.k, regionColors.value),
 );
 const regionPaths = computed(() => regionsInfo.value?.svg ?? '');
+
+// Over-under interlace (patterns/interlace.ts): the lines drawn as ribbons that pass over and under in turn. Off by default.
+export const interlace = reactive({ ...INTERLACE_DEFAULTS });
+// Where region colours are off, so is interlace (regionsOffReason, reworded by InterlaceControl.vue), and over a fill
+// ('fill': it draws lines only). '' when available.
+export const interlaceOffReason = computed(() => (fillOn.value ? 'fill' : regionsOffReason.value));
+const interlaceActive = computed(() => interlace.on && !interlaceOffReason.value);
+const interlaceMod = shallowRef<typeof import('@/interlace-tile.ts') | null>(null);
+let interlaceLoad: Promise<void> | undefined;
+export function interlaceReady(): Promise<void> {
+  interlaceLoad ??= import('@/interlace-tile.ts').then((m) => {
+    interlaceMod.value = m;
+  });
+  return interlaceLoad;
+}
+watch(interlaceActive, (on) => on && void interlaceReady(), { immediate: true });
+// The strands and crossings, found again only when the tile's polylines change. Null when off or until the code is in.
+export const weave = computed(() =>
+  interlaceActive.value && interlaceMod.value ? interlaceMod.value.findWeave(tile.value.polys, tile.value.size, aspect.value) : null,
+);
+// The ribbon colour, inside the outline (the stroke colour): the accent or the background, whichever differs more from
+// the stroke. A surface for the text like a region colour (checkedRoles).
+export const ribbonFill = computed(() =>
+  contrastRatio(accent.value, roles.pattern) > contrastRatio(roles.background, roles.pattern) ? accent.value : roles.background,
+);
+// The ribbon fill as the text sees it, at the stroke opacity over the background; empty when no ribbon shows.
+const ribbonSurface = computed(() => (ribbons.value ? [blend(ribbonFill.value, roles.background, opacity.value)] : []));
+// No crossing (the lines only touch): the tile keeps its lines.
+const ribbons = computed(() =>
+  weave.value?.cs.length
+    ? interlaceMod.value!.weaveSvg(weave.value, { ...interlace, fill: ribbonFill.value, stroke: roles.pattern, opacity: opacity.value })
+    : '',
+);
 
 // Grain: a fine noise under the pattern, over the background color, its own tile size (grain.ts). Off by default.
 export const grain = reactive<{ -readonly [K in keyof Grain]: Grain[K] }>({ ...GRAIN_DEFAULTS });
@@ -947,7 +982,8 @@ export const checkedRoles = computed(() => ({
   accent: accentShown.value ? accent.value : null,
   grain: grain.on && grain.amount > 0 ? { color: grainColor(grain.tone), opacity: grain.amount / 100 } : null,
   bands: colorSymActive.value ? bandColors.value : null,
-  regions: regionPaths.value ? regionColors.value : null,
+  // The ribbon fill rides with the region colours: a surface under the text, seen at the stroke opacity.
+  regions: regionPaths.value || ribbons.value ? [...(regionPaths.value ? regionColors.value : []), ...ribbonSurface.value] : null,
   texture: textureSurfaces.value,
 }));
 
@@ -1182,4 +1218,5 @@ export function reset(): void {
   Object.assign(grain, GRAIN_DEFAULTS);
   Object.assign(texture, TEXTURE_DEFAULTS);
   Object.assign(regions, REGIONS_DEFAULTS);
+  Object.assign(interlace, INTERLACE_DEFAULTS);
 }

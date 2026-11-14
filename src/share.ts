@@ -62,7 +62,12 @@ export interface Design extends Motion {
   readonly angle?: number;
   // Color each region (rc, rk). Optional and set only when on, like colorSym. k: the number of colours, 2 to 4.
   readonly regions?: { readonly mode: 'shape' | 'neighbours'; readonly k: number };
+  // Over-under interlace (il, iw, ig). Optional and set only when on, like colorSym. Ribbon width and gap in px.
+  readonly interlace?: { readonly width: number; readonly gap: number };
 }
+
+// The interlace defaults and ranges, shared with state.ts: a link leaves out iw and ig at these values.
+export const INTERLACE_DEFAULTS = { on: false, width: 6, gap: 1.5 };
 
 // Which layer Reduce repetition varies. A kind whose base cannot vary (supertile.ts) varies its accent by default.
 export type VaryApplies = 'base' | 'accent' | 'both';
@@ -165,6 +170,7 @@ const KEYS: Readonly<Record<keyof Design, string>> = {
   texture: 'te',
   angle: 'ca', // a star kind only
   regions: 'rc', // rc=1 by shape, 2 neighbours differ; also rk, the colour count, when not 4
+  interlace: 'il', // il=1; also iw and ig when not the defaults
 };
 const FIELDS = Object.keys(KEYS) as (keyof Design)[];
 
@@ -356,6 +362,30 @@ function decodeRegions(q: URLSearchParams): Design['regions'] {
   const k = s && Number.isFinite(+s) ? Math.round(Math.min(4, Math.max(2, +s))) : 4;
   return { mode: rc === '1' ? 'shape' : 'neighbours', k };
 }
+// Over-under interlace: il=1, and iw, ig only when not the defaults; nothing when off.
+function encodeInterlace(r: Design['interlace']): [string, string][] {
+  const D = INTERLACE_DEFAULTS;
+  return r
+    ? (
+        [
+          ['il', 1, 0],
+          ['iw', r.width, D.width],
+          ['ig', r.gap, D.gap],
+        ] as const
+      )
+        .filter(([, v, d]) => v !== d)
+        .map(([k, v]) => [k, String(v)])
+    : [];
+}
+// Off (undefined) unless il=1; iw clamped to 2..16 and ig to 0..8 (the panel's ranges), rounded to 0.5 px; junk gives
+// the default.
+function decodeInterlace(q: URLSearchParams): Design['interlace'] {
+  const n = (k: string, lo: number, hi: number, d: number) => {
+    const s = q.get(k)?.trim();
+    return s && Number.isFinite(+s) ? Math.round(Math.min(hi, Math.max(lo, +s)) * 2) / 2 : d;
+  };
+  return q.get('il') === '1' ? { width: n('iw', 2, 16, INTERLACE_DEFAULTS.width), gap: n('ig', 0, 8, INTERLACE_DEFAULTS.gap) } : undefined;
+}
 const sameFields = <T extends object>(a: T, b: T): boolean => (Object.keys(a) as (keyof T)[]).every((k) => a[k] === b[k]);
 
 export function encodeDesign(d: Design): string {
@@ -382,6 +412,10 @@ export function encodeDesign(d: Design): string {
     }
     if (f === 'regions') {
       pairs.push(...encodeRegions(d.regions));
+      continue;
+    }
+    if (f === 'interlace') {
+      pairs.push(...encodeInterlace(d.interlace));
       continue;
     }
     if (f === 'texture') {
@@ -449,6 +483,7 @@ export function decodeDesign(query: string): Design {
   const av = decodeAV(get('accentVary'));
   const colorSym = decodeColorSym(q);
   const regions = decodeRegions(q);
+  const interlace = decodeInterlace(q);
   const texture = decodeTexture(q.get(KEYS.texture));
   // Clamped and rounded; ignored for a kind that is not a star pattern.
   const angle = isStarKind(kind) ? clampAngle(get('angle').trim() === '' ? NaN : Number(get('angle'))) : CONTACT_ANGLE.default;
@@ -503,6 +538,7 @@ export function decodeDesign(query: string): Design {
     ...(texture ? { texture } : {}),
     ...(angle !== CONTACT_ANGLE.default ? { angle } : {}),
     ...(regions ? { regions } : {}),
+    ...(interlace ? { interlace } : {}),
   };
 }
 
@@ -520,13 +556,15 @@ export function sameDesign(a: Design, b: Design): boolean {
               ? encodeGrain(a[f]) === encodeGrain(b[f])
               : f === 'regions'
                 ? String(encodeRegions(a[f])) === String(encodeRegions(b[f]))
-                : f === 'colorSym'
-                  ? String(encodeColorSym(a[f])) === String(encodeColorSym(b[f]))
-                  : f === 'texture'
-                    ? (a[f] ? encodeTexture(a[f]) : null) === (b[f] ? encodeTexture(b[f]) : null)
-                    : f === 'accentLayer' || f === 'accentVary'
-                      ? sameFields(a[f], b[f])
-                      : a[f] === b[f],
+                : f === 'interlace'
+                  ? String(encodeInterlace(a[f])) === String(encodeInterlace(b[f]))
+                  : f === 'colorSym'
+                    ? String(encodeColorSym(a[f])) === String(encodeColorSym(b[f]))
+                    : f === 'texture'
+                      ? (a[f] ? encodeTexture(a[f]) : null) === (b[f] ? encodeTexture(b[f]) : null)
+                      : f === 'accentLayer' || f === 'accentVary'
+                        ? sameFields(a[f], b[f])
+                        : a[f] === b[f],
   );
 }
 

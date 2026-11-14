@@ -6,7 +6,7 @@ import { createHistory } from '@/history.ts';
 import { PALETTES, linkedPalette } from '@/palettes.ts'; // STUDIO-PAL
 import { takeUse } from '@/use-it.ts';
 import { TEXTURE_DEFAULTS } from '@/texture.ts';
-import { DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design, WELCOME } from '@/share.ts';
+import { DESIGN_DEFAULTS, INTERLACE_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design, WELCOME } from '@/share.ts';
 import {
   accent,
   accentDrawn,
@@ -38,6 +38,7 @@ import {
   plateOpacity,
   plateRadius,
   regions,
+  interlace,
   roles,
   sections,
   source,
@@ -91,6 +92,7 @@ export function snapshot(): Design {
     ...(isStarKind(params.kind) && contactAngle.value !== CONTACT_ANGLE.default ? { angle: contactAngle.value } : {}),
     // Off leaves it out, like Color symmetry.
     ...(regions.mode !== 'off' ? { regions: { mode: regions.mode, k: regions.k } } : {}),
+    ...(interlace.on ? { interlace: { width: interlace.width, gap: interlace.gap } } : {}),
   };
 }
 
@@ -133,6 +135,7 @@ export function applyDesign(d: Design): void {
   Object.assign(texture, d.texture ?? TEXTURE_DEFAULTS);
   contactAngle.value = d.angle ?? CONTACT_ANGLE.default;
   Object.assign(regions, d.regions ?? { mode: 'off', k: 4 });
+  Object.assign(interlace, d.interlace ? { on: true, ...d.interlace } : INTERLACE_DEFAULTS);
   source.value = 'math';
   lastFix.value = null; // the Fix result no longer describes these colors
 }

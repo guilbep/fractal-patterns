@@ -730,3 +730,30 @@ test('Color each region: rc and rk round trip, last, absent when off; old links 
   assert.ok(!sameDesign(decodeDesign('rc=2'), decodeDesign('')));
   assert.ok(!sameDesign(decodeDesign('rc=2'), decodeDesign('rc=2&rk=3')));
 });
+
+test('Interlace: il, iw and ig round trip, last, absent when off; old links unchanged; clamped', () => {
+  const on = (q: string) => decodeDesign(q).interlace;
+  assert.deepEqual(on('k=star-488&il=1'), { width: 6, gap: 1.5 });
+  assert.deepEqual(on('k=star-488&il=1&iw=9.5&ig=0'), { width: 9.5, gap: 0 });
+  for (const q of ['il=1', 'k=star-488&d=2&il=1&iw=8', 'il=1&ig=3', 'rc=2&il=1&iw=2&ig=8']) assert.equal(encodeDesign(decodeDesign(q)), q);
+  // The keys go last, after the region keys.
+  assert.ok(
+    encodeDesign({ ...decodeDesign('k=star-488&ca=60&rc=1'), interlace: { width: 7, gap: 2 } }).endsWith('ca=60&rc=1&il=1&iw=7&ig=2'),
+  );
+  // Off: no field, no key; iw and ig alone are ignored.
+  assert.equal(on('k=p4m'), undefined);
+  assert.equal(on('k=p4m&il=0&iw=8'), undefined);
+  assert.equal(encodeDesign(decodeDesign('k=p4m&d=2&iw=8&ig=3')), 'k=p4m&d=2');
+  // Old links decode and encode as before.
+  assert.equal(on(`#${WELCOME}`), undefined);
+  assert.equal(encodeDesign(decodeDesign(WELCOME)), WELCOME);
+  // Clamped to 2..16 and 0..8, rounded to 0.5 px; junk gives the default.
+  assert.deepEqual(on('il=1&iw=40&ig=-3'), { width: 16, gap: 0 });
+  assert.deepEqual(on('il=1&iw=1&ig=99'), { width: 2, gap: 8 });
+  assert.deepEqual(on('il=1&iw=6.3&ig=1.2'), { width: 6.5, gap: 1 });
+  assert.deepEqual(on('il=1&iw=x&ig='), { width: 6, gap: 1.5 });
+  // Compared by value.
+  assert.ok(sameDesign(decodeDesign('il=1&iw=8'), decodeDesign('il=1&iw=8')));
+  assert.ok(!sameDesign(decodeDesign('il=1'), decodeDesign('')));
+  assert.ok(!sameDesign(decodeDesign('il=1'), decodeDesign('il=1&ig=2')));
+});

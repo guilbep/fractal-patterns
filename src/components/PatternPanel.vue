@@ -3,7 +3,7 @@ import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue';
 import { CONTACT_ANGLE, FAMILIES, FAMILY_LABELS, KINDS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH, isStarKind, tileAspect, tileHeight, type Kind } from '@/fractal.ts';
 import { SIZE_MAX, SIZE_MIN, SIZE_PRESETS, markedPreset } from '@/sizes.ts';
 import { LIB_TABS, kindsForTab, parseLibTab, tabForKind, type LibTab } from '@/library.ts';
-import { MAX_SEED, bandColors, chooseKind, contactAngle, aspect, tileSize, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, squareKind, usingImage, usingPatchwork, imageShuffles, wheelStatus, regions, regionColors, regionsInfo, regionsOffReason, type RegionMode } from '@/state.ts';
+import { MAX_SEED, bandColors, chooseKind, contactAngle, aspect, tileSize, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, squareKind, usingImage, usingPatchwork, imageShuffles, wheelStatus, regions, regionColors, regionsInfo, regionsOffReason, interlace, interlaceOffReason, weave, type RegionMode } from '@/state.ts';
 import AccentShapes from '@/components/AccentShapes.vue';
 import '@/css/library.css';
 import '@/css/sizes.css';
@@ -11,6 +11,7 @@ import '@/css/sizes.css';
 // Loads when a symmetry kind is first shown: the controls are not in the start JavaScript.
 const ColorSymmetryPanel = defineAsyncComponent(() => import('@/components/ColorSymmetryPanel.vue'));
 const RegionsControl = defineAsyncComponent(() => import('@/components/RegionsControl.vue'));
+const InterlaceControl = defineAsyncComponent(() => import('@/components/InterlaceControl.vue'));
 
 // Patchwork cells are square: rectangular kinds are not offered.
 const squareKinds = KINDS.filter((k) => tileAspect(k) === 1);
@@ -151,6 +152,7 @@ const galleryVars = computed(() => ({ '--lib-bg': roles.background, '--lib-fg': 
     </div>
 
     <RegionsControl :reason="regionsOffReason" :mode="regions.mode" :k="regions.k" :colors="regionColors" :note="regionsInfo?.note ?? ''" @mode="regions.mode = $event as RegionMode" @k="regions.k = $event" />
+    <InterlaceControl :reason="interlaceOffReason" :touch="weave?.cs.length === 0" :odd="weave?.odd.length ?? 0" v-bind="interlace" @set="Object.assign(interlace, $event)" />
 
     <details class="lib-patchwork pattern-card" :open="patchOpen" @toggle="patchOpen = ($event.target as HTMLDetailsElement).open">
       <summary>Patchwork</summary>

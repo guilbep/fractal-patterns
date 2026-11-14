@@ -122,7 +122,7 @@ const plateSummary = computed(() => (plateMode.value === 'direct' ? PLATE_SHORT.
         </ul>
       </div>
       <div class="contrast" aria-labelledby="contrast-h">
-        <h3 id="contrast-h">Paragraph contrast, worst case</h3>
+        <h3 id="contrast-h" tabindex="-1">Paragraph contrast, worst case</h3>
         <p class="ratio"><span class="ratio-num">{{ ratioText(contrast.worst) }}</span><span class="ratio-unit">:1</span></p>
         <ul class="badges">
           <li v-for="b in badges" :key="b.label" class="badge" :class="b.pass ? 'pass' : 'fail'">

@@ -147,6 +147,19 @@ async function useIt(e: MouseEvent): Promise<void> {
   await nextTick();
   document.getElementById('tab-use')?.focus();
 }
+// The status chips lead to their explanation: contrast to the Colors check, size to the Website performance settings.
+async function showContrast(): Promise<void> {
+  tab.value = 'colors';
+  await nextTick();
+  document.getElementById('contrast-h')?.focus();
+}
+async function showFootprint(e: MouseEvent): Promise<void> {
+  await useIt(e); // the tab, or on phones the sheet
+  // ponytail: the destination lives inside UseIt; its Website radio is the one switch.
+  document.querySelector<HTMLInputElement>('.use-it-dests input[value="web"]')?.click();
+  await nextTick();
+  document.getElementById('perf-h')?.focus();
+}
 // The Use it destination: "Website background" (today's export content) first, then the last choice, for the session only.
 const USE_KEY = 'fp-use';
 function readUse(): Destination['id'] {
@@ -223,12 +236,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <PaletteStrip />
     </div>
     <div class="bar-stats">
-      <span class="bar-chip" :class="contrast.normal !== 'fail' ? 'ok' : 'bad'">
+      <button type="button" class="bar-chip" :class="contrast.normal !== 'fail' ? 'ok' : 'bad'" @click="showContrast">
         <span aria-hidden="true">{{ contrast.normal !== 'fail' ? '✓' : '✕' }}</span>
-        <span class="stat-long">Contrast {{ ratioText(contrast.worst) }}:1 {{ contrast.normal !== 'fail' ? 'AA pass' : 'AA fail' }}</span>
+        <span class="stat-long">Contrast {{ ratioText(contrast.worst) }}:1 {{ contrast.normal !== 'fail' ? 'AA pass' : 'AA fail' }}, show the contrast check</span>
         <span class="stat-short" aria-hidden="true">{{ ratioShort(contrast.worst) }}:1 · {{ contrast.normal !== 'fail' ? 'AA' : 'fails AA' }}</span>
-      </span>
-      <SizeBadge :gzip="gzipped === 'unknown' ? 'unknown' : exportGzipBytes" :breakdown="sizeBreakdown" />
+      </button>
+      <SizeBadge :gzip="gzipped === 'unknown' ? 'unknown' : exportGzipBytes" :breakdown="sizeBreakdown" @open="showFootprint" />
     </div>
     <div class="bar-out">
       <!-- Copy link stays here for good (owner, REDESIGN-SPEC §2). Download SVG lives in "Use it". -->
@@ -285,12 +298,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     </div>
     <!-- Phones: the toolbar chips move to the preview corner (design board Mobile-Patterns). -->
     <div class="phone-chips phone-only">
-      <span class="bar-chip" :class="contrast.normal !== 'fail' ? 'ok' : 'bad'">
+      <button type="button" class="bar-chip" :class="contrast.normal !== 'fail' ? 'ok' : 'bad'" @click="showContrast">
         <span aria-hidden="true">{{ contrast.normal !== 'fail' ? '✓' : '✕' }}</span>
-        <span class="stat-long">Contrast {{ ratioText(contrast.worst) }}:1 {{ contrast.normal !== 'fail' ? 'AA pass' : 'AA fail' }}</span>
+        <span class="stat-long">Contrast {{ ratioText(contrast.worst) }}:1 {{ contrast.normal !== 'fail' ? 'AA pass' : 'AA fail' }}, show the contrast check</span>
         <span class="stat-short" aria-hidden="true">{{ ratioShort(contrast.worst) }}:1 {{ contrast.normal !== 'fail' ? 'AA' : 'fails AA' }}</span>
-      </span>
-      <SizeBadge :gzip="gzipped === 'unknown' ? 'unknown' : exportGzipBytes" :breakdown="sizeBreakdown" />
+      </button>
+      <SizeBadge :gzip="gzipped === 'unknown' ? 'unknown' : exportGzipBytes" :breakdown="sizeBreakdown" @open="showFootprint" />
     </div>
     <p class="hero-caption">
       <span aria-hidden="true">{{ captionShort }}</span>

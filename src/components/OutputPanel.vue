@@ -26,7 +26,7 @@ async function copy(text: string): Promise<void> {
 
 <template>
   <section class="panel" aria-labelledby="perf-h">
-    <h2 id="perf-h">Performance settings</h2>
+    <h2 id="perf-h" tabindex="-1">Performance settings</h2>
     <p class="lede">Fewer decimals and less depth make a lighter tile. <button type="button" class="link-btn" @click="emit('depth')">Depth</button> is set under Pattern.</p>
     <div class="field">
       <label for="precision">Coordinate precision <output for="precision">{{ params.precision }} {{ params.precision === 1 ? 'decimal' : 'decimals' }}</output></label>

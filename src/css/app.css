@@ -452,9 +452,15 @@ p.hero-plate {
 .tool-icon {
   flex: none;
 }
-/* Status chips: pills, 28 px, mono 13 px. */
+/* Status chips: pills, 28 px, mono 13 px. Buttons that lead to their explanation: the button look is reset. */
 .bar-chip,
 .size-badge {
+  margin: 0;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -465,6 +471,14 @@ p.hero-plate {
   font-family: var(--mono);
   font-size: 13px;
   white-space: nowrap;
+}
+.bar-chip:hover,
+.size-badge:hover {
+  box-shadow: 0 0 0 1px var(--line);
+}
+.bar-chip:focus-visible,
+.size-badge:focus-visible {
+  outline: 3px solid var(--accent);
 }
 .bar-chip.ok {
   color: var(--pass);
@@ -518,7 +532,6 @@ p.hero-plate {
   gap: 8px;
   padding: 0 10px 0 3px;
   background: var(--sunk);
-  cursor: default;
   min-width: 14.5em;
 }
 .size-text {
@@ -549,7 +562,8 @@ p.hero-plate {
   display: block;
 }
 .size-badge:hover > .size-tip,
-.size-badge:focus-visible > .size-tip {
+.size-badge:focus-visible > .size-tip,
+.size-badge.pinned > .size-tip {
   display: block;
 }
 .size-badge.tip-off > .size-tip {

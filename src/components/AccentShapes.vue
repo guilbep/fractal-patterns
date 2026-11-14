@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { ACCENT_PLACES, ACCENT_SHAPES, ACCENT_SNAPS, type AccentPlace, type AccentShape, type AccentSnap } from '@/accent-layer.ts';
 import { BASIC_STAMPS } from '@/builder/stamps.ts';
-import { accent, accentDrawn, accentLayer, accentOwnOk, hasAccent, params } from '@/state.ts';
+import { accent, accentDrawn, accentLayer, accentOwnOk, clearAvailable, hasAccent, params } from '@/state.ts';
 import UiSection from '@/components/UiSection.vue';
 import UiSegmented from '@/components/UiSegmented.vue';
 import UiSwitch from '@/components/UiSwitch.vue';
@@ -22,7 +22,7 @@ const places = computed(() => ACCENT_PLACES.filter((p) => p !== 'own' || own.val
 const off = computed(() => !accentLayer.on);
 const summary = computed(() => {
   const l = accentDrawn.value;
-  return l.on ? [PLACE_SHORT[l.place], PLURALS[l.shape], `${l.size} %`].join(' · ') : 'off';
+  return l.on ? [PLACE_SHORT[l.place], PLURALS[l.shape], `${l.size} %`, ...(l.clear ? ['clear'] : [])].join(' · ') : 'off';
 });
 // ponytail: the links press the tab buttons; App owns the tab, and this saves an event through PatternPanel.
 const openTab = (id: string) => document.getElementById(`tab-${id}`)?.click();
@@ -57,6 +57,14 @@ const openTab = (id: string) => document.getElementById(`tab-${id}`)?.click();
       </select>
     </div>
     <UiSegmented v-if="accentDrawn.place === 'grid'" :model-value="accentLayer.snap" class="accent-snap" label="Snap" name="accent-snap" :options="SNAPS" :disabled="off" @update:model-value="accentLayer.snap = $event as AccentSnap" />
+    <UiSwitch
+      id="accent-clear"
+      v-model="accentLayer.clear"
+      class="accent-clear"
+      label="Keep clear of the lines"
+      :hint="clearAvailable ? 'Moves each shape to the nearest spot that does not touch the pattern.' : 'Not available with smooth curves.'"
+      :disabled="off || !clearAvailable"
+    />
     <p class="hint-text">
       Color: Accent, in the <button type="button" class="link-btn" @click="openTab('colors')">Colors tab</button>. To vary the shapes across tiles,
       <button type="button" class="link-btn" @click="openTab('repetition')">open Repetition</button>.

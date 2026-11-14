@@ -12,6 +12,7 @@ const grid = (o: Partial<AccentLayer> = {}): AccentLayer => ({
   amount: 100,
   place: 'grid',
   snap: 8,
+  clear: false,
   ...o,
 });
 const center = (p: readonly Pt[]): Pt => {
@@ -113,6 +114,26 @@ test('codec: round trip, defaults give no al, clamping, garbage gives the defaul
   assert.equal(decodeAccentLayer('tree', '1_d_99_100_g_8').size, 40);
   assert.equal(decodeAccentLayer('tree', '1_d_1_5_g_99').amount, 10);
   assert.equal(decodeAccentLayer('tree', '1_d_1_5_g_99').snap, 16);
+});
+
+test('codec: clear is a 7th field, written only when on; old 6-field values decode with clear off and encode unchanged', () => {
+  for (const [kind, old] of [
+    ['tree', '1_d_15_100_g_8'],
+    ['truchet', '1_d_15_100_g_4'],
+    ['sprigs', '0_o_7_100_o_8'],
+  ] as const) {
+    const l = decodeAccentLayer(kind, old);
+    assert.equal(l.clear, false, old);
+    assert.equal(encodeAccentLayer(kind, l), old);
+  }
+  const on = grid({ shape: 'ring', clear: true });
+  assert.equal(encodeAccentLayer('tree', on), '1_r_15_100_g_8_1');
+  assert.deepEqual(decodeAccentLayer('tree', '1_r_15_100_g_8_1'), on);
+  assert.equal(decodeAccentLayer('tree', '1_r_15_100_g_8_0').clear, false);
+  for (const bad of ['1_r_15_100_g_8_2', '1_r_15_100_g_8_1_1', '1_r_15_100_g_8_'])
+    assert.deepEqual(decodeAccentLayer('tree', bad), accentDefaults('tree'), bad);
+  // Only clear differs from Truchet's defaults: al carries it alone.
+  assert.equal(encodeAccentLayer('truchet', { ...accentDefaults('truchet'), clear: true }), '1_o_15_100_o_8_1');
 });
 
 test('accentEffective: own becomes a dot on a grid where the kind is not drawn, other layers pass through', () => {

@@ -20,6 +20,7 @@ import { mirrorTile, withGap, zoomWrap } from '@/spacing.ts';
 import type { Poly, Pt } from '@/patterns/util.ts';
 import { accentDefaults, accentEffective, accentShapes, type AccentLayer } from '@/accent-layer.ts';
 import { accentSvg } from '@/accent-svg.ts';
+import { keepClear } from '@/accent-clear.ts';
 import { ACCENT_VARY_DEFAULTS, varyAccent, type AccentVary } from '@/accent-vary.ts';
 import { traceCall, type TraceChoice } from '@/detectors.ts';
 import { sampleImage, type Sample } from '@/samples.ts';
@@ -319,21 +320,24 @@ function space(p: Polys, size: number): Tile {
   if (spacing.zoom !== 1) p = zoomWrap(p, size, spacing.zoom);
   return spacing.gap > 0 ? withGap(p, size, spacing.gap) : { polys: p, size };
 }
-function tileFor(seed: number): Tile {
+// The base polylines before spacing: the traced image, the patchwork, or the kind.
+function rawFor(seed: number): Polys {
+  return usingImage.value && traced.value
+    ? traced.value
+    : usingPatchwork.value
+      ? patchworkGeometry({ ...patchParams.value, seed })
+      : geometry({ ...params, seed });
+}
+const raw = computed(() => rawFor(params.seed));
+function tileFor(seed: number, polys: Polys = rawFor(seed)): Tile {
   const size = params.size;
-  const polys: Polys =
-    usingImage.value && traced.value
-      ? traced.value
-      : usingPatchwork.value
-        ? patchworkGeometry({ ...patchParams.value, seed })
-        : geometry({ ...params, seed });
   // ponytail: spacing assumes a square tile; skipped for a rectangular kind until a ticket asks.
   // A rectangular kind is a single math pattern here; its raw path (Penrose arcs) rides along untransformed.
   // ponytail: a square kind with `extra` would lose it under spacing; none has one yet.
   if (aspect.value !== 1) return { polys, size, extra: extraPath({ ...params, seed }) };
   return space(polys, size);
 }
-const tile = computed(() => tileFor(params.seed));
+const tile = computed(() => tileFor(params.seed, raw.value));
 const sceneFor = (t: Tile, color = roles.pattern) =>
   fillScene(
     t.polys,
@@ -367,12 +371,29 @@ export const accentDrawn = computed(() => accentEffective(accentLayer, accentOwn
 // super tile, a rectangular tile, or the curve tile, which skip spacing.
 function accentFor(seed: number): { polys: Polys; width: number; height: number } | null {
   const size = params.size;
-  const polys: Polys = accentShapes(params.kind, accentDrawn.value, { seed, depth: params.depth, size });
+  let polys: Polys = accentShapes(params.kind, accentDrawn.value, { seed, depth: params.depth, size });
   if (polys.length === 0) return null;
-  if (variantsOn.value || curvesOn.value || aspect.value !== 1) return { polys, width: size, height: tileHeight(size, aspect.value) };
+  const unspaced = variantsOn.value || curvesOn.value || aspect.value !== 1;
+  if (accentDrawn.value.clear && clearAvailable.value && !variantsOn.value) {
+    // Cleared before spacing, against the base before spacing: zoom cuts shapes at the tile edge, keepClear needs them
+    // whole. Mirror and zoom scale both layers alike, so the drawn stroke and the 1 px gap are scaled back by `k`.
+    // ponytail: skipped over a base super tile, whose cells differ, and a rectangular kind's raw `extra` path (Penrose arcs).
+    const base = (seed === params.seed ? raw.value : rawFor(seed)).filter((p) => p.length >= 2);
+    const k = unspaced ? 1 : (spacing.mirror ? 0.5 : 1) * Math.min(4, Math.max(0.25, spacing.zoom));
+    if (base.length)
+      polys = keepClear(polys as Poly[], base as Poly[], {
+        size,
+        height: tileHeight(size, aspect.value),
+        strokeWidth: params.strokeWidth / k,
+        gap: 1 / k,
+      });
+  }
+  if (unspaced) return { polys, width: size, height: tileHeight(size, aspect.value) };
   const t = space(polys, size);
   return { polys: t.polys, width: t.size, height: t.size };
 }
+// Keep clear of the lines needs the base as polylines: not the curve tile (a finished SVG).
+export const clearAvailable = computed(() => !curvesOn.value);
 const accentTile = computed(() => accentFor(params.seed));
 const accentShown = computed(() => accentTile.value !== null);
 // Reduce repetition reaches the accent: the switch is on and it applies to the accent or both, and shapes show.

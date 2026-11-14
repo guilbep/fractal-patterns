@@ -17,6 +17,7 @@ export interface AccentLayer {
   readonly amount: number; // % of the places used, 10 to 100
   readonly place: AccentPlace;
   readonly snap: AccentSnap; // grid steps per tile edge, for place 'grid'
+  readonly clear: boolean; // keep clear of the lines: each shape moves off the base strokes (accent-clear.ts)
 }
 
 // The radius of the kind's own accent shape, % of its own cell: Truchet dots 0.15 c, Sprigs berries 0.07 c.
@@ -29,8 +30,8 @@ const SCATTER_SALT = 0x6c8e9cf5;
 // `patchwork`: the kind is not drawn, so its own shapes and places do not exist: the defaults are off, as for a kind without them.
 export function accentDefaults(kind: Kind, patchwork = false): AccentLayer {
   return hasAccent(kind) && !patchwork
-    ? { on: true, shape: 'own', size: OWN_SIZE[kind] ?? 15, amount: 100, place: 'own', snap: 8 }
-    : { on: false, shape: 'dot', size: 15, amount: 100, place: 'grid', snap: 8 };
+    ? { on: true, shape: 'own', size: OWN_SIZE[kind] ?? 15, amount: 100, place: 'own', snap: 8, clear: false }
+    : { on: false, shape: 'dot', size: 15, amount: 100, place: 'grid', snap: 8, clear: false };
 }
 
 // The layer drawn where the kind's own shapes and places do not exist (an image, a patchwork): 'own' shape gives a dot,
@@ -179,7 +180,8 @@ function scatter(count: number, size: number, m: number, seed: number): Pt[] {
   return out;
 }
 
-export function accentShapes(kind: Kind, layer: AccentLayer, p: { seed: number; depth: number; size: number }): Poly[] {
+// `clear` is applied by the caller against the drawn base (state.ts, accent-clear.ts), so it is not needed here.
+export function accentShapes(kind: Kind, layer: Omit<AccentLayer, 'clear'>, p: { seed: number; depth: number; size: number }): Poly[] {
   if (!layer.on) return [];
   const { size, seed } = p;
   const shape = layer.shape === 'own' ? 'dot' : layer.shape; // 'own' away from the own places: the own shapes are round
@@ -211,7 +213,8 @@ export function accentShapes(kind: Kind, layer: AccentLayer, p: { seed: number; 
   return scatter(Math.round((SEED_SPOTS * layer.amount) / 100), size, r * extent(shape), seed).map((c) => shapeAt(shape, c, r));
 }
 
-// Link codec: `al=on_shape_size_amount_place_snap`, e.g. `1_d_15_100_g_8`.
+// Link codec: `al=on_shape_size_amount_place_snap[_clear]`, e.g. `1_d_15_100_g_8`; the 7th field `1` only when clear is on,
+// so the 6-field links written before it stay byte-identical.
 const SHAPE_CODE: Record<AccentShape, string> = {
   own: 'o',
   dot: 'd',
@@ -231,19 +234,20 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, M
 export function encodeAccentLayer(kind: Kind, layer: AccentLayer, patchwork = false): string | null {
   const d = accentDefaults(kind, patchwork);
   if ((Object.keys(d) as (keyof AccentLayer)[]).every((k) => d[k] === layer[k])) return null;
-  return [layer.on ? 1 : 0, SHAPE_CODE[layer.shape], layer.size, layer.amount, PLACE_CODE[layer.place], layer.snap].join('_');
+  const f = [layer.on ? 1 : 0, SHAPE_CODE[layer.shape], layer.size, layer.amount, PLACE_CODE[layer.place], layer.snap];
+  return (layer.clear ? [...f, 1] : f).join('_');
 }
 
 /** The layer from an `al` value: missing or malformed gives the kind's defaults; numbers are clamped. */
 export function decodeAccentLayer(kind: Kind, value: string | null | undefined, patchwork = false): AccentLayer {
   const d = accentDefaults(kind, patchwork);
   const parts = (value ?? '').split('_');
-  if (parts.length !== 6) return d;
-  const [on, s, size, amount, pl, snap] = parts;
+  if (parts.length !== 6 && parts.length !== 7) return d;
+  const [on, s, size, amount, pl, snap, clear = '0'] = parts;
   const shape = fromCode(SHAPE_CODE, s);
   const place = fromCode(PLACE_CODE, pl);
   const nums = [size, amount, snap].map((v) => (/^\d+(\.\d+)?$/.test(v!) ? Number(v) : NaN));
-  if ((on !== '0' && on !== '1') || !shape || !place || nums.some(Number.isNaN)) return d;
+  if ((on !== '0' && on !== '1') || (clear !== '0' && clear !== '1') || !shape || !place || nums.some(Number.isNaN)) return d;
   // 'own' exists only for kinds with their own accent shapes, drawn as a single pattern.
   if ((!hasAccent(kind) || patchwork) && (shape === 'own' || place === 'own')) return d;
   const sn = clamp(nums[2]!, 4, 16);
@@ -254,5 +258,6 @@ export function decodeAccentLayer(kind: Kind, value: string | null | undefined, 
     amount: clamp(nums[1]!, 10, 100),
     place,
     snap: ACCENT_SNAPS.reduce((a, b) => (Math.abs(b - sn) < Math.abs(a - sn) ? b : a)),
+    clear: clear === '1',
   };
 }

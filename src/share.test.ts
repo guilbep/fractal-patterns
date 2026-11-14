@@ -80,6 +80,7 @@ function randomDesign(r: () => number, force?: 'patchwork'): Design {
             amount: int(10, 100),
             place: pick(['seed', 'grid'] as const),
             snap: pick(ACCENT_SNAPS),
+            clear: r() < 0.5,
           },
     accentVary:
       r() < 0.5
@@ -162,7 +163,7 @@ const FULL: Design = {
   layer2Color: '#e07a5f',
   change: { dir: 'across', to: 0.55 }, // the longest the slider gives
   accent: '#123456',
-  accentLayer: { on: true, shape: 'ring', size: 22, amount: 60, place: 'seed', snap: 12 },
+  accentLayer: { on: true, shape: 'ring', size: 22, amount: 60, place: 'seed', snap: 12, clear: false },
   accentVary: { applies: 'both', cells: 4, move: 20, scale: 10, drop: 15, turn: 50 },
 };
 
@@ -600,7 +601,7 @@ test('the accent layer and its variation: al and av last, round trip, old links 
 
   // al: written only when it differs from the kind's defaults.
   const hex = decodeDesign('k=hex&s=1&al=1_d_15_100_g_8');
-  assert.deepEqual(hex.accentLayer, { on: true, shape: 'dot', size: 15, amount: 100, place: 'grid', snap: 8 });
+  assert.deepEqual(hex.accentLayer, { on: true, shape: 'dot', size: 15, amount: 100, place: 'grid', snap: 8, clear: false });
   // s=1 is the default seed; hex clamps the default depth to 3.
   assert.equal(encodeDesign(hex), 'k=hex&d=3&al=1_d_15_100_g_8');
   assert.equal(encodeDesign({ ...hex, accent: '#123456' }), 'k=hex&d=3&ac=123456&al=1_d_15_100_g_8');
@@ -634,7 +635,7 @@ test('patchwork: the accent defaults are off, al round-trips, old patchwork link
   }
   for (const link of ['k=truchet&s=7&l=patchwork&al=1_d_15_100_g_8', 's=3&l=patchwork&c=4&f=1&al=1_d_15_100_g_8']) {
     const d = decodeDesign(link);
-    assert.deepEqual(d.accentLayer, { on: true, shape: 'dot', size: 15, amount: 100, place: 'grid', snap: 8 }, link);
+    assert.deepEqual(d.accentLayer, { on: true, shape: 'dot', size: 15, amount: 100, place: 'grid', snap: 8, clear: false }, link);
     assert.equal(encodeDesign(d), link, link);
   }
   // 'own' does not exist over a patchwork: such a value gives the off defaults.

@@ -452,3 +452,9 @@
     padding: 0 var(--s4) var(--s4);
   }
 }
+/* Custom size: the pixel density under the width and height, its hint below. */
+.use-it-density {
+  display: grid;
+  justify-items: start;
+  gap: var(--s1);
+}

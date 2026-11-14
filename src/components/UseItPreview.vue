@@ -2,7 +2,7 @@
 // The "Use it" preview: the tile on the device it is made for, drawn with CSS and inline SVG only.
 import { computed } from 'vue';
 import { svgToDataUri } from '@/css.ts';
-import { DESTINATIONS, type Destination, type Output } from '@/use-it.ts';
+import { DESTINATIONS, tilePercent, type Destination, type Output } from '@/use-it.ts';
 
 const props = defineProps<{
   svg: string;
@@ -13,6 +13,8 @@ const props = defineProps<{
   /** Output pixels; null for CSS and SVG outputs. */
   width: number | null;
   height: number | null;
+  /** PNG pixels per CSS pixel of the tile, as in the PNG; 1 for CSS and SVG. */
+  scale?: number;
   /** Hero only: the pattern fills a band at the top of the page instead of the whole page. */
   hero?: boolean;
   clockFade: boolean;
@@ -54,7 +56,7 @@ const across = computed(() => (props.destination === 'fabric' ? 2.5 : 1));
 const pattern = computed(() => ({
   backgroundColor: props.background ?? 'transparent',
   backgroundImage: `url("${svgToDataUri(props.svg)}")`,
-  backgroundSize: `${((props.tileWidth / size.value[0]) * 100) / across.value}% auto`,
+  backgroundSize: `${tilePercent(props.tileWidth, props.width ? (props.scale ?? 1) : 1, size.value[0]) / across.value}% auto`,
 }));
 const fade = computed(() => `linear-gradient(to bottom, ${props.background ?? 'rgb(0 0 0 / 0.55)'} 0%, transparent 32%)`);
 

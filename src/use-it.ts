@@ -11,6 +11,9 @@ export interface Preset {
   readonly detect?: 'phone' | 'screen';
   readonly custom?: boolean;
   readonly output: Output;
+  /** Device pixels per CSS pixel of the screen the preset is for: the tile is drawn this many times larger,
+   *  so it looks as dense as on the site. Missing: 1 (print, textures, slides). Detected and custom sizes take theirs. */
+  readonly dpr?: number;
 }
 
 export interface Destination {
@@ -33,8 +36,8 @@ export const DESTINATIONS: readonly Destination[] = [
     clockOption: true,
     presets: [
       { id: 'this-phone', label: 'This phone (detected)', detect: 'phone', output: 'png' },
-      { id: 'iphone-17', label: 'iPhone 17 Pro · 17 · 16 Pro', width: 1206, height: 2622, output: 'png' },
-      { id: 'iphone-17-max', label: 'iPhone 17 Pro Max · 16 Pro Max', width: 1320, height: 2868, output: 'png' },
+      { id: 'iphone-17', label: 'iPhone 17 Pro · 17 · 16 Pro', width: 1206, height: 2622, dpr: 3, output: 'png' },
+      { id: 'iphone-17-max', label: 'iPhone 17 Pro Max · 16 Pro Max', width: 1320, height: 2868, dpr: 3, output: 'png' },
       { id: 'custom', label: 'Custom size…', custom: true, output: 'png' },
     ],
   },
@@ -46,12 +49,13 @@ export const DESTINATIONS: readonly Destination[] = [
       'Save the image, then open System Settings, Wallpaper, and drag the file in. On a PC, right-click it and pick Set as desktop background.',
     presets: [
       { id: 'this-screen', label: 'This screen (detected)', detect: 'screen', output: 'png' },
-      { id: 'mbp-14', label: 'MacBook Pro 14″', width: 3024, height: 1964, output: 'png' },
-      { id: 'mbp-16', label: 'MacBook Pro 16″', width: 3456, height: 2234, output: 'png' },
-      { id: 'mba-13', label: 'MacBook Air 13″', width: 2560, height: 1664, output: 'png' },
-      { id: 'mba-15', label: 'MacBook Air 15″', width: 2880, height: 1864, output: 'png' },
-      { id: '4k', label: '4K', width: 3840, height: 2160, output: 'png' },
-      { id: 'full-hd', label: 'Full HD', width: 1920, height: 1080, output: 'png' },
+      { id: 'mbp-14', label: 'MacBook Pro 14″', width: 3024, height: 1964, dpr: 2, output: 'png' },
+      { id: 'mbp-16', label: 'MacBook Pro 16″', width: 3456, height: 2234, dpr: 2, output: 'png' },
+      { id: 'mba-13', label: 'MacBook Air 13″', width: 2560, height: 1664, dpr: 2, output: 'png' },
+      { id: 'mba-15', label: 'MacBook Air 15″', width: 2880, height: 1864, dpr: 2, output: 'png' },
+      // 2: macOS shows a 4K screen as "looks like 1920 × 1080" by default. At "looks like 2560" (1.5×) the tile shows a third larger than on the site.
+      { id: '4k', label: '4K', width: 3840, height: 2160, dpr: 2, output: 'png' },
+      { id: 'full-hd', label: 'Full HD', width: 1920, height: 1080, dpr: 1, output: 'png' },
       { id: 'custom', label: 'Custom size…', custom: true, output: 'png' },
     ],
   },
@@ -70,7 +74,7 @@ export const DESTINATIONS: readonly Destination[] = [
     label: 'Video call background',
     hint: 'Zoom, Teams, Meet',
     howTo: 'Save the image, then open the background settings in Zoom, Teams or Meet and upload it.',
-    presets: [{ id: 'full-hd', label: '1920×1080', width: 1920, height: 1080, output: 'png' }],
+    presets: [{ id: 'full-hd', label: '1920×1080', width: 1920, height: 1080, dpr: 1, output: 'png' }],
   },
   {
     id: 'fabric',
@@ -124,6 +128,34 @@ export function detectedSize(screenW: number, screenH: number, dpr: number, kind
   const b = Math.round(screenH * dpr);
   const [short, long] = a < b ? [a, b] : [b, a];
   return kind === 'phone' ? { width: short, height: long } : { width: long, height: short };
+}
+
+/** A phone: a coarse pointer and a short screen side of at most 500 CSS px (a tablet is wider). */
+export function isPhone(coarse: boolean, shortSideCss: number): boolean {
+  return coarse && shortSideCss <= 500;
+}
+
+/** The presets shown: "This phone" only on a phone, "This screen" only off one. */
+export function visiblePresets(dest: Destination, phone: boolean): readonly Preset[] {
+  return dest.presets.filter((p) => !p.detect || (p.detect === 'phone') === phone);
+}
+
+/** The measured device pixel ratio, rounded to 2 decimals, at least 1. */
+export const roundDpr = (dpr: number): number => Math.max(1, Math.round((dpr || 1) * 100) / 100);
+
+/** The nearest of 1, 2 and 3: the custom density's default. */
+export const nearestDensity = (dpr: number): 1 | 2 | 3 => Math.min(3, Math.max(1, Math.round(dpr))) as 1 | 2 | 3;
+
+/** How many PNG pixels one CSS pixel of the tile takes. */
+export function pngScale(preset: Preset, detectedDpr: number, customDpr: number): number {
+  if (preset.detect) return roundDpr(detectedDpr);
+  if (preset.custom) return customDpr;
+  return preset.dpr ?? 1;
+}
+
+/** The tile's share of the output width, in %: 320 px at 3× on a 1206 px screen is 79.6 %. */
+export function tilePercent(tileWidth: number, scale: number, outputWidth: number): number {
+  return ((tileWidth * scale) / outputWidth) * 100;
 }
 
 /** `fractal-tree-7` at 1206×2622 gives `fractal-tree-7-1206x2622.png`. */

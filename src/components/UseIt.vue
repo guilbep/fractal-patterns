@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // "Use it": what the tile is for, at which size, and the file to get. Shared by the three pages.
 import { computed, reactive, ref, useId, watch } from 'vue';
+import UiSegmented from './UiSegmented.vue';
 import UiSwitch from './UiSwitch.vue';
 import UseItPreview from './UseItPreview.vue';
-import { DESTINATIONS, pngFileName, resolvePreset, type Destination } from '@/use-it.ts';
+import { DESTINATIONS, isPhone, nearestDensity, pngFileName, pngScale, resolvePreset, visiblePresets, type Destination } from '@/use-it.ts';
 import { mayExceedMobileLimit } from '@/png-plan.ts';
 
 const props = withDefaults(
@@ -30,16 +31,22 @@ const uid = useId();
 // Read once: the screen does not change while the panel is open in a way that matters here.
 const screenSize = { width: screen.width, height: screen.height, dpr: devicePixelRatio || 1 };
 const coarse = matchMedia('(pointer: coarse)').matches;
+const phone = isPhone(coarse, Math.min(screenSize.width, screenSize.height));
+const DENSITIES = [1, 2, 3].map((n) => ({ value: n, label: `${n}×` }));
 
 const destId = ref<Destination['id']>(props.initial);
 watch(destId, (id) => emit('destination', id));
 const dest = computed(() => DESTINATIONS.find((d) => d.id === destId.value) ?? DESTINATIONS[0]!);
-const presetIds = reactive<Record<string, string>>(Object.fromEntries(DESTINATIONS.map((d) => [d.id, d.presets[0]!.id])));
+const shown = (d: Destination) => visiblePresets(d, phone);
+// Each list starts at its first shown preset: on a desktop the phone list starts with the iPhones.
+const presetIds = reactive<Record<string, string>>(Object.fromEntries(DESTINATIONS.map((d) => [d.id, shown(d)[0]!.id])));
 const custom = reactive({ width: 1920, height: 1080 });
+const customDpr = ref<string | number>(nearestDensity(screenSize.dpr));
 const clockFade = ref(true);
 
 const sizeOf = (presetId: string) => resolvePreset(dest.value, presetId, screenSize, custom);
-const preset = computed(() => dest.value.presets.find((p) => p.id === presetIds[destId.value]) ?? dest.value.presets[0]!);
+const preset = computed(() => shown(dest.value).find((p) => p.id === presetIds[destId.value]) ?? shown(dest.value)[0]!);
+const scale = computed(() => pngScale(preset.value, screenSize.dpr, Number(customDpr.value)));
 const chosen = computed(() => sizeOf(presetIds[destId.value]!));
 const sizeText = (w: number | null, h: number | null) => (w && h ? `${w} × ${h}` : '');
 
@@ -78,9 +85,10 @@ async function downloadPng() {
       height,
       background: props.background,
       clockFade: dest.value.clockOption ? clockFade.value : false,
+      scale: scale.value,
     });
     downloadBlob(blob, pngFileName(props.baseName, width, height));
-    status.value = `Saved ${width} × ${height} PNG.`;
+    status.value = `Saved ${width} × ${height} PNG at ${scale.value}×.`;
   } catch (e) {
     failed.value = true;
     status.value = e instanceof Error ? e.message : String(e);
@@ -103,6 +111,7 @@ async function downloadPng() {
       :destination="destId"
       :width="chosen.width"
       :height="chosen.height"
+      :scale="scale"
       :hero="destId === 'web' && presetIds.web === 'hero'"
       :clock-fade="!!dest.clockOption && clockFade"
       :preset-label="preset.label"
@@ -125,7 +134,7 @@ async function downloadPng() {
       <fieldset class="use-it-step">
         <legend>2 · Which size?</legend>
         <div class="use-it-presets">
-          <label v-for="p in dest.presets" :key="`${dest.id}-${p.id}`" class="use-it-preset">
+          <label v-for="p in shown(dest)" :key="`${dest.id}-${p.id}`" class="use-it-preset">
             <input
               type="radio"
               :name="`${uid}-preset-${dest.id}`"
@@ -150,6 +159,10 @@ async function downloadPng() {
             <input v-model.number="custom.height" type="number" min="16" max="8192" step="1" inputmode="numeric" @change="clampInputs" />
           </label>
           <span class="use-it-px">px</span>
+        </div>
+        <div v-if="preset.custom" class="use-it-density">
+          <UiSegmented v-model="customDpr" label="Pixel density" :options="DENSITIES" />
+          <span class="use-it-hint">Phones are 3×, most laptops 2×.</span>
         </div>
         <UiSwitch
           v-if="dest.clockOption"

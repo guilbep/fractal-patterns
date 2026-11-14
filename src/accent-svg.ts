@@ -1,4 +1,5 @@
-// The accent layer as SVG: each distinct tile shape written once in <defs>, each copy a <use> of it. Pure.
+// The accent layer as SVG: each distinct tile shape written once in <defs>, each copy a <use> of it, unless the copy
+// written inline is shorter (a triangle or a square): those copies join one shared <path>. Pure.
 // A unit is a tile shape moved so its pivot (accent-vary.ts) is at 0, 0; tile shapes equal up to a translation, at
 // the output precision, share one unit. Filled non-zero on the parent group: overlapping shapes join, a ring's
 // reversed inner loop stays a hole.
@@ -33,15 +34,28 @@ export function accentSvg(
     return unitOf.get(d)!;
   });
   const all = places ?? shapes.map((_, i) => ({ shape: i, ...centers[i]!, rotate: 0, scale: 1 }));
-  const used = new Set(all.map((p) => shapeUnit[p.shape]!));
-  const defs = [...unitOf].filter(([, u]) => used.has(u)).map(([d, u]) => `<path id="${ID}${u}" d="${d}"/>`);
-  const uses = all.map(({ shape, x, y, rotate, scale }) => {
+  let inline = '';
+  const uses: string[] = [];
+  const used = new Set<number>(); // units with a <use> left
+  for (const { shape, x, y, rotate, scale } of all) {
     const deg = num((rotate * 180) / Math.PI, digits[shape]!.turn);
     const k = num(scale, digits[shape]!.scale);
     const t = `translate(${num(x, precision)} ${num(y, precision)})${deg === '0' ? '' : ` rotate(${deg})`}${k === '1' ? '' : ` scale(${k})`}`;
-    return `<use href="#${ID}${shapeUnit[shape]}" transform="${t}"/>`;
-  });
+    const use = `<use href="#${ID}${shapeUnit[shape]}" transform="${t}"/>`;
+    // The same placement as accent-vary.ts: turned and scaled about the pivot, then moved to x, y.
+    const { x: cx, y: cy } = centers[shape]!;
+    const cos = Math.cos(rotate) * scale;
+    const sin = Math.sin(rotate) * scale;
+    const poly = shapes[shape]!.map(([px, py]): Pt => [x + (px - cx) * cos - (py - cy) * sin, y + (px - cx) * sin + (py - cy) * cos]);
+    const d = closedPathData([poly], precision);
+    if (d.length < use.length) inline += d;
+    else {
+      uses.push(use);
+      used.add(shapeUnit[shape]!);
+    }
+  }
   const head = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
-  if (uses.length === 0) return head + '</svg>';
-  return `${head}<defs>${defs.join('')}</defs><g fill="${color}" fill-rule="nonzero">${uses.join('')}</g></svg>`;
+  if (!inline && uses.length === 0) return head + '</svg>';
+  const defs = [...unitOf].filter(([, u]) => used.has(u)).map(([d, u]) => `<path id="${ID}${u}" d="${d}"/>`);
+  return `${head}${defs.length ? `<defs>${defs.join('')}</defs>` : ''}<g fill="${color}" fill-rule="nonzero">${inline ? `<path d="${inline}"/>` : ''}${uses.join('')}</g></svg>`;
 }

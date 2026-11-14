@@ -17,6 +17,8 @@ import {
   change,
   changeTo,
   fade,
+  grain,
+  grainOut,
   imageCells,
   imageVariants,
   layer2,
@@ -44,6 +46,7 @@ import RoleInput from '@/components/RoleInput.vue';
 import UiSection from '@/components/UiSection.vue';
 import UiSegmented from '@/components/UiSegmented.vue';
 import { STRENGTHS } from '@/variants.ts';
+import { GRAIN_AMOUNT, GRAIN_SIZE, GRAIN_TILE } from '@/grain.ts';
 import type { VariantOptions } from '@/variants.ts';
 
 // ponytail: the traced tile is always square (the vectorizer fits the image into a square cell).
@@ -106,10 +109,18 @@ const scaleRange = computed(() => {
 });
 const moreSummary = computed(
   () =>
-    [layer2.value && 'second layer', fade.value && 'soft fade', change.value !== 'none' && 'slow change', sections.value && 'per-section angle']
+    [layer2.value && 'second layer', fade.value && 'soft fade', change.value !== 'none' && 'slow change', sections.value && 'per-section angle', grain.on && 'grain']
       .filter(Boolean)
       .join(' · ') || 'none',
 );
+// The Size slider runs fine (left) to coarse (right): it shows the baseFrequency reversed.
+const sizeFlip = GRAIN_SIZE[0] + GRAIN_SIZE[1];
+const grainSizeText = computed(() => (grain.size >= 0.9 ? 'fine' : grain.size >= 0.6 ? 'medium' : 'coarse'));
+const toneOptions = [
+  { value: 'dark', label: 'Dark' },
+  { value: 'light', label: 'Light' },
+];
+const grainBytes = computed(() => (grainOut.value ? new TextEncoder().encode(grainOut.value).length : 0));
 const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-timeline: scroll()');
 </script>
 
@@ -310,5 +321,23 @@ const scrollTimelines = typeof CSS !== 'undefined' && CSS.supports('animation-ti
 
     <label class="radio"><input id="sections" v-model="sections" type="checkbox" aria-describedby="sections-hint"> Different angle per section</label>
     <p id="sections-hint" class="hint-text">Adds three helper classes to the CSS, fp-a, fp-b, and fp-c, that turn the pattern by a different angle. Put them on successive sections of a page. The preview does not change.</p>
+
+    <label class="radio"><input id="grain" v-model="grain.on" type="checkbox" role="switch" aria-describedby="grain-hint"> Grain</label>
+    <p id="grain-hint" class="hint-text">A fine noise behind the pattern. Its own repeat hides the tile's.</p>
+    <div v-if="grain.on" class="layer2-group grain-group" role="group" aria-labelledby="grain-h">
+      <h3 id="grain-h">Grain</h3>
+      <div class="fields">
+        <div class="field">
+          <label for="grain-amount">Amount <output for="grain-amount">{{ grain.amount }}%</output></label>
+          <input id="grain-amount" v-model.number="grain.amount" type="range" :min="GRAIN_AMOUNT[0]" :max="GRAIN_AMOUNT[1]" step="1">
+        </div>
+        <div class="field">
+          <label for="grain-size">Size <output for="grain-size">{{ grainSizeText }}</output></label>
+          <input id="grain-size" :value="Math.round((sizeFlip - grain.size) * 100) / 100" type="range" :min="GRAIN_SIZE[0]" :max="GRAIN_SIZE[1]" step="0.05" :aria-valuetext="grainSizeText" @input="grain.size = Math.round((sizeFlip - Number(($event.target as HTMLInputElement).value)) * 100) / 100">
+        </div>
+      </div>
+      <UiSegmented :model-value="grain.tone" label="Tone" name="grain-tone" :options="toneOptions" @update:model-value="grain.tone = $event === 'light' ? 'light' : 'dark'" />
+      <p class="hint-text">A {{ GRAIN_TILE }} px tile, about {{ grainBytes }} bytes. The contrast check counts its darkest or lightest specks.</p>
+    </div>
   </UiSection>
 </template>

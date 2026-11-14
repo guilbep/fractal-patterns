@@ -214,3 +214,16 @@ test('composeSvg nests a full-size layer and repeats a smaller one through a pat
     `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10">${a}${a}</svg>`,
   );
 });
+
+test('composeSvg puts a full-size grain layer at the bottom, under the base', () => {
+  const out = composeSvg(
+    [
+      { svg: '<svg id="grain"/>', width: 120, height: 120 },
+      { svg: '<svg id="base"/>', width: 120, height: 120 },
+    ],
+    120,
+    120,
+  );
+  assert.ok(out.indexOf('id="grain"') < out.indexOf('id="base"'));
+  assert.ok(!out.includes('<pattern'));
+});

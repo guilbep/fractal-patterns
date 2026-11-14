@@ -5,6 +5,7 @@ import { formatFootprint, gzipSize, sizeLines } from '@/co2.ts';
 import { exportCss, exportJs, exportParallax, type ExportInput } from '@/export.ts';
 import { KIND_LABELS, extraPath, tileHeight } from '@/fractal.ts';
 import { altUnavailable } from '@/alt-export.ts';
+import { GRAIN_TILE } from '@/grain.ts';
 import { traceName } from '@/detectors.ts';
 import { scaledSecondSize } from '@/layers.ts';
 import {
@@ -18,6 +19,7 @@ import {
   change,
   changeTo,
   fade,
+  grainOut,
   layer2,
   layer2Color,
   layer2Own,
@@ -65,6 +67,7 @@ const exportInput = computed<ExportInput>(() => ({
         },
       }
     : {}),
+  ...(grainOut.value ? { grain: { svg: grainOut.value, tileSize: GRAIN_TILE } } : {}),
   background: roles.background,
   text: roles.text,
   plate: { mode: plateMode.value, opacity: plateOpacity.value, radius: plateRadius.value, blur: plateBlur.value },

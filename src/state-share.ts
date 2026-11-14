@@ -16,6 +16,7 @@ import {
   changeTo,
   fade,
   fill,
+  grain,
   lastFix,
   layer2,
   layer2Color,
@@ -76,6 +77,7 @@ export function snapshot(): Design {
     accentLayer: layout.value === 'patchwork' ? { ...accentDrawn.value } : { ...accentLayer },
     accentVary: { applies: varyApplies.value, ...accentVary },
     accentMoves: accentMoves.value,
+    grain: { ...grain },
   };
 }
 
@@ -113,6 +115,7 @@ export function applyDesign(d: Design): void {
   Object.assign(accentVary, vary);
   varyApplies.value = applies;
   if (d.accentLayer.on) accent.value = d.accent;
+  Object.assign(grain, d.grain);
   source.value = 'math';
   lastFix.value = null; // the Fix result no longer describes these colors
 }

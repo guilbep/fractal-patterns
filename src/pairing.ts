@@ -15,6 +15,8 @@ export type FilledRoles = Roles & {
   readonly fillOpacity?: number;
   readonly second?: { readonly color: string; readonly strength: number } | null;
   readonly accent?: string | null; // the accent shapes' color, at full opacity; null or absent = none on the tile
+  // The grain (grain.ts) under the pattern: its color at its peak opacity over the background; null or absent = none.
+  readonly grain?: { readonly color: string; readonly opacity: number } | null;
 };
 
 export interface Fix {
@@ -39,6 +41,15 @@ export function textWorst(r: FilledRoles, opacity: number, plate: number, spots:
 // show at `opacity` alone, and the second layer (::after, painted over ::before) adds its color at opacity * strength
 // over each surface under it (background, fill) and over the first stroke on it: the crossing. The plate covers all.
 export function textSurfaces(r: FilledRoles, opacity: number, plate: number, spots: Spots = ONE): string[] {
+  // Grain: every surface again over the grained background, the grain at its peak, seen through the plate as the
+  // pattern is. Specks may sit anywhere, so both the plain and the grained background stay in the list.
+  if (r.grain) {
+    const g = blend(r.grain.color, r.background, r.grain.opacity * (1 - Math.min(1, Math.max(0, plate))));
+    return [
+      ...textSurfaces({ ...r, grain: null }, opacity, plate, spots),
+      ...textSurfaces({ ...r, grain: null, background: g }, opacity, plate, spots),
+    ];
+  }
   const fill = r.fill ?? null;
   const fillSpots = fill === null ? [0] : spots(r.fillOpacity ?? 1);
   const second = r.second ?? null;

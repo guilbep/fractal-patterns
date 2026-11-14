@@ -785,3 +785,21 @@ test('the accent layer: a second background on top with its own size; absent, th
   assert.ok(one.includes('animation: fp-drift 10s linear infinite;'));
   assert.ok(one.includes('to { background-position: var(--fp-size) var(--fp-size); }'));
 });
+
+test('grain: one more background image on the element, its own size, under the pattern; absent when off', () => {
+  const grain = { svg: '<svg xmlns="http://www.w3.org/2000/svg" width="257" height="257"/>', tileSize: 257 };
+  const urls = (s: string) => count(s, 'url("data:');
+  assert.equal(urls(css()), 1);
+  assert.equal(urls(css({}, { grain })), 2); // pattern, grain
+  assert.equal(urls(css({}, { grain, accent: { svg, tileSize: 120 } })), 3); // accent, pattern, grain
+  const out = css({ drift: 'xy', speed: 10 }, { grain });
+  assert.ok(out.includes(`  --fp-grain: url("${svgToDataUri(grain.svg)}");\n  --fp-grain-size: 257px;`));
+  assert.ok(
+    out.includes(
+      '  background-color: var(--fp-bg);\n  background-image: var(--fp-grain);\n  background-size: var(--fp-grain-size) var(--fp-grain-size);',
+    ),
+  );
+  // The pattern layer and its drift are untouched: the grain never jumps at the end of a drift loop.
+  assert.deepEqual(beforeBlock(out), beforeBlock(css({ drift: 'xy', speed: 10 })));
+  assert.ok(!css().includes('fp-grain'));
+});

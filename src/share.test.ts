@@ -7,6 +7,7 @@ import { VARIANT_DEFAULTS, type VariantOptions } from './variants.ts';
 import { ACCENT_DEFAULT, DESIGN_DEFAULTS, appliesDefault, decodeDesign, encodeDesign, sameDesign, type Design, WELCOME } from './share.ts';
 import { ACCENT_SHAPES, ACCENT_SNAPS, accentDefaults, type AccentLayer } from './accent-layer.ts';
 import { ACCENT_VARY_DEFAULTS } from './accent-vary.ts';
+import { GRAIN_DEFAULTS } from './grain.ts';
 
 // Small seeded generator (mulberry32), so failures reproduce.
 function rng(seed: number): () => number {
@@ -94,14 +95,16 @@ function randomDesign(r: () => number, force?: 'patchwork'): Design {
             turn: int(0, 100),
           },
     accentMoves: r() < 0.5 ? '' : `${int(0, 63)}.${int(-300, 300) || 1}.${int(-300, 300)}`,
+    grain: r() < 0.5 ? GRAIN_DEFAULTS : { on: true, amount: int(0, 30), size: real(0.3, 1.2), tone: pick(['dark', 'light'] as const) },
   };
 }
 
-// The accent fields a design without them had: the kind's defaults (koch: off, base).
+// The accent fields a design without them had: the kind's defaults (koch: off, base). The grain came later still: off.
 const NO_ACCENT = {
   accentLayer: accentDefaults('koch'),
   accentVary: { applies: 'base', ...ACCENT_VARY_DEFAULTS },
   accentMoves: '',
+  grain: GRAIN_DEFAULTS,
 } as const;
 
 function randomVO(r: () => number): VariantOptions {
@@ -171,6 +174,7 @@ const FULL: Design = {
   accentLayer: { on: true, shape: 'ring', size: 22, amount: 60, place: 'seed', snap: 12, clear: false },
   accentVary: { applies: 'both', cells: 4, move: 20, scale: 10, drop: 15, turn: 50 },
   accentMoves: '0.42.-10',
+  grain: { on: true, amount: 15, size: 0.45, tone: 'light' },
 };
 
 function assertValid(d: Design, label: string): void {
@@ -245,8 +249,8 @@ test('a design with every field non-default stays short', () => {
   // 177 before the variants key, + '&v=1', + '&l2=1&fd=1', + '&l2s=100_100_-180_2.95_0.55_3.85' (32), + '&px=1' (5),
   // + '&vo=6_6_1_h_1_0.55_0.55_0.45_3' (30), + '&sx=1' (5), + '&fi=a_c3eaec_0.55' (17), + '&l2c=e07a5f' (11),
   // + '&ch=a_0.55' (10), + '&ac=123456' (10), + '&al=1_r_22_60_s_12' (18), + '&av=ab_4_20_10_15_50' (20),
-  // + '&am=0.42.-10' (12)
-  assert.ok(s.length <= 362, `${s.length}`);
+  // + '&am=0.42.-10' (12), + '&gr=15_0.45_l' (13)
+  assert.ok(s.length <= 375, `${s.length}`);
   assert.deepEqual(decodeDesign(s), FULL);
 });
 
@@ -532,7 +536,9 @@ test('fill: key fi last, compact, round-trips, omitted when off, malformed gives
     assert.deepEqual(decodeDesign(`fi=${bad}`).fill, DESIGN_DEFAULTS.fill, bad);
   assert.deepEqual(decodeDesign('k=fern&sx=1').fill, DESIGN_DEFAULTS.fill);
   assert.ok(
-    encodeDesign(FULL).endsWith('&sx=1&fi=a_c3eaec_0.55&l2c=e07a5f&ch=a_0.55&ac=123456&al=1_r_22_60_s_12&av=ab_4_20_10_15_50&am=0.42.-10'),
+    encodeDesign(FULL).endsWith(
+      '&sx=1&fi=a_c3eaec_0.55&l2c=e07a5f&ch=a_0.55&ac=123456&al=1_r_22_60_s_12&av=ab_4_20_10_15_50&am=0.42.-10&gr=15_0.45_l',
+    ),
   );
   assert.deepEqual(decodeDesign(encodeDesign(FULL)).fill, FULL.fill);
 });

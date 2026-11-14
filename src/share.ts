@@ -10,6 +10,7 @@ import { decodeMoves, encodeMoves } from './accent-moves.ts';
 import { VARIANT_DEFAULTS, type VariantOptions } from './variants.ts';
 import type { FillStyle } from './fills.ts';
 import { CHANGE_MAX, CHANGE_MIN, type ChangeDir } from './fade.ts';
+import { GRAIN_AMOUNT, GRAIN_DEFAULTS, GRAIN_SIZE, type Grain } from './grain.ts';
 
 export interface Design extends Motion {
   readonly kind: Kind;
@@ -47,6 +48,7 @@ export interface Design extends Motion {
   readonly accentLayer: AccentLayer; // simple shapes over any kind (accent-layer.ts); the default depends on the kind
   readonly accentVary: AccentVary & { readonly applies: VaryApplies }; // what Reduce repetition varies, and the accent's variation
   readonly accentMoves: string; // accent shapes moved by hand, the encoded `am` value (accent-moves.ts); '' when none
+  readonly grain: Grain; // a fine noise behind the pattern (grain.ts)
 }
 
 // Which layer Reduce repetition varies. A kind whose base cannot vary (supertile.ts) varies its accent by default.
@@ -97,6 +99,7 @@ export const DESIGN_DEFAULTS: Design = {
   accentLayer: accentDefaults('tree'),
   accentVary: { applies: 'base', ...ACCENT_VARY_DEFAULTS },
   accentMoves: '',
+  grain: GRAIN_DEFAULTS,
 };
 
 // Field to short key. The insertion order is the order of the encoded string.
@@ -143,7 +146,8 @@ const KEYS: Readonly<Record<keyof Design, string>> = {
   accent: 'ac',
   accentLayer: 'al', // encodeAccentLayer: written only when it differs from the kind's defaults (off in patchwork)
   accentVary: 'av',
-  accentMoves: 'am', // keep new keys last: older links stay valid
+  accentMoves: 'am',
+  grain: 'gr', // keep new keys last: older links stay valid
 };
 const FIELDS = Object.keys(KEYS) as (keyof Design)[];
 
@@ -279,6 +283,17 @@ function decodeAV(s: string): Design['accentVary'] | null {
   });
   return out;
 }
+// The grain in one value, amount_size_tone (tone as d or l), e.g. 12_0.75_d; empty when off.
+const encodeGrain = (g: Grain): string => (g.on ? `${g.amount}_${g.size}_${g.tone === 'dark' ? 'd' : 'l'}` : '');
+// Three parts, finite numbers clamped to their range, and a known tone; anything else gives the default (off).
+function decodeGrain(s: string): Grain {
+  const parts = s.split('_');
+  const [a = NaN, z = NaN] = parts.slice(0, 2).map((p) => (p.trim() === '' ? NaN : Number(p)));
+  const tone = parts[2] === 'd' ? 'dark' : parts[2] === 'l' ? 'light' : null;
+  if (parts.length !== 3 || !tone || !Number.isFinite(a) || !Number.isFinite(z)) return GRAIN_DEFAULTS;
+  const clamp = (x: number, [lo, hi]: readonly [number, number]) => Math.min(hi, Math.max(lo, x)) + 0;
+  return { on: true, amount: clamp(a, GRAIN_AMOUNT), size: clamp(z, GRAIN_SIZE), tone };
+}
 const sameFields = <T extends object>(a: T, b: T): boolean => (Object.keys(a) as (keyof T)[]).every((k) => a[k] === b[k]);
 
 export function encodeDesign(d: Design): string {
@@ -292,6 +307,11 @@ export function encodeDesign(d: Design): string {
     if (f === 'change') {
       const ch = encodeChange(d.change);
       if (ch) pairs.push([KEYS[f], ch]);
+      continue;
+    }
+    if (f === 'grain') {
+      const gr = encodeGrain(d.grain);
+      if (gr) pairs.push([KEYS[f], gr]);
       continue;
     }
     if (f === 'fill') {
@@ -393,6 +413,7 @@ export function decodeDesign(query: string): Design {
     accentLayer: decodeAccentLayer(kind, get('accentLayer') || null, layout === 'patchwork'),
     accentVary: av ?? { applies: get('variants') === '1' ? 'base' : appliesDefault(kind), ...ACCENT_VARY_DEFAULTS },
     accentMoves: encodeMoves(decodeMoves(get('accentMoves'))),
+    grain: decodeGrain(get('grain')),
   };
 }
 
@@ -406,9 +427,11 @@ export function sameDesign(a: Design, b: Design): boolean {
           ? encodeFill(a[f]) === encodeFill(b[f])
           : f === 'change'
             ? encodeChange(a[f]) === encodeChange(b[f])
-            : f === 'accentLayer' || f === 'accentVary'
-              ? sameFields(a[f], b[f])
-              : a[f] === b[f],
+            : f === 'grain'
+              ? encodeGrain(a[f]) === encodeGrain(b[f])
+              : f === 'accentLayer' || f === 'accentVary'
+                ? sameFields(a[f], b[f])
+                : a[f] === b[f],
   );
 }
 

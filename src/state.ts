@@ -41,6 +41,7 @@ import { composeSvg, sceneToSvg, type SceneLayer } from '@/scene.ts';
 import type { ChangeDir } from '@/fade.ts';
 import { LAYOUT_EXAMPLES, randomLayout, randomRepetition } from '@/random-design.ts';
 import { preferred } from '@/preferred.ts';
+import { GRAIN_DEFAULTS, grainColor, grainSvg, type Grain } from '@/grain.ts';
 
 export const MAX_SEED = 0xffffffff;
 
@@ -526,6 +527,11 @@ export const variantBytes = computed(() => {
   };
 });
 
+// Grain: a fine noise under the pattern, over the background color, its own tile size (grain.ts). Off by default.
+export const grain = reactive<{ -readonly [K in keyof Grain]: Grain[K] }>({ ...GRAIN_DEFAULTS });
+// The grain tile for the CSS export; null when off.
+export const grainOut = computed(() => (grain.on ? grainSvg(grain) : null));
+
 // The base layer's tile edge: the CSS export's first background.
 export const baseTileSize = computed(() =>
   variantsOn.value ? variantOptions.cells * params.size : curveSvg.value !== null ? params.size : tile.value.size,
@@ -546,11 +552,19 @@ const composed = computed(() => {
   const a = accentOut.value;
   const bw = baseTileSize.value;
   const bh = tileHeight(bw, aspect.value);
-  if (!a) return { svg: baseSvg.value, size: bw };
+  // The grain at the file's own tile size, stitched, at the bottom: the file stays seamless, but there the grain
+  // repeats with the tile. ponytail: a 257 px grain layer would need a tile of 257 times the pattern tile.
+  const under = grain.on ? (w: number, h: number) => [{ svg: grainSvg(grain, w, h), width: w, height: h }] : () => [];
+  if (!a)
+    return {
+      svg: grain.on ? composeSvg([...under(bw, bh), { svg: baseSvg.value, width: bw, height: bh }], bw, bh) : baseSvg.value,
+      size: bw,
+    };
   const bc = variantsOn.value ? variantOptions.cells : 1;
   const ac = accentVaried.value ? Math.max(1, Math.round(accentVary.cells)) : 1;
   const n = ac / gcd(bc, ac); // lcm(bc, ac) / bc base tiles per edge
   const layers = [
+    ...under(bw * n, bh * n),
     { svg: baseSvg.value, width: bw, height: bh },
     { svg: a.svg, width: a.width, height: a.height },
   ];
@@ -651,6 +665,7 @@ export const checkedRoles = computed(() => ({
   fillOpacity: fill.opacity,
   second: layer2.value && layer2Own.value ? { color: layer2Color.value, strength: layer2Settings.opacity } : null,
   accent: accentShown.value ? accent.value : null,
+  grain: grain.on && grain.amount > 0 ? { color: grainColor(grain.tone), opacity: grain.amount / 100 } : null,
 }));
 
 export const contrast = computed(() => {
@@ -666,7 +681,8 @@ export const contrast = computed(() => {
       ? null
       : worstAt({ ...r, background: blend(r.fill, r.background, r.fillOpacity), fill: null, accent: null }, opacity.value, spots.value);
   // Text on the accent alone and on a stroke over it, without a plate; null when no accent shape shows.
-  const onAccent = r.accent === null ? null : worstAt({ ...r, background: r.accent, fill: null, accent: null }, opacity.value, spots.value);
+  const onAccent =
+    r.accent === null ? null : worstAt({ ...r, background: r.accent, fill: null, accent: null, grain: null }, opacity.value, spots.value);
   // The paragraph's surface: the plate in 'plate' and 'split', the bare pattern in 'direct'.
   const worst = plateMode.value === 'direct' ? direct : onPlate;
   return {
@@ -696,7 +712,9 @@ export const contrast = computed(() => {
               spots.value,
             ),
       onAccent:
-        r.accent === null ? null : apcaWorst({ ...r, background: r.accent, fill: null, accent: null }, opacity.value, 0, spots.value),
+        r.accent === null
+          ? null
+          : apcaWorst({ ...r, background: r.accent, fill: null, accent: null, grain: null }, opacity.value, 0, spots.value),
     },
   };
 });
@@ -875,4 +893,5 @@ export function reset(): void {
   changeTo.value = 0.4;
   parallax.value = false;
   sections.value = false;
+  Object.assign(grain, GRAIN_DEFAULTS);
 }

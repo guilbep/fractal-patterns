@@ -30,6 +30,10 @@ export interface ExportInput {
   readonly sections?: boolean; // helper classes fp-a, fp-b, fp-c that turn the pattern per section
   // The accent layer: its own tile drawn over the first layer, in the same pseudo-element, a whole number of first tiles.
   readonly accent?: { readonly svg: string; readonly tileSize: number; readonly tileHeight?: number };
+  // The grain (grain.ts): a square tile on the element itself, over its background color and under the pattern layers
+  // (::before and ::after have z-index -1 in the isolated element). It does not move or turn with the pattern, so a
+  // drift never makes it jump, and its own size keeps the two repeats apart.
+  readonly grain?: { readonly svg: string; readonly tileSize: number };
 }
 
 // The first layer's lines with the accent tile listed on top: two background images, each with its own size.
@@ -86,10 +90,12 @@ export function exportCss(i: ExportInput): string {
       : []),
     ...(i.second ? [`  --fp-tile-2: url("${svgToDataUri(i.second.svg)}");`, `  --fp-size-2: ${size2}px;`] : []),
     ...(rect2 ? [`  --fp-size-2-y: ${scaledSize(i.second!.tileHeight!, i.motion)}px;`] : []),
+    ...(i.grain ? [`  --fp-grain: url("${svgToDataUri(i.grain.svg)}");`, `  --fp-grain-size: ${i.grain.tileSize}px;`] : []),
     '  position: relative;',
     '  isolation: isolate;',
     '  overflow: hidden;',
     '  background-color: var(--fp-bg);',
+    ...(i.grain ? ['  background-image: var(--fp-grain);', '  background-size: var(--fp-grain-size) var(--fp-grain-size);'] : []),
     '  color: var(--fp-ink);',
     '}',
     ...withAccent(

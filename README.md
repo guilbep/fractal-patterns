@@ -209,6 +209,10 @@ The text plate is a box with a background color behind the text. It has three mo
 
 The plate has its own opacity, corner radius and blur.
 
+### Textures
+
+The "Texture" group sits under "Background" in the Colors tab. It puts one texture layer between the background and the pattern. The choices are "None", "Grain", "Paper", "Cold-press", "Linen", "Plaster", "Washi", "Kraft", "Sand", "Riso", "Terrazzo" and "Stipple". Grain moved here from the Repetition tab, with the same controls. The other textures have "Strength", "Scale", a "Seed" with "Another", and for some a "Tone". Some textures are "Baked": the page draws them once into a small WebP image, in a background worker. Some are "Live": an SVG filter that the browser draws again on each repaint. Terrazzo and Stipple are vector shapes. "Bake it" turns a live texture into an image. The link key is `te`. Grain keeps its old key `gr`. The contrast check counts the darkest or lightest texture color. The size badge adds two lines: "Once" (the bytes a visitor loads) and "While visible" (an estimate of the redraw cost of a live layer, measured on your device).
+
 ### Fill
 
 The Fill group in the Colors tab fills the closed shapes of the pattern with a second color. A closed shape is a line that ends where it starts. "Fill closed shapes" has three modes:

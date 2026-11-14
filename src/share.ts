@@ -11,6 +11,9 @@ import { VARIANT_DEFAULTS, type VariantOptions } from './variants.ts';
 import type { FillStyle } from './fills.ts';
 import { CHANGE_MAX, CHANGE_MIN, type ChangeDir } from './fade.ts';
 import { GRAIN_AMOUNT, GRAIN_DEFAULTS, GRAIN_SIZE, type Grain } from './grain.ts';
+import { COLOR_SYM_DEFAULTS, DETAIL_MAX, DETAIL_MIN, ORDERS, WAVES_MAX, WAVES_MIN } from './color-sym.ts';
+
+export type ColorSym = typeof COLOR_SYM_DEFAULTS;
 
 export interface Design extends Motion {
   readonly kind: Kind;
@@ -49,6 +52,8 @@ export interface Design extends Motion {
   readonly accentVary: AccentVary & { readonly applies: VaryApplies }; // what Reduce repetition varies, and the accent's variation
   readonly accentMoves: string; // accent shapes moved by hand, the encoded `am` value (accent-moves.ts); '' when none
   readonly grain: Grain; // a fine noise behind the pattern (grain.ts)
+  // Color symmetry (color-sym.ts). Optional and set only when on, so designs from before it compare and decode unchanged.
+  readonly colorSym?: ColorSym;
 }
 
 // Which layer Reduce repetition varies. A kind whose base cannot vary (supertile.ts) varies its accent by default.
@@ -147,7 +152,8 @@ const KEYS: Readonly<Record<keyof Design, string>> = {
   accentLayer: 'al', // encodeAccentLayer: written only when it differs from the kind's defaults (off in patchwork)
   accentVary: 'av',
   accentMoves: 'am',
-  grain: 'gr', // keep new keys last: older links stay valid
+  grain: 'gr',
+  colorSym: 'cs', // also cw cd cb cm co (encodeColorSym); keep new keys last: older links stay valid
 };
 const FIELDS = Object.keys(KEYS) as (keyof Design)[];
 
@@ -294,6 +300,37 @@ function decodeGrain(s: string): Grain {
   const clamp = (x: number, [lo, hi]: readonly [number, number]) => Math.min(hi, Math.max(lo, x)) + 0;
   return { on: true, amount: clamp(a, GRAIN_AMOUNT), size: clamp(z, GRAIN_SIZE), tone };
 }
+// Color symmetry as its own keys: cs=1, then each setting only when it differs from its default; nothing when off.
+function encodeColorSym(c: ColorSym | undefined): [string, string][] {
+  if (!c?.on) return [];
+  const D = COLOR_SYM_DEFAULTS;
+  const out: [string, string][] = [['cs', '1']];
+  if (c.waves !== D.waves) out.push(['cw', String(c.waves)]);
+  if (c.detail !== D.detail) out.push(['cd', String(c.detail)]);
+  if (c.balance !== D.balance) out.push(['cb', c.balance ? '1' : '0']);
+  if (c.render !== D.render) out.push(['cm', c.render === 'wheel' ? 'w' : 'b']);
+  if (c.order !== D.order) out.push(['co', String(c.order)]);
+  return out;
+}
+// Off (undefined) unless cs=1; each setting is clamped to its range or falls back to its default.
+function decodeColorSym(q: URLSearchParams): ColorSym | undefined {
+  if (q.get('cs') !== '1') return undefined;
+  const D = COLOR_SYM_DEFAULTS;
+  const int = (k: string, lo: number, hi: number, d: number): number => {
+    const s = q.get(k) ?? '';
+    const n = Number(s);
+    return s.trim() === '' || !Number.isFinite(n) ? d : Math.round(Math.min(hi, Math.max(lo, n))) + 0;
+  };
+  const cb = q.get('cb');
+  return {
+    on: true,
+    waves: int('cw', WAVES_MIN, WAVES_MAX, D.waves),
+    detail: int('cd', DETAIL_MIN, DETAIL_MAX, D.detail),
+    balance: cb === '0' ? false : cb === '1' ? true : D.balance,
+    render: q.get('cm') === 'w' ? 'wheel' : 'bands',
+    order: int('co', 0, ORDERS - 1, D.order),
+  };
+}
 const sameFields = <T extends object>(a: T, b: T): boolean => (Object.keys(a) as (keyof T)[]).every((k) => a[k] === b[k]);
 
 export function encodeDesign(d: Design): string {
@@ -312,6 +349,10 @@ export function encodeDesign(d: Design): string {
     if (f === 'grain') {
       const gr = encodeGrain(d.grain);
       if (gr) pairs.push([KEYS[f], gr]);
+      continue;
+    }
+    if (f === 'colorSym') {
+      pairs.push(...encodeColorSym(d.colorSym));
       continue;
     }
     if (f === 'fill') {
@@ -346,7 +387,7 @@ export function encodeDesign(d: Design): string {
   return new URLSearchParams(pairs).toString();
 }
 
-type NumField = { [F in keyof Design]: Design[F] extends number ? F : never }[keyof Design];
+type NumField = { [F in keyof Design]-?: Design[F] extends number ? F : never }[keyof Design];
 
 export function decodeDesign(query: string): Design {
   // get() returns the first value of a repeated key, so the first one wins.
@@ -368,6 +409,7 @@ export function decodeDesign(query: string): Design {
   const kind = oneOf('kind', KINDS, D.kind);
   const layout = oneOf('layout', ['single', 'patchwork'], D.layout);
   const av = decodeAV(get('accentVary'));
+  const colorSym = decodeColorSym(q);
   const bool = (f: 'mirror' | 'frame' | 'variants' | 'layer2' | 'fade' | 'parallax' | 'sections'): boolean =>
     get(f) === '1' ? true : get(f) === '0' ? false : D[f];
   return {
@@ -414,6 +456,7 @@ export function decodeDesign(query: string): Design {
     accentVary: av ?? { applies: get('variants') === '1' ? 'base' : appliesDefault(kind), ...ACCENT_VARY_DEFAULTS },
     accentMoves: encodeMoves(decodeMoves(get('accentMoves'))),
     grain: decodeGrain(get('grain')),
+    ...(colorSym ? { colorSym } : {}),
   };
 }
 
@@ -429,9 +472,11 @@ export function sameDesign(a: Design, b: Design): boolean {
             ? encodeChange(a[f]) === encodeChange(b[f])
             : f === 'grain'
               ? encodeGrain(a[f]) === encodeGrain(b[f])
-              : f === 'accentLayer' || f === 'accentVary'
-                ? sameFields(a[f], b[f])
-                : a[f] === b[f],
+              : f === 'colorSym'
+                ? String(encodeColorSym(a[f])) === String(encodeColorSym(b[f]))
+                : f === 'accentLayer' || f === 'accentVary'
+                  ? sameFields(a[f], b[f])
+                  : a[f] === b[f],
   );
 }
 

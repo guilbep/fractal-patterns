@@ -1,5 +1,6 @@
 // The design in the URL hash, and an undo history over it. Pins, the palette name, and the image stay out (see share.ts).
 import { computed, ref, watch } from 'vue';
+import { COLOR_SYM_DEFAULTS, colorSym } from '@/color-sym.ts';
 import { FAMILIES } from '@/fractal.ts';
 import { createHistory } from '@/history.ts';
 import { PALETTES, linkedPalette } from '@/palettes.ts'; // STUDIO-PAL
@@ -78,6 +79,8 @@ export function snapshot(): Design {
     accentVary: { applies: varyApplies.value, ...accentVary },
     accentMoves: accentMoves.value,
     grain: { ...grain },
+    // Off leaves it out, so a design without Color symmetry links and compares as before.
+    ...(colorSym.on ? { colorSym: { ...colorSym } } : {}),
   };
 }
 
@@ -116,6 +119,7 @@ export function applyDesign(d: Design): void {
   varyApplies.value = applies;
   if (d.accentLayer.on) accent.value = d.accent;
   Object.assign(grain, d.grain);
+  Object.assign(colorSym, d.colorSym ?? COLOR_SYM_DEFAULTS);
   source.value = 'math';
   lastFix.value = null; // the Fix result no longer describes these colors
 }

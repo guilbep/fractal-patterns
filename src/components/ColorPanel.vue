@@ -5,7 +5,7 @@ import '@/css/palettes.css';
 import { largeTarget } from '@/pairing.ts';
 import { APCA_SCORE, APCA_VERSION, lcText, polarity } from '@/apca.ts';
 import '@/css/apca.css';
-import { applyFix, applyPalette, randomPalette, closedShapes, contrast, fill, fillAvailable, hasAccent, lastFix, offPalette, opacity, paletteName, params, plateBlur, plateMode, plateOpacity, plateRadius, ratioShort, ratioText, swap, type PlateMode } from '@/state.ts';
+import { applyFix, applyPalette, randomPalette, closedShapes, contrast, fill, fillAvailable, accentShown, lastFix, offPalette, opacity, paletteName, params, plateBlur, plateMode, plateOpacity, plateRadius, ratioShort, ratioText, swap, type PlateMode } from '@/state.ts';
 import RoleInput from './RoleInput.vue';
 import UiSection from './UiSection.vue';
 
@@ -103,8 +103,8 @@ const plateSummary = computed(() => (plateMode.value === 'direct' ? PLATE_SHORT.
           </p>
         </fieldset>
         </div>
-        <div v-if="hasAccent(params.kind)" class="rl-item" :class="{ open: openRole === 'accent' }">
-          <RoleInput role="accent" label="Accent" hint="the shapes this pattern marks" row :open="openRole === 'accent'" @toggle="toggleRole('accent')" />
+        <div v-if="accentShown" class="rl-item" :class="{ open: openRole === 'accent' }">
+          <RoleInput role="accent" label="Accent" hint="the accent shapes on top" row :open="openRole === 'accent'" @toggle="toggleRole('accent')" />
         </div>
         <div class="rl-item" :class="{ open: openRole === 'text' }">
           <RoleInput role="text" label="Text" hint="sits on top of both" row :open="openRole === 'text'" @toggle="toggleRole('text')" />

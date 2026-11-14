@@ -429,7 +429,8 @@ watch(accentEditable, (ok) => ok || (accentEditing.value = false));
 // Keep clear of the lines needs the base as polylines: not the curve tile (a finished SVG).
 export const clearAvailable = computed(() => !curvesOn.value);
 const accentTile = computed(() => accentFor(params.seed, accentEdit.value));
-const accentShown = computed(() => accentTile.value !== null);
+// Accent shapes are drawn: the Colors tab shows the Accent role, the contrast check counts the accent surface.
+export const accentShown = computed(() => accentTile.value !== null);
 // Reduce repetition reaches the accent: the switch is on and it applies to the accent or both, and shapes show.
 export const accentVaried = computed(() => variants.value && varyApplies.value !== 'base' && accentTile.value !== null);
 // The accent layer as its own tile: one tile, or the varied super tile of accentVary.cells tiles. Null when no shape shows.

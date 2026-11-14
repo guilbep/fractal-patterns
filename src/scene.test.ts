@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { generate, geometry, type PatternParams } from './fractal.ts';
-import { drawScene, pathData, sceneToSvg, squareScene, type CanvasLike, type Paint, type Scene } from './scene.ts';
+import { composeSvg, drawScene, pathData, sceneToSvg, squareScene, type CanvasLike, type Paint, type Scene } from './scene.ts';
 import type { Pt } from './patterns/util.ts';
 
 const stroke: Paint = { mode: 'stroke', color: '#336699', opacity: 0.5, width: 1 };
@@ -140,5 +140,77 @@ test('sceneToSvg without a d layer is unchanged', () => {
   assert.equal(
     sceneToSvg(squareScene(polys, { size: 60, strokeWidth: 2, color: '#123456', opacity: 0.6 }), 1),
     '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><path d="M10 10h40v30M5 5l15 25l20-25z" fill="none" stroke="#123456" stroke-width="2" stroke-opacity="0.6" stroke-linecap="round"/></svg>',
+  );
+});
+
+test('an accent layer fills non-zero: a ring keeps its hole and two overlapping dots join', () => {
+  const ngon = (cx: number, cy: number, r: number, n = 16): Pt[] =>
+    Array.from({ length: n + 1 }, (_, i): Pt => [
+      cx + r * Math.cos((2 * Math.PI * (i % n)) / n),
+      cy + r * Math.sin((2 * Math.PI * (i % n)) / n),
+    ]);
+  const ring: Pt[] = [...ngon(30, 30, 20), ...ngon(30, 30, 12).reverse(), [50, 30]];
+  const dots = [ngon(20, 20, 10), ngon(28, 20, 10)];
+  const paint = { mode: 'fill', color: '#e07a3f', opacity: 1, width: 0 } as const;
+  const svg = sceneToSvg({ width: 60, height: 60, layers: [{ polys: [ring, ...dots], paint: { ...paint, rule: 'nonzero' } }] }, 1);
+  assert.ok(svg.includes('fill-rule="nonzero"'));
+  assert.ok(!svg.includes('evenodd'));
+  // The ring's inner loop runs the other way round: its signed area has the opposite sign, so non-zero leaves the hole.
+  const signed = (p: Pt[]) => p.slice(0, -1).reduce((s, [x, y], i) => s + x * p[i + 1]![1] - p[i + 1]![0] * y, 0) / 2;
+  assert.ok(Math.sign(signed(ngon(30, 30, 20))) === -Math.sign(signed(ngon(30, 30, 12).reverse())));
+  // Both dots turn the same way: non-zero gives winding 2 where they overlap, filled (even-odd would cut it out).
+  assert.equal(Math.sign(signed(dots[0]!)), Math.sign(signed(dots[1]!)));
+  // Without a rule a fill stays even-odd, as before.
+  assert.ok(sceneToSvg({ width: 60, height: 60, layers: [{ polys: dots, paint }] }, 1).includes('fill-rule="evenodd"'));
+  // The canvas draws the same rule.
+  const rules: (string | undefined)[] = [];
+  const ctx = {
+    beginPath() {},
+    moveTo() {},
+    lineTo() {},
+    closePath() {},
+    stroke() {},
+    fill: (r?: string) => void rules.push(r),
+    strokeStyle: '',
+    fillStyle: '',
+    lineWidth: 0,
+    lineCap: '',
+    globalAlpha: 1,
+  };
+  drawScene(ctx, {
+    width: 60,
+    height: 60,
+    layers: [
+      { polys: dots, paint: { ...paint, rule: 'nonzero' } },
+      { polys: dots, paint },
+    ],
+  });
+  assert.deepEqual(rules, ['nonzero', 'evenodd']);
+});
+
+test('composeSvg nests a full-size layer and repeats a smaller one through a pattern', () => {
+  const a = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>';
+  const b = '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30"></svg>';
+  assert.equal(
+    composeSvg(
+      [
+        { svg: a, width: 10, height: 10 },
+        { svg: b, width: 30, height: 30 },
+      ],
+      30,
+      30,
+    ),
+    `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><defs><pattern id="fp-l0" width="10" height="10" patternUnits="userSpaceOnUse">${a}</pattern></defs><rect width="30" height="30" fill="url(#fp-l0)"/>${b}</svg>`,
+  );
+  assert.equal(
+    composeSvg(
+      [
+        { svg: a, width: 10, height: 10 },
+        { svg: a, width: 10, height: 10 },
+      ],
+      10,
+      10,
+    ),
+    `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10">${a}${a}</svg>`,
   );
 });

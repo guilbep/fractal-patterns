@@ -3,7 +3,9 @@
 import { FAMILIES, KINDS, MAX_DEPTH, type Kind } from './fractal.ts';
 import { LAYER2_DEFAULTS, type Layer2Settings } from './layers.ts';
 import { MOTION_NONE, type Motion } from './motion.ts';
-import { shiftsFor } from './supertile.ts';
+import { canVary, shiftsFor } from './supertile.ts';
+import { accentDefaults, decodeAccentLayer, encodeAccentLayer, type AccentLayer } from './accent-layer.ts';
+import { ACCENT_VARY_DEFAULTS, type AccentVary } from './accent-vary.ts';
 import { VARIANT_DEFAULTS, type VariantOptions } from './variants.ts';
 import type { FillStyle } from './fills.ts';
 import { CHANGE_MAX, CHANGE_MIN, type ChangeDir } from './fade.ts';
@@ -40,8 +42,14 @@ export interface Design extends Motion {
   readonly fill: FillStyle; // closed shapes filled with a second color
   readonly layer2Color: string | null; // the second layer's own color; null = the pattern color
   readonly change: { readonly dir: ChangeDir; readonly to: number }; // Slow change across the page
-  readonly accent: string; // the color of the shapes a kind marks as accent (fractal.ts)
+  readonly accent: string; // the color of the accent shapes
+  readonly accentLayer: AccentLayer; // simple shapes over any kind (accent-layer.ts); the default depends on the kind
+  readonly accentVary: AccentVary & { readonly applies: VaryApplies }; // what Reduce repetition varies, and the accent's variation
 }
+
+// Which layer Reduce repetition varies. A kind whose base cannot vary (supertile.ts) varies its accent by default.
+export type VaryApplies = 'base' | 'accent' | 'both';
+export const appliesDefault = (kind: Kind): VaryApplies => (canVary(kind) ? 'base' : 'accent');
 // Not in the URL: pinned patchwork cells (a per-session tweak), the palette name (the roles carry the colors),
 // and the image source (the pixels never leave the browser).
 
@@ -84,6 +92,8 @@ export const DESIGN_DEFAULTS: Design = {
   layer2Color: null,
   change: { dir: 'none', to: 0.4 },
   accent: ACCENT_DEFAULT,
+  accentLayer: accentDefaults('tree'),
+  accentVary: { applies: 'base', ...ACCENT_VARY_DEFAULTS },
 };
 
 // Field to short key. The insertion order is the order of the encoded string.
@@ -127,7 +137,9 @@ const KEYS: Readonly<Record<keyof Design, string>> = {
   change: 'ch',
   // Written whenever it differs from the default; the page keeps it at the default for a kind without accent
   // shapes (snapshot in state-share.ts), so a palette pick does not lengthen those links.
-  accent: 'ac', // keep new keys last: older links stay valid
+  accent: 'ac',
+  accentLayer: 'al', // encodeAccentLayer: written only when it differs from the kind's defaults
+  accentVary: 'av', // keep new keys last: older links stay valid
 };
 const FIELDS = Object.keys(KEYS) as (keyof Design)[];
 
@@ -230,6 +242,41 @@ function decodeChange(s: string): Design['change'] {
   return { dir, to: Math.min(CHANGE_MAX, Math.max(CHANGE_MIN, n)) };
 }
 
+// The accent variation in one value, applies_cells_move_scale_drop_turn (applies as b, a, or ab), e.g. a_6_35_50_28_0.
+// The switch stays `v`, but an old link with v=1 and no av varied only the base: so av is written whenever the
+// variation reaches the accent while on, or when anything differs from the kind's defaults; a link whose av reaches
+// the accent turns Reduce repetition on unless it says v=0, which is written for that case.
+const APPLIES = { base: 'b', accent: 'a', both: 'ab' } as const;
+const AV_ORDER = ['cells', 'move', 'scale', 'drop', 'turn'] as const;
+const AV_RANGES: Readonly<Record<keyof AccentVary, readonly [number, number]>> = {
+  cells: [2, 8],
+  move: [0, 100],
+  scale: [0, 100],
+  drop: [0, 60],
+  turn: [0, 100],
+};
+function encodeAV(d: Design): string {
+  const v = d.accentVary;
+  const keep =
+    (d.variants && v.applies !== 'base') || v.applies !== appliesDefault(d.kind) || AV_ORDER.some((k) => v[k] !== ACCENT_VARY_DEFAULTS[k]);
+  return keep ? [APPLIES[v.applies], ...AV_ORDER.map((k) => v[k])].join('_') : '';
+}
+// Six parts, a known applies code and finite numbers clamped to their range (cells whole); anything else gives null.
+function decodeAV(s: string): Design['accentVary'] | null {
+  const [a, ...rest] = s.split('_');
+  const applies = (Object.keys(APPLIES) as VaryApplies[]).find((k) => APPLIES[k] === a);
+  const nums = rest.map((p) => (p.trim() === '' ? NaN : Number(p)));
+  if (!applies || nums.length !== AV_ORDER.length || !nums.every(Number.isFinite)) return null;
+  const out = { applies } as { -readonly [K in keyof Design['accentVary']]: Design['accentVary'][K] };
+  AV_ORDER.forEach((k, i) => {
+    const [lo, hi] = AV_RANGES[k];
+    const c = Math.min(hi, Math.max(lo, nums[i]!));
+    out[k] = (k === 'cells' ? Math.round(c) : c) + 0;
+  });
+  return out;
+}
+const sameFields = <T extends object>(a: T, b: T): boolean => (Object.keys(a) as (keyof T)[]).every((k) => a[k] === b[k]);
+
 export function encodeDesign(d: Design): string {
   const pairs: [string, string][] = [];
   for (const f of FIELDS) {
@@ -246,6 +293,21 @@ export function encodeDesign(d: Design): string {
     if (f === 'fill') {
       const fi = encodeFill(d.fill);
       if (fi) pairs.push([KEYS[f], fi]);
+      continue;
+    }
+    if (f === 'variants') {
+      if (d.variants) pairs.push([KEYS[f], '1']);
+      else if (d.accentVary.applies !== 'base' && encodeAV(d)) pairs.push([KEYS[f], '0']);
+      continue;
+    }
+    if (f === 'accentLayer') {
+      const al = encodeAccentLayer(d.kind, d.accentLayer);
+      if (al) pairs.push([KEYS[f], al]);
+      continue;
+    }
+    if (f === 'accentVary') {
+      const av = encodeAV(d);
+      if (av) pairs.push([KEYS[f], av]);
       continue;
     }
     if (f === 'variantOptions') {
@@ -280,6 +342,7 @@ export function decodeDesign(query: string): Design {
   };
   const oneOf = <T extends string>(f: keyof Design, values: readonly T[], fallback: T): T => values.find((v) => v === get(f)) ?? fallback;
   const kind = oneOf('kind', KINDS, D.kind);
+  const av = decodeAV(get('accentVary'));
   const bool = (f: 'mirror' | 'frame' | 'variants' | 'layer2' | 'fade' | 'parallax' | 'sections'): boolean =>
     get(f) === '1' ? true : get(f) === '0' ? false : D[f];
   return {
@@ -310,7 +373,7 @@ export function decodeDesign(query: string): Design {
     cells: num('cells', 2, 4, true),
     frame: bool('frame'),
     families: num('families', 0, ALL_FAMILIES, true) || ALL_FAMILIES, // no family at all is not a design
-    variants: bool('variants'),
+    variants: get('variants') === '1' || (get('variants') !== '0' && av !== null && av.applies !== 'base'),
     layer2: bool('layer2'),
     fade: bool('fade'),
     layer2Settings: decodeL2(get('layer2Settings')),
@@ -321,6 +384,8 @@ export function decodeDesign(query: string): Design {
     layer2Color: /^[0-9a-f]{6}$/i.test(get('layer2Color')) ? `#${get('layer2Color').toLowerCase()}` : null,
     change: decodeChange(get('change')),
     accent: color('accent'),
+    accentLayer: decodeAccentLayer(kind, get('accentLayer') || null),
+    accentVary: av ?? { applies: get('variants') === '1' ? 'base' : appliesDefault(kind), ...ACCENT_VARY_DEFAULTS },
   };
 }
 
@@ -334,7 +399,9 @@ export function sameDesign(a: Design, b: Design): boolean {
           ? encodeFill(a[f]) === encodeFill(b[f])
           : f === 'change'
             ? encodeChange(a[f]) === encodeChange(b[f])
-            : a[f] === b[f],
+            : f === 'accentLayer' || f === 'accentVary'
+              ? sameFields(a[f], b[f])
+              : a[f] === b[f],
   );
 }
 

@@ -4,7 +4,9 @@ import { KINDS, MAX_DEPTH } from './fractal.ts';
 import { createHistory } from './history.ts';
 import { LAYER2_DEFAULTS } from './layers.ts';
 import { VARIANT_DEFAULTS, type VariantOptions } from './variants.ts';
-import { ACCENT_DEFAULT, DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design, WELCOME } from './share.ts';
+import { ACCENT_DEFAULT, DESIGN_DEFAULTS, appliesDefault, decodeDesign, encodeDesign, sameDesign, type Design, WELCOME } from './share.ts';
+import { ACCENT_SHAPES, ACCENT_SNAPS, accentDefaults, type AccentLayer } from './accent-layer.ts';
+import { ACCENT_VARY_DEFAULTS } from './accent-vary.ts';
 
 // Small seeded generator (mulberry32), so failures reproduce.
 function rng(seed: number): () => number {
@@ -66,8 +68,33 @@ function randomDesign(r: () => number): Design {
     layer2Color: r() < 0.5 ? null : color(),
     change: r() < 0.5 ? DESIGN_DEFAULTS.change : { dir: pick(['down', 'up', 'across'] as const), to: real(0.2, 0.8) },
     accent: r() < 0.5 ? DESIGN_DEFAULTS.accent : color(),
+    accentLayer:
+      r() < 0.5
+        ? accentDefaults(kind)
+        : {
+            on: r() < 0.5,
+            shape: pick(ACCENT_SHAPES.filter((x) => x !== 'own')),
+            size: int(5, 40),
+            amount: int(10, 100),
+            place: pick(['seed', 'grid'] as const),
+            snap: pick(ACCENT_SNAPS),
+          },
+    accentVary:
+      r() < 0.5
+        ? { applies: appliesDefault(kind), ...ACCENT_VARY_DEFAULTS }
+        : {
+            applies: pick(['base', 'accent', 'both'] as const),
+            cells: int(2, 8),
+            move: int(0, 100),
+            scale: int(0, 100),
+            drop: int(0, 60),
+            turn: int(0, 100),
+          },
   };
 }
+
+// The accent fields a design without them had: the kind's defaults (koch: off, base).
+const NO_ACCENT = { accentLayer: accentDefaults('koch'), accentVary: { applies: 'base', ...ACCENT_VARY_DEFAULTS } } as const;
 
 function randomVO(r: () => number): VariantOptions {
   const [cells, count] = (
@@ -133,6 +160,8 @@ const FULL: Design = {
   layer2Color: '#e07a5f',
   change: { dir: 'across', to: 0.55 }, // the longest the slider gives
   accent: '#123456',
+  accentLayer: { on: true, shape: 'ring', size: 22, amount: 60, place: 'seed', snap: 12 },
+  accentVary: { applies: 'both', cells: 4, move: 20, scale: 10, drop: 15, turn: 50 },
 };
 
 function assertValid(d: Design, label: string): void {
@@ -206,8 +235,8 @@ test('a design with every field non-default stays short', () => {
   const s = encodeDesign(FULL);
   // 177 before the variants key, + '&v=1', + '&l2=1&fd=1', + '&l2s=100_100_-180_2.95_0.55_3.85' (32), + '&px=1' (5),
   // + '&vo=6_6_1_h_1_0.55_0.55_0.45_3' (30), + '&sx=1' (5), + '&fi=a_c3eaec_0.55' (17), + '&l2c=e07a5f' (11),
-  // + '&ch=a_0.55' (10), + '&ac=123456' (10)
-  assert.ok(s.length <= 312, `${s.length}`);
+  // + '&ch=a_0.55' (10), + '&ac=123456' (10), + '&al=1_r_22_60_s_12' (18), + '&av=ab_4_20_10_15_50' (20)
+  assert.ok(s.length <= 350, `${s.length}`);
   assert.deepEqual(decodeDesign(s), FULL);
 });
 
@@ -310,6 +339,7 @@ test('variants: round trip, absent means false, old links decode as before', () 
     layer2Color: null,
     change: DESIGN_DEFAULTS.change,
     accent: DESIGN_DEFAULTS.accent,
+    ...NO_ACCENT,
   };
   assert.deepEqual(decodeDesign(old), oldDesign);
   assert.equal(encodeDesign(oldDesign), old);
@@ -415,7 +445,7 @@ test('variant options: one vo key, round trip of 30 random sets, absent means de
   assert.equal(decodeDesign('vo=6_6_1_h_1_0.5_0.3_0').variantOptions.shift, 2);
   // Appended last: older keys come first.
   assert.ok(
-    encodeDesign({ ...FULL, layer2Color: null, change: DESIGN_DEFAULTS.change, accent: DESIGN_DEFAULTS.accent }).endsWith(
+    encodeDesign({ ...FULL, layer2Color: null, change: DESIGN_DEFAULTS.change, accent: DESIGN_DEFAULTS.accent, ...NO_ACCENT }).endsWith(
       '&px=1&vo=6_6_1_h_1_0.55_0.55_0.45_3&sx=1&fi=a_c3eaec_0.55',
     ),
   );
@@ -466,11 +496,19 @@ test('sections: key sx last, round-trips, absent means false, old links unchange
       layer2Color: null,
       change: DESIGN_DEFAULTS.change,
       accent: DESIGN_DEFAULTS.accent,
+      ...NO_ACCENT,
       sections: true,
     }).endsWith('&sx=1'),
   );
   assert.deepEqual(decodeDesign(encodeDesign({ ...FULL, sections: false })), { ...FULL, sections: false });
-  const noFill = { ...FULL, fill: DESIGN_DEFAULTS.fill, layer2Color: null, change: DESIGN_DEFAULTS.change, accent: DESIGN_DEFAULTS.accent };
+  const noFill = {
+    ...FULL,
+    fill: DESIGN_DEFAULTS.fill,
+    layer2Color: null,
+    change: DESIGN_DEFAULTS.change,
+    accent: DESIGN_DEFAULTS.accent,
+    ...NO_ACCENT,
+  };
   assert.equal(encodeDesign({ ...noFill, sections: false }) + '&sx=1', encodeDesign({ ...noFill, sections: true }));
 });
 
@@ -483,7 +521,7 @@ test('fill: key fi last, compact, round-trips, omitted when off, malformed gives
   for (const bad of ['x_abcdef_1', 'c_abcde_1', 'c_abcdef_', 'c_abcdef_NaN', 'c_abcdef', 'c_abcdef_1_2', ''])
     assert.deepEqual(decodeDesign(`fi=${bad}`).fill, DESIGN_DEFAULTS.fill, bad);
   assert.deepEqual(decodeDesign('k=fern&sx=1').fill, DESIGN_DEFAULTS.fill);
-  assert.ok(encodeDesign(FULL).endsWith('&sx=1&fi=a_c3eaec_0.55&l2c=e07a5f&ch=a_0.55&ac=123456'));
+  assert.ok(encodeDesign(FULL).endsWith('&sx=1&fi=a_c3eaec_0.55&l2c=e07a5f&ch=a_0.55&ac=123456&al=1_r_22_60_s_12&av=ab_4_20_10_15_50'));
   assert.deepEqual(decodeDesign(encodeDesign(FULL)).fill, FULL.fill);
 });
 
@@ -539,4 +577,47 @@ test('the accent: ac only when not the default, last, round trip; old links deco
   assert.equal(sameDesign(d, DESIGN_DEFAULTS), false);
   assert.equal(decodeDesign('ac=ABCDEF').accent, '#abcdef');
   for (const bad of ['zzzzzz', '12345', '1234567', '']) assert.equal(decodeDesign(`ac=${bad}`).accent, ACCENT_DEFAULT, bad);
+});
+
+test('the accent layer and its variation: al and av last, round trip, old links decode and encode unchanged', () => {
+  // Old links: each kind's accent defaults (Truchet dots and Sprigs berries on, as today), and Reduce repetition as before.
+  const oldTruchet = 'k=truchet&s=2692185587&d=6&z=256&w=3&bg=f1f9f3&fg=5ea478&tx=112418&o=1&fi=c_ce4700_1';
+  for (const old of [WELCOME, 'k=brick&s=7&v=1', 'k=sprigs&s=7', oldTruchet]) {
+    const d = decodeDesign(old);
+    assert.deepEqual(d.accentLayer, accentDefaults(d.kind), old);
+    assert.deepEqual(d.accentVary, { applies: appliesDefault(d.kind), ...ACCENT_VARY_DEFAULTS }, old);
+    // Sprigs clamps the default depth 8 to its own max 3, as before this key.
+    assert.equal(encodeDesign(d), old === 'k=sprigs&s=7' ? 'k=sprigs&s=7&d=3' : old, old);
+  }
+  assert.equal(decodeDesign('k=sprigs&s=7').accentLayer.shape, 'own');
+  assert.equal(decodeDesign('k=brick&s=7&v=1').variants, true);
+  // A stale v=1 on a kind whose base cannot vary meant the base: it keeps varying nothing.
+  const stale = decodeDesign('k=truchet&s=7&v=1');
+  assert.equal(stale.accentVary.applies, 'base');
+  assert.equal(decodeDesign(encodeDesign(stale)).accentVary.applies, 'base');
+
+  // al: written only when it differs from the kind's defaults.
+  const hex = decodeDesign('k=hex&s=1&al=1_d_15_100_g_8');
+  assert.deepEqual(hex.accentLayer, { on: true, shape: 'dot', size: 15, amount: 100, place: 'grid', snap: 8 });
+  // s=1 is the default seed; hex clamps the default depth to 3.
+  assert.equal(encodeDesign(hex), 'k=hex&d=3&al=1_d_15_100_g_8');
+  assert.equal(encodeDesign({ ...hex, accent: '#123456' }), 'k=hex&d=3&ac=123456&al=1_d_15_100_g_8');
+
+  // av: a value that reaches the accent turns Reduce repetition on, even at the default numbers.
+  const t = decodeDesign('k=truchet&s=7&d=4&z=96&w=5&av=a_6_35_50_28_0');
+  assert.equal(t.variants, true);
+  assert.deepEqual(t.accentVary, { applies: 'accent', cells: 6, move: 35, scale: 50, drop: 28, turn: 0 });
+  assert.equal(encodeDesign(t), 'k=truchet&s=7&d=4&z=96&w=5&v=1&av=a_6_35_50_28_0');
+  assert.ok(sameDesign(decodeDesign(encodeDesign(t)), t));
+  // Off with its own values: v=0 keeps it off.
+  const off = { ...t, variants: false, accentVary: { ...t.accentVary, cells: 4 } };
+  assert.equal(encodeDesign(off), 'k=truchet&s=7&d=4&z=96&w=5&v=0&av=a_4_35_50_28_0');
+  assert.deepEqual(decodeDesign(encodeDesign(off)), off);
+  // Both layers on a kind that can vary; numbers clamped; malformed values give the defaults.
+  const both = decodeDesign('k=hex&s=1&v=1&av=ab_12_150_-3_99_50');
+  assert.deepEqual(both.accentVary, { applies: 'both', cells: 8, move: 100, scale: 0, drop: 60, turn: 50 });
+  for (const bad of ['x_6_35_50_28_0', 'a_6_35_50_28', 'a_6_35_50_28_0_1', 'a_6_35_NaN_28_0', ''])
+    assert.deepEqual(decodeDesign(`k=hex&av=${bad}`).accentVary, { applies: 'base', ...ACCENT_VARY_DEFAULTS }, bad);
+  assert.equal(sameDesign(t, { ...t, accentVary: { ...t.accentVary, turn: 1 } }), false);
+  assert.equal(sameDesign(t, { ...t, accentLayer: { ...t.accentLayer } as AccentLayer }), true);
 });

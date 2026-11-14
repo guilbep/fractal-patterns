@@ -4,6 +4,7 @@ import { exportCss, exportHtml, exportJs, exportParallax, type ExportInput } fro
 import { gcd, LAYER2_DEFAULTS, scaledSecondSize } from './layers.ts';
 import { cssMotion, MOTION_NONE, parallaxTravel, type Motion } from './motion.ts';
 import { svgToDataUri } from './css.ts';
+import type { Pt } from './patterns/util.ts';
 
 const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><path d="M0 0h4"/></svg>';
 const base: ExportInput = {
@@ -751,4 +752,36 @@ test('the first comment names the tool address when a source is given, and only 
   const first = exportCss({ ...base, source: 'https://patterns.pierreguilbert.com/' }).split('\n')[0]!;
   assert.ok(first.endsWith('Made with https://patterns.pierreguilbert.com/ */'), first);
   assert.equal(exportCss({ ...base, source: 'x*/y' }).split('*/').length, exportCss(base).split('*/').length);
+});
+
+test('the accent layer: a second background on top with its own size; absent, the CSS is unchanged', async () => {
+  const { decodeDesign } = await import('./share.ts');
+  const { accentShapes } = await import('./accent-layer.ts');
+  const { varyAccent } = await import('./accent-vary.ts');
+  const { sceneToSvg } = await import('./scene.ts');
+  const d = decodeDesign('#k=truchet&s=7&d=4&z=96&w=5&av=a_6_35_50_28_0');
+  assert.equal(d.variants, true);
+  const tile = accentShapes(d.kind, d.accentLayer, { seed: d.seed, depth: d.depth, size: d.size }) as Pt[][];
+  const v = varyAccent(tile, d.size, d.size, d.accentVary, d.seed);
+  assert.equal(v.width, 576); // 6 tiles of 96 px
+  const paint = { mode: 'fill', color: d.accent, opacity: 1, width: 0, rule: 'nonzero' } as const;
+  const accent = { svg: sceneToSvg({ width: v.width, height: v.height, layers: [{ polys: v.polys, paint }] }, 1), tileSize: v.width };
+  const out = css({}, { tileSize: d.size, accent });
+  const block = beforeBlock(out);
+  assert.ok(block.includes('  background-image: var(--fp-accent), var(--fp-tile);'), block.join('\n'));
+  assert.ok(block.includes('  background-size: var(--fp-accent-size) var(--fp-accent-size), var(--fp-size) var(--fp-size);'));
+  assert.ok(out.includes(`  --fp-accent: url("${svgToDataUri(accent.svg)}");\n  --fp-accent-size: 576px;`));
+  assert.ok(out.includes('  --fp-size: 96px;'));
+  // Without an accent, nothing of it is written.
+  const plain = css({}, { tileSize: 96 });
+  assert.ok(!plain.includes('accent'));
+  assert.ok(!css({ drift: 'xy' }, { tileSize: 96 }).includes('accent'));
+  // A drift moves both layers by one accent tile, in 6 times the time, so the speed and the seams stay.
+  const drift = css({ drift: 'xy', speed: 10 }, { tileSize: 96, accent });
+  assert.ok(drift.includes('@keyframes fp-drift {\n  to { background-position: var(--fp-accent-size) var(--fp-accent-size); }'), drift);
+  assert.ok(drift.includes('animation: fp-drift 60s linear infinite;'));
+  // One tile of accent (no variation): the drift is as before.
+  const one = css({ drift: 'xy', speed: 10 }, { tileSize: 96, accent: { svg, tileSize: 96 } });
+  assert.ok(one.includes('animation: fp-drift 10s linear infinite;'));
+  assert.ok(one.includes('to { background-position: var(--fp-size) var(--fp-size); }'));
 });

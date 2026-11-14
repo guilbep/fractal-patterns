@@ -4,7 +4,6 @@ import {
   FAMILIES,
   KINDS,
   MAX_DEPTH,
-  accentGeometry,
   extraPath,
   generate,
   geometry,
@@ -18,7 +17,9 @@ import {
 } from '@/fractal.ts';
 import { patchworkCells, patchworkGeometry, type PatchworkParams } from '@/patchwork.ts';
 import { mirrorTile, withGap, zoomWrap } from '@/spacing.ts';
-import type { Pt } from '@/patterns/util.ts';
+import type { Poly, Pt } from '@/patterns/util.ts';
+import { accentDefaults, accentShapes, type AccentLayer } from '@/accent-layer.ts';
+import { ACCENT_VARY_DEFAULTS, varyAccent, type AccentVary } from '@/accent-vary.ts';
 import { traceCall, type TraceChoice } from '@/detectors.ts';
 import { sampleImage, type Sample } from '@/samples.ts';
 import { readImage } from '@/image-file.ts';
@@ -29,12 +30,12 @@ import { fixWithFill, patternContrast, patternInvisible, plateContrast, swapRole
 import { cssPlate, svgToDataUri } from '@/css.ts';
 import { rawSize } from '@/co2.ts';
 import { MOTION_NONE, type Motion } from '@/motion.ts';
-import { imageSuperTileExpanded, imageSuperTileSvg, superTileBytes } from '@/supertile.ts';
+import { canVary, imageSuperTileExpanded, imageSuperTileSvg, superTileBytes } from '@/supertile.ts';
 import { VARIANT_DEFAULTS, variantTile, variantsActive, type VariantOptions } from '@/variants.ts';
 import { LAYER2_DEFAULTS, layerSpots, type Layer2Settings } from '@/layers.ts';
 import { NO_FILL, fillScene, splitClosed, type FillStyle } from '@/fills.ts';
-import { ACCENT_DEFAULT } from '@/share.ts';
-import { sceneToSvg } from '@/scene.ts';
+import { ACCENT_DEFAULT, appliesDefault, type VaryApplies } from '@/share.ts';
+import { composeSvg, sceneToSvg, type SceneLayer } from '@/scene.ts';
 import type { ChangeDir } from '@/fade.ts';
 import { LAYOUT_EXAMPLES, randomLayout, randomRepetition } from '@/random-design.ts';
 
@@ -82,6 +83,14 @@ export const layer2Color = ref(accentOf(DEFAULT_PALETTE));
 // The color of the shapes a kind marks as accent (fractal.ts); shown in the panel only for such a kind.
 export const accent = ref(accentOf(DEFAULT_PALETTE));
 export { hasAccent };
+// The accent layer: simple shapes in the Accent color over any kind (accent-layer.ts), drawn as its own background
+// layer over the pattern. A kind change resets it to the kind's defaults (chooseKind); a link sets it from `al`.
+export const accentLayer = reactive<{ -readonly [K in keyof AccentLayer]: AccentLayer[K] }>({ ...accentDefaults(DEFAULTS.kind) });
+// The accent's own variation over a super tile (accent-vary.ts), used when Reduce repetition applies to the accent.
+export const accentVary = reactive<{ -readonly [K in keyof AccentVary]: AccentVary[K] }>({ ...ACCENT_VARY_DEFAULTS });
+// Which layer Reduce repetition (the `variants` switch) varies. Reset with the kind: the accent for a kind whose base cannot vary.
+export const varyApplies = ref<VaryApplies>(appliesDefault(DEFAULTS.kind));
+export type { VaryApplies };
 // The last random palette, kept so the fill color and the off-palette note work while it is selected.
 const randomColors = ref<Palette | null>(null);
 export const palette = computed(
@@ -303,51 +312,81 @@ export const aspect = computed(() => (usingImage.value || usingPatchwork.value ?
 // One pipeline for every source: base polylines, mirror, zoom, gap. The gap gives the final tile size.
 // `accent`: the accent shapes, through the same spacing as the strokes; only for a single math pattern.
 type Polys = readonly (readonly Pt[])[];
-type Tile = { polys: Polys; size: number; extra?: string; accent?: Polys };
+type Tile = { polys: Polys; size: number; extra?: string };
+// Mirror, zoom, gap; spacing assumes a square tile.
+function space(p: Polys, size: number): Tile {
+  if (spacing.mirror) p = mirrorTile(p, size);
+  if (spacing.zoom !== 1) p = zoomWrap(p, size, spacing.zoom);
+  return spacing.gap > 0 ? withGap(p, size, spacing.gap) : { polys: p, size };
+}
 function tileFor(seed: number): Tile {
   const size = params.size;
-  const single = !(usingImage.value && traced.value) && !usingPatchwork.value;
-  let polys: Polys =
+  const polys: Polys =
     usingImage.value && traced.value
       ? traced.value
       : usingPatchwork.value
         ? patchworkGeometry({ ...patchParams.value, seed })
         : geometry({ ...params, seed });
-  let accentPolys: Polys = single ? accentGeometry({ ...params, seed }) : [];
   // ponytail: spacing assumes a square tile; skipped for a rectangular kind until a ticket asks.
   // A rectangular kind is a single math pattern here; its raw path (Penrose arcs) rides along untransformed.
   // ponytail: a square kind with `extra` would lose it under spacing; none has one yet.
-  if (aspect.value !== 1) return { polys, size, extra: extraPath({ ...params, seed }), accent: accentPolys };
-  const space = (p: Polys): Tile => {
-    if (spacing.mirror) p = mirrorTile(p, size);
-    if (spacing.zoom !== 1) p = zoomWrap(p, size, spacing.zoom);
-    return spacing.gap > 0 ? withGap(p, size, spacing.gap) : { polys: p, size };
-  };
-  const t = space(polys);
-  return accentPolys.length > 0 ? { ...t, accent: space(accentPolys).polys } : t;
+  if (aspect.value !== 1) return { polys, size, extra: extraPath({ ...params, seed }) };
+  return space(polys, size);
 }
 const tile = computed(() => tileFor(params.seed));
-// ponytail: a tile with accent shapes drops a raw `extra` path; no kind has both.
 const sceneFor = (t: Tile, color = roles.pattern) =>
   fillScene(
     t.polys,
     { size: t.size, height: tileHeight(t.size, aspect.value), strokeWidth: params.strokeWidth, color, opacity: opacity.value },
     fillOn.value ? fill : NO_FILL,
-    t.accent?.length ? { polys: t.accent, color: accent.value } : undefined,
   );
 const tileSvg = (t: Tile, color = roles.pattern) =>
-  fillOn.value || t.accent?.length
+  fillOn.value
     ? sceneToSvg(sceneFor(t, color), params.precision)
     : svgFromPolylines(t.polys, { ...params, size: t.size, color, opacity: opacity.value }, aspect.value, t.extra);
-// The plain tile as layers (fill, accent, strokes): the canvas script and the paint worklet draw this.
-export const tileScene = computed(() => sceneFor(tile.value));
+// The accent shapes, filled non-zero: overlapping shapes join, and a ring's reversed inner loop stays a hole.
+const accentPaint = (polys: Polys): SceneLayer => ({
+  polys,
+  paint: { mode: 'fill', color: accent.value, opacity: 1, width: 0, rule: 'nonzero' },
+});
+// The plain tile as layers (fill, strokes, accent on top): the canvas script and the paint worklet draw this.
+export const tileScene = computed(() => {
+  const s = sceneFor(tile.value);
+  const a = accentTile.value;
+  return a && a.width === s.width ? { ...s, layers: [...s.layers, accentPaint(a.polys)] } : s;
+});
 // Fills need plain polylines: not the variants super tile, not the curve tile, not a kind with a raw `extra` path.
 export const fillAvailable = computed(() => !variantsOn.value && !curvesOn.value && aspect.value === 1);
 const fillOn = computed(() => fill.mode !== 'none' && fillAvailable.value);
 export const closedShapes = computed(() => splitClosed(tile.value.polys).closed.length);
-// Accent shapes on the tile: drawn by tileSvg, so not in the variants super tile or the curve tile.
-// ponytail: the super tile and the curve tile skip the accent; add it there when a ticket asks.
-const accentShown = computed(() => !variantsOn.value && curveSvg.value === null && (tile.value.accent?.length ?? 0) > 0);
+// The accent shapes of one tile at the current seed, for a single math pattern only. Through the same spacing as
+// the strokes, except over a base super tile or a rectangular tile, which skip spacing.
+function accentFor(seed: number): { polys: Polys; width: number; height: number } | null {
+  if (usingImage.value || usingPatchwork.value) return null;
+  const size = params.size;
+  const polys: Polys = accentShapes(params.kind, accentLayer, { seed, depth: params.depth, size });
+  if (polys.length === 0) return null;
+  if (variantsOn.value || aspect.value !== 1) return { polys, width: size, height: tileHeight(size, aspect.value) };
+  const t = space(polys, size);
+  return { polys: t.polys, width: t.size, height: t.size };
+}
+const accentTile = computed(() => accentFor(params.seed));
+const accentShown = computed(() => accentTile.value !== null);
+// Reduce repetition reaches the accent: the switch is on and it applies to the accent or both, and shapes show.
+export const accentVaried = computed(() => variants.value && varyApplies.value !== 'base' && accentTile.value !== null);
+// The accent layer as its own tile: one tile, or the varied super tile of accentVary.cells tiles. Null when no shape shows.
+export const accentOut = computed(() => {
+  const t = accentTile.value;
+  if (!t) return null;
+  const v = accentVaried.value
+    ? varyAccent(t.polys as Poly[], t.width, t.height, accentVary, params.seed)
+    : { polys: t.polys, width: t.width, height: t.height };
+  return {
+    svg: sceneToSvg({ width: v.width, height: v.height, layers: [accentPaint(v.polys)] }, params.precision),
+    width: v.width,
+    height: v.height,
+  };
+});
 
 // Smooth curves: the traced tile from traceCurves.
 // ponytail: spacing (mirror, zoom, gap) is skipped in this mode, it works on polylines; combine it when a ticket asks.
@@ -391,8 +430,12 @@ export function resetVariants(): void {
 // ponytail: curves stay off this mode; reuse the curve path through <use> when a ticket asks.
 export const variantsOn = computed(
   () =>
-    variantsActive({ variants: variants.value, kind: params.kind, layout: layout.value, usingImage: usingImage.value }) && !curvesOn.value,
+    variantsActive({ variants: variants.value, kind: params.kind, layout: layout.value, usingImage: usingImage.value }) &&
+    !curvesOn.value &&
+    (usingImage.value || varyApplies.value !== 'accent'),
 );
+// The base layer can vary: a traced image, or a single pattern of a kind with seed-compatible edges.
+export const baseCanVary = computed(() => usingImage.value || (layout.value === 'single' && canVary(params.kind)));
 const superOptions = (seed: number, color = roles.pattern) => ({ ...params, ...variantOptions, seed, color, opacity: opacity.value });
 // The traced picture in every cell of the super tile, or null for a math pattern. With Mirror on, the
 // cell is the mirrored 2 x 2 block, so every cell is seamless and the grid options work on it.
@@ -421,7 +464,8 @@ export const variantBytes = computed(() => {
   };
 });
 
-export const tileSize = computed(() =>
+// The base layer's tile edge: the CSS export's first background.
+export const baseTileSize = computed(() =>
   variantsOn.value ? variantOptions.cells * params.size : curveSvg.value !== null ? params.size : tile.value.size,
 );
 // The tile for any seed with the current settings; a traced image gives the same tile for every seed.
@@ -431,7 +475,45 @@ export function svgForSeed(seed: number, color = roles.pattern): string {
   if (curveSvg.value !== null) return recolor(curveSvg.value, color);
   return tileSvg(seed === params.seed ? tile.value : tileFor(seed), color);
 }
-export const svg = computed(() => svgForSeed(params.seed));
+// The base layer alone, for the CSS export (its accent is a second background).
+export const baseSvg = computed(() => svgForSeed(params.seed));
+const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
+// One tile with both layers, for the downloaded SVG and the PNG: the base, and the accent on top, over a common
+// multiple of both repeats (counted in cells, so a fractional cell size stays exact). Without an accent: the base alone.
+const composed = computed(() => {
+  const a = accentOut.value;
+  const bw = baseTileSize.value;
+  const bh = tileHeight(bw, aspect.value);
+  if (!a) return { svg: baseSvg.value, size: bw };
+  const bc = variantsOn.value ? variantOptions.cells : 1;
+  const ac = accentVaried.value ? Math.max(1, Math.round(accentVary.cells)) : 1;
+  const n = ac / gcd(bc, ac); // lcm(bc, ac) / bc base tiles per edge
+  const layers = [
+    { svg: baseSvg.value, width: bw, height: bh },
+    { svg: a.svg, width: a.width, height: a.height },
+  ];
+  return { svg: composeSvg(layers, bw * n, bh * n), size: bw * n };
+});
+export const svg = computed(() => composed.value.svg);
+// The tile of a seed with that seed's accent tile on top, unvaried: the second layer, which had its accent before the
+// accent became its own layer. Without accent shapes: svgForSeed, byte for byte.
+export function svgWithAccent(seed: number, color = roles.pattern): string {
+  const a = accentFor(seed);
+  if (!a) return svgForSeed(seed, color);
+  const bw = baseTileSize.value;
+  const bh = tileHeight(bw, aspect.value);
+  const accentSvg = sceneToSvg({ width: a.width, height: a.height, layers: [accentPaint(a.polys)] }, params.precision);
+  return composeSvg(
+    [
+      { svg: svgForSeed(seed, color), width: bw, height: bh },
+      { svg: accentSvg, width: a.width, height: a.height },
+    ],
+    bw,
+    bh,
+  );
+}
+// The edge of `svg`: what the PNG and the downloaded file repeat.
+export const tileSize = computed(() => composed.value.size);
 // Against repetition, for every source: a second copy at a coprime size, and a soft CSS fade.
 export const layer2 = ref(false);
 export const layer2Settings = reactive<{ -readonly [K in keyof Layer2Settings]: number }>({ ...LAYER2_DEFAULTS });
@@ -584,6 +666,9 @@ export function chooseKind(kind: Kind): void {
   params.kind = kind;
   const w = preferredStroke(kind);
   if (w !== null) params.strokeWidth = w;
+  Object.assign(accentLayer, accentDefaults(kind));
+  // With the switch already on, it keeps varying the base only, as before the accent layer (and as a v=1 link without av).
+  varyApplies.value = variants.value ? 'base' : appliesDefault(kind);
 }
 
 // A different kind, a new seed, a single layout, and a sensible Repetition tab (random-design.ts).
@@ -715,6 +800,9 @@ export function reset(): void {
   motionPaused.value = false;
   variants.value = false;
   resetVariants();
+  Object.assign(accentLayer, accentDefaults(DEFAULTS.kind));
+  Object.assign(accentVary, ACCENT_VARY_DEFAULTS);
+  varyApplies.value = appliesDefault(DEFAULTS.kind);
   layer2.value = false;
   layer2Own.value = false;
   resetLayer2();

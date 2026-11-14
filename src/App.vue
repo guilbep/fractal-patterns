@@ -34,7 +34,7 @@ import PageFootprint from '@/components/PageFootprint.vue';
 import BottomBar from '@/components/BottomBar.vue';
 import PaletteSheet from '@/components/PaletteSheet.vue';
 
-// The Image tab loads its code when first opened, then stays mounted so its state stays.
+// The Image tab also loads its code only when first opened.
 const ImagePanel = defineAsyncComponent(() => import('@/components/ImagePanel.vue'));
 
 // The studio opens with the same palette (custom colors: no palette to pass).
@@ -87,7 +87,7 @@ onMounted(() => {
   onBeforeUnmount(() => io.disconnect());
 });
 
-// Tabs (WAI-ARIA tabs pattern, automatic activation). All panels stay mounted, except Repetition (v-if: its previews cost nothing while closed).
+// Tabs (WAI-ARIA tabs pattern, automatic activation). A panel mounts when first opened and stays, except Repetition (v-if: its previews cost nothing while closed).
 const TABS: readonly { id: TabId; label: string }[] = [
   { id: 'pattern', label: 'Pattern' },
   { id: 'repetition', label: 'Repetition' },
@@ -114,8 +114,16 @@ watch(
   },
   { immediate: true },
 );
-const imageOpened = ref(false);
-watch(tab, (t) => (imageOpened.value ||= t === 'image'), { immediate: true });
+// A panel mounts the first time its tab opens, then stays mounted so its state stays: mounting all of them made the start slow.
+const opened = ref(new Set<TabId>());
+const markOpen = (t: TabId): void => void opened.value.add(t);
+watch(tab, markOpen, { immediate: true });
+// Phones: Use it is a sheet, not the tab; its panel must be there before the sheet opens.
+async function openUseSheet(from: HTMLElement): Promise<void> {
+  markOpen('use');
+  await nextTick();
+  useSheet.value?.open(from);
+}
 watch(tab, (t) => {
   try {
     sessionStorage.setItem(TAB_KEY, t);
@@ -138,11 +146,11 @@ function onTabKey(e: KeyboardEvent): void {
   void nextTick(() => document.getElementById(`tab-${t.id}`)?.focus());
 }
 function selectTab(id: TabId, e: MouseEvent): void {
-  if (phone.value && id === 'use') useSheet.value?.open(e.currentTarget as HTMLElement);
+  if (phone.value && id === 'use') void openUseSheet(e.currentTarget as HTMLElement);
   else tab.value = id;
 }
 async function useIt(e: MouseEvent): Promise<void> {
-  if (phone.value) return useSheet.value?.open(e.currentTarget as HTMLElement);
+  if (phone.value) return openUseSheet(e.currentTarget as HTMLElement);
   tab.value = 'use';
   await nextTick();
   document.getElementById('tab-use')?.focus();
@@ -175,7 +183,7 @@ const useInitial = useFrom ?? readUse();
 if (useFrom && !phone.value) tab.value = 'use';
 onMounted(() => {
   const opener = document.getElementById('tab-use');
-  if (useFrom && phone.value && opener) useSheet.value?.open(opener);
+  if (useFrom && phone.value && opener) void openUseSheet(opener);
 });
 // A design made from an uploaded image cannot travel in the link.
 const noLink = computed(() => (usingImage.value ? 'This design uses your image, so it cannot travel by link.' : undefined));
@@ -322,28 +330,34 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <button v-for="t in TABS" :id="`tab-${t.id}`" :key="t.id" type="button" role="tab" class="tab" :aria-selected="tab === t.id" :aria-controls="`panel-${t.id}`" :tabindex="tab === t.id ? 0 : -1" :aria-haspopup="phone && t.id === 'use' ? 'dialog' : undefined" @click="selectTab(t.id, $event)">{{ t.label }}<span v-if="t.id === 'repetition' && (variantsOn || layer2 || grain.on)" class="tab-on"><span aria-hidden="true"></span><span class="visually-hidden">on</span></span></button>
       </div>
       <div v-show="tab === 'pattern'" id="panel-pattern" class="tabpanel" role="tabpanel" aria-labelledby="tab-pattern">
+        <template v-if="opened.has('pattern')">
         <PatternPanel />
         <div class="shortcut-line">
           <span class="muted hint">{{ usingImage ? 'Shuffle applies to math patterns only.' : '' }}<template v-if="!usingImage && shortcutOn">Or click the pattern, or press <kbd>R</kbd>.</template><template v-else-if="!usingImage">Or click the pattern.</template></span>
         </div>
+        </template>
       </div>
       <div v-show="tab === 'repetition'" id="panel-repetition" class="tabpanel" role="tabpanel" aria-labelledby="tab-repetition">
         <RepetitionPanel v-if="tab === 'repetition'" @colors="tab = 'colors'" />
       </div>
       <div v-show="tab === 'layout'" id="panel-layout" class="tabpanel" role="tabpanel" aria-labelledby="tab-layout">
+        <template v-if="opened.has('layout')">
         <LayoutPresets />
         <SpacingPanel />
         <MotionPanel />
+        </template>
       </div>
       <div v-show="tab === 'colors'" id="panel-colors" class="tabpanel" role="tabpanel" aria-labelledby="tab-colors">
+        <template v-if="opened.has('colors')">
         <ColorPanel />
         <VisionPanel />
+        </template>
       </div>
       <div v-show="tab === 'image'" id="panel-image" class="tabpanel" role="tabpanel" aria-labelledby="tab-image">
-        <ImagePanel v-if="imageOpened" />
+        <ImagePanel v-if="opened.has('image')" />
       </div>
       <div v-show="tab === 'use'" id="panel-use" class="tabpanel" role="tabpanel" aria-labelledby="tab-use">
-        <Teleport defer to="#use-sheet-steps" :disabled="!phone">
+        <Teleport v-if="opened.has('use')" defer to="#use-sheet-steps" :disabled="!phone">
         <UseIt
           :svg="svg"
           :tile-width="tileSize"

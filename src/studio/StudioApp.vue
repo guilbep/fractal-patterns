@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue';
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue';
 import { useBarHeight } from '@/bar-height.ts';
 import ShortcutHint from '@/components/ShortcutHint.vue';
 import SiteHeader from '@/components/SiteHeader.vue';
@@ -30,6 +30,7 @@ import { balance } from './tracking.ts';
 import { INK_MAX_LENGTH, repeatCell, studioSvg, type Repeat } from './model.ts';
 import { decodeStudio, designOptions, encodeStudio, MAX_SEED, SIZE_MAX, SIZE_MIN, SIZE_STEP } from './studio-share.ts';
 import { createStudioHistory, isUndoKey } from './studio-history.ts';
+import { geneCount } from './genes.ts';
 
 const REPEAT_INFO: readonly (readonly [Repeat, string, string])[] = [
   ['straight', 'Straight', 'The tile repeats side by side in a plain grid.'],
@@ -41,6 +42,11 @@ const REPEAT_INFO: readonly (readonly [Repeat, string, string])[] = [
 // A "Send to my phone" link adds use=<destination>: it opens Use it there, and leaves the address before the design is read.
 const useFrom = takeUse(location, history);
 const design = reactive(decodeStudio(location.hash));
+// Breed loads its code when its fold first opens, then stays mounted so its generations stay.
+const BreedPanel = defineAsyncComponent(() => import('./BreedPanel.vue'));
+const breedOpened = ref(false);
+const useChild = (d: typeof design) => Object.assign(design, d);
+const clearGenes = () => (design.genes = {});
 const zoom = ref(100);
 
 // The person's own motif: traced in the browser, never put in the link. Two readings of the image: the longer side at
@@ -614,6 +620,13 @@ useBarHeight(head, '--head-h');
             </label>
           </div>
         </fieldset>
+      </details>
+
+      <details class="s-card fold" @toggle="breedOpened ||= ($event.target as HTMLDetailsElement).open">
+        <summary><span class="fold-title">Breed</span><span class="fold-sum sans">{{ geneCount(design.genes) > 0 ? `${geneCount(design.genes)} genes set` : 'from this one' }}</span><span class="fold-mark" aria-hidden="true">▸</span></summary>
+        <div class="fold-body">
+          <BreedPanel v-if="breedOpened" :design="design" @use="useChild" @clear-genes="clearGenes" />
+        </div>
       </details>
 
       <details class="s-card fold">

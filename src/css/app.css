@@ -333,11 +333,13 @@ p.hero-plate {
     left: 12px;
     bottom: 12px;
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: flex-start;
     gap: 6px;
     max-width: calc(100% - 112px);
   }
-  /* 12 px: both chips fit one row at 390 px beside the two view buttons (13 px wraps). */
+  /* One chip per row from the first paint: the size chip grows when its value arrives, and a wrap then would shift the
+     layout (CLS). The size text with "mg CO₂" does not fit one row beside the contrast chip below 430 px anyway. */
   .phone-chips > * {
     font-size: 12px;
   }

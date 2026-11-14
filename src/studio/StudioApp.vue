@@ -18,6 +18,8 @@ import { rawSize } from '@/co2.ts';
 import { PALETTE_GROUPS, PALETTES, paletteParam, rollPalette } from '@/palettes.ts';
 import { stepPalette } from '@/shell.ts';
 import PaletteStrip from '@/components/PaletteStrip.vue';
+import BottomBar from '@/components/BottomBar.vue';
+import PaletteSheet from '@/components/PaletteSheet.vue';
 import { safePathData } from '@/motifgrid.ts';
 import { DETECTOR_LABELS, DETECTORS, type Detector } from '@/detectors.ts';
 import type { Rgba } from './colortrace.ts';
@@ -370,9 +372,12 @@ async function useIt(): Promise<void> {
     h.focus();
   }
 }
+// Phones: the bottom bar's Use it cell opened it (the toolbar button is hidden there).
+const barUseBtn = ref<HTMLButtonElement | null>(null);
+const sheet = ref<InstanceType<typeof PaletteSheet> | null>(null);
 function closeUse(): void {
   useOpen.value = false;
-  useBtn.value?.focus();
+  (useBtn.value?.offsetParent ? useBtn.value : barUseBtn.value)?.focus();
 }
 // The last destination, for the session only; "Website background" (the Studio's export) first.
 const USE_KEY = 'fp-use-studio';
@@ -422,11 +427,32 @@ useBarHeight(head, '--head-h');
     <span class="visually-hidden" role="status" aria-live="polite">{{ copyStatus }}</span>
   </div>
 
+  <BottomBar label="Main actions">
+    <button type="button" class="primary" @click="shuffle"><ToolIcon name="shuffle" />Shuffle</button>
+    <button type="button" :disabled="!canUndo" aria-label="Undo" title="Undo (Ctrl/Cmd+Z)" aria-keyshortcuts="Control+Z Meta+Z" @click="undo"><ToolIcon name="undo" /></button>
+    <button type="button" :disabled="!canRedo" aria-label="Redo" title="Redo (Ctrl/Cmd+Shift+Z)" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" @click="redo"><ToolIcon name="redo" /></button>
+    <button type="button" aria-label="Palette" title="Palette" aria-haspopup="dialog" @click="sheet?.open($event.currentTarget as HTMLElement)">
+      <span class="bar-swatches" aria-hidden="true"><span v-for="(c, i) in design.palette.colors.slice(0, 4)" :key="i" :style="{ background: c }"></span></span>
+    </button>
+    <button ref="barUseBtn" type="button" class="ink" @click="useIt"><ToolIcon name="download" />Use it</button>
+  </BottomBar>
+  <PaletteSheet ref="sheet" title="Palette">
+    <PaletteStrip :colors="design.palette.colors" :name="design.palette.name" @previous="stepPal(-1)" @next="stepPal(1)" @random="rollPal" />
+    <div class="sheet-more">
+      <h3>More</h3>
+      <button type="button" class="btn secondary" @click="copyCss">{{ copyStatus === 'Copied' ? 'Copied' : 'Copy CSS' }}</button>
+    </div>
+    <!-- The page's live region is inert behind the modal sheet: this one speaks while the sheet is open. -->
+    <p class="sheet-status" role="status">{{ copyStatus }}</p>
+  </PaletteSheet>
+
   <main class="layout">
     <div ref="stage" class="stage" :class="{ 'stage-use': useOpen }">
       <ShortcutHint :on="shortcutOn" />
       <div id="wall" class="wall" role="img" :aria-label="`Wallpaper preview, ${REPEAT_INFO.find(([r]) => r === design.repeat)?.[1]} repeat, seed ${design.seed}`" :style="wallStyle"></div>
       <div class="wall-chips">
+        <!-- Phones: the toolbar's size chip moves here (design board Mobile-Studio). -->
+        <SizeBadge class="wall-chip phone-only" :svg="svg" />
         <span class="wall-chip mono">{{ themeLabel }} · seed {{ design.seed }} · {{ design.size }} px</span>
         <span v-if="bal" id="tracking" class="wall-chip balance" :class="bal.label" :title="`${studioTries(studio) ? `Best of ${studioTries(studio)} tries. ` : ''}Worst part: ${bal.worst}`"><template v-if="bal.label === 'good'">✓ </template>Balance {{ bal.label }}</span>
       </div>

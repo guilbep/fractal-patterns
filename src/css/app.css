@@ -314,16 +314,47 @@ p.hero-plate {
     margin-inline-start: 0;
   }
 }
+/* Phones: the bottom bar (BottomBar.vue) and the palette sheet take the toolbar's buttons, the preview corner its chips.
+   The toolbar stays in the page with no height (its live region keeps speaking), so --bar-h measures 0. */
 @media (max-width: 599.98px) {
   .toolbar {
-    padding: 8px 12px;
+    min-height: 0;
+    padding: 0;
+    border: 0;
   }
-  /* position: the visually hidden palette name must be clipped by this scroll row, not widen the page. */
   .bar-make,
+  .bar-stats,
   .bar-out {
-    position: relative;
-    flex: 1 1 100%;
-    overflow-x: auto;
+    display: none;
+  }
+  .phone-chips {
+    position: absolute;
+    z-index: 2;
+    left: 12px;
+    bottom: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-width: calc(100% - 112px);
+  }
+  /* 12 px: both chips fit one row at 390 px beside the two view buttons (13 px wraps). */
+  .phone-chips > * {
+    font-size: 12px;
+  }
+  .phone-chips .size-badge {
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+  }
+  /* The kind, size and seed caption leaves the corner to the chips; its full sentence stays for screen readers. */
+  .hero-caption {
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .hero-actions {
+    right: 12px;
+    bottom: 12px;
   }
 }
 .bar-sep {

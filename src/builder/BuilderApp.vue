@@ -8,6 +8,7 @@ import { isTyping } from '@/shortcuts.ts';
 import { copyText } from '@/clipboard.ts';
 import SizeBadge from '@/components/SizeBadge.vue';
 import ToolIcon from '@/components/ToolIcon.vue';
+import BottomBar from '@/components/BottomBar.vue';
 import UseIt from '@/components/UseIt.vue';
 import { DESTINATIONS, type Destination } from '@/use-it.ts';
 import { repeatCell } from '@/studio/model.ts';
@@ -50,9 +51,11 @@ async function useIt(): Promise<void> {
   legend.tabIndex = -1;
   legend.focus();
 }
+// Phones: the bottom bar's Use it cell opened it (the toolbar button is hidden there).
+const barUseBtn = ref<HTMLButtonElement | null>(null);
 function closeUse(): void {
   useOpen.value = false;
-  useBtn.value?.focus();
+  (useBtn.value?.offsetParent ? useBtn.value : barUseBtn.value)?.focus();
 }
 function onUseKey(e: KeyboardEvent): void {
   if (useOpen.value && e.key === 'Escape') closeUse();
@@ -135,6 +138,18 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     <p :class="exampleError ? 'muted example-error' : 'visually-hidden'" role="status">{{ exampleError }}</p>
   </div>
 
+  <!-- Phones: Copy CSS and the size chip are in Use it (Website background). -->
+  <BottomBar label="Main actions" class="builder-bar">
+    <button type="button" :disabled="!canUndo" aria-label="Undo" title="Undo (Ctrl/Cmd+Z)" aria-keyshortcuts="Control+Z Meta+Z" @click="undo"><ToolIcon name="undo" /></button>
+    <button type="button" :disabled="!canRedo" aria-label="Redo" title="Redo (Ctrl/Cmd+Shift+Z)" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" @click="redo"><ToolIcon name="redo" /></button>
+    <button type="button" @click="resetDesign">Start again</button>
+    <select aria-label="Examples" @change="openExample">
+      <option value="" disabled selected>Examples</option>
+      <option v-for="x in EXAMPLE_LIST" :key="x.id" :value="x.id">{{ x.label }}</option>
+    </select>
+    <button ref="barUseBtn" type="button" class="ink" @click="useIt"><ToolIcon name="download" />Use it</button>
+  </BottomBar>
+
   <main class="layout">
     <div class="stage" :class="{ 'stage-use': useOpen }">
       <BuilderStage />
@@ -193,6 +208,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 }
 .example-error {
   flex-basis: 100%;
+}
+/* Undo and Redo are icons; the three words share the rest. */
+.builder-bar {
+  --bar-cols: 46px 46px 0.85fr 1.1fr 1.05fr;
+}
+.builder-bar > * {
+  white-space: normal;
 }
 .example-error {
   margin: 0;

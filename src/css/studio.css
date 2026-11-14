@@ -342,3 +342,18 @@
     min-height: 28rem;
   }
 }
+
+/* Phones: the size chip and the balance chip share the corner (design board Mobile-Studio); theme, seed and size are in the controls. */
+@media (max-width: 599.98px) {
+  .wall-chip.mono {
+    display: none;
+  }
+  .wall-chips {
+    left: 12px;
+    bottom: 12px;
+  }
+  .wall-full {
+    right: 12px;
+    bottom: 12px;
+  }
+}

@@ -29,6 +29,8 @@ import { copyText } from '@/clipboard.ts';
 import { migrateTab, type TabId } from '@/shell.ts';
 import '@/css/shell.css';
 import SponsorBanner from '@/components/SponsorBanner.vue';
+import BottomBar from '@/components/BottomBar.vue';
+import PaletteSheet from '@/components/PaletteSheet.vue';
 
 // The Image tab loads its code when first opened, then stays mounted so its state stays.
 const ImagePanel = defineAsyncComponent(() => import('@/components/ImagePanel.vue'));
@@ -65,6 +67,10 @@ async function copyWithStatus(text: string, done: string, failed: string): Promi
 }
 const copyLink = () => copyWithStatus(shareUrl(), 'Link copied', 'Could not copy the link. Copy it from the address bar.');
 const copyCss = () => copyWithStatus(exportText.value, 'Copied', 'Copy failed. Copy the CSS from the Use it tab.');
+
+// Phones: the Palette cell shows four squares of the current palette and opens the sheet.
+const barSwatches = computed(() => (palette.value?.colors ?? [roles.background, roles.pattern, roles.text]).slice(0, 4));
+const sheet = ref<InstanceType<typeof PaletteSheet> | null>(null);
 
 // Tabs (WAI-ARIA tabs pattern, automatic activation). All panels stay mounted, except Repetition (v-if: its previews cost nothing while closed).
 const TABS: readonly { id: TabId; label: string }[] = [
@@ -189,6 +195,28 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     <span class="visually-hidden" role="status" aria-live="polite">{{ copyStatus }}</span>
   </div>
 
+  <BottomBar label="Main actions">
+    <button type="button" class="primary" :disabled="usingImage && !imageShuffles" @click="reseed"><ToolIcon name="shuffle" />Shuffle</button>
+    <button type="button" :disabled="!canUndo" aria-label="Undo" title="Undo (Ctrl/Cmd+Z)" aria-keyshortcuts="Control+Z Meta+Z" @click="undo"><ToolIcon name="undo" /></button>
+    <button type="button" :disabled="!canRedo" aria-label="Redo" title="Redo (Ctrl/Cmd+Shift+Z)" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" @click="redo"><ToolIcon name="redo" /></button>
+    <button type="button" aria-label="Palette" title="Palette" aria-haspopup="dialog" @click="sheet?.open($event.currentTarget as HTMLElement)">
+      <span class="bar-swatches" aria-hidden="true"><span v-for="(c, i) in barSwatches" :key="i" :style="{ background: c }"></span></span>
+    </button>
+    <button type="button" class="ink" @click="useIt"><ToolIcon name="download" />Use it</button>
+  </BottomBar>
+  <PaletteSheet ref="sheet" title="Palette">
+    <PaletteStrip />
+    <div class="sheet-more">
+      <h3>More</h3>
+      <button type="button" class="btn secondary" @click="randomPattern">Random pattern</button>
+      <button type="button" class="btn secondary" @click="reset"><ToolIcon name="reset" />Reset</button>
+      <button type="button" class="btn secondary" @click="copyCss">Copy CSS</button>
+      <button type="button" class="btn secondary" @click="copyLink"><ToolIcon name="link" />Copy link</button>
+    </div>
+    <!-- The page's live region is inert behind the modal sheet: this one speaks while the sheet is open. -->
+    <p class="sheet-status" role="status">{{ copyStatus }}</p>
+  </PaletteSheet>
+
   <main class="layout">
     <!-- ponytail: pointer shortcut only; the Shuffle button is the keyboard path. -->
     <!-- The hero uses the exported .fp-pattern class itself, so what you see is what you copy. -->
@@ -204,6 +232,15 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <h1>{{ APP_NAME }}</h1>
         <p :class="{ 'hero-plate': plateMode === 'split' }" :style="plateMode === 'split' ? plateStyle : undefined">This text uses your text color and text plate settings, so what you read here is what your visitors will read.</p>
       </div>
+    </div>
+    <!-- Phones: the toolbar chips move to the preview corner (design board Mobile-Patterns). -->
+    <div class="phone-chips phone-only">
+      <span class="bar-chip" :class="contrast.normal !== 'fail' ? 'ok' : 'bad'">
+        <span aria-hidden="true">{{ contrast.normal !== 'fail' ? '✓' : '✕' }}</span>
+        <span class="stat-long">Contrast {{ ratioText(contrast.worst) }}:1 {{ contrast.normal !== 'fail' ? 'AA pass' : 'AA fail' }}</span>
+        <span class="stat-short" aria-hidden="true">{{ ratioShort(contrast.worst) }}:1 {{ contrast.normal !== 'fail' ? 'AA' : 'fails AA' }}</span>
+      </span>
+      <SizeBadge :gzip="gzipped === 'unknown' ? 'unknown' : exportGzipBytes" :breakdown="sizeBreakdown" />
     </div>
     <p class="hero-caption">
       <span aria-hidden="true">{{ captionShort }}</span>

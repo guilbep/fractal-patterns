@@ -5,6 +5,7 @@ import { FAMILIES } from '@/fractal.ts';
 import { createHistory } from '@/history.ts';
 import { PALETTES, linkedPalette } from '@/palettes.ts'; // STUDIO-PAL
 import { takeUse } from '@/use-it.ts';
+import { TEXTURE_DEFAULTS } from '@/texture.ts';
 import { DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design, WELCOME } from '@/share.ts';
 import {
   accent,
@@ -19,6 +20,7 @@ import {
   fill,
   grain,
   lastFix,
+  texture,
   layer2,
   layer2Color,
   layer2Own,
@@ -81,6 +83,8 @@ export function snapshot(): Design {
     grain: { ...grain },
     // Off leaves it out, so a design without Color symmetry links and compares as before.
     ...(colorSym.on ? { colorSym: { ...colorSym } } : {}),
+    // Off (or grain, which travels as gr) leaves it out, like Color symmetry.
+    ...(texture.on && texture.kind !== 'grain' ? { texture: { ...texture } } : {}),
   };
 }
 
@@ -120,6 +124,7 @@ export function applyDesign(d: Design): void {
   if (d.accentLayer.on) accent.value = d.accent;
   Object.assign(grain, d.grain);
   Object.assign(colorSym, d.colorSym ?? COLOR_SYM_DEFAULTS);
+  Object.assign(texture, d.texture ?? TEXTURE_DEFAULTS);
   source.value = 'math';
   lastFix.value = null; // the Fix result no longer describes these colors
 }

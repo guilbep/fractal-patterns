@@ -43,6 +43,10 @@ import type { ChangeDir } from '@/fade.ts';
 import { LAYOUT_EXAMPLES, randomLayout, randomRepetition } from '@/random-design.ts';
 import { preferred } from '@/preferred.ts';
 import { GRAIN_DEFAULTS, grainColor, grainSvg, type Grain } from '@/grain.ts';
+import { ROUTES, TEXTURE_DEFAULTS, type Texture, type TextureKind } from '@/texture.ts';
+import type { BakeArgs, BakeResult } from '@/textures/bake.ts';
+import type { LiveKind } from '@/textures/filters.ts';
+import type { VectorKind } from '@/textures/vector.ts';
 import { colorSym, orderedColors } from '@/color-sym.ts';
 
 export const MAX_SEED = 0xffffffff;
@@ -351,10 +355,10 @@ watch(
   },
   { immediate: true },
 );
+// The palette's colours, or the roles when none is selected: the bands and the textures draw from them.
+const paletteColors = computed(() => palette.value?.colors ?? [roles.background, roles.pattern, fill.color, accent.value, roles.text]);
 // The 5 band colours, in the order the tile draws them; the contrast check covers each.
-export const bandColors = computed(() =>
-  orderedColors(palette.value?.colors ?? [roles.background, roles.pattern, fill.color, accent.value, roles.text], colorSym.order),
-);
+export const bandColors = computed(() => orderedColors(paletteColors.value, colorSym.order));
 // null until the tile code is in: the caller draws the Lines tile for that frame.
 const bandsTile = (seed: number): string | null =>
   farris.value?.bandsTile(params.kind, seed, params.size, tileHeight(params.size, aspect.value), bandColors.value, colorSym) ?? null;
@@ -611,6 +615,108 @@ export const grain = reactive<{ -readonly [K in keyof Grain]: Grain[K] }>({ ...G
 // The grain tile for the CSS export; null when off.
 export const grainOut = computed(() => (grain.on ? grainSvg(grain) : null));
 
+// The other texture kinds (texture.ts), in the same slot as the grain: one texture layer at most. Grain keeps its own
+// state, so every grain path stays as it was.
+export const texture = reactive<{ -readonly [K in keyof Texture]: Texture[K] }>({ ...TEXTURE_DEFAULTS });
+export function setTextureKind(kind: TextureKind): void {
+  if (kind === 'grain') {
+    grain.on = true;
+    texture.on = false;
+    return;
+  }
+  Object.assign(texture, { on: true, kind, route: ROUTES[kind][0] });
+  grain.on = false;
+}
+// The panels may flip either switch directly: turning one on turns the other off.
+watch(
+  () => grain.on,
+  (on) => {
+    if (on) texture.on = false;
+  },
+  { flush: 'sync' },
+);
+watch(
+  () => texture.on,
+  (on) => {
+    if (on) grain.on = false;
+  },
+  { flush: 'sync' },
+);
+export const textureOn = computed(() => texture.on && texture.kind !== 'grain');
+// The live and vector code loads with the first texture, to keep it out of the start JS.
+const texMods = shallowRef<[typeof import('@/textures/filters.ts'), typeof import('@/textures/vector.ts')] | null>(null);
+let texLoad: Promise<void> | undefined;
+export function textureReady(): Promise<void> {
+  texLoad ??= Promise.all([import('@/textures/filters.ts'), import('@/textures/vector.ts')]).then((m) => {
+    texMods.value = m;
+  });
+  return texLoad;
+}
+watch(textureOn, (on) => on && void textureReady(), { immediate: true });
+// The baked tile, grown in the shared worker. The last one stays drawn while the next one bakes.
+export const baked = shallowRef<BakeResult | null>(null);
+export const textureStatus = ref<'' | 'baking'>('');
+watch(
+  (): BakeArgs | null =>
+    textureOn.value && texture.route === 'baked'
+      ? {
+          kind: texture.kind as BakeArgs['kind'],
+          seed: texture.seed,
+          scale: texture.scale,
+          strength: texture.strength,
+          tone: texture.tone,
+          background: roles.background,
+          colors: [...paletteColors.value],
+        }
+      : null,
+  async (args) => {
+    if (!args) return;
+    textureStatus.value = 'baking';
+    try {
+      const { requestBake } = await import('@/textures/bake-client.ts');
+      baked.value = await requestBake(args, 'texture');
+      textureStatus.value = '';
+    } catch (err) {
+      // A newer bake took the slot: it clears the status when it lands.
+      if ((err as Error).name !== 'AbortError') {
+        textureStatus.value = '';
+        throw err;
+      }
+    }
+  },
+  { immediate: true, deep: true },
+);
+// The texture tile for the CSS export and its edge; null when off, or until its code or its bake is in.
+export const textureOut = computed<{ svg: string; tile: number } | null>(() => {
+  if (!textureOn.value) return null;
+  if (texture.route === 'baked') {
+    const b = baked.value;
+    return b
+      ? {
+          svg: `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><image href="${b.dataUrl}" width="256" height="256"/></svg>`,
+          tile: 256,
+        }
+      : null;
+  }
+  const m = texMods.value;
+  if (!m) return null;
+  if (texture.route === 'live') return { svg: m[0].liveTextureSvg(texture.kind as LiveKind, texture), tile: m[0].LIVE_TILE };
+  const v = m[1].vectorTexture(texture.kind as VectorKind, { ...texture, background: roles.background, colors: paletteColors.value });
+  return { svg: v.svg, tile: 241 };
+});
+const rgbHex = (c: readonly number[]): string => `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+// The colours the texture can show, for the contrast check; conservative bounds where no pixels are known:
+// baked: the darkest and lightest pixel of the tile. Vector: every palette colour at full strength (chips are drawn at
+// 0.35 to 1). Live: the tone colour over the background at the filter's peak opacity (the rect's opacity attribute).
+export const textureSurfaces = computed<string[] | null>(() => {
+  const o = textureOut.value;
+  if (!o) return null;
+  if (texture.route === 'baked') return baked.value ? [rgbHex(baked.value.darkest), rgbHex(baked.value.lightest)] : null;
+  if (texture.route === 'vector') return [...paletteColors.value];
+  const peak = Number(/opacity="([\d.]+)"\/><\/svg>$/.exec(o.svg)?.[1] ?? 1);
+  return [blend(texture.tone === 'dark' ? '#000000' : '#ffffff', roles.background, peak)];
+});
+
 // The base layer's tile edge: the CSS export's first background.
 export const baseTileSize = computed(() =>
   colorSymActive.value && farris.value
@@ -641,10 +747,16 @@ const composed = computed(() => {
   const bh = tileHeight(bw, aspect.value);
   // The grain at the file's own tile size, stitched, at the bottom: the file stays seamless, but there the grain
   // repeats with the tile. ponytail: a 257 px grain layer would need a tile of 257 times the pattern tile.
-  const under = grain.on ? (w: number, h: number) => [{ svg: grainSvg(grain, w, h), width: w, height: h }] : () => [];
+  // ponytail: the texture repeats at its own tile, so the file edge cuts it; redraw it at the file size if that shows.
+  const tx = textureOut.value;
+  const under = grain.on
+    ? (w: number, h: number) => [{ svg: grainSvg(grain, w, h), width: w, height: h }]
+    : tx
+      ? () => [{ svg: tx.svg, width: tx.tile, height: tx.tile }]
+      : () => [];
   if (!a)
     return {
-      svg: grain.on ? composeSvg([...under(bw, bh), { svg: baseSvg.value, width: bw, height: bh }], bw, bh) : baseSvg.value,
+      svg: grain.on || tx ? composeSvg([...under(bw, bh), { svg: baseSvg.value, width: bw, height: bh }], bw, bh) : baseSvg.value,
       size: bw,
     };
   const bc = variantsOn.value ? variantOptions.cells : 1;
@@ -754,6 +866,7 @@ export const checkedRoles = computed(() => ({
   accent: accentShown.value ? accent.value : null,
   grain: grain.on && grain.amount > 0 ? { color: grainColor(grain.tone), opacity: grain.amount / 100 } : null,
   bands: colorSymActive.value ? bandColors.value : null,
+  texture: textureSurfaces.value,
 }));
 
 export const contrast = computed(() => {
@@ -770,7 +883,9 @@ export const contrast = computed(() => {
       : worstAt({ ...r, background: blend(r.fill, r.background, r.fillOpacity), fill: null, accent: null }, opacity.value, spots.value);
   // Text on the accent alone and on a stroke over it, without a plate; null when no accent shape shows.
   const onAccent =
-    r.accent === null ? null : worstAt({ ...r, background: r.accent, fill: null, accent: null, grain: null }, opacity.value, spots.value);
+    r.accent === null
+      ? null
+      : worstAt({ ...r, background: r.accent, fill: null, accent: null, grain: null, texture: null }, opacity.value, spots.value);
   // The paragraph's surface: the plate in 'plate' and 'split', the bare pattern in 'direct'.
   const worst = plateMode.value === 'direct' ? direct : onPlate;
   return {
@@ -802,7 +917,7 @@ export const contrast = computed(() => {
       onAccent:
         r.accent === null
           ? null
-          : apcaWorst({ ...r, background: r.accent, fill: null, accent: null, grain: null }, opacity.value, 0, spots.value),
+          : apcaWorst({ ...r, background: r.accent, fill: null, accent: null, grain: null, texture: null }, opacity.value, 0, spots.value),
     },
   };
 });
@@ -982,4 +1097,5 @@ export function reset(): void {
   parallax.value = false;
   sections.value = false;
   Object.assign(grain, GRAIN_DEFAULTS);
+  Object.assign(texture, TEXTURE_DEFAULTS);
 }

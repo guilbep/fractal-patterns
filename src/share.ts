@@ -11,6 +11,7 @@ import { VARIANT_DEFAULTS, type VariantOptions } from './variants.ts';
 import type { FillStyle } from './fills.ts';
 import { CHANGE_MAX, CHANGE_MIN, type ChangeDir } from './fade.ts';
 import { GRAIN_AMOUNT, GRAIN_DEFAULTS, GRAIN_SIZE, type Grain } from './grain.ts';
+import { decodeTexture, encodeTexture, type Texture } from './texture.ts';
 import { COLOR_SYM_DEFAULTS, DETAIL_MAX, DETAIL_MIN, ORDERS, WAVES_MAX, WAVES_MIN } from './color-sym.ts';
 
 export type ColorSym = typeof COLOR_SYM_DEFAULTS;
@@ -54,6 +55,8 @@ export interface Design extends Motion {
   readonly grain: Grain; // a fine noise behind the pattern (grain.ts)
   // Color symmetry (color-sym.ts). Optional and set only when on, so designs from before it compare and decode unchanged.
   readonly colorSym?: ColorSym;
+  // A texture other than grain (texture.ts). Optional and set only when on, like colorSym.
+  readonly texture?: Texture;
 }
 
 // Which layer Reduce repetition varies. A kind whose base cannot vary (supertile.ts) varies its accent by default.
@@ -154,6 +157,7 @@ const KEYS: Readonly<Record<keyof Design, string>> = {
   accentMoves: 'am',
   grain: 'gr',
   colorSym: 'cs', // also cw cd cb cm co (encodeColorSym); keep new keys last: older links stay valid
+  texture: 'te',
 };
 const FIELDS = Object.keys(KEYS) as (keyof Design)[];
 
@@ -356,6 +360,11 @@ export function encodeDesign(d: Design): string {
       pairs.push(...encodeColorSym(d.colorSym));
       continue;
     }
+    if (f === 'texture') {
+      const te = d.texture ? encodeTexture(d.texture) : null;
+      if (te) pairs.push([KEYS[f], te]);
+      continue;
+    }
     if (f === 'fill') {
       const fi = encodeFill(d.fill);
       if (fi) pairs.push([KEYS[f], fi]);
@@ -411,6 +420,7 @@ export function decodeDesign(query: string): Design {
   const layout = oneOf('layout', ['single', 'patchwork'], D.layout);
   const av = decodeAV(get('accentVary'));
   const colorSym = decodeColorSym(q);
+  const texture = decodeTexture(q.get(KEYS.texture));
   const bool = (f: 'mirror' | 'frame' | 'variants' | 'layer2' | 'fade' | 'parallax' | 'sections'): boolean =>
     get(f) === '1' ? true : get(f) === '0' ? false : D[f];
   return {
@@ -456,8 +466,10 @@ export function decodeDesign(query: string): Design {
     accentLayer: decodeAccentLayer(kind, get('accentLayer') || null, layout === 'patchwork'),
     accentVary: av ?? { applies: get('variants') === '1' ? 'base' : appliesDefault(kind), ...ACCENT_VARY_DEFAULTS },
     accentMoves: encodeMoves(decodeMoves(get('accentMoves'))),
-    grain: decodeGrain(get('grain')),
+    // Only one texture layer: a typed link with both keeps te and drops gr.
+    grain: texture ? GRAIN_DEFAULTS : decodeGrain(get('grain')),
     ...(colorSym ? { colorSym } : {}),
+    ...(texture ? { texture } : {}),
   };
 }
 
@@ -475,9 +487,11 @@ export function sameDesign(a: Design, b: Design): boolean {
               ? encodeGrain(a[f]) === encodeGrain(b[f])
               : f === 'colorSym'
                 ? String(encodeColorSym(a[f])) === String(encodeColorSym(b[f]))
-                : f === 'accentLayer' || f === 'accentVary'
-                  ? sameFields(a[f], b[f])
-                  : a[f] === b[f],
+                : f === 'texture'
+                  ? (a[f] ? encodeTexture(a[f]) : null) === (b[f] ? encodeTexture(b[f]) : null)
+                  : f === 'accentLayer' || f === 'accentVary'
+                    ? sameFields(a[f], b[f])
+                    : a[f] === b[f],
   );
 }
 

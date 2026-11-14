@@ -664,3 +664,18 @@ test('am: moved accent shapes are written last, only when there are moves, and c
   assert.ok(!encodeDesign(decodeDesign('k=hex&s=1&al=1_d_15_100_g_4')).includes('am='));
   assert.equal(decodeDesign('k=hex&am=x').accentMoves, '');
 });
+
+test('te: a texture round-trips, written last; absent when off; te wins over a typed gr', () => {
+  const link = 's=3&te=paper.40.4.1.d.b';
+  const d = decodeDesign(link);
+  assert.deepEqual(d.texture, { on: true, kind: 'paper', strength: 40, scale: 1, seed: 1, tone: 'dark', route: 'baked' });
+  assert.equal(encodeDesign(d), link);
+  assert.ok(sameDesign(d, decodeDesign(link)));
+  assert.ok(!sameDesign(d, decodeDesign('s=3')));
+  assert.equal(decodeDesign('s=3').texture, undefined);
+  assert.ok(!encodeDesign({ ...d, texture: { ...d.texture!, on: false } }).includes('te='));
+  const both = decodeDesign('k=hex&gr=12_0.75_d&te=terrazzo.50.4.2.d.v');
+  assert.deepEqual(both.grain, GRAIN_DEFAULTS);
+  assert.equal(both.texture?.kind, 'terrazzo');
+  assert.equal(decodeDesign('k=hex&gr=12_0.75_d').grain.on, true);
+});

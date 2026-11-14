@@ -17,6 +17,8 @@ export type FilledRoles = Roles & {
   readonly accent?: string | null; // the accent shapes' color, at full opacity; null or absent = none on the tile
   // The grain (grain.ts) under the pattern: its color at its peak opacity over the background; null or absent = none.
   readonly grain?: { readonly color: string; readonly opacity: number } | null;
+  // A texture (texture.ts) under the pattern: the opaque colours it can show over the background, at its strongest.
+  readonly texture?: readonly string[] | null;
   // Color symmetry: the colour bands that fill the tile, each one a surface under the text, seen through the plate.
   readonly bands?: readonly string[] | null;
 };
@@ -50,6 +52,14 @@ export function textSurfaces(r: FilledRoles, opacity: number, plate: number, spo
     return [
       ...textSurfaces({ ...r, grain: null }, opacity, plate, spots),
       ...textSurfaces({ ...r, grain: null, background: g }, opacity, plate, spots),
+    ];
+  }
+  // Texture: as grain, every surface again over each texture colour, seen through the plate.
+  if (r.texture?.length) {
+    const k = 1 - Math.min(1, Math.max(0, plate));
+    return [
+      ...textSurfaces({ ...r, texture: null }, opacity, plate, spots),
+      ...r.texture.flatMap((c) => textSurfaces({ ...r, texture: null, background: blend(c, r.background, k) }, opacity, plate, spots)),
     ];
   }
   if (r.bands?.length) {

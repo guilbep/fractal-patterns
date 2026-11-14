@@ -6,6 +6,7 @@ import { exportCss, exportJs, exportParallax, type ExportInput } from '@/export.
 import { KIND_LABELS, extraPath, tileHeight } from '@/fractal.ts';
 import { altUnavailable } from '@/alt-export.ts';
 import { GRAIN_TILE, grainColor } from '@/grain.ts';
+import { TEXTURE_LABELS } from '@/texture.ts';
 import { traceName } from '@/detectors.ts';
 import { scaledSecondSize } from '@/layers.ts';
 import {
@@ -27,7 +28,10 @@ import {
   fill,
   fillAvailable,
   grain,
+  baked,
   grainOut,
+  texture,
+  textureOut,
   layer2,
   layer2Color,
   layer2Own,
@@ -78,6 +82,8 @@ const exportInput = computed<ExportInput>(() => ({
       }
     : {}),
   ...(grainOut.value ? { grain: { svg: grainOut.value, tileSize: GRAIN_TILE } } : {}),
+  // Another texture takes the grain's slot (one texture layer at most): same place in the CSS, its own tile size.
+  ...(textureOut.value ? { grain: { svg: textureOut.value.svg, tileSize: textureOut.value.tile } } : {}),
   background: roles.background,
   text: roles.text,
   colors: {
@@ -154,11 +160,30 @@ watch(
 export const exportGzipBytes = computed(() =>
   gzipped.value && gzipped.value !== 'unknown' ? gzipped.value.css + gzipped.value.script : null,
 );
+// The texture layer's own weight: the baked image, or the gzipped layer SVG.
+const textureBytes = ref<number | null>(null);
+watch(
+  textureOut,
+  async (o) => {
+    if (!o) return void (textureBytes.value = null);
+    const b = baked.value;
+    if (texture.route === 'baked' && b) return void (textureBytes.value = b.bytes);
+    try {
+      const n = await gzipSize(o.svg);
+      if (textureOut.value === o) textureBytes.value = n;
+    } catch {
+      textureBytes.value = null;
+    }
+  },
+  { immediate: true },
+);
 // The size breakdown: the size badge tooltip and the Export tab.
 export const sizeBreakdown = computed(() => {
   const lines = sizeLines({ css: cssBytes.value, svg: rawBytes.value, script: scriptBytes.value, gz: gzipped.value });
   const w = wheel.value;
   if (wheelOn.value && w) lines.push(`Tile: ${w.type === 'image/webp' ? 'WebP' : 'PNG'} image, ${(w.bytes / 1024).toFixed(2)} KB`);
+  if (textureBytes.value !== null)
+    lines.push(`Texture: ${TEXTURE_LABELS[texture.kind]}, ${texture.route} ${(textureBytes.value / 1024).toFixed(2)} KB`);
   return lines;
 });
 export const footprint = computed(() => (exportGzipBytes.value === null ? null : formatFootprint(exportGzipBytes.value)));

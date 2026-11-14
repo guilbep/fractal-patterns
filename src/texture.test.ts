@@ -28,9 +28,9 @@ test('te: round trip for every kind, route, strength, scale, seed and tone', () 
   assert.ok(n > 0);
 });
 
-test('te: paper defaults encode as paper.40.1.1.d.b', () => {
-  assert.equal(encodeTexture({ ...TEXTURE_DEFAULTS, on: true, kind: 'paper', route: 'baked' }), 'paper.40.1.1.d.b');
-  assert.equal(encodeTexture({ ...TEXTURE_DEFAULTS, on: true, kind: 'sand', scale: 1.25 }), 'sand.40.1.25.1.d.l');
+test('te: paper defaults encode as paper.40.4.1.d.b (scale in quarter steps)', () => {
+  assert.equal(encodeTexture({ ...TEXTURE_DEFAULTS, on: true, kind: 'paper', route: 'baked' }), 'paper.40.4.1.d.b');
+  assert.equal(encodeTexture({ ...TEXTURE_DEFAULTS, on: true, kind: 'sand', scale: 1.25 }), 'sand.40.5.1.d.l');
 });
 
 test('te: grain and off never encode; a grain te string decodes to null', () => {

@@ -92,26 +92,23 @@ export const fromGrain = (g: Grain): Texture | null =>
 
 const ROUTE_CODE: Record<TextureRoute, string> = { baked: 'b', live: 'l', vector: 'v' };
 
-// kind.strength.scale.seed.tone.route, e.g. paper.40.1.1.d.b; null when off or grain (grain is written by `gr`).
+// kind.strength.quarters.seed.tone.route, e.g. paper.40.4.1.d.b: the scale is written in quarter steps (4 = 1, 5 = 1.25),
+// so every field is a whole number and the dots only separate fields. Null when off or grain (grain is written by `gr`).
 export function encodeTexture(t: Texture): string | null {
   if (!t.on || t.kind === 'grain') return null;
   const c = clampTexture(t);
-  return [c.kind, c.strength, c.scale, c.seed, c.tone === 'dark' ? 'd' : 'l', ROUTE_CODE[c.route]].join('.');
+  return [c.kind, c.strength, Math.round(c.scale * 4), c.seed, c.tone === 'dark' ? 'd' : 'l', ROUTE_CODE[c.route]].join('.');
 }
 
 // The link is untrusted: never throws, anything malformed gives null, numbers are clamped.
 export function decodeTexture(s: string | null): Texture | null {
   const p = (s ?? '').split('.');
-  // The scale may hold its own dot (1.25): strength and seed are whole, so it is everything between them.
-  if (p.length !== 6 && p.length !== 7) return null;
+  if (p.length !== 6) return null;
   const kind = TEXTURE_KINDS.find((k) => k === p[0]);
   if (!kind || kind === 'grain') return null;
-  const [sd, t, r] = p.slice(-3);
-  const [strength, scale, seed] = [p[1]!, p.slice(2, -3).join('.'), sd!].map((x) => (x.trim() === '' ? NaN : Number(x))) as [
-    number,
-    number,
-    number,
-  ];
+  const [, st, q, sd, t, r] = p;
+  const [strength, quarters, seed] = [st!, q!, sd!].map((x) => (x.trim() === '' ? NaN : Number(x))) as [number, number, number];
+  const scale = quarters / 4;
   const tone = t === 'd' ? 'dark' : t === 'l' ? 'light' : null;
   const route = (Object.keys(ROUTE_CODE) as TextureRoute[]).find((c) => ROUTE_CODE[c] === r);
   if (!tone || !route || ![strength, scale, seed].every(Number.isFinite)) return null;

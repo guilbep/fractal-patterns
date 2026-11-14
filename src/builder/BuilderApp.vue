@@ -29,6 +29,9 @@ useBarHeight(bar);
 const head = ref<HTMLElement | null>(null);
 onMounted(() => (head.value = document.querySelector<HTMLElement>('.site-header')));
 useBarHeight(head, '--head-h');
+// Phones: the coach sits at the top of the controls sheet, so it never covers the short preview.
+// ponytail: read once at load; a phone turned into a desktop-wide window keeps the coach where it started.
+const phone = matchMedia('(max-width: 599.98px)').matches;
 
 // Same texts as the Export card's copies.
 const copyStatus = ref('');
@@ -153,11 +156,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   <main class="layout">
     <div class="stage" :class="{ 'stage-use': useOpen }">
       <BuilderStage />
-      <BuilderCoach :hidden="useOpen" />
+      <BuilderCoach v-if="!phone" :hidden="useOpen" />
       <!-- Use it draws its device preview here; the editor stays underneath (hidden). -->
       <div v-show="useOpen" id="use-preview" class="use-stage"></div>
     </div>
     <div class="controls" @keydown="onUseKey">
+      <BuilderCoach v-if="phone" :hidden="useOpen" />
       <!-- Hidden, not destroyed, while Use it is open: folds and fields keep their state. -->
       <div v-show="!useOpen" class="builder-sections">
         <StampPanel />

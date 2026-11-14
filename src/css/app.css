@@ -691,6 +691,110 @@ kbd {
   }
 }
 
+/* Phones (design boards Mobile-Patterns, Mobile-Sheet): a 270 px preview, the controls in a white sheet under it.
+   The sheet's rounded top and handle are drawn by the stage (::after), so the preview stays above the content scrolling under it.
+   Scrolling into the controls leaves a 150 px preview strip: a sticky top of -120 px everywhere; where scroll-driven
+   animations exist, the box itself shrinks from 270 to 150 px, so the plate stays in view. The grid row keeps 270 px: nothing moves. */
+@media (max-width: 599.98px) {
+  :root {
+    --stage-h: 270px;
+  }
+  html {
+    scroll-padding-top: calc(150px + var(--s2));
+  }
+  .layout {
+    grid-template-rows: 270px auto;
+  }
+  .stage {
+    top: -120px;
+    height: 270px;
+    border-bottom: 0;
+  }
+  .stage::after {
+    content: '';
+    position: absolute;
+    z-index: 4;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 12px;
+    border-radius: 16px 16px 0 0;
+    background:
+      linear-gradient(var(--hairline), var(--hairline)) center 8px / 40px 4px no-repeat,
+      var(--surface);
+    box-shadow: 0 -2px 12px rgba(23, 24, 28, 0.08);
+    /* Only the upward shadow: below, the sheet continues in the controls. */
+    clip-path: inset(-24px 0 0 0);
+    pointer-events: none;
+  }
+  .stage:fullscreen::after {
+    display: none;
+  }
+  .phone-chips,
+  .hero-actions {
+    bottom: 22px;
+  }
+  .controls {
+    background: var(--surface);
+    min-height: calc(100dvh - 150px);
+    align-content: start;
+  }
+  /* Use it (Studio): the device preview keeps its taller stage, without the shrink. */
+  .layout:has(> .stage-use) {
+    grid-template-rows: none;
+  }
+  /* The six tabs: a 3 × 2 grid of buttons, still one tablist (arrows move in reading order). */
+  .tabs {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 12px 16px 0;
+    overflow: visible;
+    background: var(--surface);
+    border-bottom: 0;
+    font-size: 14px;
+  }
+  .tab {
+    justify-content: center;
+    min-height: 40px;
+    padding: 0 6px;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  .tab[aria-selected='true'] {
+    color: var(--surface);
+    background: var(--ink);
+    border-color: var(--ink);
+  }
+  .tab:focus-visible {
+    outline-offset: 2px;
+  }
+  .tabpanel {
+    padding: 12px 16px var(--s4);
+  }
+}
+@supports (animation-timeline: scroll()) {
+  @media (max-width: 599.98px) and (prefers-reduced-motion: no-preference) {
+    .stage:not(.stage-use) {
+      top: 0;
+      animation: stage-shrink linear both;
+      animation-timeline: scroll(root);
+      /* Starts once the header has scrolled away, so no gap opens above the preview. */
+      animation-range: var(--head-h, 56px) calc(var(--head-h, 56px) + 120px);
+    }
+    .stage:fullscreen {
+      animation: none;
+    }
+  }
+}
+@keyframes stage-shrink {
+  to {
+    height: 150px;
+  }
+}
+
 .panel {
   background: var(--surface);
   border: 1px solid var(--line);

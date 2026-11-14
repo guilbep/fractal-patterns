@@ -348,12 +348,13 @@
   .wall-chip.mono {
     display: none;
   }
+  /* 10 px above the sheet's 12 px rounded top. */
   .wall-chips {
     left: 12px;
-    bottom: 12px;
+    bottom: 22px;
   }
   .wall-full {
     right: 12px;
-    bottom: 12px;
+    bottom: 22px;
   }
 }

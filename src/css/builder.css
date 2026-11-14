@@ -316,3 +316,9 @@ details[open] > .card-head::after {
     bottom: calc(20px + var(--head-h, 0px));
   }
 }
+/* Phones: the coach is the first card of the controls sheet (BuilderApp.vue mounts it there), not over the 270 px preview. */
+@media (max-width: 599.98px) {
+  .controls > .coach {
+    position: static;
+  }
+}

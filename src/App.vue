@@ -101,7 +101,9 @@ watch(tab, (t) => {
 });
 function onTabKey(e: KeyboardEvent): void {
   const i = TABS.findIndex((t) => t.id === tab.value);
-  const next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TABS.length - 1 }[e.key];
+  // Phones show the tabs as a 3 × 2 grid: Down and Up also step in reading order there.
+  const grid = matchMedia('(max-width: 599.98px)').matches;
+  const next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TABS.length - 1, ...(grid && { ArrowDown: i + 1, ArrowUp: i - 1 }) }[e.key];
   if (next === undefined) return;
   e.preventDefault();
   const t = TABS[(next + TABS.length) % TABS.length]!;

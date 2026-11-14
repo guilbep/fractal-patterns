@@ -58,3 +58,47 @@ test('Studio and Builder on a phone: Use it opens the Use it view', async ({ pag
     await expect(page.locator('.controls .use-it-panel')).toBeVisible();
   }
 });
+
+test('Patterns on a phone: the six tabs are a 3 × 2 grid with arrow keys in reading order', async ({ page }) => {
+  await page.goto('/index.html');
+  const tabs = page.getByRole('tablist', { name: 'Controls' }).getByRole('tab');
+  await expect(tabs).toHaveCount(6);
+  const y1 = (await tabs.nth(0).boundingBox())!.y;
+  const y3 = (await tabs.nth(2).boundingBox())!.y;
+  const y4 = (await tabs.nth(3).boundingBox())!.y;
+  expect(y3).toBe(y1);
+  expect(y4).toBeGreaterThan(y1 + 30);
+  const pattern = page.getByRole('tab', { name: 'Pattern' });
+  await pattern.click();
+  await page.keyboard.press('ArrowRight');
+  const repetition = page.getByRole('tab', { name: /^Repetition/ });
+  await expect(repetition).toBeFocused();
+  await expect(repetition).toHaveAttribute('aria-selected', 'true');
+  // Down steps in reading order too (Repetition, then Layout); Up goes back.
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('tab', { name: 'Layout' })).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('ArrowUp');
+  await expect(repetition).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('End');
+  await expect(page.getByRole('tab', { name: 'Use it' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: 'Use it' })).toBeFocused();
+});
+
+for (const file of ['index.html', 'studio.html', 'builder.html'])
+  test(`${file} on a phone: the preview is about 270 px, then a 150 px strip once the page scrolls into the controls`, async ({ page }) => {
+    await page.goto('/' + file);
+    // The part of the preview on screen (the stage is sticky; the header scrolls away above it).
+    const visible = () =>
+      page.evaluate(() => {
+        const r = document.querySelector('.stage')!.getBoundingClientRect();
+        return Math.min(r.bottom, innerHeight) - Math.max(r.top, 0);
+      });
+    const start = await visible();
+    expect(start).toBeGreaterThanOrEqual(250);
+    expect(start).toBeLessThanOrEqual(290);
+    await page.evaluate(() => window.scrollTo(0, 600));
+    await expect.poll(visible).toBeGreaterThanOrEqual(130);
+    await expect.poll(visible).toBeLessThanOrEqual(170);
+    // The full screen button stays in the corner of the strip (the Builder has none).
+    if (file !== 'builder.html') await expect(page.getByRole('button', { name: 'Full screen' })).toBeInViewport();
+  });

@@ -7,6 +7,7 @@ export const TASKS = {
   },
   farrisWheel: async (args: import('../patterns/farris-wheel-task.ts').WheelArgs) =>
     (await import('../patterns/farris-wheel-task.ts')).farrisWheel(args),
+  bakeTexture: async (args: import('../textures/bake.ts').BakeArgs) => (await import('../textures/bake.ts')).bakeTexture(args),
 };
 
 export type TaskName = keyof typeof TASKS;

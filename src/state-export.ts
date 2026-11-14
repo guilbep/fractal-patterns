@@ -15,6 +15,7 @@ import {
   accentVaried,
   aspect,
   baseSvg,
+  colorSymActive,
   baseTileSize,
   curvesOn,
   variantsOn,
@@ -162,12 +163,14 @@ export const footprint = computed(() => (exportGzipBytes.value === null ? null :
 export const altFormat = ref<'canvas' | 'worklet'>('canvas');
 export const altOpen = ref(false); // nothing is computed while the group is collapsed
 export const altReason = computed(() =>
-  altUnavailable({
-    curves: curvesOn.value,
-    extra: aspect.value !== 1 ? extraPath(params) : '',
-    variants: variantsOn.value || accentVaried.value,
-    layer2: layer2.value,
-  }),
+  colorSymActive.value
+    ? 'Color symmetry draws colour bands; these formats draw lines.'
+    : altUnavailable({
+        curves: curvesOn.value,
+        extra: aspect.value !== 1 ? extraPath(params) : '',
+        variants: variantsOn.value || accentVaried.value,
+        layer2: layer2.value,
+      }),
 );
 const altScene = tileScene;
 // The canvas export code loads when the group first opens.

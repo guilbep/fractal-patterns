@@ -44,8 +44,6 @@ import { LAYOUT_EXAMPLES, randomLayout, randomRepetition } from '@/random-design
 import { preferred } from '@/preferred.ts';
 import { GRAIN_DEFAULTS, grainColor, grainSvg, type Grain } from '@/grain.ts';
 import { colorSym, orderedColors } from '@/color-sym.ts';
-import { farrisGrid } from '@/patterns/farris.ts';
-import { bandsDocument, bandsSvg } from '@/patterns/farris-bands.ts';
 
 export const MAX_SEED = 0xffffffff;
 
@@ -337,12 +335,34 @@ export const aspect = computed(() => (usingImage.value || usingPatchwork.value ?
 export const colorSymActive = computed(
   () => colorSym.on && KIND_FAMILY[params.kind] === 'symmetry' && !usingImage.value && !usingPatchwork.value,
 );
+// The Farris modules load on the first Color symmetry tile, to keep them out of the start JS.
+const farris = shallowRef<[typeof import('@/patterns/farris.ts'), typeof import('@/patterns/farris-bands.ts')] | null>(null);
+let farrisLoad: Promise<void> | undefined;
+export function farrisReady(): Promise<void> {
+  farrisLoad ??= Promise.all([import('@/patterns/farris.ts'), import('@/patterns/farris-bands.ts')]).then((m) => {
+    farris.value = m;
+  });
+  return farrisLoad;
+}
+watch(
+  colorSymActive,
+  (on) => {
+    if (on) void farrisReady();
+  },
+  { immediate: true },
+);
+// The 5 band colours, in the order the tile draws them; the contrast check covers each.
+export const bandColors = computed(() =>
+  orderedColors(palette.value?.colors ?? [roles.background, roles.pattern, fill.color, accent.value, roles.text], colorSym.order),
+);
 // The last 8 tiles, so dragging an unrelated control does not rebuild the field.
 const bandsCache = new Map<string, string>();
-function bandsTile(seed: number): string {
+// null until the Farris modules are in: the caller draws the Lines tile for that frame.
+function bandsTile(seed: number): string | null {
+  if (!farris.value) return null;
+  const [{ farrisGrid }, { bandsDocument, bandsSvg }] = farris.value;
   const size = params.size;
-  const fiveColors = palette.value?.colors ?? [roles.background, roles.pattern, fill.color, accent.value, roles.text];
-  const colors = orderedColors(fiveColors, colorSym.order);
+  const colors = bandColors.value;
   const { waves, detail, balance } = colorSym;
   // ponytail: render 'wheel' draws bands too until the wheel renderer lands.
   const key = [params.kind, seed, waves, detail, balance, size, ...colors].join();
@@ -568,7 +588,7 @@ export const grainOut = computed(() => (grain.on ? grainSvg(grain) : null));
 
 // The base layer's tile edge: the CSS export's first background.
 export const baseTileSize = computed(() =>
-  colorSymActive.value
+  colorSymActive.value && farris.value
     ? params.size
     : variantsOn.value
       ? variantOptions.cells * params.size
@@ -579,7 +599,8 @@ export const baseTileSize = computed(() =>
 // The tile for any seed with the current settings; a traced image gives the same tile for every seed.
 // `color` draws the strokes in another color (the second layer's own color).
 export function svgForSeed(seed: number, color = roles.pattern): string {
-  if (colorSymActive.value) return bandsTile(seed);
+  const bands = colorSymActive.value ? bandsTile(seed) : null;
+  if (bands !== null) return bands;
   if (variantsOn.value) return superSvg(seed, color);
   if (curveSvg.value !== null) return recolor(curveSvg.value, color);
   return tileSvg(seed === params.seed ? tile.value : tileFor(seed), color);
@@ -707,6 +728,7 @@ export const checkedRoles = computed(() => ({
   second: layer2.value && layer2Own.value ? { color: layer2Color.value, strength: layer2Settings.opacity } : null,
   accent: accentShown.value ? accent.value : null,
   grain: grain.on && grain.amount > 0 ? { color: grainColor(grain.tone), opacity: grain.amount / 100 } : null,
+  bands: colorSymActive.value ? bandColors.value : null,
 }));
 
 export const contrast = computed(() => {

@@ -362,3 +362,12 @@ test('a second layer color near the text lowers the worst contrast, over its own
   // APCA reads the same surfaces.
   assert.ok(Math.abs(apcaWorst({ ...r, second }, o, 0)) < Math.abs(apcaWorst(r, o, 0)));
 });
+
+test('Color symmetry bands: each band is a surface under the text', () => {
+  const r: Roles = { background: '#ffffff', pattern: '#333333', text: '#000000' };
+  const bands = ['#ffffff', '#000000', '#777777', '#ff0000', '#00ff00'];
+  assert.equal(textWorst({ ...r, bands }, 0.6, 0), contrastRatio('#000000', '#000000'));
+  assert.equal(textWorst({ ...r, bands }, 0.6, 0), 1);
+  // Without bands, nothing changes.
+  assert.equal(textWorst(r, 0.6, 0), worstTextContrast(r, 0.6));
+});

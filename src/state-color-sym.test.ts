@@ -6,7 +6,8 @@ import { registerHooks } from 'node:module';
 // state.ts imports through the Vite alias '@/'; map it to src/ for node.
 const src = new URL('./', import.meta.url).href;
 registerHooks({ resolve: (s, c, next) => next(s.startsWith('@/') ? src + s.slice(2) : s, c) });
-const { params, svg } = await import('./state.ts');
+const { params, svg, farrisReady, checkedRoles, bandColors } = await import('./state.ts');
+const { altReason } = await import('./state-export.ts');
 const { colorSym, orderedColors } = await import('./color-sym.ts');
 const { PALETTES } = await import('./palettes.ts');
 
@@ -22,6 +23,18 @@ test('off: the p4m tile is unchanged (pinned before Color symmetry)', () => {
   const s = at('p4m', false);
   assert.equal(s.length, 8479);
   assert.equal(sha(s), 'f719039a83e397a1');
+});
+
+test('on, p4m: the Farris modules load on demand, then bands, other formats off, every band checked', async () => {
+  at('p4m', true);
+  await farrisReady();
+  const s = svg.value;
+  assert.equal(s.match(/<path[^>]*fill-rule="evenodd"/g)?.length, 4);
+  assert.equal(altReason.value, 'Color symmetry draws colour bands; these formats draw lines.');
+  assert.equal(bandColors.value.length, 5);
+  assert.deepEqual(checkedRoles.value.bands, bandColors.value);
+  colorSym.on = false;
+  assert.equal(checkedRoles.value.bands, null);
 });
 
 test('on, p4m: 4 even-odd bands in the 5 palette colours, no strokes', () => {

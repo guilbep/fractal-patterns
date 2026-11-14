@@ -23,7 +23,7 @@ const step = (d: number) => (colorSym.order = (colorSym.order + d + ORDERS) % OR
     <UiSegmented :model-value="colorSym.on ? 'color' : 'lines'" label="Draw the group with" name="cs-mode" :options="MODES" :disabled="usingPatchwork" @update:model-value="colorSym.on = $event === 'color'" />
     <p v-if="usingPatchwork" class="hint-text">Color symmetry draws one tile; turn off Patchwork to use it.</p>
     <template v-else-if="on">
-      <p class="hint-text">Colours fill the plane with the group's symmetry. The stroke, fill and repetition settings do not apply.</p>
+      <p class="hint-text">Colors fill the plane with the group's symmetry. The stroke, fill and repetition settings do not apply.</p>
       <div class="field">
         <label for="cs-waves">Waves <output for="cs-waves">{{ colorSym.waves }}</output></label>
         <input id="cs-waves" v-model.number="colorSym.waves" type="range" :min="WAVES_MIN" :max="WAVES_MAX" step="1">
@@ -32,7 +32,7 @@ const step = (d: number) => (colorSym.order = (colorSym.order + d + ORDERS) % OR
         <label for="cs-detail">Detail <output for="cs-detail">{{ colorSym.detail }}</output></label>
         <input id="cs-detail" v-model.number="colorSym.detail" type="range" :min="DETAIL_MIN" :max="DETAIL_MAX" step="1">
       </div>
-      <button type="button" class="btn secondary" @click="reseed">New recipe</button>
+      <button type="button" class="btn secondary recipe-btn" @click="reseed">New recipe</button>
       <div class="field" role="group" aria-labelledby="cs-order-label">
         <span id="cs-order-label">Color order <output>{{ colorSym.order + 1 }} of {{ ORDERS }}</output></span>
         <div class="cs-order">
@@ -50,6 +50,9 @@ const step = (d: number) => (colorSym.order = (colorSym.order + d + ORDERS) % OR
 </template>
 
 <style scoped>
+.recipe-btn {
+  align-self: end;
+}
 .cs-order {
   display: flex;
   align-items: center;

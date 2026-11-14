@@ -14,7 +14,7 @@ const order = computed(() => GROUP_OPS[props.group]?.length ?? HEX_OPS[props.gro
   <details class="fold how-made">
     <summary>How it's made</summary>
     <p>
-      The colour comes from a complex number f at each point of the tile. f is a sum of waves. Each wave is averaged over every move of the
+      The color comes from a complex number f at each point of the tile. f is a sum of waves. Each wave is averaged over every move of the
       {{ group }} group. So f has the same value at points that the group maps onto each other.
     </p>
     <math display="block">
@@ -59,12 +59,12 @@ const order = computed(() => GROUP_OPS[props.group]?.length ?? HEX_OPS[props.gro
       by the factor 1/(1 + |k_j|)^0.6, so fine detail stays faint.
     </p>
     <p v-if="render === 'bands'">
-      Colour: four levels of the real part of f cut the tile into 5 bands, one colour each.
+      Color: four levels of the real part of f cut the tile into 5 bands, one color each.
       <template v-if="balance">The levels are set so each band covers about one fifth of the tile (Balance color areas is on).</template>
       <template v-else>The levels are evenly spaced between the lowest and the highest value of that real part (Balance color areas is off).</template>
     </p>
     <p v-else>
-      Colour: the angle of f picks a place on the palette, read as a circle, between two neighbouring colours. The size of f sets light and
+      Color: the angle of f picks a place on the palette, read as a circle, between two neighboring colors. The size of f sets light and
       dark: small values are darker, large values are lighter.
     </p>
     <p class="how-source">

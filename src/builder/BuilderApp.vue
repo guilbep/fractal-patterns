@@ -16,6 +16,7 @@ import { canRedo, canUndo, commit, design, redo, resetDesign, selectedId, svg, u
 import { css } from './builder-css.ts';
 import { EXAMPLE_LIST } from './example-list.ts';
 import BuilderStage from './BuilderStage.vue';
+import BuilderCoach from './BuilderCoach.vue';
 import StampPanel from './StampPanel.vue';
 import ItemPanel from './ItemPanel.vue';
 import TilePanel from './TilePanel.vue';
@@ -137,6 +138,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
   <main class="layout">
     <div class="stage" :class="{ 'stage-use': useOpen }">
       <BuilderStage />
+      <BuilderCoach :hidden="useOpen" />
       <!-- Use it draws its device preview here; the editor stays underneath (hidden). -->
       <div v-show="useOpen" id="use-preview" class="use-stage"></div>
     </div>

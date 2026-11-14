@@ -219,3 +219,100 @@ details[open] > .card-head::after {
 .builder-sections {
   display: contents;
 }
+
+/* The first-run coach: a dark card at the bottom of the stage, non-modal. Fixed colors in both themes. */
+.coach {
+  position: absolute;
+  left: 60px;
+  right: 60px;
+  bottom: 20px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 10px;
+  background: #17181c;
+  color: #ecebe6;
+  box-shadow: 0 8px 24px rgba(23, 24, 28, 0.25);
+}
+.coach[hidden] {
+  display: none;
+}
+.coach-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.coach-step {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #a9abb2;
+  text-transform: uppercase;
+}
+.coach-bar {
+  display: flex;
+  gap: 4px;
+}
+.coach-bar span {
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  background: #4a4d55;
+}
+.coach-bar span.on {
+  background: #95a1ff;
+}
+.coach-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+}
+.coach-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.coach-actions button {
+  height: 34px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.coach-actions button:focus-visible {
+  outline: 2px solid #95a1ff;
+  outline-offset: 2px;
+}
+.coach-actions .coach-skip {
+  padding: 0 12px;
+  border: 1px solid #6c6f77;
+  background: transparent;
+  color: #ecebe6;
+}
+.coach-actions .coach-next {
+  padding: 0 14px;
+  border: 0;
+  background: #fff;
+  color: #17181c;
+  font-weight: 650;
+}
+@media (prefers-color-scheme: dark) {
+  .coach {
+    border: 1px solid #4a4d55;
+  }
+}
+@media (max-width: 37.5rem) {
+  .coach {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+  }
+}
+/* The stage is one viewport tall under the toolbar: lift the coach by the header until it scrolls away. */
+@media (min-width: 64rem) {
+  .coach {
+    bottom: calc(20px + var(--head-h, 0px));
+  }
+}

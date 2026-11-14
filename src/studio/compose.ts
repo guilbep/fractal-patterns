@@ -5,6 +5,7 @@
 import type { Cubic } from '../curvefit.ts';
 import { safePathData } from '../motifgrid.ts';
 import { mulberry32, type Pt } from '../patterns/util.ts';
+import { band, NO_GENES, type Genes } from './genes.ts';
 import { groundLayer, groundMotifs } from './ground.ts';
 import type { Placement, Repeat, Studio, StudioLayer, StudioMotif } from './model.ts';
 import { INK_MAX_LENGTH, layerColors, studioBytes } from './model.ts';
@@ -68,6 +69,8 @@ export interface ComposeOptions {
   /** Default false. True: a quiet layer of tiny foliage under everything (ground.ts), in colors.ground; it is not part of
    * the spacing rules nor of the balance measure. */
   readonly ground?: boolean;
+  /** Named handles on the random draws (genes.ts); absent: the draws the seed gives. */
+  readonly genes?: Genes;
 }
 
 /** Smallest circle around the bounds' center that holds the bounds, and its offset from the box center. */
@@ -96,7 +99,7 @@ const THEME_TABLE: Record<
     families: readonly ThemeFamily[];
     labels: Readonly<Record<string, string>>;
     tiers: readonly (readonly ThemeFamily[])[];
-    make: (f: ThemeFamily, seed: number) => Made;
+    make: (f: ThemeFamily, seed: number, g: Genes) => Made;
     blooms: readonly ThemeFamily[];
     /** Families that hang (fruit): body straight down whatever the stem's direction. */
     hangs?: readonly ThemeFamily[];
@@ -114,14 +117,14 @@ const THEME_TABLE: Record<
       ['leaf', 'sprig', 'bud'],
       ['berry', 'bud'],
     ],
-    make: (f, seed) => makeMotif(f as MotifFamily, seed),
+    make: (f, seed, g) => makeMotif(f as MotifFamily, seed, g),
     blooms: ['flower', 'bud', 'berry'],
   },
   sea: {
     families: SEA_FAMILIES,
     labels: SEA_LABELS,
     tiers: [SEA_ROLES.hero, SEA_ROLES.support, SEA_ROLES.filler],
-    make: (f, seed) => makeSeaMotif(f as SeaFamily, seed),
+    make: (f, seed, g) => makeSeaMotif(f as SeaFamily, seed, g),
     blooms: ['coral', 'shell', 'starfish', 'fish', 'bubbles'],
     floats: ['fish', 'bubbles'],
   },
@@ -129,7 +132,7 @@ const THEME_TABLE: Record<
     families: ORCHARD_FAMILIES,
     labels: ORCHARD_LABELS,
     tiers: [ORCHARD_ROLES.hero, ORCHARD_ROLES.support, ORCHARD_ROLES.filler],
-    make: (f, seed) => makeOrchardMotif(f as OrchardFamily, seed),
+    make: (f, seed, g) => makeOrchardMotif(f as OrchardFamily, seed, g),
     blooms: ['pear', 'apple', 'cherries', 'lemon', 'blossom'],
     hangs: ['pear', 'apple', 'cherries', 'lemon'],
     onePerPlant: ['pear', 'apple', 'cherries', 'lemon'],
@@ -308,6 +311,9 @@ export function composeOnce(o: ComposeOptions): Omit<ComposeParts, 'tracking'> {
   const side = Math.min(w, h) / span;
   const density = clamp01(o.density);
   const rnd = mulberry32(o.seed ^ 0x2c1b3c6d);
+  const g = o.genes ?? NO_GENES;
+  // Stem curl: how far a branch turns back toward the flow (0.75 without the gene).
+  const curl = g.stemCurl === undefined ? 0.75 : 0.15 + 0.08 * g.stemCurl;
   const motifs: StudioMotif[] = [];
   const families: ThemeFamily[] = [];
   const customShapes = (o.custom?.shapes ?? []).flatMap((c) => {
@@ -320,7 +326,7 @@ export function composeOnce(o: ComposeOptions): Omit<ComposeParts, 'tracking'> {
   let customVariant: Variant | null = null;
   const familyOf: Record<number, ThemeFamily> = {};
   const makeVariant = (fam: ThemeFamily, ti: number, i: number): Variant => {
-    const m = theme.make(fam, o.seed * 97 + ti * 13 + i);
+    const m = theme.make(fam, o.seed * 97 + ti * 13 + i, g);
     motifs.push(m.silhouette);
     familyOf[motifs.length - 1] = fam;
     // ponytail: small motifs (about 24 px) read as silhouettes; their detail would cost bytes, not looks.
@@ -364,7 +370,7 @@ export function composeOnce(o: ComposeOptions): Omit<ComposeParts, 'tracking'> {
     }
     const fams0 = pool.filter((f) => allowed.includes(f));
     const fams = fams0.length > 0 ? fams0 : [...allowed];
-    const start = Math.floor(rnd() * fams.length);
+    const start = Math.floor(band(rnd(), g.motifMix) * fams.length);
     return Array.from({ length: VARIANTS }, (_, i) => {
       const fam = fams[(start + i) % fams.length]!;
       families.push(fam);
@@ -469,7 +475,7 @@ export function composeOnce(o: ComposeOptions): Omit<ComposeParts, 'tracking'> {
   const branchKnots = (start: Pt, hostA: number, sg: number, dev: number, len: number): Knot[] => {
     const ks: Knot[] = [{ p: start, a: hostA + sg * dev }];
     for (let i = 1, p = step(start, hostA + sg * dev, len / 6); i <= 6; i++) {
-      const a = flowAt(p) + sg * dev * (1 - (0.75 * i) / 6);
+      const a = flowAt(p) + sg * dev * (1 - (curl * i) / 6);
       ks.push({ p, a });
       p = step(p, a, len / 6);
     }
@@ -583,12 +589,12 @@ export function composeOnce(o: ComposeOptions): Omit<ComposeParts, 'tracking'> {
         const hs = stems[host]!.stem;
         if (idx === 1 || (idx === vines && vines > 0)) s0 = rnd() < 0.5 ? -1 : 1;
         const sg = idx % 2 === 0 ? s0 : -s0;
-        const dev = ((30 + 30 * rnd()) * Math.PI) / 180;
+        const dev = ((30 + 30 * band(rnd(), g.branchAngle)) * Math.PI) / 180;
         // A junction between 20 and 80 percent of the host.
         const k = 26 + Math.floor(rnd() * 77);
         ju = k / 128;
         const hostA = Math.atan2(hs[k + 1]![1] - hs[k - 1]![1], hs[k + 1]![0] - hs[k - 1]![0]);
-        const len = lk * side * (repeat === 'mirror' ? 0.35 + 0.15 * rnd() : 0.5 + 0.3 * rnd());
+        const len = lk * side * (repeat === 'mirror' ? 0.35 + 0.15 * band(rnd(), g.branchLength) : 0.5 + 0.3 * band(rnd(), g.branchLength));
         st = stemOf(branchKnots(hs[k]!, hostA, sg, dev, len), false, host, s, idx);
       }
       if (!st.stem.every((q) => inside(q, 0))) continue;
@@ -1039,8 +1045,20 @@ export function studioTracking(s: Studio): Tracking | null {
 }
 
 /** Roles from a 5-color palette (paper, ink, stroke, accent, soft). */
-export function composeColors(palette: readonly string[]): ComposeOptions['colors'] {
-  const [paper = '#ffffff', ink = '#000000', stroke = '#808080', accent = '#808080', soft] = palette;
+// Color roles gene: which of the palette's ink, stroke and accent colors draws the detail, the leaves and stems, the bloom.
+const ROLE_ORDERS = [
+  [0, 1, 2],
+  [0, 2, 1],
+  [1, 0, 2],
+  [1, 2, 0],
+  [2, 0, 1],
+  [2, 1, 0],
+] as const;
+export function composeColors(palette: readonly string[], g: Genes = NO_GENES): ComposeOptions['colors'] {
+  const [paper = '#ffffff', ink0 = '#000000', stroke0 = '#808080', accent0 = '#808080', soft] = palette;
+  const order = ROLE_ORDERS[g.colorRoles === undefined ? 0 : Math.floor((g.colorRoles * ROLE_ORDERS.length) / 16)]!;
+  const three = [ink0, stroke0, accent0];
+  const [ink, stroke, accent] = order.map((i) => three[i]!) as [string, string, string];
   return { background: paper, leaf: stroke, bloom: accent, detail: ink, stem: stroke, ground: soft ?? mixHex(paper, stroke) };
 }
 

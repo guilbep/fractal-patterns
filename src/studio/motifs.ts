@@ -4,6 +4,7 @@
 // tip toward the top. Two layers that register: a filled silhouette, a stroked detail.
 import { curvePathData, type Cubic } from '../curvepath.ts';
 import { mulberry32, TAU, type Pt, type Rng } from '../patterns/util.ts';
+import { band, NO_GENES, type Genes } from './genes.ts';
 
 export interface StudioMotif {
   readonly d: string;
@@ -51,6 +52,8 @@ const short = (d: string) => d.replace(/(^|[^\d.])0\./g, '$1.');
 
 // ---- geometry ----
 const range = (rnd: Rng, a: number, b: number) => a + (b - a) * rnd();
+/** range() with a gene: the same draw, confined to the gene's band (genes.ts). */
+const geneRange = (rnd: Rng, g: number | undefined, a: number, b: number) => a + (b - a) * band(rnd(), g);
 const polar = (c: Pt, a: number, r: number): Pt => [c[0] + Math.cos(a) * r, c[1] + Math.sin(a) * r];
 
 export function bez(c: Cubic, u: number): Pt {
@@ -168,11 +171,11 @@ const rngFor = (family: MotifFamily, seed: number) =>
   mulberry32(Math.imul(seed, 0x9e3779b1) ^ ((MOTIF_FAMILIES.indexOf(family) + 1) * 0x85ebca6b));
 
 /** One simple leaf; also the blade cubics and the vein end points (for the tests). */
-export function leafParts(seed: number): MotifParts & { blade: Cubic[]; veinEnds: Pt[] } {
+export function leafParts(seed: number, g: Genes = NO_GENES): MotifParts & { blade: Cubic[]; veinEnds: Pt[] } {
   const rnd = rngFor('leaf', seed);
   const len = 76;
-  const F = frame([50, 90], UP + range(rnd, -0.05, 0.05), len, range(rnd, -0.08, 0.08));
-  const base = shapeAt(range(rnd, 0.3, 0.55), range(rnd, 0.14, 0.26));
+  const F = frame([50, 90], UP + range(rnd, -0.05, 0.05), len, geneRange(rnd, g.leafBend, -0.08, 0.08));
+  const base = shapeAt(range(rnd, 0.3, 0.55), geneRange(rnd, g.leafWidth, 0.14, 0.26));
   const kind = rnd();
   const sh: Shape = {
     ...base,
@@ -180,7 +183,7 @@ export function leafParts(seed: number): MotifParts & { blade: Cubic[]; veinEnds
     ...(kind < 0.3 ? { teeth: 7, tooth: 0.35 } : kind < 0.45 ? { teeth: 3, tooth: 0.45 } : {}),
   };
   const bl = blade(F, sh);
-  const pairs = 3 + Math.floor(rnd() * 4);
+  const pairs = 3 + Math.floor(band(rnd(), g.leafVeins) * 4);
   const veins: Cubic[] = [];
   const veinEnds: Pt[] = [];
   for (const h of [sh.h, -sh.h * (sh.asym ?? 1)]) {
@@ -198,12 +201,12 @@ export function leafParts(seed: number): MotifParts & { blade: Cubic[]; veinEnds
 }
 
 /** A compound leaf; also the leaflet lengths, base pair first, tip leaflet last. */
-export function frondParts(seed: number): MotifParts & { sizes: number[] } {
+export function frondParts(seed: number, g: Genes = NO_GENES): MotifParts & { sizes: number[] } {
   const rnd = rngFor('frond', seed);
   const F = frame([50, 96], UP, 70, range(rnd, -0.12, 0.12));
-  const pairs = 5 + Math.floor(rnd() * 5);
+  const pairs = 5 + Math.floor(band(rnd(), g.frondPairs) * 5);
   const l0 = range(rnd, 24, 30);
-  const spread = range(rnd, 0.8, 1.15);
+  const spread = geneRange(rnd, g.frondSpread, 0.8, 1.15);
   const w = range(rnd, 0.16, 0.26);
   const wpos = range(rnd, 0.35, 0.5);
   const leaflets: Cubic[][] = [];
@@ -232,17 +235,17 @@ export function frondParts(seed: number): MotifParts & { sizes: number[] } {
   return { fill, detail, sizes };
 }
 
-const flowerCount = (rnd: Rng) => 5 + Math.floor(rnd() * 4);
+const flowerCount = (rnd: Rng, g: Genes) => 5 + Math.floor(band(rnd(), g.petals) * 4);
 /** The seeded petal count of `flower` (5 to 8). */
-export const flowerPetalCount = (seed: number) => flowerCount(rngFor('flower', seed));
+export const flowerPetalCount = (seed: number, g: Genes = NO_GENES) => flowerCount(rngFor('flower', seed), g);
 
-function flowerParts(seed: number): MotifParts {
+function flowerParts(seed: number, g: Genes): MotifParts {
   const rnd = rngFor('flower', seed);
-  const n = flowerCount(rnd);
+  const n = flowerCount(rnd, g);
   const c: Pt = [50, 50];
   const s1 = range(rnd, 0.05, 0.2);
   const s2 = range(rnd, 0.85, 1.02);
-  const h = ((0.55 * Math.sin(Math.PI / n) * 1.15) / 0.75) * range(rnd, 0.9, 1.15);
+  const h = ((0.55 * Math.sin(Math.PI / n) * 1.15) / 0.75) * geneRange(rnd, g.petalWidth, 0.9, 1.15);
   const R = Math.min(42, 46 / Math.hypot(s2, h)); // control points stay inside 50 +- 46
   const rc = range(rnd, 6, 9);
   const creases = rnd() < 0.5 ? [0] : [-0.07, 0.07];
@@ -259,13 +262,13 @@ function flowerParts(seed: number): MotifParts {
   return { fill: cubics([...petals, circle(c, rc)]), detail: det.join('') };
 }
 
-function budParts(seed: number): MotifParts {
+function budParts(seed: number, g: Genes): MotifParts {
   const rnd = rngFor('bud', seed);
   const stem = frame([50, 97], UP, range(rnd, 30, 36), range(rnd, -0.15, 0.15));
   const top = stem(1, 0);
   const B = frame(top, axisAngle(stem, 1) * 0.5 + UP * 0.5, range(rnd, 44, 52), range(rnd, -0.06, 0.06));
   const h = range(rnd, 0.3, 0.42);
-  const sh: Shape = { s1: 0, s2: range(rnd, 0.35, 0.5), h };
+  const sh: Shape = { s1: 0, s2: geneRange(rnd, g.budOpen, 0.35, 0.5), h };
   const sep = range(rnd, 0.5, 0.8);
   const sl = range(rnd, 13, 17);
   const sepals = [-1, 1].map((sg) => blade(frame(B(0.04, 0), axisAngle(B, 0) + sg * sep, sl, -sg * 0.12), shapeAt(0.35, 0.2)));
@@ -280,9 +283,9 @@ function budParts(seed: number): MotifParts {
   return { fill: cubics([blade(B, sh), ...sepals]), detail: cubics([[straight(stem, 0, 1.03)], ...lines]) };
 }
 
-function berryParts(seed: number): MotifParts {
+function berryParts(seed: number, g: Genes): MotifParts {
   const rnd = rngFor('berry', seed);
-  const k = 3 + Math.floor(rnd() * 5);
+  const k = 3 + Math.floor(band(rnd(), g.berries) * 5);
   const twig = frame([50, 97], UP, range(rnd, 34, 40), range(rnd, -0.12, 0.12));
   const J = twig(1, 0);
   const r = k <= 4 ? range(rnd, 8, 10.5) : range(rnd, 6.5, 8);
@@ -303,13 +306,13 @@ function berryParts(seed: number): MotifParts {
   return { fill: cubics(berries), detail: det.join('') };
 }
 
-function sprigParts(seed: number): MotifParts {
+function sprigParts(seed: number, g: Genes): MotifParts {
   const rnd = rngFor('sprig', seed);
   const T = frame([50, 97], UP + range(rnd, -0.06, 0.06), range(rnd, 72, 78), range(rnd, -0.14, 0.14));
-  const n = 4 + Math.floor(rnd() * 4);
+  const n = 4 + Math.floor(band(rnd(), g.sprigLeaves) * 4);
   let side = rnd() < 0.5 ? 1 : -1;
   const shape = shapeAt(range(rnd, 0.35, 0.5), range(rnd, 0.17, 0.25));
-  const fan = range(rnd, 0.7, 1);
+  const fan = geneRange(rnd, g.sprigFan, 0.7, 1);
   const parts: Cubic[][] = [];
   for (let i = 0; i < n; i++) {
     const s = 0.16 + (0.72 * i) / (n - 1);
@@ -323,7 +326,7 @@ function sprigParts(seed: number): MotifParts {
   return { fill: cubics(parts), detail: cubics([[straight(T, 0, 1)]]) };
 }
 
-const BUILDERS: Readonly<Record<MotifFamily, (seed: number) => MotifParts>> = {
+const BUILDERS: Readonly<Record<MotifFamily, (seed: number, g: Genes) => MotifParts>> = {
   leaf: leafParts,
   frond: frondParts,
   flower: flowerParts,
@@ -332,8 +335,8 @@ const BUILDERS: Readonly<Record<MotifFamily, (seed: number) => MotifParts>> = {
   sprig: sprigParts,
 };
 
-export function makeMotif(family: MotifFamily, seed: number): { silhouette: StudioMotif; detail: StudioMotif } {
-  const p = BUILDERS[family](seed);
+export function makeMotif(family: MotifFamily, seed: number, g: Genes = NO_GENES): { silhouette: StudioMotif; detail: StudioMotif } {
+  const p = BUILDERS[family](seed, g);
   return { silhouette: { d: short(p.fill), box: BOX, paint: 'fill' }, detail: { d: short(p.detail), box: BOX, paint: 'stroke' } };
 }
 

@@ -1,11 +1,12 @@
 // The studio design as a compact URL hash query: s seed, r repeat, d density, z tile size, st stems,
 // t theme (f floral, s sea, o orchard), f families bit mask (bit i: the theme's i-th family), pn palette name,
 // pc random palette colors (see linkedPalette), lg large tile (1: span 2), ba balance automatically (1 or 0, always written; missing in a non-empty hash: a link from
-// before the key, so false; an empty hash: a fresh page, so the default true), gr ground layer (1 or 0, the same rule as ba). The old index key p is read, never written. Only values that differ from the defaults are written.
+// before the key, so false; an empty hash: a fresh page, so the default true), gr ground layer (1 or 0, the same rule as ba), g genes (genes.ts; absent: the draws the seed gives, as before genes). The old index key p is read, never written. Only values that differ from the defaults are written.
 import { PALETTES, linkedPalette, paletteParam, type Palette } from '../palettes.ts';
 import { composeColors, themeFamilies, type ComposeOptions, type Theme, type ThemeFamily } from './compose.ts';
 import type { Repeat } from './model.ts';
 import { MOTIF_FAMILIES } from './motifs.ts';
+import { decodeGenes, encodeGenes, NO_GENES, type Genes } from './genes.ts';
 
 export const REPEATS: readonly Repeat[] = ['straight', 'half-drop', 'brick', 'mirror'];
 export const MAX_SEED = 0xffffffff;
@@ -31,6 +32,8 @@ export interface StudioDesign {
   balance: boolean;
   /** A quiet layer of small foliage behind the plants (compose `ground`). */
   ground: boolean;
+  /** Named handles on the random draws (Breed sets them); empty: the seed's own draws. */
+  genes: Genes;
 }
 
 export const DEFAULT_DESIGN: Readonly<StudioDesign> = {
@@ -45,6 +48,7 @@ export const DEFAULT_DESIGN: Readonly<StudioDesign> = {
   large: false,
   balance: true,
   ground: true,
+  genes: NO_GENES,
 };
 
 const mask = (t: Theme, fs: readonly ThemeFamily[]): number => ids(t).reduce((m, f, i) => (fs.includes(f) ? m | (1 << i) : m), 0);
@@ -66,6 +70,8 @@ export function encodeStudio(d: StudioDesign): string {
   if (d.large) q.set('lg', '1');
   q.set('ba', d.balance ? '1' : '0'); // always written: see the header
   q.set('gr', d.ground ? '1' : '0'); // always written, as ba
+  const g = encodeGenes(d.genes);
+  if (g) q.set('g', g);
   return q.toString();
 }
 
@@ -103,6 +109,7 @@ export function decodeStudio(hash: string): StudioDesign {
     large: q.get('lg') === '1',
     balance: q.has('ba') ? q.get('ba') !== '0' : fresh && D.balance,
     ground: q.has('gr') ? q.get('gr') !== '0' : fresh && D.ground,
+    genes: decodeGenes(q.get('g')),
   };
 }
 
@@ -120,10 +127,11 @@ export function designOptions(d: StudioDesign): ComposeOptions {
     density: d.density,
     families: d.families,
     theme: d.theme,
-    colors: composeColors(d.palette.colors),
+    colors: composeColors(d.palette.colors, d.genes),
     stems: d.stems,
     balance: d.balance,
     ground: d.ground,
+    genes: d.genes,
     ...(d.large ? { span: 2 as const } : {}),
   };
 }

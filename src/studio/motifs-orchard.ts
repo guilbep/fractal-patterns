@@ -5,6 +5,7 @@
 import { curvePathData, type Cubic } from '../curvepath.ts';
 import { mulberry32, TAU, type Pt, type Rng } from '../patterns/util.ts';
 import { bez, type MotifParts, type StudioMotif } from './motifs.ts';
+import { band, NO_GENES, type Genes } from './genes.ts';
 
 export const ORCHARD_FAMILIES = ['pear', 'apple', 'cherries', 'lemon', 'blossom', 'orchardleaf'] as const;
 export type OrchardFamily = (typeof ORCHARD_FAMILIES)[number];
@@ -50,6 +51,7 @@ const dot = (p: Pt) => 'M' + nums([p[0], p[1]]) + 'a.8 .8 0 1 0 .1 0';
 const cubics = (chains: Cubic[][]) => curvePathData(chains, 1);
 const short = (d: string) => d.replace(/(^|[^\d.])0\./g, '$1.');
 const range = (rnd: Rng, a: number, b: number) => a + (b - a) * rnd();
+const geneRange = (rnd: Rng, g: number | undefined, a: number, b: number) => a + (b - a) * band(rnd(), g);
 const polar = (c: Pt, a: number, r: number): Pt => [c[0] + Math.cos(a) * r, c[1] + Math.sin(a) * r];
 
 type Frame = (s: number, l: number) => Pt;
@@ -180,11 +182,11 @@ const rngFor = (family: OrchardFamily, seed: number) =>
   mulberry32(Math.imul(seed, 0x9e3779b1) ^ ((ORCHARD_FAMILIES.indexOf(family) + 7) * 0x85ebca6b));
 
 /** A pear; also its body outline (for the tests). */
-export function pearParts(seed: number): MotifParts & { body: Cubic[] } {
+export function pearParts(seed: number, g: Genes = NO_GENES): MotifParts & { body: Cubic[] } {
   const rnd = rngFor('pear', seed);
   const F = frame([50 + range(rnd, -1, 1), 87], UP + range(rnd, -0.14, 0.14), range(rnd, 70, 76));
   const neck = range(rnd, 0.25, 0.38);
-  const W = range(rnd, 0.27, 0.33);
+  const W = geneRange(rnd, g.fruitWidth, 0.27, 0.33);
   const wn = range(rnd, 0.11, 0.14);
   const a = range(rnd, 0.9, 1);
   const half = (sg: number): Pt[] => [
@@ -211,11 +213,11 @@ export function pearParts(seed: number): MotifParts & { body: Cubic[] } {
   return { fill: cubics(parts), detail: det.join(''), body };
 }
 
-function appleParts(seed: number): MotifParts {
+function appleParts(seed: number, g: Genes): MotifParts {
   const rnd = rngFor('apple', seed);
   const rh = range(rnd, 29, 33);
-  const rw = rh * range(rnd, 1.05, 1.14);
-  const dip = range(rnd, 0.12, 0.18);
+  const rw = rh * geneRange(rnd, g.fruitWidth, 1.05, 1.14);
+  const dip = geneRange(rnd, g.appleDip, 0.12, 0.18);
   const far = range(rnd, 0.03, 0.07);
   const F = frame([50, 86], UP + range(rnd, -0.08, 0.08), 1);
   const cs = rh * (1 - dip);
@@ -330,7 +332,7 @@ export function orchardLeafParts(seed: number): MotifParts & { blade: Cubic[]; v
   return { fill: cubics([bl]), detail, blade: bl, veinEnds };
 }
 
-const BUILDERS: Readonly<Record<OrchardFamily, (seed: number) => MotifParts>> = {
+const BUILDERS: Readonly<Record<OrchardFamily, (seed: number, g: Genes) => MotifParts>> = {
   pear: pearParts,
   apple: appleParts,
   cherries: cherryParts,
@@ -339,7 +341,11 @@ const BUILDERS: Readonly<Record<OrchardFamily, (seed: number) => MotifParts>> = 
   orchardleaf: orchardLeafParts,
 };
 
-export function makeOrchardMotif(family: OrchardFamily, seed: number): { silhouette: StudioMotif; detail: StudioMotif } {
-  const p = BUILDERS[family](seed);
+export function makeOrchardMotif(
+  family: OrchardFamily,
+  seed: number,
+  g: Genes = NO_GENES,
+): { silhouette: StudioMotif; detail: StudioMotif } {
+  const p = BUILDERS[family](seed, g);
   return { silhouette: { d: short(p.fill), box: BOX, paint: 'fill' }, detail: { d: short(p.detail), box: BOX, paint: 'stroke' } };
 }

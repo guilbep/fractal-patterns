@@ -6,6 +6,7 @@
 import { curvePathData, type Cubic } from '../curvepath.ts';
 import { mulberry32, TAU, type Pt, type Rng } from '../patterns/util.ts';
 import type { StudioMotif } from './motifs.ts';
+import { band, NO_GENES, type Genes } from './genes.ts';
 
 export const SEA_FAMILIES = ['kelp', 'coral', 'shell', 'starfish', 'fish', 'bubbles'] as const;
 export type SeaFamily = (typeof SEA_FAMILIES)[number];
@@ -46,6 +47,7 @@ const short = (d: string) => d.replace(/(^|[^\d.])0\./g, '$1.');
 
 // ---- geometry ----
 const range = (rnd: Rng, a: number, b: number) => a + (b - a) * rnd();
+const geneRange = (rnd: Rng, g: number | undefined, a: number, b: number) => a + (b - a) * band(rnd(), g);
 const polar = (c: Pt, a: number, r: number): Pt => [c[0] + Math.cos(a) * r, c[1] + Math.sin(a) * r];
 type Frame = (s: number, l: number) => Pt;
 function frame(base: Pt, ang: number, len: number, bend = 0): Frame {
@@ -146,11 +148,11 @@ const rngFor = (family: SeaFamily, seed: number) =>
   mulberry32(Math.imul(seed, 0x9e3779b1) ^ ((SEA_FAMILIES.indexOf(family) + 17) * 0x85ebca6b));
 
 // ---- families ----
-function kelp(seed: number): Raw {
+function kelp(seed: number, g: Genes): Raw {
   const rnd = rngFor('kelp', seed);
   const len = 100;
   const bends = 3 + Math.floor(rnd() * 2); // 3 or 4 half-waves along the blade
-  const amp = range(rnd, 15, 19);
+  const amp = geneRange(rnd, g.kelpWave, 15, 19);
   const ph = range(rnd, 0, TAU);
   const W = range(rnd, 12, 16);
   const axis = (s: number): Pt => [amp * Math.sin(bends * Math.PI * s + ph) * Math.sqrt(s), -s * len];
@@ -191,10 +193,10 @@ function kelp(seed: number): Raw {
   return { fill, det };
 }
 
-function coral(seed: number): Raw {
+function coral(seed: number, g: Genes): Raw {
   const rnd = rngFor('coral', seed);
   const forks = 2 + Math.floor(rnd() * 2);
-  const spread = range(rnd, 0.45, 0.75);
+  const spread = geneRange(rnd, g.coralSpread, 0.45, 0.75);
   const lean = range(rnd, -0.2, 0.2);
   const fill: Cubic[][] = [];
   const det: Item[] = [];
@@ -419,16 +421,16 @@ function bubbles(seed: number): Raw {
   };
 }
 
-const BUILDERS: Readonly<Record<SeaFamily, (seed: number) => MotifParts>> = {
-  kelp: (s) => fit(kelp(s)),
-  coral: (s) => fit(coral(s)),
+const BUILDERS: Readonly<Record<SeaFamily, (seed: number, g: Genes) => MotifParts>> = {
+  kelp: (s, g) => fit(kelp(s, g)),
+  coral: (s, g) => fit(coral(s, g)),
   shell: (s) => fit(shell(s)),
   starfish: (s) => fit(starfish(s)),
   fish: fishParts,
   bubbles: (s) => fit(bubbles(s)),
 };
 
-export function makeSeaMotif(family: SeaFamily, seed: number): { silhouette: StudioMotif; detail: StudioMotif } {
-  const p = BUILDERS[family](seed);
+export function makeSeaMotif(family: SeaFamily, seed: number, g: Genes = NO_GENES): { silhouette: StudioMotif; detail: StudioMotif } {
+  const p = BUILDERS[family](seed, g);
   return { silhouette: { d: short(p.fill), box: BOX, paint: 'fill' }, detail: { d: short(p.detail), box: BOX, paint: 'stroke' } };
 }

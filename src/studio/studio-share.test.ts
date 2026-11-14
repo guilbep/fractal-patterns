@@ -5,6 +5,7 @@ import { PALETTES, rollPalette } from '../palettes.ts';
 import { compose, THEMES, themeFamilies } from './compose.ts';
 import { studioSvg } from './model.ts';
 import { MOTIF_FAMILIES } from './motifs.ts';
+import { GENES } from './genes.ts';
 import { DEFAULT_DESIGN, decodeStudio, designOptions, encodeStudio, MAX_SEED, REPEATS, type StudioDesign } from './studio-share.ts';
 
 test('50 seeded random designs survive a round trip', () => {
@@ -26,6 +27,7 @@ test('50 seeded random designs survive a round trip', () => {
       large: i % 3 === 0,
       balance: i % 2 === 0,
       ground: i % 3 !== 1,
+      genes: Object.fromEntries(GENES.filter(() => i % 4 !== 0 && rnd() < 0.4).map((x) => [x.id, Math.floor(rnd() * 16)])),
     };
     assert.deepEqual(decodeStudio(encodeStudio(d)), d);
     assert.deepEqual(decodeStudio(`#${encodeStudio(d)}`), d);

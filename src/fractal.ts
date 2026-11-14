@@ -48,6 +48,7 @@ import {
   pipes,
   weave,
 } from './patterns/themes-pipes.ts';
+import { SPRIGS_MAX_DEPTH, sprigs, sprigsAccent } from './patterns/themes-sprigs.ts';
 import { THEME_SKY_MAX_DEPTH, clouds, moons, storm } from './patterns/themes-sky.ts';
 import { THEME_WATER_MAX_DEPTH, rain, ridges, seigaiha } from './patterns/themes-water.ts';
 import { THEME_WILD_MAX_DEPTH, leaves, nest, river, thorns } from './patterns/themes-wild.ts';
@@ -141,6 +142,7 @@ export const KINDS = [
   'paths',
   'endlessmaze',
   'endlessrail',
+  'sprigs',
   'octa',
   'octastars',
   'dodeca',
@@ -249,6 +251,7 @@ const PATTERNS: Readonly<
   paths: { family: 'theme', label: 'Garden paths', maxDepth: PATHS_MAX_DEPTH, gen: paths },
   endlessmaze: { family: 'theme', label: 'Endless maze', maxDepth: ENDLESSMAZE_MAX_DEPTH, gen: endlessmaze },
   endlessrail: { family: 'theme', label: 'Endless railway', maxDepth: ENDLESSRAIL_MAX_DEPTH, gen: endlessrail },
+  sprigs: { family: 'theme', label: 'Sprigs', maxDepth: SPRIGS_MAX_DEPTH, gen: sprigs, accent: sprigsAccent },
   octa: { family: 'quasi', label: 'Eightfold rhombs', maxDepth: QUASI_MAX_DEPTH, gen: octaEdges },
   octastars: { family: 'quasi', label: 'Eightfold stars', maxDepth: QUASI_MAX_DEPTH, gen: octaStars },
   dodeca: { family: 'quasi', label: 'Twelvefold rhombs', maxDepth: QUASI_MAX_DEPTH, gen: dodecaEdges },

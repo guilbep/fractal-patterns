@@ -206,7 +206,7 @@ test('families', () => {
 });
 
 test('all kinds are registered', () => {
-  assert.equal(KINDS.length, 79);
+  assert.equal(KINDS.length, 80);
   const ids = [
     'carpet',
     'quadtree',
@@ -278,6 +278,7 @@ test('all kinds are registered', () => {
     'paths',
     'endlessmaze',
     'endlessrail',
+    'sprigs',
     'octa',
     'octastars',
     'dodeca',
@@ -746,6 +747,12 @@ const PINS: Readonly<Record<PatternParams['kind'], readonly (readonly [number, n
     [16567, 4024817316],
     [4069, 3937023613],
     [17099, 707498020],
+  ],
+  sprigs: [
+    [5800, 4290789742],
+    [10373, 2622532647],
+    [5909, 1910299976],
+    [10770, 1511513089],
   ],
   octa: [
     [16032, 4137623251],

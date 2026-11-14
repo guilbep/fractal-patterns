@@ -5,6 +5,7 @@ import { SIZE_MAX, SIZE_MIN, SIZE_PRESETS, markedPreset } from '@/sizes.ts';
 import { LIB_TABS, kindsForTab, parseLibTab, tabForKind, type LibTab } from '@/library.ts';
 import { MAX_SEED, chooseKind, aspect, tileSize, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, squareKind, usingImage, usingPatchwork, imageShuffles } from '@/state.ts';
 import AccentShapes from '@/components/AccentShapes.vue';
+import ColorSymmetryPanel from '@/components/ColorSymmetryPanel.vue';
 import '@/css/library.css';
 import '@/css/sizes.css';
 
@@ -109,6 +110,8 @@ const galleryVars = computed(() => ({ '--lib-bg': roles.background, '--lib-fg': 
         </div>
       </div>
     </fieldset>
+
+    <ColorSymmetryPanel v-if="KIND_FAMILY[params.kind] === 'symmetry' && !usingImage" />
 
     <div class="fields pattern-card">
       <fieldset class="size-presets" role="radiogroup" aria-label="Tile size, px">

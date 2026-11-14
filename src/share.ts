@@ -301,35 +301,36 @@ function decodeGrain(s: string): Grain {
   return { on: true, amount: clamp(a, GRAIN_AMOUNT), size: clamp(z, GRAIN_SIZE), tone };
 }
 // Color symmetry as its own keys: cs=1, then each setting only when it differs from its default; nothing when off.
+// Booleans and the render are written as 1/0 and w/b; numbers are clamped to their range on the way in.
+const CS: readonly [string, 'waves' | 'detail' | 'order', number, number][] = [
+  ['cw', 'waves', WAVES_MIN, WAVES_MAX],
+  ['cd', 'detail', DETAIL_MIN, DETAIL_MAX],
+  ['co', 'order', 0, ORDERS - 1],
+];
 function encodeColorSym(c: ColorSym | undefined): [string, string][] {
   if (!c?.on) return [];
   const D = COLOR_SYM_DEFAULTS;
-  const out: [string, string][] = [['cs', '1']];
-  if (c.waves !== D.waves) out.push(['cw', String(c.waves)]);
-  if (c.detail !== D.detail) out.push(['cd', String(c.detail)]);
-  if (c.balance !== D.balance) out.push(['cb', c.balance ? '1' : '0']);
-  if (c.render !== D.render) out.push(['cm', c.render === 'wheel' ? 'w' : 'b']);
-  if (c.order !== D.order) out.push(['co', String(c.order)]);
-  return out;
+  const out: [string, string, boolean][] = [
+    ['cs', '1', true],
+    ['cw', String(c.waves), c.waves !== D.waves],
+    ['cd', String(c.detail), c.detail !== D.detail],
+    ['cb', c.balance ? '1' : '0', c.balance !== D.balance],
+    ['cm', c.render === 'wheel' ? 'w' : 'b', c.render !== D.render],
+    ['co', String(c.order), c.order !== D.order],
+  ];
+  return out.filter((e) => e[2]).map(([k, v]) => [k, v]);
 }
 // Off (undefined) unless cs=1; each setting is clamped to its range or falls back to its default.
 function decodeColorSym(q: URLSearchParams): ColorSym | undefined {
   if (q.get('cs') !== '1') return undefined;
-  const D = COLOR_SYM_DEFAULTS;
-  const int = (k: string, lo: number, hi: number, d: number): number => {
-    const s = q.get(k) ?? '';
-    const n = Number(s);
-    return s.trim() === '' || !Number.isFinite(n) ? d : Math.round(Math.min(hi, Math.max(lo, n))) + 0;
-  };
+  const c: ColorSym = { ...COLOR_SYM_DEFAULTS, on: true, render: q.get('cm') === 'w' ? 'wheel' : 'bands' };
+  for (const [k, f, lo, hi] of CS) {
+    const s = q.get(k)?.trim();
+    if (s && Number.isFinite(+s)) c[f] = Math.round(Math.min(hi, Math.max(lo, +s))) + 0;
+  }
   const cb = q.get('cb');
-  return {
-    on: true,
-    waves: int('cw', WAVES_MIN, WAVES_MAX, D.waves),
-    detail: int('cd', DETAIL_MIN, DETAIL_MAX, D.detail),
-    balance: cb === '0' ? false : cb === '1' ? true : D.balance,
-    render: q.get('cm') === 'w' ? 'wheel' : 'bands',
-    order: int('co', 0, ORDERS - 1, D.order),
-  };
+  if (cb === '0' || cb === '1') c.balance = cb === '1';
+  return c;
 }
 const sameFields = <T extends object>(a: T, b: T): boolean => (Object.keys(a) as (keyof T)[]).every((k) => a[k] === b[k]);
 

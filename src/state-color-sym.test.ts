@@ -30,7 +30,7 @@ test('on, p4m: the Farris modules load on demand, then bands, other formats off,
   await farrisReady();
   const s = svg.value;
   assert.equal(s.match(/<path[^>]*fill-rule="evenodd"/g)?.length, 4);
-  assert.equal(altReason.value, 'Color symmetry draws colour bands; these formats draw lines.');
+  assert.equal(altReason.value, 'Color symmetry draws color bands; these formats draw lines.');
   assert.equal(bandColors.value.length, 5);
   assert.deepEqual(checkedRoles.value.bands, bandColors.value);
   colorSym.on = false;

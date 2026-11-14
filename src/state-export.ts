@@ -164,7 +164,7 @@ export const altFormat = ref<'canvas' | 'worklet'>('canvas');
 export const altOpen = ref(false); // nothing is computed while the group is collapsed
 export const altReason = computed(() =>
   colorSymActive.value
-    ? 'Color symmetry draws colour bands; these formats draw lines.'
+    ? 'Color symmetry draws color bands; these formats draw lines.'
     : altUnavailable({
         curves: curvesOn.value,
         extra: aspect.value !== 1 ? extraPath(params) : '',

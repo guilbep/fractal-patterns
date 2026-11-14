@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue';
 import { FAMILIES, FAMILY_LABELS, KINDS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH, tileAspect, tileHeight, type Kind } from '@/fractal.ts';
 import { SIZE_MAX, SIZE_MIN, SIZE_PRESETS, markedPreset } from '@/sizes.ts';
 import { LIB_TABS, kindsForTab, parseLibTab, tabForKind, type LibTab } from '@/library.ts';
-import { MAX_SEED, chooseKind, aspect, tileSize, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, squareKind, usingImage, usingPatchwork, imageShuffles } from '@/state.ts';
+import { MAX_SEED, bandColors, chooseKind, aspect, tileSize, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, squareKind, usingImage, usingPatchwork, imageShuffles } from '@/state.ts';
 import AccentShapes from '@/components/AccentShapes.vue';
-import ColorSymmetryPanel from '@/components/ColorSymmetryPanel.vue';
 import '@/css/library.css';
 import '@/css/sizes.css';
+
+// Loads when a symmetry kind is first shown: the controls are not in the start JavaScript.
+const ColorSymmetryPanel = defineAsyncComponent(() => import('@/components/ColorSymmetryPanel.vue'));
 
 // Patchwork cells are square: rectangular kinds are not offered.
 const squareKinds = KINDS.filter((k) => tileAspect(k) === 1);
@@ -111,7 +113,7 @@ const galleryVars = computed(() => ({ '--lib-bg': roles.background, '--lib-fg': 
       </div>
     </fieldset>
 
-    <ColorSymmetryPanel v-if="KIND_FAMILY[params.kind] === 'symmetry' && !usingImage" />
+    <ColorSymmetryPanel v-if="KIND_FAMILY[params.kind] === 'symmetry' && !usingImage" :kind="params.kind" :swatches="bandColors" :patchwork="usingPatchwork" @recipe="reseed" />
 
     <div class="fields pattern-card">
       <fieldset class="size-presets" role="radiogroup" aria-label="Tile size, px">

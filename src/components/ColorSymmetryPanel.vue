@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { DETAIL_MAX, DETAIL_MIN, ORDERS, WAVES_MAX, WAVES_MIN, colorSym, orderedColors, type ColorRender } from '@/color-sym.ts';
-import { palette, params, reseed, roles, usingPatchwork } from '@/state.ts';
+import { DETAIL_MAX, DETAIL_MIN, ORDERS, WAVES_MAX, WAVES_MIN, colorSym, type ColorRender } from '@/color-sym.ts';
 import UiSegmented from '@/components/UiSegmented.vue';
 import ColorSymHowItsMade from '@/components/ColorSymHowItsMade.vue';
 
@@ -13,15 +12,18 @@ const RENDERS = [
   { value: 'bands', label: 'Bands · vector SVG' },
   { value: 'wheel', label: 'Smooth wheel · WebP image' },
 ];
-const on = computed(() => colorSym.on && !usingPatchwork.value);
-const swatches = computed(() => orderedColors(palette.value?.colors ?? [roles.background, roles.pattern, roles.text], colorSym.order));
+// The page state comes in as props: importing state.ts here would make the bundler split the start chunks (about 1.2 KB more
+// start JavaScript on every page, measured), because this panel is loaded on demand.
+const props = defineProps<{ kind: string; swatches: readonly string[]; patchwork: boolean }>();
+const emit = defineEmits<{ recipe: [] }>();
+const on = computed(() => colorSym.on && !props.patchwork);
 const step = (d: number) => (colorSym.order = (colorSym.order + d + ORDERS) % ORDERS);
 </script>
 
 <template>
   <div class="fields pattern-card color-sym">
-    <UiSegmented :model-value="colorSym.on ? 'color' : 'lines'" label="Draw the group with" name="cs-mode" :options="MODES" :disabled="usingPatchwork" @update:model-value="colorSym.on = $event === 'color'" />
-    <p v-if="usingPatchwork" class="hint-text">Color symmetry draws one tile; turn off Patchwork to use it.</p>
+    <UiSegmented :model-value="colorSym.on ? 'color' : 'lines'" label="Draw the group with" name="cs-mode" :options="MODES" :disabled="patchwork" @update:model-value="colorSym.on = $event === 'color'" />
+    <p v-if="patchwork" class="hint-text">Color symmetry draws one tile; turn off Patchwork to use it.</p>
     <template v-else-if="on">
       <p class="hint-text">Colors fill the plane with the group's symmetry. The stroke, fill and repetition settings do not apply.</p>
       <div class="field">
@@ -32,7 +34,7 @@ const step = (d: number) => (colorSym.order = (colorSym.order + d + ORDERS) % OR
         <label for="cs-detail">Detail <output for="cs-detail">{{ colorSym.detail }}</output></label>
         <input id="cs-detail" v-model.number="colorSym.detail" type="range" :min="DETAIL_MIN" :max="DETAIL_MAX" step="1">
       </div>
-      <button type="button" class="btn secondary recipe-btn" @click="reseed">New recipe</button>
+      <button type="button" class="btn secondary recipe-btn" @click="emit('recipe')">New recipe</button>
       <div class="field" role="group" aria-labelledby="cs-order-label">
         <span id="cs-order-label">Color order <output>{{ colorSym.order + 1 }} of {{ ORDERS }}</output></span>
         <div class="cs-order">
@@ -44,7 +46,7 @@ const step = (d: number) => (colorSym.order = (colorSym.order + d + ORDERS) % OR
       <label class="radio"><input id="cs-balance" v-model="colorSym.balance" type="checkbox"> Balance color areas</label>
       <UiSegmented :model-value="colorSym.render" label="Render" name="cs-render" :options="RENDERS" @update:model-value="colorSym.render = $event as ColorRender" />
       <p v-if="colorSym.render === 'wheel'" class="hint-text">An image tile: heavier than bands, shown in the size badge.</p>
-      <ColorSymHowItsMade :group="params.kind" :waves="colorSym.waves" :detail="colorSym.detail" :balance="colorSym.balance" :render="colorSym.render" />
+      <ColorSymHowItsMade :group="kind" :waves="colorSym.waves" :detail="colorSym.detail" :balance="colorSym.balance" :render="colorSym.render" />
     </template>
   </div>
 </template>

@@ -335,11 +335,11 @@ export const aspect = computed(() => (usingImage.value || usingPatchwork.value ?
 export const colorSymActive = computed(
   () => colorSym.on && KIND_FAMILY[params.kind] === 'symmetry' && !usingImage.value && !usingPatchwork.value,
 );
-// The Farris modules load on the first Color symmetry tile, to keep them out of the start JS.
-const farris = shallowRef<[typeof import('@/patterns/farris.ts'), typeof import('@/patterns/farris-bands.ts')] | null>(null);
+// The tile code (with the Farris modules) loads on the first Color symmetry tile, to keep it out of the start JS.
+const farris = shallowRef<typeof import('@/color-sym-tile.ts') | null>(null);
 let farrisLoad: Promise<void> | undefined;
 export function farrisReady(): Promise<void> {
-  farrisLoad ??= Promise.all([import('@/patterns/farris.ts'), import('@/patterns/farris-bands.ts')]).then((m) => {
+  farrisLoad ??= import('@/color-sym-tile.ts').then((m) => {
     farris.value = m;
   });
   return farrisLoad;
@@ -355,31 +355,10 @@ watch(
 export const bandColors = computed(() =>
   orderedColors(palette.value?.colors ?? [roles.background, roles.pattern, fill.color, accent.value, roles.text], colorSym.order),
 );
-// The last 8 tiles, so dragging an unrelated control does not rebuild the field.
-const bandsCache = new Map<string, string>();
-// null until the Farris modules are in: the caller draws the Lines tile for that frame.
-function bandsTile(seed: number): string | null {
-  if (!farris.value) return null;
-  const [{ farrisGrid }, { bandsDocument, bandsSvg }] = farris.value;
-  const size = params.size;
-  const colors = bandColors.value;
-  const { waves, detail, balance } = colorSym;
-  // ponytail: render 'wheel' draws bands too until the wheel renderer lands.
-  const key = [params.kind, seed, waves, detail, balance, size, ...colors].join();
-  let doc = bandsCache.get(key);
-  if (doc === undefined) {
-    const { body } = bandsSvg(farrisGrid({ group: params.kind, seed, waves, detail }, 64), { colors, size, balance });
-    // A hex kind's tile is size x size·√3: the field is sampled squeezed into the square, so stretch it back.
-    const h = tileHeight(size, aspect.value);
-    doc =
-      h === size
-        ? bandsDocument(body, size)
-        : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${h}" width="${size}" height="${h}"><g transform="scale(1 ${h / size})">${body}</g></svg>`;
-    bandsCache.set(key, doc);
-    if (bandsCache.size > 8) bandsCache.delete(bandsCache.keys().next().value!);
-  }
-  return doc;
-}
+// null until the tile code is in: the caller draws the Lines tile for that frame.
+// ponytail: render 'wheel' draws bands too until the wheel renderer lands.
+const bandsTile = (seed: number): string | null =>
+  farris.value?.bandsTile(params.kind, seed, params.size, tileHeight(params.size, aspect.value), bandColors.value, colorSym) ?? null;
 
 // One pipeline for every source: base polylines, mirror, zoom, gap. The gap gives the final tile size.
 type Polys = readonly (readonly Pt[])[];

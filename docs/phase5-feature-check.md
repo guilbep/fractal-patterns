@@ -452,3 +452,70 @@ To make sure of these, a person must look in a browser.
 - The coach with the keyboard: Tab order, Esc, and focus after Done.
 - The native Examples select on iOS and Android.
 - Touch targets of at least 44 px in the bottom bar and the sheets.
+
+# Phase 6
+
+Phase 6 adds two pattern kinds, Truchet (Line art) and Sprigs (Themes), and an Accent color for the shapes a kind marks.
+The first visit now opens on a Truchet design.
+The rule is the same: every feature survives. This file keeps the phase 6 check, because the phase rules name it.
+
+Method. I read the diff `phase5c..6-w` and the changed files.
+The rows below list only the items that phase 6 touches, and the new items.
+The other rows of the 5a, 5b and 5c checks are still true.
+Line numbers are for commit `86372c4`.
+
+## Counts, phase 6
+
+| Status | Rows |
+| --- | --- |
+| Kept as is | 5 |
+| Moved | 0 |
+| Changed | 5 |
+| New | 5 |
+| Missing | 0 |
+
+## Rows, phase 6
+
+| Feature | Status | Where now |
+| --- | --- | --- |
+| Pattern library tabs and counts | changed: Line art 4 → 5, Themes 29 → 30, All 78 → 80; README table and count follow | `src/fractal.ts:180,254`, `README.md:63-71` |
+| Truchet | new: Line art kind; depth = cells per tile edge (1 to 10); two quarter arcs per cell, turned by the seed; a small closed dot (radius 8 % of a cell) on every cell corner, colored by Fill | `src/patterns/lineart.ts:142-185`, `src/patterns/truchet.test.ts` |
+| Sprigs | new: Themes kind, maxDepth 3; leaves are closed shapes (Fill), berries are accent shapes | `src/patterns/themes-sprigs.ts`, `src/fractal.ts:254` |
+| Accent color role | new: picker, hex and palette chips, after Fill, shown only for a kind with accent shapes (today only Sprigs) | `src/components/ColorPanel.vue:96`, `src/components/RoleInput.vue` |
+| Contrast "On the accent" | new: a surface in the worst case, in WCAG and APCA lists, shown only when the kind has accent shapes | `src/components/ColorPanel.vue:133,191`, `src/pairing.ts` |
+| Link key `ac` | new: written only for a kind with accent shapes and only when it differs from the default `e07a3f`; last key, so older links stay the same | `src/share.ts:130`, `src/state-share.ts:66-67,97` |
+| Fill (`fi`) | kept as is; it also colors the Truchet dots and the Sprigs leaves | `src/fills.ts` |
+| Export: canvas script and paint worklet | changed: they now draw the fill and accent layers (an older bug: before phase 6 they drew only the strokes) | `src/state-export.ts:127`, `src/fills.ts` |
+| First visit design (`WELCOME`) | changed: Truchet, Herbarium colors, corner dots filled orange; the old first visit was a Tree with Reduce repetition and fade | `src/share.ts:343-345` |
+| Defaults (`DESIGN_DEFAULTS`) and old links | kept as is: kind Tree; a link without `k` still opens a Tree (unit and e2e test) | `src/share.ts:53`, `src/share.test.ts`, `e2e/welcome.spec.ts` |
+| Reset | kept as is: Tree, Lagoon, the defaults (e2e test added) | `src/state.ts:689`, `e2e/welcome.spec.ts` |
+| Palettes | changed: 25 (17 light, 8 dark); new "Herbarium", green base hue 155 with the warm accent | `src/palettes.ts:101` |
+| Builder "Math patterns" | changed: lists both new kinds; the list is built from `KINDS`, not by hand | `src/builder/pattern-stamps.ts:89` |
+| Studio palette link `pn` | kept as is; `Herbarium` is one more valid name | `src/palettes.ts` |
+| Other link keys, stored keys, export outputs | kept as is | see the 5a, 5b and 5c rows |
+
+## Missing, phase 6
+
+None found.
+
+## Points for the owner, phase 6
+
+- The first visit is `k=truchet&s=2692185587&d=6&z=256&w=3&bg=f1f9f3&fg=5ea478&tx=112418&o=1&fi=c_ce4700_1`. Text contrast 11.00:1 (AA).
+- `DESIGN_DEFAULTS` did not change, so old Tree links without `k` stay Tree. Only `WELCOME` changed.
+- The new first visit has no Reduce repetition and no fade (the board shows neither). Text and plate settings are the defaults, as before.
+- The Truchet dots are 8 % of a cell. The pattern stroke is drawn over the fill, so with a 3 px stroke a dot shows as an orange center in a green ring. The board's dots are larger and fully orange.
+- To show the orange, the first visit uses 6 cells of 43 px and a 3 px stroke. The board has cells of about 24 px and a thicker stroke.
+- The Herbarium paper is a pale green (`#f1f9f3`), not cream: the rules give paper the base hue at low chroma. The stroke `#5ea478` is lighter than the board's dark green.
+- Herbarium is a warm accent on a green base. The random palettes keep the warm accent for cool bases only.
+- On a first visit the palette strip still says "Lagoon": the link does not carry the palette name, and the page starts on the default palette name.
+- Sprigs: at depth 3 some berry clusters touch.
+- The accent is not drawn in the Reduce repetition super tile, the curve tile, image mode or patchwork.
+- `e2e/accent.spec.ts` says "No current kind marks accent shapes"; Sprigs now does. The test still checks a kind without accent (`hex`).
+
+## Not checked by reading code, phase 6
+
+To make sure of these, a person must look in a browser.
+
+- The Accent picker and "On the accent" with a screen reader.
+- Sprigs and Truchet exports (CSS, script, worklet, PNG) in Safari and Firefox.
+- The first visit in dark mode.

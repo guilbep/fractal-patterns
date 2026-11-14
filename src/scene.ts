@@ -23,7 +23,7 @@ export interface Scene {
   readonly layers: readonly SceneLayer[];
 }
 
-function num(n: number, precision: number): string {
+export function num(n: number, precision: number): string {
   let s = n.toFixed(precision);
   if (s.includes('.')) s = s.replace(/\.?0+$/, '');
   return s === '-0' ? '0' : s;
@@ -62,7 +62,7 @@ export function pathData(polys: readonly (readonly Pt[])[], precision: number): 
 }
 
 // Every sub-path closed: a fill needs a closed outline.
-const closedPathData = (polys: readonly (readonly Pt[])[], precision: number): string =>
+export const closedPathData = (polys: readonly (readonly Pt[])[], precision: number): string =>
   polys
     .map((poly) => pathData([poly], precision))
     .map((d) => (d && !d.endsWith('z') ? d + 'z' : d))

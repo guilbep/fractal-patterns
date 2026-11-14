@@ -24,6 +24,14 @@ export interface AccentVary {
   readonly drop: number; // percent of shapes removed, 0..60
   readonly turn: number; // 0..100
 }
+// One copy of tile shape `shape`: its pivot (vertex mean) moved to (x, y), turned by `rotate` radians, scaled by `scale`.
+export interface AccentPlace {
+  readonly shape: number;
+  readonly x: number;
+  readonly y: number;
+  readonly rotate: number;
+  readonly scale: number;
+}
 export const ACCENT_VARY_DEFAULTS: AccentVary = { cells: 6, move: 35, scale: 50, drop: 28, turn: 0 };
 
 // Fixed offset on the seed, apart from supertile.ts's (seed * 7919 + 13), so other layers never shift.
@@ -36,9 +44,15 @@ export function varyAccent(
   tileHeight: number,
   vary: AccentVary,
   seed: number,
-): { polys: Poly[]; width: number; height: number } {
+): { polys: Poly[]; places: AccentPlace[]; width: number; height: number } {
   const n = Math.round(vary.cells);
-  if (n <= 1) return { polys: tileShapes, width: tileSize, height: tileHeight };
+  if (n <= 1)
+    return {
+      polys: tileShapes,
+      places: tileShapes.map((p, i) => ({ shape: i, ...pivot(p), rotate: 0, scale: 1 })),
+      width: tileSize,
+      height: tileHeight,
+    };
   const width = n * tileSize;
   const height = n * tileHeight;
   const drop = vary.drop / 100;
@@ -47,11 +61,13 @@ export function varyAccent(
   const move = vary.move / 100;
   const rnd = mulberry32(accentSeed(seed));
   const polys: Poly[] = [];
+  const places: AccentPlace[] = [];
+  const pivots = tileShapes.map(pivot);
   for (let row = 0; row < n; row++) {
     for (let col = 0; col < n; col++) {
       const ox = col * tileSize;
       const oy = row * tileHeight;
-      for (const shape of tileShapes) {
+      for (const [i, shape] of tileShapes.entries()) {
         const uDrop = rnd();
         const uAngle = rnd();
         const uLen = rnd();
@@ -60,17 +76,12 @@ export function varyAccent(
         if (uDrop < drop) continue;
         if (s === 0 && turn === 0 && move === 0) {
           polys.push(shape.map(([x, y]): Pt => [x + ox, y + oy]));
+          places.push({ shape: i, x: pivots[i]!.x + ox, y: pivots[i]!.y + oy, rotate: 0, scale: 1 });
           continue;
         }
-        const pts = shape.length > 1 && shape[0]![0] === shape.at(-1)![0] && shape[0]![1] === shape.at(-1)![1] ? shape.slice(0, -1) : shape;
-        let cx = 0;
-        let cy = 0;
-        for (const [x, y] of pts) {
-          cx += x / pts.length;
-          cy += y / pts.length;
-        }
+        const { x: cx, y: cy } = pivots[i]!;
         let r = 0;
-        for (const [x, y] of pts) r = Math.max(r, Math.hypot(x - cx, y - cy));
+        for (const [x, y] of shape) r = Math.max(r, Math.hypot(x - cx, y - cy));
         const k = 1 + s * (2 * uScale - 1);
         const a = turn * (2 * uTurn - 1);
         const cos = Math.cos(a) * k;
@@ -92,8 +103,22 @@ export function varyAccent(
         tx = Math.min(width - EDGE - x1, Math.max(-x0, tx));
         ty = Math.min(height - EDGE - y1, Math.max(-y0, ty));
         polys.push(out.map(([x, y]): Pt => [x + tx, y + ty]));
+        places.push({ shape: i, x: cx + ox + tx, y: cy + oy + ty, rotate: a, scale: k });
       }
     }
   }
-  return { polys, width, height };
+  return { polys, places, width, height };
+}
+
+// The vertex mean, without the closing point: the pivot of every move, scale and turn.
+export function pivot(shape: readonly Pt[]): { x: number; y: number } {
+  const closed = shape.length > 1 && shape[0]![0] === shape.at(-1)![0] && shape[0]![1] === shape.at(-1)![1];
+  const pts = closed ? shape.slice(0, -1) : shape;
+  let x = 0;
+  let y = 0;
+  for (const p of pts) {
+    x += p[0] / pts.length;
+    y += p[1] / pts.length;
+  }
+  return { x, y };
 }

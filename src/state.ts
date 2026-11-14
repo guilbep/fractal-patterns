@@ -19,6 +19,7 @@ import { patchworkCells, patchworkGeometry, type PatchworkParams } from '@/patch
 import { mirrorTile, withGap, zoomWrap } from '@/spacing.ts';
 import type { Poly, Pt } from '@/patterns/util.ts';
 import { accentDefaults, accentEffective, accentShapes, type AccentLayer } from '@/accent-layer.ts';
+import { accentSvg } from '@/accent-svg.ts';
 import { ACCENT_VARY_DEFAULTS, varyAccent, type AccentVary } from '@/accent-vary.ts';
 import { traceCall, type TraceChoice } from '@/detectors.ts';
 import { sampleImage, type Sample } from '@/samples.ts';
@@ -382,9 +383,9 @@ export const accentOut = computed(() => {
   if (!t) return null;
   const v = accentVaried.value
     ? varyAccent(t.polys as Poly[], t.width, t.height, accentVary, params.seed)
-    : { polys: t.polys, width: t.width, height: t.height };
+    : { places: undefined, width: t.width, height: t.height };
   return {
-    svg: sceneToSvg({ width: v.width, height: v.height, layers: [accentPaint(v.polys)] }, params.precision),
+    svg: accentSvg(t.polys as Poly[], v.places, v.width, v.height, accent.value, params.precision),
     width: v.width,
     height: v.height,
   };
@@ -505,11 +506,10 @@ export function svgWithAccent(seed: number, color = roles.pattern): string {
   if (!a) return svgForSeed(seed, color);
   const bw = baseTileSize.value;
   const bh = tileHeight(bw, aspect.value);
-  const accentSvg = sceneToSvg({ width: a.width, height: a.height, layers: [accentPaint(a.polys)] }, params.precision);
   return composeSvg(
     [
       { svg: svgForSeed(seed, color), width: bw, height: bh },
-      { svg: accentSvg, width: a.width, height: a.height },
+      { svg: accentSvg(a.polys as Poly[], undefined, a.width, a.height, accent.value, params.precision), width: a.width, height: a.height },
     ],
     bw,
     bh,

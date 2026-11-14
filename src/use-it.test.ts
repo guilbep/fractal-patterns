@@ -1,7 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { DESTINATIONS, clampCustom, detectedSize, pngFileName, resolvePreset } from './use-it.ts';
+import {
+  DESTINATIONS,
+  clampCustom,
+  detectedSize,
+  isPhone,
+  nearestDensity,
+  pngFileName,
+  pngScale,
+  resolvePreset,
+  tilePercent,
+  visiblePresets,
+  useInHash,
+  withUse,
+  withoutUse,
+} from './use-it.ts';
 
 const byId = (id: string) => {
   const d = DESTINATIONS.find((x) => x.id === id);
@@ -101,4 +115,79 @@ test('resolvePreset', () => {
 
 test('every destination has a short hint for its card', () => {
   for (const d of DESTINATIONS) assert.ok(d.hint.trim().length > 0 && d.hint.length <= 30, d.id);
+});
+
+const preset = (d: string, id: string) => {
+  const p = byId(d).presets.find((x) => x.id === id);
+  assert.ok(p, `${d}/${id}`);
+  return p;
+};
+
+test('pngScale: each preset at its device density', () => {
+  assert.equal(pngScale(preset('phone', 'iphone-17'), 1, 1), 3);
+  assert.equal(pngScale(preset('phone', 'iphone-17-max'), 1, 1), 3);
+  for (const id of ['mbp-14', 'mbp-16', 'mba-13', 'mba-15', '4k']) assert.equal(pngScale(preset('desktop', id), 1, 1), 2, id);
+  assert.equal(pngScale(preset('desktop', 'full-hd'), 3, 3), 1);
+  assert.equal(pngScale(preset('call', 'full-hd'), 3, 3), 1);
+  // Detected: the measured ratio, 2 decimals, at least 1.
+  assert.equal(pngScale(preset('phone', 'this-phone'), 3, 1), 3);
+  assert.equal(pngScale(preset('desktop', 'this-screen'), 1.3333333, 1), 1.33);
+  assert.equal(pngScale(preset('desktop', 'this-screen'), 0.5, 1), 1);
+  assert.equal(pngScale(preset('desktop', 'this-screen'), 0, 1), 1);
+  // Custom: the chosen density.
+  assert.equal(pngScale(preset('phone', 'custom'), 3, 2), 2);
+  // Print, textures and slides keep the site's size × 1.
+  for (const [d, id] of [
+    ['paper', 'a4'],
+    ['fabric', 'tile-20cm'],
+    ['game', '1024'],
+    ['slides', '16-9'],
+  ] as const)
+    assert.equal(pngScale(preset(d, id), 3, 3), 1, id);
+});
+
+test('nearestDensity', () => {
+  assert.deepEqual([0.5, 1, 1.49, 1.5, 2.6, 3, 4].map(nearestDensity), [1, 1, 1, 2, 3, 3, 3]);
+});
+
+test('isPhone and the detected presets shown', () => {
+  assert.equal(isPhone(true, 402), true);
+  assert.equal(isPhone(false, 402), false);
+  assert.equal(isPhone(true, 820), false); // a tablet
+  assert.equal(isPhone(true, 500), true);
+  assert.deepEqual(
+    visiblePresets(byId('phone'), false).map((p) => p.id),
+    ['iphone-17', 'iphone-17-max', 'custom'],
+  );
+  assert.equal(visiblePresets(byId('phone'), true)[0]?.id, 'this-phone');
+  assert.equal(visiblePresets(byId('desktop'), false)[0]?.id, 'this-screen');
+  assert.equal(visiblePresets(byId('desktop'), true)[0]?.id, 'mbp-14');
+  assert.equal(visiblePresets(byId('game'), true).length, 3);
+});
+
+test('tilePercent: the preview tile takes its share of the PNG width', () => {
+  // (320 × 3) / 1206 = 0.79602
+  assert.equal(Math.round(tilePercent(320, 3, 1206) * 10) / 10, 79.6);
+  assert.equal(Math.round(tilePercent(320, 1, 1920) * 10) / 10, 16.7);
+});
+
+test('use=: added to a share link, read and removed from a hash', () => {
+  assert.equal(withUse('https://x.org/index.html#k=tree&s=7', 'phone'), 'https://x.org/index.html#k=tree&s=7&use=phone');
+  assert.equal(withUse('https://x.org/studio.html', 'web'), 'https://x.org/studio.html#use=web');
+  assert.equal(withUse('https://x.org/#k=tree&use=web', 'phone'), 'https://x.org/#k=tree&use=phone');
+  assert.equal(withoutUse('#k=tree&s=7&use=phone'), '#k=tree&s=7');
+  assert.equal(withoutUse('#use=phone'), '');
+  assert.equal(withoutUse('#k=tree&s=7'), '#k=tree&s=7');
+  assert.equal(useInHash('#k=tree&use=phone'), 'phone');
+  assert.equal(useInHash('#use=nope'), null);
+  assert.equal(useInHash('#k=tree'), null);
+});
+
+test('the phone list: 32 phones in the select, Android ones marked approximate', () => {
+  const list = byId('phone').presets.filter((p) => p.list);
+  assert.equal(list.length, 32);
+  assert.equal(new Set(list.map((p) => p.id)).size, 32);
+  const s25 = list.find((p) => p.label === 'Samsung Galaxy S25 · approx.');
+  assert.deepEqual([s25?.width, s25?.height, s25?.dpr], [1080, 2340, 3]);
+  assert.equal(list.find((p) => p.label === 'iPhone 17 Pro')?.width, 1206);
 });

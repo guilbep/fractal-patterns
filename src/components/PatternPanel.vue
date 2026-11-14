@@ -3,7 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { FAMILIES, FAMILY_LABELS, KINDS, KIND_FAMILY, KIND_LABELS, MAX_DEPTH, tileAspect, tileHeight, type Kind } from '@/fractal.ts';
 import { SIZE_MAX, SIZE_MIN, SIZE_PRESETS, markedPreset } from '@/sizes.ts';
 import { LIB_TABS, kindsForTab, parseLibTab, tabForKind, type LibTab } from '@/library.ts';
-import { MAX_SEED, aspect, tileSize, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, squareKind, usingImage, usingPatchwork, imageShuffles } from '@/state.ts';
+import { MAX_SEED, chooseKind, aspect, tileSize, autoCells, layout, opacity, params, patch, patchDepthMax, previews, reseed, roles, setPin, setSeed, source, squareKind, usingImage, usingPatchwork, imageShuffles } from '@/state.ts';
 import '@/css/library.css';
 import '@/css/sizes.css';
 
@@ -12,9 +12,11 @@ const squareKinds = KINDS.filter((k) => tileAspect(k) === 1);
 
 const depthMax = computed(() => (usingPatchwork.value ? patchDepthMax.value : MAX_DEPTH[params.kind]));
 
-function pick(): void {
+// The click fires before v-model updates, so the kind comes in as an argument. Arrow keys on the radios fire click too.
+function pick(kind: Kind): void {
   source.value = 'math';
   layout.value = 'single';
+  chooseKind(kind);
 }
 
 // Library tabs: one per family, then All. Only the open tab's kinds are drawn.
@@ -97,7 +99,7 @@ const galleryVars = computed(() => ({ '--lib-bg': roles.background, '--lib-fg': 
           <h3 v-if="libTab === 'all'" class="family-h">{{ FAMILY_LABELS[g.family] }} <span class="muted">{{ g.items.length }}</span></h3>
           <div class="kinds">
             <label v-for="p in g.items" :key="p.kind" class="kind">
-              <input v-model="params.kind" type="radio" name="kind" :value="p.kind" class="visually-hidden" @click="pick">
+              <input v-model="params.kind" type="radio" name="kind" :value="p.kind" class="visually-hidden" @click="pick(p.kind)">
               <span class="kind-tile lib-tile" aria-hidden="true"><span class="lib-ink" :style="{ maskImage: p.mask, '-webkit-mask-image': p.mask }"></span></span>
               <span class="kind-name">{{ KIND_LABELS[p.kind] }}</span>
               <span class="kind-check" aria-hidden="true">✓</span>

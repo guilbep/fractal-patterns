@@ -11,7 +11,7 @@ import ToolIcon from '@/components/ToolIcon.vue';
 import UiFileDrop from '@/components/UiFileDrop.vue';
 import UiSegmented from '@/components/UiSegmented.vue';
 import UseIt from '@/components/UseIt.vue';
-import { DESTINATIONS, type Destination } from '@/use-it.ts';
+import { DESTINATIONS, takeUse, type Destination } from '@/use-it.ts';
 import { copyText } from '@/clipboard.ts';
 import { decodeImage, sample } from '@/image-file.ts';
 import { rawSize } from '@/co2.ts';
@@ -38,6 +38,8 @@ const REPEAT_INFO: readonly (readonly [Repeat, string, string])[] = [
   ['mirror', 'Mirror', 'Neighbors are mirror images, left to right and top to bottom.'],
 ];
 
+// A "Send to my phone" link adds use=<destination>: it opens Use it there, and leaves the address before the design is read.
+const useFrom = takeUse(location, history);
 const design = reactive(decodeStudio(location.hash));
 const zoom = ref(100);
 
@@ -401,7 +403,19 @@ function readUse(): Destination['id'] {
     return 'web';
   }
 }
-const useInitial = readUse();
+const useInitial = useFrom ?? readUse();
+if (useFrom && !phone.value) useOpen.value = useOpened.value = true;
+onMounted(async () => {
+  if (!useFrom || !phone.value || !barUseBtn.value) return;
+  useOpened.value = true;
+  await nextTick();
+  useSheet.value?.open(barUseBtn.value);
+});
+// The link holds the design; the visitor's own motif never travels in it.
+const shareLink = () => `${location.href.split('#')[0]}#${encodeStudio(design)}`;
+const noLink = computed(() =>
+  ownResult.value && ownResult.value.shapes.length > 0 ? 'This design uses your image, so it cannot travel by link.' : undefined,
+);
 function writeUse(id: Destination['id']): void {
   try {
     sessionStorage.setItem(USE_KEY, id);
@@ -482,7 +496,7 @@ useBarHeight(head, '--head-h');
 
     <div class="controls studio-controls">
       <div v-if="useOpened" v-show="useOpen" class="studio-use" @keydown.esc="closeUse">
-        <button type="button" class="btn quiet use-back" @click="closeUse"><span aria-hidden="true">‹&nbsp;</span>Back to the design</button>
+        <button type="button" class="btn secondary use-back" @click="closeUse"><span aria-hidden="true">‹&nbsp;</span>Back to the design</button>
         <Teleport defer to="#use-sheet-steps" :disabled="!phone">
         <UseIt
           :svg="svg"
@@ -494,6 +508,8 @@ useBarHeight(head, '--head-h');
           :svg-file-name="fileName"
           :initial="useInitial"
           :preview-target="phone ? '#use-sheet-preview' : '#use-preview'"
+          :share-link="shareLink"
+          :no-link="noLink"
           @destination="writeUse"
         >
           <template #web>

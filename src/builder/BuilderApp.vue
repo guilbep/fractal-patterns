@@ -11,7 +11,7 @@ import ToolIcon from '@/components/ToolIcon.vue';
 import BottomBar from '@/components/BottomBar.vue';
 import PaletteSheet from '@/components/PaletteSheet.vue';
 import UseIt from '@/components/UseIt.vue';
-import { DESTINATIONS, type Destination } from '@/use-it.ts';
+import { DESTINATIONS, takeUse, type Destination } from '@/use-it.ts';
 import { repeatCell } from '@/studio/model.ts';
 import { toStudio } from './design.ts';
 import { canRedo, canUndo, commit, design, redo, resetDesign, selectedId, svg, undo } from './store.ts';
@@ -81,6 +81,13 @@ function readUse(): Destination['id'] {
     return 'web';
   }
 }
+// A "Send to my phone" link (use=<destination>) opens Use it there. The Builder keeps its design in this browser only,
+// so it gives no such link itself (UseIt shows why); the address is still read, for links made by hand.
+const useFrom = takeUse(location, history);
+if (useFrom && !phone) useOpen.value = true;
+onMounted(() => {
+  if (useFrom && phone && barUseBtn.value) useSheet.value?.open(barUseBtn.value);
+});
 function writeUse(id: Destination['id']): void {
   try {
     sessionStorage.setItem(USE_KEY, id);
@@ -167,7 +174,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       base-name="pattern-builder"
       :svg-href="svgHref"
       svg-file-name="pattern-builder.svg"
-      :initial="readUse()"
+      :initial="useFrom ?? readUse()"
       preview-target="#use-sheet-preview"
       @destination="writeUse"
     >
@@ -191,7 +198,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <TilePanel />
       </div>
       <template v-if="useOpen && !phone">
-        <button type="button" class="btn quiet use-back" @click="closeUse">‹ Back to the design</button>
+        <button type="button" class="btn secondary use-back" @click="closeUse">‹ Back to the design</button>
         <UseIt
           :svg="svg"
           :tile-width="cell.width"
@@ -200,7 +207,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           base-name="pattern-builder"
           :svg-href="svgHref"
           svg-file-name="pattern-builder.svg"
-          :initial="readUse()"
+          :initial="useFrom ?? readUse()"
           preview-target="#use-preview"
           @destination="writeUse"
         >

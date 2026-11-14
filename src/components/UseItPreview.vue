@@ -2,7 +2,7 @@
 // The "Use it" preview: the tile on the device it is made for, drawn with CSS and inline SVG only.
 import { computed } from 'vue';
 import { svgToDataUri } from '@/css.ts';
-import { DESTINATIONS, type Destination, type Output } from '@/use-it.ts';
+import { DESTINATIONS, tilePercent, type Destination, type Output } from '@/use-it.ts';
 
 const props = defineProps<{
   svg: string;
@@ -13,6 +13,8 @@ const props = defineProps<{
   /** Output pixels; null for CSS and SVG outputs. */
   width: number | null;
   height: number | null;
+  /** PNG pixels per CSS pixel of the tile, as in the PNG; 1 for CSS and SVG. */
+  scale?: number;
   /** Hero only: the pattern fills a band at the top of the page instead of the whole page. */
   hero?: boolean;
   clockFade: boolean;
@@ -54,7 +56,7 @@ const across = computed(() => (props.destination === 'fabric' ? 2.5 : 1));
 const pattern = computed(() => ({
   backgroundColor: props.background ?? 'transparent',
   backgroundImage: `url("${svgToDataUri(props.svg)}")`,
-  backgroundSize: `${((props.tileWidth / size.value[0]) * 100) / across.value}% auto`,
+  backgroundSize: `${tilePercent(props.tileWidth, props.width ? (props.scale ?? 1) : 1, size.value[0]) / across.value}% auto`,
 }));
 const fade = computed(() => `linear-gradient(to bottom, ${props.background ?? 'rgb(0 0 0 / 0.55)'} 0%, transparent 32%)`);
 
@@ -170,8 +172,11 @@ const shirtMask = `url("${svgToDataUri(`<svg xmlns="http://www.w3.org/2000/svg" 
 }
 /* Phone: a rounded body, the clock over the wallpaper. */
 .uip-phone {
+  /* The clock is sized from the phone's own width, so it stays on one line however small the device is drawn. */
+  container-type: inline-size;
   box-sizing: border-box;
-  padding: 3%;
+  /* 3 % of the phone's own width (a % padding would take the stage's width, and squeeze a small phone's screen). */
+  padding: calc(0.03 * min(100cqw, 100cqh * var(--ar)));
   background: #17181c;
   border-radius: 14% / 6.5%;
   box-shadow: 0 0 0 1px var(--line);
@@ -189,8 +194,9 @@ const shirtMask = `url("${svgToDataUri(`<svg xmlns="http://www.w3.org/2000/svg" 
   inset: 9% 0 auto;
   display: grid;
   justify-items: center;
-  font: 800 clamp(1.5rem, 11cqh, 5rem) / 1 var(--font);
+  font: 800 min(24cqw, 5rem) / 1 var(--font);
   letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 .uip-date {
   font-size: 0.26em;

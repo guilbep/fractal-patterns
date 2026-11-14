@@ -5,7 +5,7 @@ import '@/css/palettes.css';
 import { largeTarget } from '@/pairing.ts';
 import { APCA_SCORE, APCA_VERSION, lcText, polarity } from '@/apca.ts';
 import '@/css/apca.css';
-import { applyFix, applyPalette, randomPalette, closedShapes, contrast, fill, fillAvailable, hasAccent, lastFix, offPalette, opacity, paletteName, params, plateBlur, plateMode, plateOpacity, plateRadius, ratioText, swap, type PlateMode } from '@/state.ts';
+import { applyFix, applyPalette, randomPalette, closedShapes, contrast, fill, fillAvailable, hasAccent, lastFix, offPalette, opacity, paletteName, params, plateBlur, plateMode, plateOpacity, plateRadius, ratioShort, ratioText, swap, type PlateMode } from '@/state.ts';
 import RoleInput from './RoleInput.vue';
 import UiSection from './UiSection.vue';
 
@@ -36,10 +36,10 @@ const apcaReached = computed(
 const offPaletteText = computed(() => new Intl.ListFormat('en', { type: 'conjunction' }).format(offPalette.value));
 
 const badges = computed(() => [
-  { label: 'AA normal text', min: '4.5', pass: contrast.value.normal !== 'fail' },
-  { label: 'AA large text', min: '3', pass: contrast.value.large !== 'fail' },
-  { label: 'AAA normal text', min: '7', pass: contrast.value.normal === 'AAA' },
-  { label: 'AAA large text', min: '4.5', pass: contrast.value.large === 'AAA' },
+  { label: 'AA normal text', short: 'AA text', min: '4.5', pass: contrast.value.normal !== 'fail' },
+  { label: 'AA large text', short: 'AA large', min: '3', pass: contrast.value.large !== 'fail' },
+  { label: 'AAA normal text', short: 'AAA text', min: '7', pass: contrast.value.normal === 'AAA' },
+  { label: 'AAA large text', short: 'AAA large', min: '4.5', pass: contrast.value.large === 'AAA' },
 ]);
 const modes: { value: PlateMode; label: string }[] = [
   { value: 'plate', label: 'Text on a plate' },
@@ -53,19 +53,28 @@ const fixes = computed(() => [
   { name: 'AA', target: 4.5, ok: passes(4.5) },
   { name: 'AAA', target: 7, ok: passes(7) },
 ]);
+// Phones (controls.css): one role row open at a time, and the "Details" toggle folds the cards below the contrast box.
+const openRole = ref('');
+const toggleRole = (r: string): void => {
+  openRole.value = openRole.value === r ? '' : r;
+};
+const details = ref(false);
 const contrastSummary = computed(() => `${ratioText(contrast.value.worst)}:1 · ${contrast.value.normal === 'fail' ? 'fails AA' : contrast.value.normal}`);
 const PLATE_SHORT: Record<PlateMode, string> = { plate: 'plate', split: 'heading on pattern', direct: 'on the pattern' };
 const plateSummary = computed(() => (plateMode.value === 'direct' ? PLATE_SHORT.direct : `${PLATE_SHORT[plateMode.value]} · ${Math.round(plateOpacity.value * 100)} %`));
 </script>
 
 <template>
-  <UiSection title="Colors and contrast" heading-id="colors-h" :summary="contrastSummary" open>
+  <UiSection class="cp-main" title="Colors and contrast" heading-id="colors-h" :summary="contrastSummary" open>
     <p class="lede">Three roles share the tile. The text has to stay readable on both the plain background and the strokes.</p>
 
     <div class="color-grid">
       <div class="roles">
-        <RoleInput role="background" label="Background" hint="fills the tile" />
-        <RoleInput role="pattern" label="Pattern" hint="the fractal strokes" />
+        <div class="rl-item" :class="{ open: openRole === 'background' }">
+          <RoleInput role="background" label="Background" hint="fills the tile" row :open="openRole === 'background'" @toggle="toggleRole('background')" />
+        </div>
+        <div class="rl-item" :class="{ open: openRole === 'pattern' }">
+        <RoleInput role="pattern" label="Pattern" hint="the fractal strokes" row :open="openRole === 'pattern'" :extra="` · ${Math.round(opacity * 100)} %`" @toggle="toggleRole('pattern')" />
         <div class="field">
           <label for="opacity">Pattern opacity <output for="opacity">{{ Math.round(opacity * 100) }}%</output></label>
           <input id="opacity" v-model.number="opacity" type="range" min="0" max="1" step="0.01">
@@ -93,14 +102,25 @@ const plateSummary = computed(() => (plateMode.value === 'direct' ? PLATE_SHORT.
             <template v-if="fillAvailable && fill.mode !== 'none' && closedShapes === 0"> This pattern has no closed shape to fill.</template>
           </p>
         </fieldset>
-        <RoleInput v-if="hasAccent(params.kind)" role="accent" label="Accent" hint="the shapes this pattern marks" />
-        <RoleInput role="text" label="Text" hint="sits on top of both" />
+        </div>
+        <div v-if="hasAccent(params.kind)" class="rl-item" :class="{ open: openRole === 'accent' }">
+          <RoleInput role="accent" label="Accent" hint="the shapes this pattern marks" row :open="openRole === 'accent'" @toggle="toggleRole('accent')" />
+        </div>
+        <div class="rl-item" :class="{ open: openRole === 'text' }">
+          <RoleInput role="text" label="Text" hint="sits on top of both" row :open="openRole === 'text'" @toggle="toggleRole('text')" />
+        </div>
         <p class="adjusted" role="status">
           <template v-if="offPalette.length">Adjusted: the {{ offPaletteText }} {{ offPalette.length > 1 ? 'colors are' : 'color is' }} not from this palette.</template>
         </p>
-        <button type="button" class="btn" @click="swap">Swap background and text</button>
+        <button type="button" class="btn cp-more" @click="swap">Swap background and text</button>
       </div>
 
+      <div class="cp-box">
+        <p class="cp-box-ratio"><span class="cp-box-label">Paragraph, worst spot</span><span class="cp-box-num">{{ ratioShort(contrast.worst) }}<span>:1</span></span></p>
+        <ul class="cp-box-lines">
+          <li v-for="b in badges" :key="b.label" :class="b.pass ? 'pass' : 'fail'"><span aria-hidden="true">{{ b.pass ? '✓' : '✗' }}</span> {{ b.short }}<span class="visually-hidden">: {{ b.pass ? 'pass' : 'fail' }}</span></li>
+        </ul>
+      </div>
       <div class="contrast" aria-labelledby="contrast-h">
         <h3 id="contrast-h">Paragraph contrast, worst case</h3>
         <p class="ratio"><span class="ratio-num">{{ ratioText(contrast.worst) }}</span><span class="ratio-unit">:1</span></p>
@@ -126,7 +146,7 @@ const plateSummary = computed(() => (plateMode.value === 'direct' ? PLATE_SHORT.
           </template>
           <template v-else-if="lastFix?.measure === 'wcag'">Fixed. {{ lastFix.changed }} Now {{ ratioText(lastFix.ratio) }}:1.</template>
         </p>
-        <dl class="surfaces">
+        <dl class="surfaces cp-more">
           <div><dt>On the plate</dt><dd>{{ ratioText(contrast.onPlate) }}:1</dd></div>
           <div><dt>Directly on the pattern</dt><dd>{{ ratioText(contrast.direct) }}:1</dd></div>
           <div v-if="contrast.onFill !== null"><dt>On the fill</dt><dd>{{ ratioText(contrast.onFill) }}:1</dd></div>
@@ -144,15 +164,16 @@ const plateSummary = computed(() => (plateMode.value === 'direct' ? PLATE_SHORT.
             The pattern is almost invisible on this background ({{ ratioText(contrast.pattern) }}:1). Pick a different pattern color or raise its opacity.
           </template>
         </p>
-        <p class="note">Text on the pattern crosses both the background and the strokes, so the lower ratio is the one a reader gets. A plate hides part of the pattern behind the text, so the large number counts the surface the paragraph really sits on: the plate, or the pattern in "Text on the pattern" mode. The pattern itself is decorative and exempt from WCAG 1.4.11; its ratio only tells you how visible it is.</p>
+        <p class="note cp-more">Text on the pattern crosses both the background and the strokes, so the lower ratio is the one a reader gets. A plate hides part of the pattern behind the text, so the large number counts the surface the paragraph really sits on: the plate, or the pattern in "Text on the pattern" mode. The pattern itself is decorative and exempt from WCAG 1.4.11; its ratio only tells you how visible it is.</p>
 
-        <p class="links">
+        <p class="links cp-more">
           WCAG 2.2:
           <a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html">1.4.3 Contrast (minimum)</a>,
           <a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-enhanced.html">1.4.6 Contrast (enhanced)</a>,
           <a href="https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html">1.4.11 Non-text contrast</a>
         </p>
       </div>
+      <button type="button" class="cp-details" :aria-expanded="details" @click="details = !details">Details · APCA, color vision <span aria-hidden="true">▸</span></button>
     </div>
   </UiSection>
 

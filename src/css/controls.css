@@ -457,8 +457,7 @@
   display: grid;
   justify-items: start;
   gap: var(--s1);
-||||||| parent of 2995512 (Show the phone Colors tab as compact role rows)
-
+}
 
 /* Phone Colors tab (design board Mobile-Sheet): role rows with one-tap dots, a compact contrast box and a
    "Details" toggle that folds the rest. Above 600 px these parts are hidden and the desktop card is unchanged. */

@@ -81,3 +81,15 @@ Patterns loads 1.9 kB more JavaScript at start. That is the loader of the card, 
 A visitor who opens a symmetry kind loads the card (about 3.2 kB gzip). Color symmetry on adds the tile code (about 2.7 kB gzip). The Smooth wheel adds the worker and its client (about 6.4 kB gzip). Before that, they cost nothing.
 
 The layout shift is 0.000 on the three pages. The Patterns score is 96, one point lower. Its FCP is 147 ms slower and its LCP 147 ms slower, and its TBT is 39 ms lower. Studio is faster, and Builder FCP is 148 ms faster. These numbers vary from run to run, also on an unchanged build. They do not prove a change.
+
+## Known issue: a redraw takes more than 50 ms on a slow CPU
+
+Measured after the merge, production build, Chromium, 4 clicks each (long tasks over 50 ms):
+
+| CPU | Wheel, New recipe | Bands, New recipe | Lines, Shuffle (as before this phase) |
+|---|---|---|---|
+| 1× | none | none | none |
+| 2× | 63, 53, 52 ms | 65, 68, 77, 63 ms | 56, 63, 62, 52 ms |
+| 3× | 82, 95, 83, 71 ms | 139, 106, 115, 81 ms | 97, 90, 89, 85 ms |
+
+The redraw after any design change runs on the main thread: the tile, the CSS export and the contrast check. It was already above 50 ms at 2× CPU before this phase, in Lines mode. Growing the wheel in the worker adds no long task. A later phase can move the export and the contrast check off the critical path.

@@ -1,11 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { contrastRatio } from './contrast.ts';
-import { geometry } from './fractal.ts';
+import { createHash } from 'node:crypto';
+import { KINDS, accentGeometry, extraPath, generate, geometry, hasAccent, svgFromPolylines, tileAspect } from './fractal.ts';
 import { worstTextContrast } from './pairing.ts';
 import { mulberry32, type Pt } from './patterns/util.ts';
 import { sceneToSvg, squareScene } from './scene.ts';
 import {
+  NO_FILL,
   fillScene,
   fillVisible,
   isClosed,
@@ -138,4 +140,98 @@ test('fillVisible is 1 without a fill and above 1 for a different fill', () => {
   const s: Surfaces = { background: '#ffffff', pattern: '#000000', patternOpacity: 0.6, fill: null, fillOpacity: 1 };
   assert.equal(fillVisible(s), 1);
   assert.ok(fillVisible({ ...s, fill: '#336699' }) > 1);
+});
+
+const ACCENT_STROKE = { size: 20, strokeWidth: 1, color: '#000000', opacity: 1 };
+
+test('accent shapes: a fill layer over the fill and under the strokes, at full opacity', () => {
+  const polys = [square(0, 0, 10), line];
+  const berry = square(12, 12, 4);
+  const scene = fillScene(polys, ACCENT_STROKE, { mode: 'closed', color: '#00ff00', opacity: 0.5 }, { polys: [berry], color: '#e07a3f' });
+  assert.deepEqual(
+    scene.layers.map((l) => [l.paint.mode, l.paint.color, l.paint.opacity]),
+    [
+      ['fill', '#00ff00', 0.5],
+      ['fill', '#e07a3f', 1],
+      ['stroke', '#000000', 1],
+    ],
+  );
+  assert.deepEqual(scene.layers[1]!.polys, [berry]);
+  // Without a fill, the accent sits right under the strokes.
+  const alone = fillScene(polys, ACCENT_STROKE, NO_FILL, { polys: [berry], color: '#e07a3f' });
+  assert.deepEqual(
+    alone.layers.map((l) => l.paint.mode),
+    ['fill', 'stroke'],
+  );
+  assert.ok(sceneToSvg(alone, 1).includes('fill="#e07a3f" fill-opacity="1"'));
+});
+
+test('no accent shapes: the scene and its bytes are those without the hook', () => {
+  const polys = [square(0, 0, 10), line];
+  for (const fill of [NO_FILL, { mode: 'closed', color: '#00ff00', opacity: 0.5 } as const]) {
+    const before = sceneToSvg(fillScene(polys, ACCENT_STROKE, fill), 1);
+    assert.equal(sceneToSvg(fillScene(polys, ACCENT_STROKE, fill, { polys: [], color: '#e07a3f' }), 1), before);
+  }
+  assert.deepEqual(fillScene(polys, ACCENT_STROKE, NO_FILL), squareScene(polys, ACCENT_STROKE));
+});
+
+test('every kind without the accent hook: no accent shapes, generate() as before at 3 seeds', () => {
+  for (const kind of KINDS.filter((k) => !hasAccent(k))) {
+    assert.deepEqual(accentGeometry({ kind, seed: 1, depth: 2, size: 120 }), [], kind);
+    for (const seed of [1, 42, 2692185587]) {
+      const p = { kind, seed, depth: 2, size: 120, strokeWidth: 2, precision: 1, color: '#336699', opacity: 0.6, accent: '#e07a3f' };
+      assert.equal(generate(p), svgFromPolylines(geometry(p), p, tileAspect(kind), extraPath(p)), `${kind}/${seed}`);
+    }
+  }
+});
+
+// sha256 (first 16 hex digits) of generate() on the commit before the accent hook (3b3afad). A fixed list, not KINDS,
+// so a kind added later does not change this test.
+const GENERATE_BEFORE: Record<string, string> = {
+  'tree/1': '5efa51add3d599c2',
+  'tree/42': 'c89e6e5bb0b17ee8',
+  'tree/2692185587': '4de09a8c769b0f9a',
+  'carpet/1': 'f6adc491d004b70c',
+  'carpet/42': '4f5a383ab23d22e3',
+  'carpet/2692185587': 'c80917aec957bb6d',
+  'hex/1': '81b63dd9bb33919f',
+  'hex/42': 'b7ccdf888ab233e5',
+  'hex/2692185587': '0870907508cccd3b',
+  'penrosearcs/1': '3d45ef5b7afdc972',
+  'penrosearcs/42': '049de0848ce2f5dc',
+  'penrosearcs/2692185587': '3fa74387b9f2902e',
+  'p6m/1': '12b91ff3117cfdba',
+  'p6m/42': '1d9c64be365be18d',
+  'p6m/2692185587': 'cd744dad2d1d0fb6',
+  'chladni/1': '2a800baae9b74f68',
+  'chladni/42': 'd1c28c250cd3c8cb',
+  'chladni/2692185587': '02b962dc75fdba73',
+  'quilt/1': '9ada2dc24907a684',
+  'quilt/42': '6b6e9ce624f34cee',
+  'quilt/2692185587': '0ab46d4df2ffb8c0',
+  'dodecastars/1': '1d2d58a7186f1df6',
+  'dodecastars/42': '8f84b29a197556c1',
+  'dodecastars/2692185587': '6b41df8088bd0842',
+};
+
+test('generate() is byte-identical to before the accent hook, with or without an accent color', () => {
+  for (const [key, hash] of Object.entries(GENERATE_BEFORE)) {
+    const [kind, seed] = key.split('/') as [(typeof KINDS)[number], string];
+    const p = { kind, seed: Number(seed), depth: 3, size: 120, strokeWidth: 2, precision: 1, color: '#336699', opacity: 0.6 };
+    const sha = (s: string) => createHash('sha256').update(s).digest('hex').slice(0, 16);
+    assert.equal(sha(generate(p)), hash, key);
+    assert.equal(sha(generate({ ...p, accent: '#e07a3f' })), hash, key);
+  }
+});
+
+test('the accent surface joins the worst case: black text over a #808080 accent', () => {
+  const s: Surfaces = { background: '#ffffff', pattern: '#000000', patternOpacity: 0, fill: null, fillOpacity: 1, accent: '#808080' };
+  const worst = worstTextContrastSurfaces('#000000', s);
+  // L(#808080) = ((128/255 + 0.055) / 1.055)^2.4 = 0.21586; (0.21586 + 0.05) / 0.05 = 5.317.
+  assert.equal(worst, contrastRatio('#000000', '#808080'));
+  assert.ok(Math.abs(worst - 5.317) < 0.001, `${worst}`);
+  // Without the accent the worst case is the white background, 21:1.
+  assert.equal(worstTextContrastSurfaces('#000000', { ...s, accent: null }), 21);
+  // Under a plate of 0.5 the accent shows at half strength.
+  assert.ok(surfaceColors(plateSurfaces(s, 0.5)).includes('#c0c0c0'));
 });

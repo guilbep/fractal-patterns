@@ -4,7 +4,7 @@ import { KINDS, MAX_DEPTH } from './fractal.ts';
 import { createHistory } from './history.ts';
 import { LAYER2_DEFAULTS } from './layers.ts';
 import { VARIANT_DEFAULTS, type VariantOptions } from './variants.ts';
-import { DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design, WELCOME } from './share.ts';
+import { ACCENT_DEFAULT, DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design, WELCOME } from './share.ts';
 
 // Small seeded generator (mulberry32), so failures reproduce.
 function rng(seed: number): () => number {
@@ -65,6 +65,7 @@ function randomDesign(r: () => number): Design {
     fill: r() < 0.5 ? DESIGN_DEFAULTS.fill : { mode: pick(['closed', 'alternate'] as const), color: color(), opacity: real(0, 1) },
     layer2Color: r() < 0.5 ? null : color(),
     change: r() < 0.5 ? DESIGN_DEFAULTS.change : { dir: pick(['down', 'up', 'across'] as const), to: real(0.2, 0.8) },
+    accent: r() < 0.5 ? DESIGN_DEFAULTS.accent : color(),
   };
 }
 
@@ -131,6 +132,7 @@ const FULL: Design = {
   fill: { mode: 'alternate', color: '#c3eaec', opacity: 0.55 }, // the longest the slider gives
   layer2Color: '#e07a5f',
   change: { dir: 'across', to: 0.55 }, // the longest the slider gives
+  accent: '#123456',
 };
 
 function assertValid(d: Design, label: string): void {
@@ -204,8 +206,8 @@ test('a design with every field non-default stays short', () => {
   const s = encodeDesign(FULL);
   // 177 before the variants key, + '&v=1', + '&l2=1&fd=1', + '&l2s=100_100_-180_2.95_0.55_3.85' (32), + '&px=1' (5),
   // + '&vo=6_6_1_h_1_0.55_0.55_0.45_3' (30), + '&sx=1' (5), + '&fi=a_c3eaec_0.55' (17), + '&l2c=e07a5f' (11),
-  // + '&ch=a_0.55' (10)
-  assert.ok(s.length <= 302, `${s.length}`);
+  // + '&ch=a_0.55' (10), + '&ac=123456' (10)
+  assert.ok(s.length <= 312, `${s.length}`);
   assert.deepEqual(decodeDesign(s), FULL);
 });
 
@@ -307,6 +309,7 @@ test('variants: round trip, absent means false, old links decode as before', () 
     fill: DESIGN_DEFAULTS.fill,
     layer2Color: null,
     change: DESIGN_DEFAULTS.change,
+    accent: DESIGN_DEFAULTS.accent,
   };
   assert.deepEqual(decodeDesign(old), oldDesign);
   assert.equal(encodeDesign(oldDesign), old);
@@ -412,7 +415,7 @@ test('variant options: one vo key, round trip of 30 random sets, absent means de
   assert.equal(decodeDesign('vo=6_6_1_h_1_0.5_0.3_0').variantOptions.shift, 2);
   // Appended last: older keys come first.
   assert.ok(
-    encodeDesign({ ...FULL, layer2Color: null, change: DESIGN_DEFAULTS.change }).endsWith(
+    encodeDesign({ ...FULL, layer2Color: null, change: DESIGN_DEFAULTS.change, accent: DESIGN_DEFAULTS.accent }).endsWith(
       '&px=1&vo=6_6_1_h_1_0.55_0.55_0.45_3&sx=1&fi=a_c3eaec_0.55',
     ),
   );
@@ -457,12 +460,17 @@ test('sections: key sx last, round-trips, absent means false, old links unchange
   assert.equal(decodeDesign('').sections, false);
   assert.equal(decodeDesign('k=fern&px=1&vo=6_6_1_h_1_0.55_0.55_0.45').sections, false);
   assert.ok(
-    encodeDesign({ ...FULL, fill: DESIGN_DEFAULTS.fill, layer2Color: null, change: DESIGN_DEFAULTS.change, sections: true }).endsWith(
-      '&sx=1',
-    ),
+    encodeDesign({
+      ...FULL,
+      fill: DESIGN_DEFAULTS.fill,
+      layer2Color: null,
+      change: DESIGN_DEFAULTS.change,
+      accent: DESIGN_DEFAULTS.accent,
+      sections: true,
+    }).endsWith('&sx=1'),
   );
   assert.deepEqual(decodeDesign(encodeDesign({ ...FULL, sections: false })), { ...FULL, sections: false });
-  const noFill = { ...FULL, fill: DESIGN_DEFAULTS.fill, layer2Color: null, change: DESIGN_DEFAULTS.change };
+  const noFill = { ...FULL, fill: DESIGN_DEFAULTS.fill, layer2Color: null, change: DESIGN_DEFAULTS.change, accent: DESIGN_DEFAULTS.accent };
   assert.equal(encodeDesign({ ...noFill, sections: false }) + '&sx=1', encodeDesign({ ...noFill, sections: true }));
 });
 
@@ -475,7 +483,7 @@ test('fill: key fi last, compact, round-trips, omitted when off, malformed gives
   for (const bad of ['x_abcdef_1', 'c_abcde_1', 'c_abcdef_', 'c_abcdef_NaN', 'c_abcdef', 'c_abcdef_1_2', ''])
     assert.deepEqual(decodeDesign(`fi=${bad}`).fill, DESIGN_DEFAULTS.fill, bad);
   assert.deepEqual(decodeDesign('k=fern&sx=1').fill, DESIGN_DEFAULTS.fill);
-  assert.ok(encodeDesign(FULL).endsWith('&sx=1&fi=a_c3eaec_0.55&l2c=e07a5f&ch=a_0.55'));
+  assert.ok(encodeDesign(FULL).endsWith('&sx=1&fi=a_c3eaec_0.55&l2c=e07a5f&ch=a_0.55&ac=123456'));
   assert.deepEqual(decodeDesign(encodeDesign(FULL)).fill, FULL.fill);
 });
 
@@ -497,4 +505,19 @@ test('the welcome design is a valid link that survives a round trip', () => {
   assert.equal(d.variants, true);
   assert.equal(d.fade, true);
   assert.equal(encodeDesign(d), WELCOME);
+});
+
+test('the accent: ac only when not the default, last, round trip; old links decode to the default and encode unchanged', () => {
+  assert.equal(DESIGN_DEFAULTS.accent, ACCENT_DEFAULT);
+  for (const old of [WELCOME, 'k=brick&s=7&v=1', 'k=brick&s=7&v=1&l2=1&fd=1']) {
+    const d = decodeDesign(old);
+    assert.equal(d.accent, ACCENT_DEFAULT, old);
+    assert.equal(encodeDesign(d), old, old);
+  }
+  const d = { ...DESIGN_DEFAULTS, accent: '#123456' };
+  assert.equal(encodeDesign(d), 'ac=123456');
+  assert.deepEqual(decodeDesign('ac=123456'), d);
+  assert.equal(sameDesign(d, DESIGN_DEFAULTS), false);
+  assert.equal(decodeDesign('ac=ABCDEF').accent, '#abcdef');
+  for (const bad of ['zzzzzz', '12345', '1234567', '']) assert.equal(decodeDesign(`ac=${bad}`).accent, ACCENT_DEFAULT, bad);
 });

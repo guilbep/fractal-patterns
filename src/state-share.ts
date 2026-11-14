@@ -5,11 +5,13 @@ import { createHistory } from '@/history.ts';
 import { linkedPalette } from '@/palettes.ts'; // STUDIO-PAL
 import { DESIGN_DEFAULTS, decodeDesign, encodeDesign, sameDesign, type Design, WELCOME } from '@/share.ts';
 import {
+  accent,
   applyPalette,
   change,
   changeTo,
   fade,
   fill,
+  hasAccent,
   lastFix,
   layer2,
   layer2Color,
@@ -61,6 +63,8 @@ export function snapshot(): Design {
     fill: { ...fill },
     layer2Color: layer2Own.value ? layer2Color.value : null,
     change: { dir: change.value, to: changeTo.value },
+    // Only a kind with accent shapes carries its accent color: a palette pick on another kind leaves the link as it was.
+    accent: hasAccent(params.kind) ? accent.value : DESIGN_DEFAULTS.accent,
   };
 }
 
@@ -90,6 +94,7 @@ export function applyDesign(d: Design): void {
   Object.assign(fill, d.fill);
   layer2Own.value = d.layer2Color !== null;
   if (d.layer2Color !== null) layer2Color.value = d.layer2Color;
+  if (hasAccent(d.kind)) accent.value = d.accent;
   source.value = 'math';
   lastFix.value = null; // the Fix result no longer describes these colors
 }

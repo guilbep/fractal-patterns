@@ -5,7 +5,7 @@ import '@/css/palettes.css';
 import { largeTarget } from '@/pairing.ts';
 import { APCA_SCORE, APCA_VERSION, lcText, polarity } from '@/apca.ts';
 import '@/css/apca.css';
-import { applyFix, applyPalette, randomPalette, closedShapes, contrast, fill, fillAvailable, lastFix, offPalette, opacity, paletteName, plateBlur, plateMode, plateOpacity, plateRadius, ratioText, swap, type PlateMode } from '@/state.ts';
+import { applyFix, applyPalette, randomPalette, closedShapes, contrast, fill, fillAvailable, hasAccent, lastFix, offPalette, opacity, paletteName, params, plateBlur, plateMode, plateOpacity, plateRadius, ratioText, swap, type PlateMode } from '@/state.ts';
 import RoleInput from './RoleInput.vue';
 import UiSection from './UiSection.vue';
 
@@ -93,6 +93,7 @@ const plateSummary = computed(() => (plateMode.value === 'direct' ? PLATE_SHORT.
             <template v-if="fillAvailable && fill.mode !== 'none' && closedShapes === 0"> This pattern has no closed shape to fill.</template>
           </p>
         </fieldset>
+        <RoleInput v-if="hasAccent(params.kind)" role="accent" label="Accent" hint="the shapes this pattern marks" />
         <RoleInput role="text" label="Text" hint="sits on top of both" />
         <p class="adjusted" role="status">
           <template v-if="offPalette.length">Adjusted: the {{ offPaletteText }} {{ offPalette.length > 1 ? 'colors are' : 'color is' }} not from this palette.</template>
@@ -129,6 +130,7 @@ const plateSummary = computed(() => (plateMode.value === 'direct' ? PLATE_SHORT.
           <div><dt>On the plate</dt><dd>{{ ratioText(contrast.onPlate) }}:1</dd></div>
           <div><dt>Directly on the pattern</dt><dd>{{ ratioText(contrast.direct) }}:1</dd></div>
           <div v-if="contrast.onFill !== null"><dt>On the fill</dt><dd>{{ ratioText(contrast.onFill) }}:1</dd></div>
+          <div v-if="contrast.onAccent !== null"><dt>On the accent</dt><dd>{{ ratioText(contrast.onAccent) }}:1</dd></div>
           <div class="info"><dt>Pattern visibility <span class="tag">informational</span></dt><dd>{{ ratioText(contrast.pattern) }}:1</dd></div>
         </dl>
         <p v-if="plateMode === 'split'" class="badge heading-line" :class="contrast.heading === 'fail' ? 'fail' : 'pass'">
@@ -186,6 +188,7 @@ const plateSummary = computed(() => (plateMode.value === 'direct' ? PLATE_SHORT.
         <div class="info"><dt>On the plate</dt><dd>{{ lcText(contrast.apca.onPlate) }}</dd></div>
         <div class="info"><dt>Directly on the pattern</dt><dd>{{ lcText(contrast.apca.direct) }}</dd></div>
         <div v-if="contrast.apca.onFill !== null" class="info"><dt>On the fill</dt><dd>{{ lcText(contrast.apca.onFill) }}</dd></div>
+        <div v-if="contrast.apca.onAccent !== null" class="info"><dt>On the accent</dt><dd>{{ lcText(contrast.apca.onAccent) }}</dd></div>
       </dl>
       <div class="apca-raise">
         <label for="apca-target">Raise target</label>
